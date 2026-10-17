@@ -196,16 +196,18 @@ def main() -> None:
         console.send("\r")
         summary["phase"] = "select disposable disk"
         select_install_disk(console)
-        console.expect(r"recommended", screen=True)
+        console.expect(r"recommended.*Yes.*No", screen=True)
         console.send("\t\r")
-        confirmation = console.expect(r"Last Chance!.*?vtbd1", screen=True)
+        confirmation = console.expect(r"Last Chance!.*?vtbd1.*YES.*NO", screen=True)
         if re.search(r"\bvtbd0\b", confirmation):
             raise RuntimeError("Installer confirmation includes the installation media; refusing to continue")
         console.arrow("left")
         console.send("\r")
         summary["phase"] = "install system"
         print("Installing onto the dedicated virtual target disk.", flush=True)
-        console.expect(r"Final Configuration", timeout=300, screen=True)
+        result = console.expect(r"Final Configuration|Partitioning error", timeout=300, screen=True)
+        if "Partitioning error" in result:
+            raise RuntimeError("The vendor installer aborted during partitioning")
         console.expect(r"Complete Install", screen=True)
         console.arrow("down")
         console.send("\r")
