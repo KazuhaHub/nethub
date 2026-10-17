@@ -392,6 +392,8 @@ psql --version        # 只用客户端，不需要在本机跑 Postgres 服务
 
 4. 给 GitHub 账号开两步验证。
 
+**执行环境检查（2026-10-17）：** Git 2.53.0.windows.3、GitHub CLI 2.102.0、Go 1.26.9、Node 24.14.0、npm 11.9.0、Python 3.12.14、actionlint 1.7.12。GitHub CLI、Go、actionlint 的下载包已经对照上游 SHA256 校验。Python 3.12 可执行当前 W0 文件检查，后续设备侧开发仍需 3.13；Docker/Compose、psql、jq、OpenSSL 未在 PATH 找到。上述版本来自本次执行环境，不代表用户另开的 PowerShell 可直接使用相同路径。
+
 ### 5.2 测试资源【D3】
 
 这些资源由 Kazuha 决定谁准备。资源到位之前，只能做 P0 和读文档。
@@ -459,7 +461,7 @@ gh repo create KazuhaHub/nethub --private --source . --push   # --private 或 --
 `docs/PLAN.md`（本文件）要不要进仓库，按【D12】决定。如果不进，提交前把它挪出仓库目录。
 
 **P0-4 加最小 CI（你做，走 PR）。**
-**进度（2026-10-17）：** 本地分支 `ci/p0-bootstrap` 已实现 CI 与 Dependabot；actionlint v1.7.12 通过，工作流中的 TOML 结构检查与探针语法检查通过；临时目录中将 `metadatas.device_id` 移到代理表下，TOML 可解析但结构检查按预期拒绝。GitHub 拒绝 workflow 推送，原因是现有 OAuth 凭据缺少 `workflow` scope；尚未创建 PR、尚无线上红/绿证据，不能勾选线上 CI 验收。
+**进度（2026-10-17）：** [PR #1](https://github.com/KazuhaHub/nethub/pull/1) 已实现 CI 与 Dependabot；actionlint v1.7.12、TOML 结构检查与探针语法检查通过。GitHub CLI 的 `workflow` scope 已补充授权，推送恢复。线上[正常配置运行](https://github.com/KazuhaHub/nethub/actions/runs/39025182708) 的两个检查通过；将 `metadatas.device_id` 移到代理表下后，[负例运行](https://github.com/KazuhaHub/nethub/actions/runs/39025232350) 的结构检查按预期拒绝有效但字段错位的 TOML。配置已恢复，恢复后的线上运行链接见 PR。尚未审核合并，不把 P0 标为完成。
 
 现在还没有代码，CI 先检查已有的东西：Weekend 0 的两份 TOML 能正确解析，`probe.py` 语法正确，workflow 文件本身没错。
 写法参考 `KazuhaHub/authcore` 的 `.github/workflows/ci.yml`，主要学这几点：

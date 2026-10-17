@@ -19,7 +19,7 @@
 - 设计方案是 `docs/DESIGN.md` v0.3（中文），它是架构上的权威。
   执行计划是 `docs/PLAN.md`（中文），它把设计拆成按顺序做的任务：P0、W0–W7，再加缓冲。
 - 第一次真实环境实验 **Weekend 0（W0）还没跑过**。工具在 `weekend0/` 里，已经修好，但从来没有在真实网络里用过。
-- P0-4/P0-5 已在本地分支 `ci/p0-bootstrap` 实现：最小 CI、每周 Actions Dependabot。actionlint v1.7.12、TOML 结构和探针语法检查通过；有效 TOML 中故意错放设备元数据也会被拒绝。推送被 GitHub 拒绝（现有 OAuth 凭据缺少 `workflow` scope），尚无 PR 或线上红/绿证据，等待补充授权后继续。
+- P0-4/P0-5 已在 [PR #1](https://github.com/KazuhaHub/nethub/pull/1) 实现：最小 CI、每周 Actions Dependabot。首次线上 CI 两个检查通过；故意错放设备元数据的线上负例被结构检查拒绝，配置已恢复，恢复后的线上运行链接见 PR。`workflow` scope 已补充授权；PR 尚未审核合并。
 - P0-6 受平台限制：查询 `main` 生效规则时，GitHub API 返回 403，提示当前私有仓库需升级套餐或公开才能启用。保持私有，不更改可见性；分支保护尚未完成。
 - 这个项目 2026-09-17 暂停过，2026-10-16 恢复。暂停期间组织里的共享 Go 模块 `KazuhaHub/authcore` 已经做完（v0.6.1）。
 

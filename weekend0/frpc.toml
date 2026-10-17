@@ -61,6 +61,7 @@ log.level = "info"
 # 这就是验收项②要确认的"归属校验能拿到的字段"之一。Weekend 0 先填占位值，
 # 看 probe.py 收到的 JSON 里这些字段长什么样；真正的签名声明（HMAC
 # signature）以后会放在这里。
+metadatas.device_id = "weekend0-test-device"
 metadatas.claim_placeholder = "REPLACE_WITH_SIGNED_DOMAIN_CLAIM"
 
 # --- 控制通道加密（顶层，用点号写法，不开 [transport] 表头）---
@@ -110,7 +111,6 @@ transport.heartbeatTimeout = 30
 # 从这里往下只放这条代理自己的字段。任何顶层字段都不要写在这一行之后。
 # =============================================================================
 [[proxies]]
-metadatas.device_id = "weekend0-test-device"
 # 代理名。frpc 日志里的标签就是它，例如 "[opnsense-webui] start proxy success"；
 # frps 发给 httpPlugins 的 NewProxy / NewUserConn 请求里的 proxy_name 也是它。
 name = "opnsense-webui"
