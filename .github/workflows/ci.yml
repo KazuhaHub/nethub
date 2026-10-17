@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions: {}
+
+jobs:
+  weekend0-kit:
+    name: weekend0 kit checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Parse TOML configs and check structure
+        run: |
+          python3 -I - <<'PY'
+          from pathlib import Path
+          import tomllib
+
+          c = tomllib.loads(Path("weekend0/frpc.toml").read_text(encoding="utf-8"))
+          s = tomllib.loads(Path("weekend0/frps.toml").read_text(encoding="utf-8"))
+          assert set(c.get("metadatas", {})) == {"device_id", "claim_placeholder"}, "frpc metadatas must be top-level and complete"
+          assert "metadatas" not in c["transport"] and "metadatas" not in c["proxies"][0], "frpc metadatas misplaced"
+          assert "log" in c and "log" not in c["proxies"][0], "frpc log must be top-level"
+          assert c["transport"].get("heartbeatInterval") == 10 and c["transport"].get("heartbeatTimeout") == 30, "frpc heartbeat keys missing"
+          assert "log" in s and "log" not in s["httpPlugins"][0], "frps log must be top-level"
+          assert s["transport"].get("heartbeatTimeout") == 30, "frps heartbeatTimeout missing"
+          assert s["httpPlugins"][0]["ops"] == ["Login", "NewProxy", "NewUserConn", "Ping"], "frps ops changed"
+          print("TOML structure OK")
+          PY
+
+      - name: Check probe.py syntax
+        run: python3 -I -X pycache_prefix="$RUNNER_TEMP/nethub-pycache" -m py_compile weekend0/probe.py
+
+  actionlint:
+    name: workflow lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.0"
+          cache: false
+
+      - name: actionlint
+        env:
+          GOWORK: "off"
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
