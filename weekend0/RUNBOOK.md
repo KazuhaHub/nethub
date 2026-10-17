@@ -10,6 +10,12 @@ Run it from GitHub Actions with **Run workflow**, or open a PR changing the pref
 
 This is preparation, not W0 acceptance. The live installer is not an installed, updated test device. The six experiments below still require the specified OPNsense version, public relay, DNS, and real external networks.
 
+## Selected local NAT test topology
+
+Kazuha clarified on 2026-10-17 that the current Windows machine hosts the OPNsense VM/client and the remote LXC runs the NetHub server/relay. Use separate internal Hyper-V LAN/WAN switches with outbound WinNAT; do not bridge the guest to the public adapter or add inbound NAT mappings. WinNAT does not provide DHCP: configure the guest WAN address, gateway, and DNS explicitly. The GUI remains reachable from the host LAN for setup, and later through frp for the experiment.
+
+Hyper-V is installed and the guest disk is prepared, but startup at 3, 2, and 1.5 GiB failed because the host lacked memory available to Hyper-V. The guest is currently configured at 2 GiB; auxiliary windows were closed, but the Hyper-V memory-balancer counter remained below 1 GiB. This is separate from Windows reporting about 2 GiB free. Resume from the existing VM after resolving memory pressure; do not recreate it or start the abandoned guest inside the LXC. Configure the interfaces and credentials, update the signed 26.7 base image to the required version below, and verify outbound access before testing. Local NAT is not carrier CGNAT evidence; the real external-network samples are still required.
+
 ## 这是什么、为什么要做
 
 这是 NetHub 项目写第一行产品代码之前的第一步。目的只有一个：用真实的 frp
@@ -65,7 +71,7 @@ This is preparation, not W0 acceptance. The live installer is not an installed, 
     2026-10-17): Kazuha permits package building, signing, and NetHub use on
     this machine. Removing signing keys or build/signing scratch is no longer
     required before testing. Other signing hosts remain outside scope.
-  - 用打包仓库那台专用测试机时，注意它和"NAT 后面的家用路由器"不一样（PLAN §5.2）：
+  - If using the earlier public packaging test device for a separate comparison, account for its differences from the selected NAT guest (PLAN §5.2):
     GUI 不在 443，第 2.3 步要把 `localPort` 改成它实际的 GUI 端口；它有公网 IP，
     GUI 端口在 WAN 上对外开放，做验收项①之前要把这条放行规则限制成只允许你自己的 IP，
     否则①证明不了"不开入站端口也能访问"，结果里也要写明它不在 NAT/CGNAT 后面。
