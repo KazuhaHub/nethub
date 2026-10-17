@@ -461,7 +461,7 @@ gh repo create KazuhaHub/nethub --private --source . --push   # --private 或 --
 `docs/PLAN.md`（本文件）要不要进仓库，按【D12】决定。如果不进，提交前把它挪出仓库目录。
 
 **P0-4 加最小 CI（你做，走 PR）。**
-**进度（2026-10-17）：** [PR #1](https://github.com/KazuhaHub/nethub/pull/1) 已实现 CI 与 Dependabot；actionlint v1.7.12、TOML 结构检查与探针语法检查通过。GitHub CLI 的 `workflow` scope 已补充授权，推送恢复。线上[正常配置运行](https://github.com/KazuhaHub/nethub/actions/runs/39025182708) 的两个检查通过；将 `metadatas.device_id` 移到代理表下后，[负例运行](https://github.com/KazuhaHub/nethub/actions/runs/39025232350) 的结构检查按预期拒绝有效但字段错位的 TOML。配置已恢复，恢复后的线上运行链接见 PR。尚未审核合并，不把 P0 标为完成。
+**进度（2026-10-17）：** [PR #1](https://github.com/KazuhaHub/nethub/pull/1) 已实现 CI 与 Dependabot；actionlint v1.7.12、TOML 结构检查与探针语法检查通过。GitHub CLI 的 `workflow` scope 已补充授权，推送恢复。线上[正常配置运行](https://github.com/KazuhaHub/nethub/actions/runs/39025182708) 的两个检查通过；将 `metadatas.device_id` 移到代理表下后，[负例运行](https://github.com/KazuhaHub/nethub/actions/runs/39025232350) 的结构检查按预期拒绝有效但字段错位的 TOML。配置已恢复，恢复后的线上运行链接见 PR。PR #1 merged as `6612cdb` with Kazuha's approval on 2026-10-17; main CI passed. P0 remains incomplete because branch protection is unavailable.
 
 现在还没有代码，CI 先检查已有的东西：Weekend 0 的两份 TOML 能正确解析，`probe.py` 语法正确，workflow 文件本身没错。
 写法参考 `KazuhaHub/authcore` 的 `.github/workflows/ci.yml`，主要学这几点：
@@ -540,11 +540,11 @@ jobs:
 
 ### 验收
 
-- [ ] GitHub 上有 `KazuhaHub/nethub`，第一次提交包含现有的文件
+- [x] GitHub 上有 `KazuhaHub/nethub`，第一次提交包含现有的文件（`f529e1d`，见 P0-3）
 - [ ] 提交里没有任何真实地址、密钥，也没有 AI 署名。检查署名用下面这条，它只看作者、提交者和提交信息，不会被 CONTRIBUTING 里的规则文字误报，应该没有输出：
   `git log --format='%an <%ae>%n%cn <%ce>%n%B' | grep -niE 'co-authored-by|generated with'`
-- [ ] CI 在 PR 上能跑，绿；故意改坏时会红（两个运行链接）
-- [ ] Dependabot 配置已合并
+- [x] CI 在 PR 上能跑，绿；故意改坏时会红（[pass](https://github.com/KazuhaHub/nethub/actions/runs/39025182708)、[expected failure](https://github.com/KazuhaHub/nethub/actions/runs/39025232350)、[restored](https://github.com/KazuhaHub/nethub/actions/runs/39025309568)）
+- [x] Dependabot 配置已合并（PR #1，`6612cdb`；Kazuha approved the merge on 2026-10-17）
 - [ ] `main` 已受保护。不要用"直推一次试试"来验证（那违反红线第 5 条，规则没配好时还会真的推上去）。
   请 Kazuha 截图确认，或者运行 `gh api repos/KazuhaHub/nethub/rules/branches/main` 查看生效的规则，贴输出
 
@@ -1072,6 +1072,8 @@ DESIGN 决策 #14：每 5 分钟检查一次，服务是 stopped 并且存在 `f
 ### 步骤
 
 **W3-0 做 UI 组件库示例，交给 Kazuha 选【D9】。**
+**Progress (2026-10-17):** The three samples and strict-CSP measurements are complete; see [the comparison and raw evidence](ui-study/README.md). Gzip totals: Ant Design 274.5 KiB, Mantine 143.2 KiB, shadcn/ui 102.3 KiB. All default integrations inject blocked style elements. A shadcn/native-dialog variant passed the tested flows with zero CSP events, including focus containment, Escape dismissal, focus return, and mobile layout. D9 remains open; no sample source or product dependency has been added to main.
+
 在仓库之外新建一个临时的 Vite + React + TypeScript 工程，分别用三个候选库各做两页：登录页和设备列表页（用假数据，3–5 台设备，有在线和离线）。
 三个候选：
 
@@ -1958,4 +1960,4 @@ git log --format='%an <%ae>%n%cn <%ce>%n%B' origin/main..HEAD | grep -niE 'co-au
   - 日期：2026-10-17
   - 影响：P0-2、W7 公开前审查。内部文档已经进入历史，D12 仍需另行决定。
 
-D3 的资源负责人和就绪状态尚未明确，仍待确认，不启动 W0。
+D3 update (2026-10-17): Kazuha delegated isolated VM provisioning and authorized the operations in this chat. The local 4 GiB execution host is too small for the guest; PR #2 has verified a signed, restricted live-image boot on a standard hosted runner: [evidence](https://github.com/KazuhaHub/nethub/actions/runs/39026961946). The guest reached its login prompt in 56 seconds and was terminated; it has not been installed or updated for W0. Public relay, DNS, and carrier-network availability remain unconfirmed. This is preflight work, not W0 acceptance.

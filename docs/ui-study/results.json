@@ -1,0 +1,961 @@
+{
+  "generatedAt": "2026-10-17T11:08:05.218Z",
+  "browser": "155.0.8059.80",
+  "strictPolicy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+  "cases": [
+    {
+      "candidate": "antd",
+      "variant": "default",
+      "mode": "baseline",
+      "functionalChecks": [
+        "Sample sign-in opens inventory without a network request or persisted password",
+        "Offline filter, device details, and disabled offline access",
+        "Search, empty state, and filter reset",
+        "Enrollment preview validates an empty name and uses a visibly fake token",
+        "Online access provides preview feedback without contacting a gateway"
+      ],
+      "functionalFailures": [],
+      "violations": [],
+      "samples": [],
+      "pageErrors": [],
+      "screenshots": [
+        "evidence/screenshots/antd-baseline-login-light.png",
+        "evidence/screenshots/antd-baseline-login-dark.png",
+        "evidence/screenshots/antd-baseline-devices-dark.png",
+        "evidence/screenshots/antd-baseline-devices-light.png",
+        "evidence/screenshots/antd-baseline-enroll.png",
+        "evidence/screenshots/antd-baseline-mobile.png"
+      ],
+      "controlStyles": {
+        "background": "rgb(22, 125, 114)",
+        "color": "rgb(255, 255, 255)",
+        "height": "38px",
+        "borderRadius": "7px",
+        "fontSize": "14px"
+      },
+      "mobile": {
+        "viewportWidth": 390,
+        "documentWidth": 390
+      },
+      "violationCount": 0,
+      "styleElements": [
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "rc-util-key"
+          ],
+          "length": 897
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 12309
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 2377
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 68
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 21285
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 16629
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 1263
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 23341
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 9518
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 63
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 64
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 103
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 94
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 5121
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 62
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 49
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 51338
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 2679
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 723
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 731
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 145
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 1527
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 678
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-css-hash"
+          ],
+          "length": 583
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-rc-order",
+            "data-css-hash"
+          ],
+          "length": 57
+        }
+      ],
+      "requestCount": 3
+    },
+    {
+      "candidate": "antd",
+      "variant": "default",
+      "mode": "strict",
+      "functionalChecks": [
+        "Sample sign-in opens inventory without a network request or persisted password",
+        "Offline filter, device details, and disabled offline access",
+        "Search, empty state, and filter reset",
+        "Enrollment preview validates an empty name and uses a visibly fake token",
+        "Online access provides preview feedback without contacting a gateway"
+      ],
+      "functionalFailures": [
+        "details-dismissal: modal remains visible after Escape under strict CSP",
+        "enrollment-dismissal: modal remains visible after Escape under strict CSP",
+        "Mobile page overflows: 520 px at 390 px viewport"
+      ],
+      "violations": [
+        "style-src-elem: inline"
+      ],
+      "samples": [
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/antd/assets/index-DnbyGlVQ.js",
+          "lineNumber": 9
+        },
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/antd/assets/index-DnbyGlVQ.js",
+          "lineNumber": 9
+        },
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/antd/assets/index-DnbyGlVQ.js",
+          "lineNumber": 9
+        },
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/antd/assets/index-DnbyGlVQ.js",
+          "lineNumber": 9
+        },
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/antd/assets/index-DnbyGlVQ.js",
+          "lineNumber": 9
+        },
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/antd/assets/index-DnbyGlVQ.js",
+          "lineNumber": 9
+        },
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/antd/assets/index-DnbyGlVQ.js",
+          "lineNumber": 9
+        },
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/antd/assets/index-DnbyGlVQ.js",
+          "lineNumber": 9
+        }
+      ],
+      "pageErrors": [],
+      "screenshots": [
+        "evidence/screenshots/antd-strict-login-light.png",
+        "evidence/screenshots/antd-strict-login-dark.png",
+        "evidence/screenshots/antd-strict-devices-dark.png",
+        "evidence/screenshots/antd-strict-devices-light.png",
+        "evidence/screenshots/antd-strict-details-dismissal-failure.png",
+        "evidence/screenshots/antd-strict-enroll.png",
+        "evidence/screenshots/antd-strict-enrollment-dismissal-failure.png",
+        "evidence/screenshots/antd-strict-mobile.png"
+      ],
+      "controlStyles": {
+        "background": "rgb(240, 240, 240)",
+        "color": "rgb(0, 0, 0)",
+        "height": "25px",
+        "borderRadius": "0px",
+        "fontSize": "14px"
+      },
+      "mobile": {
+        "viewportWidth": 390,
+        "documentWidth": 520
+      },
+      "violationCount": 107,
+      "styleElements": [
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "rc-util-key"
+          ],
+          "length": 897
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 12309
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 2377
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 68
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 1263
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 23341
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 2679
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 21285
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 723
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 16629
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 731
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 5121
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 62
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 49
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 145
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 51338
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 1527
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 9518
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 63
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 64
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 103
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash"
+          ],
+          "length": 94
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-rc-priority",
+            "data-css-hash",
+            "data-token-hash"
+          ],
+          "length": 678
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-css-hash"
+          ],
+          "length": 583
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "data-css-hash"
+          ],
+          "length": 57
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-rc-order",
+            "rc-util-key"
+          ],
+          "length": 39
+        }
+      ],
+      "requestCount": 9
+    },
+    {
+      "candidate": "mantine",
+      "variant": "default",
+      "mode": "baseline",
+      "functionalChecks": [
+        "Sample sign-in opens inventory without a network request or persisted password",
+        "Offline filter, device details, and disabled offline access",
+        "Search, empty state, and filter reset",
+        "Enrollment preview validates an empty name and uses a visibly fake token",
+        "Online access provides preview feedback without contacting a gateway"
+      ],
+      "functionalFailures": [],
+      "violations": [],
+      "samples": [],
+      "pageErrors": [],
+      "screenshots": [
+        "evidence/screenshots/mantine-baseline-login-light.png",
+        "evidence/screenshots/mantine-baseline-login-dark.png",
+        "evidence/screenshots/mantine-baseline-devices-dark.png",
+        "evidence/screenshots/mantine-baseline-devices-light.png",
+        "evidence/screenshots/mantine-baseline-enroll.png",
+        "evidence/screenshots/mantine-baseline-mobile.png"
+      ],
+      "controlStyles": {
+        "background": "rgb(18, 184, 134)",
+        "color": "rgb(255, 255, 255)",
+        "height": "36px",
+        "borderRadius": "8px",
+        "fontSize": "14px"
+      },
+      "mobile": {
+        "viewportWidth": 390,
+        "documentWidth": 390
+      },
+      "violationCount": 0,
+      "styleElements": [
+        {
+          "blocked": false,
+          "attributes": [
+            "data-mantine-styles"
+          ],
+          "length": 1326
+        },
+        {
+          "blocked": false,
+          "attributes": [
+            "data-mantine-styles"
+          ],
+          "length": 815
+        }
+      ],
+      "requestCount": 3
+    },
+    {
+      "candidate": "mantine",
+      "variant": "default",
+      "mode": "strict",
+      "functionalChecks": [
+        "Sample sign-in opens inventory without a network request or persisted password",
+        "Offline filter, device details, and disabled offline access",
+        "Search, empty state, and filter reset",
+        "Enrollment preview validates an empty name and uses a visibly fake token",
+        "Online access provides preview feedback without contacting a gateway"
+      ],
+      "functionalFailures": [],
+      "violations": [
+        "style-src-elem: inline"
+      ],
+      "samples": [
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/mantine/assets/index-PDzdnDEK.js",
+          "lineNumber": 8
+        },
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/mantine/assets/index-PDzdnDEK.js",
+          "lineNumber": 8
+        },
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/mantine/assets/index-PDzdnDEK.js",
+          "lineNumber": 9
+        },
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/mantine/assets/index-PDzdnDEK.js",
+          "lineNumber": 9
+        },
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/mantine/assets/index-PDzdnDEK.js",
+          "lineNumber": 9
+        }
+      ],
+      "pageErrors": [],
+      "screenshots": [
+        "evidence/screenshots/mantine-strict-login-light.png",
+        "evidence/screenshots/mantine-strict-login-dark.png",
+        "evidence/screenshots/mantine-strict-devices-dark.png",
+        "evidence/screenshots/mantine-strict-devices-light.png",
+        "evidence/screenshots/mantine-strict-enroll.png",
+        "evidence/screenshots/mantine-strict-mobile.png"
+      ],
+      "controlStyles": {
+        "background": "rgb(18, 184, 134)",
+        "color": "rgb(255, 255, 255)",
+        "height": "36px",
+        "borderRadius": "8px",
+        "fontSize": "14px"
+      },
+      "mobile": {
+        "viewportWidth": 390,
+        "documentWidth": 390
+      },
+      "violationCount": 5,
+      "styleElements": [
+        {
+          "blocked": true,
+          "attributes": [
+            "data-mantine-styles"
+          ],
+          "length": 1326
+        },
+        {
+          "blocked": true,
+          "attributes": [
+            "data-mantine-styles"
+          ],
+          "length": 815
+        }
+      ],
+      "requestCount": 3
+    },
+    {
+      "candidate": "shadcn",
+      "variant": "default",
+      "mode": "baseline",
+      "functionalChecks": [
+        "Sample sign-in opens inventory without a network request or persisted password",
+        "Offline filter, device details, and disabled offline access",
+        "Search, empty state, and filter reset",
+        "Enrollment preview validates an empty name and uses a visibly fake token",
+        "Online access provides preview feedback without contacting a gateway"
+      ],
+      "functionalFailures": [],
+      "violations": [],
+      "samples": [],
+      "pageErrors": [],
+      "screenshots": [
+        "evidence/screenshots/shadcn-baseline-login-light.png",
+        "evidence/screenshots/shadcn-baseline-login-dark.png",
+        "evidence/screenshots/shadcn-baseline-devices-dark.png",
+        "evidence/screenshots/shadcn-baseline-devices-light.png",
+        "evidence/screenshots/shadcn-baseline-enroll.png",
+        "evidence/screenshots/shadcn-baseline-mobile.png"
+      ],
+      "controlStyles": {
+        "background": "rgb(22, 125, 114)",
+        "color": "rgb(255, 255, 255)",
+        "height": "36px",
+        "borderRadius": "7px",
+        "fontSize": "14px"
+      },
+      "mobile": {
+        "viewportWidth": 390,
+        "documentWidth": 390
+      },
+      "violationCount": 0,
+      "styleElements": [],
+      "requestCount": 3
+    },
+    {
+      "candidate": "shadcn",
+      "variant": "default",
+      "mode": "strict",
+      "functionalChecks": [
+        "Sample sign-in opens inventory without a network request or persisted password",
+        "Offline filter, device details, and disabled offline access",
+        "Search, empty state, and filter reset",
+        "Enrollment preview validates an empty name and uses a visibly fake token",
+        "Online access provides preview feedback without contacting a gateway"
+      ],
+      "functionalFailures": [],
+      "violations": [
+        "style-src-elem: inline"
+      ],
+      "samples": [
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/shadcn/assets/index-JPzFyqTT.js",
+          "lineNumber": 9
+        },
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/shadcn/assets/index-JPzFyqTT.js",
+          "lineNumber": 9
+        },
+        {
+          "directive": "style-src-elem",
+          "blockedURI": "inline",
+          "sourceFile": "https://example.com/strict/shadcn/assets/index-JPzFyqTT.js",
+          "lineNumber": 9
+        }
+      ],
+      "pageErrors": [],
+      "screenshots": [
+        "evidence/screenshots/shadcn-strict-login-light.png",
+        "evidence/screenshots/shadcn-strict-login-dark.png",
+        "evidence/screenshots/shadcn-strict-devices-dark.png",
+        "evidence/screenshots/shadcn-strict-devices-light.png",
+        "evidence/screenshots/shadcn-strict-enroll.png",
+        "evidence/screenshots/shadcn-strict-mobile.png"
+      ],
+      "controlStyles": {
+        "background": "rgb(22, 125, 114)",
+        "color": "rgb(255, 255, 255)",
+        "height": "36px",
+        "borderRadius": "7px",
+        "fontSize": "14px"
+      },
+      "mobile": {
+        "viewportWidth": 390,
+        "documentWidth": 390
+      },
+      "violationCount": 3,
+      "styleElements": [],
+      "requestCount": 3
+    },
+    {
+      "candidate": "shadcn",
+      "variant": "native-dialog",
+      "mode": "strict",
+      "functionalChecks": [
+        "Sample sign-in opens inventory without a network request or persisted password",
+        "Offline filter, device details, and disabled offline access",
+        "Search, empty state, and filter reset",
+        "Enrollment preview validates an empty name and uses a visibly fake token",
+        "Online access provides preview feedback without contacting a gateway"
+      ],
+      "functionalFailures": [],
+      "violations": [],
+      "samples": [],
+      "pageErrors": [],
+      "screenshots": [
+        "evidence/screenshots/shadcn-native-strict-login-light.png",
+        "evidence/screenshots/shadcn-native-strict-login-dark.png",
+        "evidence/screenshots/shadcn-native-strict-devices-dark.png",
+        "evidence/screenshots/shadcn-native-strict-devices-light.png",
+        "evidence/screenshots/shadcn-native-strict-enroll.png",
+        "evidence/screenshots/shadcn-native-strict-mobile.png"
+      ],
+      "controlStyles": {
+        "background": "rgb(22, 125, 114)",
+        "color": "rgb(255, 255, 255)",
+        "height": "36px",
+        "borderRadius": "7px",
+        "fontSize": "14px"
+      },
+      "nativeFocusChecks": "Initial modal focus, 8 Tab and 8 Shift+Tab steps, Escape, and focus return",
+      "mobile": {
+        "viewportWidth": 390,
+        "documentWidth": 390
+      },
+      "violationCount": 0,
+      "styleElements": [],
+      "requestCount": 3
+    }
+  ],
+  "bundles": {
+    "antd": {
+      "assets": [
+        {
+          "path": "assets/index-ABVFaWJs.css",
+          "bytes": 11932,
+          "gzip": 2999,
+          "brotli": 2591
+        },
+        {
+          "path": "assets/index-DnbyGlVQ.js",
+          "bytes": 882568,
+          "gzip": 277855,
+          "brotli": 230367
+        },
+        {
+          "path": "index.html",
+          "bytes": 368,
+          "gzip": 272,
+          "brotli": 171
+        }
+      ],
+      "totalBytes": 894868,
+      "totalGzip": 281126,
+      "totalBrotli": 233129
+    },
+    "mantine": {
+      "assets": [
+        {
+          "path": "assets/index-BXpgrf68.css",
+          "bytes": 260259,
+          "gzip": 38804,
+          "brotli": 31674
+        },
+        {
+          "path": "assets/index-PDzdnDEK.js",
+          "bytes": 355358,
+          "gzip": 107594,
+          "brotli": 92696
+        },
+        {
+          "path": "index.html",
+          "bytes": 365,
+          "gzip": 272,
+          "brotli": 181
+        }
+      ],
+      "totalBytes": 615982,
+      "totalGzip": 146670,
+      "totalBrotli": 124551
+    },
+    "shadcn": {
+      "assets": [
+        {
+          "path": "assets/index-JPzFyqTT.js",
+          "bytes": 313223,
+          "gzip": 97522,
+          "brotli": 83841
+        },
+        {
+          "path": "assets/index-_59U--uP.css",
+          "bytes": 30465,
+          "gzip": 7001,
+          "brotli": 6203
+        },
+        {
+          "path": "index.html",
+          "bytes": 367,
+          "gzip": 272,
+          "brotli": 186
+        }
+      ],
+      "totalBytes": 344055,
+      "totalGzip": 104795,
+      "totalBrotli": 90230
+    }
+  },
+  "redaction": "Loopback source origins replaced with https://example.com; measurements unchanged."
+}
