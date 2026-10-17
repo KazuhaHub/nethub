@@ -15,7 +15,7 @@
 
 ### 当前状态（2026-10-17）
 
-- **只有文档，没有任何代码。** GitHub 仓库是 <https://github.com/KazuhaHub/nethub>，2026-10-17 建好，**私有**。第一次提交 `f529e1d` 和之后的状态更新都已推送到 `main`。`main` has CI and weekly Actions dependency updates after PR #1 merged as `6612cdb`; branch protection is still unavailable on the current private-repository plan.Kazuha 已确认先保持私有，到 W7 再决定公开（【D2】）。
+- **No product code has been implemented.** The repository contains the design, W0 kit, and CI/preflight tooling. GitHub 仓库是 <https://github.com/KazuhaHub/nethub>，2026-10-17 建好，**私有**。第一次提交 `f529e1d` 和之后的状态更新都已推送到 `main`。`main` has CI and weekly Actions dependency updates after PR #1 merged as `6612cdb`; branch protection is still unavailable on the current private-repository plan. Kazuha 已确认先保持私有，到 W7 再决定公开（【D2】）。
 - 设计方案是 `docs/DESIGN.md` v0.3（中文），它是架构上的权威。
   执行计划是 `docs/PLAN.md`（中文），它把设计拆成按顺序做的任务：P0、W0–W7，再加缓冲。
 - 第一次真实环境实验 **Weekend 0（W0）还没跑过**。工具在 `weekend0/` 里，已经修好，但从来没有在真实网络里用过。
@@ -23,6 +23,7 @@
 - P0-6 受平台限制：查询 `main` 生效规则时，GitHub API 返回 403，提示当前私有仓库需升级套餐或公开才能启用。保持私有，不更改可见性；分支保护尚未完成。
 - W3-0: three UI samples, light/dark screenshots, bundle measurements, and strict-CSP interaction tests are complete. See [the comparison](ui-study/README.md). Default integrations all inject blocked styles; the shadcn/native-dialog adaptation passed the tested flows without CSP events. Kazuha confirmed shadcn/ui with native dialog for D9 on 2026-10-17. Sample source stays outside the product repository; product integration waits for W3.
 - D3: Kazuha authorized self-provisioned VM testing. The local execution host has 4 GiB RAM and cannot accommodate the installer; [PR #2](https://github.com/KazuhaHub/nethub/pull/2), merged as `b4797db`, has [verified a signed, isolated live-image boot](https://github.com/KazuhaHub/nethub/actions/runs/39026961946) on an ephemeral hosted runner. The guest reached its login prompt in 56 seconds, then was terminated. Public relay, DNS, and carrier-network resources remain unconfirmed; W0 is not accepted.
+- D3 device readiness: Kazuha subsequently supplied and approved a dedicated installed test device. SSH and read-only checks verified OPNsense 26.7.7, os-frp 1.0.1, frpc 0.71.0, and strict validation of the stock client configuration; see the verification below. [PR #4](https://github.com/KazuhaHub/nethub/pull/4) was closed without merging after its disposable installation experiment failed during partitioning. Use the verified dedicated device for W0. The LXC relay and DNS still need to be supplied; no relay deployment or W0 experiment has started.
 - Additional local preflight: real frp 0.71.0 binaries passed both stock configuration checks and eight loopback transport/hook checks with the unmodified probe. Ping denial interrupted the local session in 9.55 seconds; NewUserConn deny and NewProxy deny/500 blocked access as expected. This does not verify OPNsense, NAT, public IP reporting, or carrier networks. The harness and results remain in the local `nethub-w0-local` directory.
 - 这个项目 2026-09-17 暂停过，2026-10-16 恢复。暂停期间组织里的共享 Go 模块 `KazuhaHub/authcore` 已经做完（v0.6.1）。
 
