@@ -74,6 +74,24 @@ class SerialProtocolTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "connection closed"):
             self.console.expect("not present", timeout=1)
 
+    def test_install_disk_selection_moves_past_the_live_image(self):
+        self.guest.sendall(
+            b"\x1b[2J\x1b[1;1HUFS Configuration\r\n"
+            b"vtbd0 <Unknown disk> (2GB)\r\n"
+            b"vtbd1 <Unknown disk> (40GB)\r\n[OK] [Cancel]"
+        )
+        module["select_install_disk"](self.console)
+        self.assertEqual(self.guest.recv(32), b"\x1b[B\r")
+
+    def test_install_disk_selection_rejects_an_unexpected_layout(self):
+        self.guest.sendall(
+            b"\x1b[2J\x1b[1;1HUFS Configuration\r\n"
+            b"vtbd0 <Unknown disk> (40GB)\r\n"
+            b"vtbd1 <Unknown disk> (40GB)\r\n[OK] [Cancel]"
+        )
+        with self.assertRaisesRegex(RuntimeError, "disk menu differs"):
+            module["select_install_disk"](self.console)
+
     def test_command_echo_cannot_satisfy_result_markers(self):
         command = module["INSTALLED_CHECK_COMMAND"]
         for marker in ("NH_VERSION=", "NH_ROOT=", "NH_FSTYPE=", "NH_CHECK_DONE"):

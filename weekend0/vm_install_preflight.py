@@ -97,6 +97,16 @@ def installer_account() -> str:
     return match.group(1)
 
 
+def select_install_disk(console: SerialConsole) -> None:
+    console.expect(r"UFS Configuration.*\bvtbd0\b.*\bvtbd1\b.*Cancel", screen=True)
+    rendered = "\n".join(console.screen.display)
+    disks = re.findall(r"\b(vtbd\d+)\s+<Unknown disk>\s+\((\d+)GB\)", rendered)
+    if disks != [("vtbd0", "2"), ("vtbd1", "40")]:
+        raise RuntimeError("Installer disk menu differs from the disposable media and target layout")
+    console.arrow("down")
+    console.send("\r")
+
+
 def login(console: SerialConsole, password: str) -> None:
     console.expect(r"login:\s*$", timeout=180)
     console.send("root\n")
@@ -185,8 +195,7 @@ def main() -> None:
         console.arrow("down")
         console.send("\r")
         summary["phase"] = "select disposable disk"
-        console.expect(r"UFS Configuration.*\bvtbd1\b", screen=True)
-        console.send("\r")
+        select_install_disk(console)
         console.expect(r"recommended", screen=True)
         console.send("\t\r")
         confirmation = console.expect(r"Last Chance!.*?vtbd1", screen=True)
