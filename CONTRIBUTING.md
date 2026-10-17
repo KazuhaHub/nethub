@@ -241,8 +241,11 @@ Anything that touches the agent needs an OPNsense machine to install it on.
   - The VM must run OPNsense 26.7, version 26.7.1_1 or later (`opnsense-version`).
   - Take a snapshot of the clean install and restore it whenever you need a
     clean state.
-- **Never install the agent on a machine that holds a package-signing key.**
-  This is a design rule, not a preference (`docs/DESIGN.md` decision #20).
+- **Use the owner-approved test host.** Kazuha explicitly permits package
+  building, signing, and NetHub testing on the designated packaging test
+  machine (2026-10-17, DESIGN decision #20). Removing signing keys or build
+  scratch is no longer a prerequisite for that host. Other signing hosts
+  remain outside the deployment scope.
 - **Behind NAT is ideal.** If the test VM has a public address instead, block
   all inbound traffic except SSH from your own address. Only then does a
   working tunnel prove that no inbound port is needed.

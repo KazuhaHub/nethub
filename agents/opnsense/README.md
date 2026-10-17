@@ -110,8 +110,9 @@ Rules that follow from this:
   must match.
 - **Test it on a box that has `os-frp` installed and running.** Weekend 2's
   acceptance is that `os-frp` keeps working — its process, config and ports
-  untouched. That test machine must not be the package build/signing host
-  (DESIGN decision #20) and must not be a production router.
+  untouched. Kazuha permits the designated packaging test machine to build
+  and sign packages while also running NetHub tests (DESIGN decision #20,
+  revised 2026-10-17). It must not be a production router.
 
 ## Platform capabilities
 
