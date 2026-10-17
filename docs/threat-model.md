@@ -373,7 +373,7 @@ always remains.
 | Component | Trust root, as designed | Gap |
 |---|---|---|
 | frp binaries | The official upstream release, SHA-256 pinned and verified at build time. The same version runs on device and relay (DESIGN decision #19) | — |
-| Plugin package (`os-nethub-agent`) | Signed by the package repository's signing key and built from a tagged release, in a separate packaging repository | The signing host must never run the NetHub agent (DESIGN decision #20). That is operational discipline, not a technical control (Q4) |
+| Plugin package (`os-nethub-agent`) | Signed by the package repository's signing key and built from a tagged release, in a separate packaging repository | Kazuha permits building, signing, and NetHub use on the designated packaging test host (DESIGN #20, revised 2026-10-17). Signing material on that host shares its compromise boundary; other signing hosts remain excluded. Offline signing remains Q4 |
 | Go modules, npm packages | `go.sum` and lock files. Proposed, not yet in DESIGN: `govulncheck` and Dependabot in CI | — |
 | Container images | Not decided: who builds and publishes them, and whether deployers pin digests | **Open** and not yet tracked in DESIGN §14 (F2) |
 | Shared Go module `authcore` | Pinned to a verified tag (DESIGN decision #23) | — |
@@ -446,7 +446,9 @@ This is a selection, grouped for deployers. DESIGN §12 is the full list.
 - The control-plane VM is a single point of failure, with no hot standby.
 - Online status reflects the tunnel, not the health of the OPNsense GUI.
 - `rotate` needs the device to be online; offline devices must re-enroll.
-- The signing-host exclusion (decision #20) is operational discipline.
+- The owner-approved packaging test host may also run NetHub (decision #20,
+  revised 2026-10-17). Host compromise can therefore expose signing material
+  present there; the prior signing-host separation does not apply to it.
 - Login throttling is in-process (a single web instance is assumed).
 - A compromised console can revoke every device, read metadata and audit,
   and phish through the device list (4.4). That is availability, disclosure

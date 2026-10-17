@@ -61,9 +61,10 @@ This is preparation, not W0 acceptance. The live installer is not an installed, 
 - 一台可以临时 SSH 上去、装了 OPNsense 26.7.x（26.7.1_1 或更新）、能出网的测试机，
   它必须同时满足：
   - **不是生产路由器**。这台机器会被临时装上手工运行的 frpc，验证完要清理干净。
-  - **不持有仓库签名私钥**（DESIGN 决策 #20：持有签名私钥的机器排除在本项目的部署
-    范围之外）。2026-10-17 起签名改在 Irvine Home 上做；打包仓库那台专用测试机就是
-    本项目的测试机，但要等 Kazuha 确认签名私钥和构建/签名临时文件已经移走才能用。
+  - **Owner-approved packaging test host** (DESIGN decision #20, revised
+    2026-10-17): Kazuha permits package building, signing, and NetHub use on
+    this machine. Removing signing keys or build/signing scratch is no longer
+    required before testing. Other signing hosts remain outside scope.
   - 用打包仓库那台专用测试机时，注意它和"NAT 后面的家用路由器"不一样（PLAN §5.2）：
     GUI 不在 443，第 2.3 步要把 `localPort` 改成它实际的 GUI 端口；它有公网 IP，
     GUI 端口在 WAN 上对外开放，做验收项①之前要把这条放行规则限制成只允许你自己的 IP，

@@ -15,7 +15,7 @@
 | 测试域名（如 `router.example.com`） | |
 | OPNsense 版本（应为 26.7.1_1 或更新） | |
 | OPNsense 测试机是虚拟机还是物理机 | |
-| 测试机上**没有**仓库签名私钥（DESIGN 决策 #20；签名已改到 Irvine Home，Kazuha 已确认移走） | ☐ 已确认 |
+| Test-host policy (DESIGN #20): Kazuha permits building, signing, and NetHub use on the designated packaging test machine | ☐ Designated host　☐ Separate host without signing keys |
 | 测试机 GUI 的 WAN 放行规则在①期间只允许测试人员自己的 IP | ☐ 已确认　☐ 不适用（测试机在 NAT 后面） |
 | 测试机**不是**生产路由器 | ☐ 已确认 |
 | 测试机上是否同时装着 os-frp | ☐ 是　☐ 否 |

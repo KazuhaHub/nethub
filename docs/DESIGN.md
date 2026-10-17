@@ -57,7 +57,8 @@ v0.2 写完之后，用户在 2026-09-17 的会话里拍板了一批事项，它
 | 新增 **Q9：OPNsense 自己的 DNS 重绑定 / HTTP_REFERER 检查**可能拦下经中继的访问（§14） | 设备 GUI 看到的主机名是中继分配的子域名，不是设备自己的主机名；v0.3 之前没有考虑 | 待定（先实测） | 2026-10-16 |
 | 新增 **Q10：设备 ↔ 中继控制通道没有服务端认证**（frpc 未配 CA 时不校验 frps 证书），可被路径上的中间人截取 domain claim（§14） | 写威胁模型时对 frp v0.71.0 源码核实发现 | 待定（v1 前必须解决） | 2026-10-16 |
 | 威胁模型与控制台 API 初稿审查后的补充：`NewProxy` 拒绝任何 custom domain、设备不能承载控制台域名、控制台 HSTS 不带 `includeSubDomains`（§5）；被攻破的控制台能借设备列表钓鱼、frps / Caddy 被攻破的后果、authz 能取消撤销（§6）；web 对 `enroll_tokens` 少数列的 `SELECT`（§6）；始终保留一个本地密码 admin（§6）；Q10 修复方案细化（部署 CA、PEM、frps 不热加载证书、`Login` 可重放） | 写 `docs/threat-model.md` 与 `docs/console-api.md` 时的审查发现 | 建议 | 2026-10-16 |
-| 仓库签名改在 Irvine Home 上做；打包仓库的专用测试机移走签名私钥和构建/签名临时文件之后，用作 NetHub 的 OPNsense 测试机（决策 #20、§10） | 用户："就用那台，签名 Irvine Home 也可以做"。决策 #20 的原则不变：持有签名私钥的机器不装、不跑 NetHub 的任何部分 | 用户 | 2026-10-17 |
+| 仓库签名改在 Irvine Home 上做；打包仓库的专用测试机移走签名私钥和构建/签名临时文件之后，用作 NetHub 的 OPNsense 测试机（决策 #20、§10） | 用户："就用那台，签名 Irvine Home 也可以做"。决策 #20 的原则不变：持有签名私钥的机器不装、不跑 NetHub 的任何部分 | 用户; superseded by the subsequent co-hosting decision below | 2026-10-17 |
+| Decision #20 revised: the designated packaging test host may build, sign, and run NetHub; no signing-key or build-scratch removal is required | Kazuha explicitly changed the rule in this chat; the approved host shares its compromise boundary with any signing material present | Kazuha | 2026-10-17 |
 
 **仍未决定（本文不替用户回答）：** 控制通道的服务端认证（Q10）；OPNsense 主机名检查的处理（Q9）；v1 功能清单的最终确认；
 设备 GUI 公网暴露面的处理（Q7）；frp 升到 0.71.1 的时机（§5）。
@@ -198,7 +199,7 @@ KKazuhaK/OPNsense-repo            ← 只有打包配方，不含 NetHub 源码
 | 17 | `newwanip` 触发 reconcile 的防抖 | 最短间隔 60s 合并 + 0–30s 随机抖动 | 无防抖直接注册 | CARP 主备切换/上联抖动会让多台机器几乎同时触发，叠加决策 #4 的轮询容易把正常 failover 误判成异常 | 低 |
 | 18 | 凭证/服务端地址原地轮换 | `agentctl.py rotate` 子命令：拉一套新凭证后原地更新并重启，不走完整 enroll | 只有 enroll/unenroll，轮换 = 重新带外交付 | 中继地址/端口/token 一旦需要轮换（迁移、泄露），否则唯一补救是要求每个用户手动重新 enroll | 低 |
 | 19 | 供应链版本一致性 | CI 检查：`os-frp` 与 `os-nethub-agent` 两份 vendored frp 版本号必须一致，否则构建失败——两个包各带一份 `FRP_VERSION` 文件供 CI 直接比对；server 侧 `frps` 版本由 compose 锁定且与之匹配 | 无机制防止悄悄分叉 | 决策 2 让版本从"1 处要更新"变成"3 处必须同步"，需要机制兜底而不是靠记性 | 低 |
-| 20 | 签名私钥主机的部署边界 | **明确排除**持有 Kazuha 仓库签名私钥的那台路由器于本插件的部署范围之外；端到端验收用一台不持私钥的独立测试路由器。2026-10-17 起仓库签名改在 Irvine Home 上做，Irvine Home 因此在排除范围内；打包仓库的专用测试机移走签名私钥和构建/签名临时文件之后不再持有私钥，用作 NetHub 的测试机（§10） | 在日常路由器上装新插件做验收 | 一旦决策 #4 的劫持路径成立而受害机恰好是私钥主机，攻击者拿到管理员凭证登入 shell 就能拿到签名私钥，把"控制面被攻破"升级成"能对仓库里的全部插件（截至 2026-10-16 共 13 个）重新签名推给所有用户"。这是产品自己给现有生态制造的新攻击面 | 低（纯运维纪律） |
+| 20 | 签名私钥主机的部署边界 | Kazuha permits building, signing, and NetHub use on the designated packaging test machine (revised 2026-10-17). Removing its signing keys or build/signing scratch, or relocating signing, is no longer required. Other signing hosts remain outside deployment scope; production routers remain excluded | 在日常路由器上装新插件做验收 | 一旦决策 #4 的劫持路径成立而受害机恰好是私钥主机，攻击者拿到管理员凭证登入 shell 就能拿到签名私钥，把"控制面被攻破"升级成"能对仓库里的全部插件（截至 2026-10-16 共 13 个）重新签名推给所有用户"。这是产品自己给现有生态制造的新攻击面 | 低（纯运维纪律） |
 | 21 | 每部署独立密钥 | **所有密钥由 `nethub init` 在部署者机器上生成，按服务分文件存放，每个容器只拿到自己需要的那几份**：domain-claim 签名密钥（只给 authz）；frps auth token（每部署一份、所有设备共用；frps 与 authz 持有，authz 在 enroll 响应里把它交给设备。它只是进入 frps 的第一道门，每台设备的身份靠签名声明 + `device_secret`，见 §6）；frps admin 用户名/密码（frps + authz）；`nethub_owner` / `nethub_web` / `nethub_authz` / `nethub_backup` 四个 Postgres 角色的密码（各归对应服务：`nethub_owner` 只给 `nethub migrate`，`nethub_backup` 只给 `backup`）；Postgres 引导超级用户的密码（官方镜像的 `POSTGRES_PASSWORD`，只给 postgres 容器首次初始化用，运行时没有服务使用）；`NETHUB_SECRETS_KEY`（只给 web，用于加密 OIDC client secret）；session key（如果需要的话，只给 web）。上游不持有任何全局密钥 | 任何形式的内置默认密钥 / 上游签发；所有密钥写进一个共享 `.env` | 全开源自建的结构性红利：不存在"一把钥匙开所有实例"的东西。按服务分文件让决策 #4 的进程拆分在密钥层面也成立。同时也意味着**没有任何人能替部署者找回密钥**，`init` 必须强制提示备份，`doctor` 检查备份是否存在 | 低 |
 | 22 | 控制台登录与外部身份绑定 | 本地密码（argon2id）+ **OIDC**（Authorization Code + PKCE、state + nonce，`coreos/go-oidc/v3` 做 issuer discovery 与 ID token 校验，支持多个 IdP）；外部身份**只按 `(issuer, subject)` 绑定**；新绑定只发生在从邀请链接发起的 OIDC 流程里，邀请 token 有效（未过期、未使用）、`email_verified=true`、email 与这条邀请一致三者同时成立；SAML 在 v1.1 | 按 email 绑定；只凭 email 认领任意一条待处理邀请；自助注册 / JIT 开户；v1 就做 SAML | email 在不同 IdP 之间不能证明是同一个人，按 email 绑定就是 §13 场景 #13 的账号接管。`email_verified` 本身也不能跨 IdP 信任——自建 Dex / Keycloak 的管理员可以把任意 email 标成已验证，也有 IdP 会发出未验证或可变的 email 声明——所以认领邀请的凭据是一次性的邀请 token，email 只是附加校验。OIDC 先行、SAML 放 v1.1 是用户 2026-09-17 的决定 | 低 |
 | 23 | 共享认证模块 `authcore` 的用法 | **遵循 authcore 自己的准入逻辑**：只在某个包能替 NetHub 省掉一件"必须自己做对"的事时才引入，并钉到核实过的 tag（如 `@v0.6.1`）。v1 不需要它的任何包；可选 `captcha`（N 次登录失败后）与 `geoip`（审计视图里显示登录地点）；v1.1 用 `saml`；以后 `passkey` 作为控制台登录方式 | 为了"复用"而整体引入 | 依赖越少，自建者要信任的东西越少；authcore 为 Apache-2.0，许可证兼容 | 低 |
@@ -800,7 +801,7 @@ OIDC 提供方不在 init 里配：init 完成后由管理员在控制台里添�
 | 灰度与回滚 | canary 发布（#15）+ 验证后才应用（#13）+ 独立看门狗回滚一次（#14） |
 | CARP/HA | `newwanip` 防抖 + 抖动 + 控制台标注 + 异常判定降级为告警（#17） |
 | 证书批量到期 | v1.1 存量迁移**打散签发时间**（按 device_id 哈希分桶）；到期前 30 天开始重试；`status` 上报剩余天数，<14 天标红 |
-| 供应链 | frps/frpc 锁同版本 + CI 一致性检查（#19，两个包各带 `FRP_VERSION`）；签名私钥主机排除在部署范围外（#20）；`authcore` 钉到核实过的 tag（#23） |
+| 供应链 | frps/frpc 锁同版本 + CI 一致性检查（#19，两个包各带 `FRP_VERSION`）；signing hosts excluded except the owner-approved packaging test host (#20)；`authcore` 钉到核实过的 tag（#23） |
 | 可观测性 | 部署文档提供 uptime 监控接入示例（自建者自己接）；`doctor` 可定期跑 |
 
 ### 威胁模型要写进 docs/ 并公开
@@ -826,7 +827,7 @@ v0.2 的计划是 7 个周末（W0–W6 + 0.5 缓冲）。v0.3 的范围更大�
 - 一台公网 VPS 做中继；
 - 一个能配通配符 DNS 的域名；
 - 一台 OPNsense 26.7.x 机器或虚拟机（26.7.1_1 或更新），并且：
-  - **不持有**仓库签名私钥——决策 #20 要求如此。2026-10-17 起签名改在 Irvine Home 上做；打包仓库的专用测试机在 Kazuha 移走签名私钥和构建/签名临时文件之后，就用作这台测试机；
+  - Use the designated packaging test host. Kazuha permits building, signing, and NetHub use on it; key or build-scratch removal is no longer required (decision #20, revised 2026-10-17).
   - 不是生产路由器；
 - 这台机器上同时装 `os-frp`，用于测试共存；
 - 一部走 4G/5G 的手机，提供真实的 CGNAT 路径；
@@ -921,7 +922,7 @@ enroll 流程里提示"确认拥有独立于本产品之外的带外访问手段
 即 v0.2 的 Weekend 6：`audit_log` 接上人工与系统动作；流量软计数器；`nethub doctor`；`rotate` 联调；
 部署 runbook + 威胁模型文档；灰度发布演练一次；README / LICENSE / DCO。
 
-**验收：** ①一台**不持签名私钥**的测试路由器走完"装插件 → 手机远程打开 GUI"全流程；
+**验收：** ①an **owner-approved non-production test router**走完"装插件 → 手机远程打开 GUI"全流程；
 ②找一位朋友**在他自己的服务器上**从零部署一次控制面并 enroll 他自己的设备——
 这一条验的是第 7 节，是整个 MVP 里最容易被自己人忽略的验收项；
 ③故意推一个带 bug 的插件版本给 canary，验证 reconcile 拒绝应用、看门狗未误报、灰度流程工作正常。
@@ -976,7 +977,7 @@ enroll 流程里提示"确认拥有独立于本产品之外的带外访问手段
   而 `newwanip` 触发的 reconcile 救不了这种情况（路由都没装上，frpc 根本连不出去）。
   **无技术防线**，runbook 写清"重启后失联第一排查项：检查默认路由与 gateway monitoring"。
 - `rotate` 依赖设备在线：强制轮换窗口内恰好离线的设备需要手动重走 enroll。
-- 签名私钥主机的隔离（决策 #20）是**运维纪律而非技术强制**，彻底方案（离线签名机）见 Q4。
+- The designated packaging test host may also run NetHub under the owner's revised decision #20. Signing material present on that host shares its compromise boundary. Other signing hosts remain excluded; offline signing remains Q4.
 - **设备 GUI 公网暴露（Q7）**：知道或猜到主机名就能打到 OPNsense 登录页；v1.1 证书进 CT 日志后主机名可枚举。
   门禁定下来之前，这个暴露面只能靠 OPNsense 自己的登录与两步验证兜底。
 - **IdP 或 IdP 账号被攻破**：等于拿到所有与之绑定的用户的控制台访问（若绑定的是 admin，就是管理员权限：
@@ -1009,7 +1010,7 @@ enroll 流程里提示"确认拥有独立于本产品之外的带外访问手段
 | 5 | Agent bug 写坏 config.xml | enroll/reconcile/unenroll 高频脚本化写路径 | #16 幂等 + 白名单 + 全局配置锁 |
 | 6 | CARP 双机惊群式重连 | failover → 两台几乎同时 `newwanip` → 撞上轮询判定 | #17 防抖 + 抖动 + HA 标注 + 降级为告警 |
 | 7 | 证书批量到期集中失效 | v1.1 存量同批迁移，90 天窗口高度集中 | 打散签发时间 + 提前 30 天重试 + 剩余天数上报 |
-| 8 | **签名私钥被当跳板：控制面渗透升级为全生态沦陷** | 场景 1 成立 + 受害机恰好持有仓库全部插件（截至 2026-10-16 共 13 个）的签名私钥 | #20 该主机排除在部署范围外（测试环境同样排除，见 §10）；离线签名机见 Q4 |
+| 8 | **签名私钥被当跳板：控制面渗透升级为全生态沦陷** | 场景 1 成立 + 受害机恰好持有仓库全部插件（截至 2026-10-16 共 13 个）的签名私钥 | Default exclusion under #20; the owner-approved packaging test host is an explicit exception and retains this risk. Offline signing remains Q4 |
 | 9 | 设备失联却没法远程修 | 重启后默认路由未装载（26.7 的 core#10597 已在 26.7.1_1 修复，同类故障仍可能由别的原因引起） | 要求 26.7.1_1 或更新；此类故障**无技术防线**，runbook 兜底 |
 | 10 | 8443 在受限网络不可达 | 非标准端口被运营商/公司网络封锁，恰在最需要的"手机 4G 打开 GUI"场景失效 | Weekend 0 实测数据（443 基线与 8443 同一循环交替采样）→ Q2 决策规则 |
 | 11 | 中继地址/token 需轮换但设备离线 | 迁移或泄露触发强制轮换 | #18 `rotate`（在线设备原地轮换）；离线设备仍需手动，已接受 |

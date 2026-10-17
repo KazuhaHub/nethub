@@ -79,7 +79,7 @@
 
 1. **先验证，再写代码。** W0 没跑完，不写任何安全相关的代码。很多设计依赖 W0 的实测结果。
 2. **不确定就问。** 卡住超过 2 小时，或者发现要偏离计划，就去问 Kazuha（提问模板见附录 D）。
-3. **只碰测试环境。** 不在任何生产设备上装东西，不碰持有签名私钥的机器（原因见 4.1）。OPNsense 测试机就用打包仓库的专用测试机（见 5.2）。
+3. **Use test environments only.** Production routers remain excluded. Kazuha permits building, signing, and NetHub use on the designated packaging test machine (DESIGN #20, revised 2026-10-17; §4.1 and §5.2).
 4. **小步提交。** 一个 PR 只做一件事，最好一两天内能合并。大 PR 很难审，也很难回退。
 5. **说实话。** 没测过的就写"没测过"，失败了就贴失败的输出。验收项必须有证据，不能凭感觉勾。
 
@@ -176,7 +176,7 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 |---|---|---|---|---|---|
 | D1 | 许可证：NetHub 已定 Apache-2.0，但组织里另有"产品用 AGPL、库和节点用 Apache"的分层规则，NetHub 要不要按这条改？（DESIGN §14 Q0） | 第一次公开 commit 之前 | P0 | 保持 Apache-2.0（DESIGN）；作为分层规则的例外写进决策记录（本计划建议） | 已确认（2026-10-17）：保持 Apache-2.0，作为组织分层规则的例外，继续 P0 |
 | D2 | GitHub 仓库 `KazuhaHub/nethub` 什么时候建、一开始私有还是公开；谁做第一次提交 | P0 开始 | P0 | 先建私有仓库，W7 公开（本计划建议） | 部分完成（2026-10-17）：Kazuha 做了第一次提交，仓库已建为私有并推送；2026-10-17 Kazuha 确认先保持私有，到 W7 再决定公开 |
-| D3 | 测试资源由谁准备、费用谁出：一台公网 VPS、一个能配泛解析的域名、一台 OPNsense 测试机，以及测试机上要装好 `os-frp`（W2 共存测试用）；两家不同运营商的 4G/5G 网络（RUNBOOK ④ 要求至少两家） | W0 开始前 | W0 及以后 | 见第 5.2 节 | 部分决定（2026-10-17）：OPNsense 测试机用打包仓库的专用测试机，签名改到 Irvine Home；VPS、域名、4G/5G 仍待定 |
+| D3 | 测试资源由谁准备、费用谁出：一台公网 VPS、一个能配泛解析的域名、一台 OPNsense 测试机，以及测试机上要装好 `os-frp`（W2 共存测试用）；两家不同运营商的 4G/5G 网络（RUNBOOK ④ 要求至少两家） | W0 开始前 | W0 及以后 | 见第 5.2 节 | 部分决定（2026-10-17）：OPNsense test host is the designated packaging test machine; building, signing, and NetHub use may coexist there. Relay SSH and wildcard DNS verified; temporary port window authorized; carrier-network testing remains pending |
 | D4 | frp 从 0.71.0 升到 0.71.1 的时机。要同时改打包仓库里 `os-frp` 的版本，那是 Kazuha 的仓库 | W2 开始前 | W2 | W2 之前三处一起升（DESIGN §5） | 待定 |
 | D5 | 8443 端口在受限网络下不好用的话，要不要把浏览器入口也放到 443（DESIGN §14 Q2） | W0 第 ④ 项结果出来后 | W5、W7 | 按 Q2 的数据规则判断（DESIGN） | 等 W0 |
 | D6 | 撤销设备时怎么断开它已在线的隧道（DESIGN §5 候选机制 1–4） | W0 第 ⑥ 项结果出来后、W5 之前 | W5 | 待 W0 数据（DESIGN） | 等 W0 |
@@ -281,9 +281,7 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 1. **不把任何真实信息写进仓库、issue、PR、截图或聊天记录**：真实域名、IP、端口、token、密码、密钥、证书私钥都不行。
    文档和示例里一律用 `example.com`、`router.example.com`、`203.0.113.10`。截图前先把地址栏和日志里的真实地址打码。
 2. **不在任何生产路由器上安装或运行 NetHub 的任何部分。**
-3. **不在持有签名私钥的机器上装或运行 NetHub 的任何部分**（DESIGN 决策 #20）。2026-10-17 起，Kazuha 在 Irvine Home 上签名，Irvine Home 你不碰。
-   打包仓库的"专用测试机"以前是构建和签名主机，现在改作你的 OPNsense 测试机（见 5.2）。
-   **Kazuha 确认已经把签名私钥和构建/签名临时文件从那台机器移走之前，不要在上面跑任何 NetHub 的东西。** 也不要在上面做构建正式包、签名这类事。
+3. **The designated packaging test machine may build and sign packages while running NetHub.** Kazuha explicitly revised DESIGN decision #20 on 2026-10-17. Removing its signing keys or build/signing scratch, or moving signing elsewhere, is no longer a prerequisite. Other signing hosts remain outside scope. Official package and release work follows the relevant stage and D13.
 4. **不构建、不签名、不发布正式软件包，不改打包仓库 `KKazuhaK/OPNsense-repo`。** 需要改那边时，写清楚要改什么，交给 Kazuha。
 5. **不 force push，不改写 git 历史，不直接推 `main`。** 所有改动走 PR。
 6. **提交、PR、代码注释里不出现任何 AI 工具的署名**（例如 `Co-authored-by: <AI 工具>`、"Generated with ..."），分支名也不能带工具名。
@@ -403,7 +401,7 @@ psql --version        # 只用客户端，不需要在本机跑 Postgres 服务
 |---|---|---|---|
 | 公网 VPS | Linux（推荐 Debian/Ubuntu），有独立公网 IPv4；W0 用 1 核 1GB 就够，W3 起建议 2 核 4GB | 中继 + 控制面 | W0 放行 7000 和 8443，做第 ④ 项时临时放行 443；W3 起长期放行 443、7000、8443。SSH 只允许你自己的 IP |
 | 域名 | 能自己改 DNS 记录 | 子域名路由 | 要加一条泛解析 `*.router.example.com → VPS 的 IP`（换成真实域名） |
-| OPNsense 测试机 | 打包仓库的专用测试机（2026-10-17 定）。OPNsense 26.7.x，版本 **≥ 26.7.1_1**；amd64；能上网 | 装插件、跑 frpc | 已经装好 Kazuha 的签名软件源。SSH、GUI 地址和 API 凭据找 Kazuha 私下要，**不要写进仓库**。用之前先确认签名私钥已经移走（4.1 第 3 条）。W2 起还要在上面装 `os-frp`，用来测共存 |
+| OPNsense 测试机 | 打包仓库的专用测试机（2026-10-17 定）。OPNsense 26.7.x，版本 **≥ 26.7.1_1**；amd64；能上网 | 装插件、跑 frpc | 已经装好 Kazuha 的签名软件源。SSH、GUI 地址和 API 凭据找 Kazuha 私下要，**不要写进仓库**。Co-hosted building, signing, and NetHub use are approved (§4.1, rule 3). W2 起还要在上面装 `os-frp`，用来测共存 |
 | 4G/5G 网络 | 能关掉 Wi-Fi、只走移动网络的手机；最好有两家不同运营商（RUNBOOK ④ 要求至少两家） | 从"真实的外部网络"访问 | W0 第 ①④⑤ 项要用。只有一家的话，在结果里写明 |
 | （可选）第二个受限网络 | 公司网络、校园网等 | W0 第 ④ 项 | 有就测，没有在结果里写明 |
 
@@ -418,7 +416,7 @@ psql --version        # 只用客户端，不需要在本机跑 Postgres 服务
 **开始用之前：**
 
 1. 把你的 SSH 公钥发给 Kazuha，请他加进测试机 root 的 Authorized keys。确认能 `ssh` 登录。
-2. 请 Kazuha 确认：签名私钥和构建/签名临时文件已经从这台机器移走（4.1 第 3 条）。
+2. Use the designated packaging test host under the revised co-hosting rule (§4.1, rule 3); key or build-scratch removal is no longer required.
 3. 在 SSH 里运行 `opnsense-version`，确认版本 ≥ 26.7.1_1。
 4. 记录：OPNsense 版本、虚拟机还是物理机、有公网 IP 还是在 NAT/CGNAT 后面。这些要填进 W0 的结果模板。
 
@@ -1666,7 +1664,7 @@ Enroll 前提示用户：请确认你有**不依赖 NetHub** 的其他访问方�
 **目标：** 补齐 v1 剩下的加固项和文档，完成三项关键验收，然后公开仓库。三项验收是：
 
 - 朋友从零部署；
-- 用一台不持签名私钥的测试路由器走完全流程；
+- Use the owner-approved non-production test router for the complete workflow;
 - 推一个有 bug 的版本，验证会被拦下。
 
 **前置条件：** W5、W6 完成；【D12】【D13】【D14】已定。
@@ -1722,7 +1720,7 @@ DESIGN §7 列的所有检查项都要实现，并分成两组：
 
 **W7-9 三项关键验收。**
 
-1. 用一台**不持签名私钥**的测试路由器，从软件源安装插件，走完"安装 → enroll → 手机远程打开 GUI"全流程。
+1. On the **owner-approved non-production test router**, install the plugin from the package repository and complete installation, enrollment, and remote GUI access over a mobile network.
 2. 请 Kazuha 找一位朋友，在**他自己的服务器上**，只看文档从零部署控制面，并 enroll 他自己的设备。
    他问的每一个问题、卡住的每一个地方，都记下来，当成文档 bug 修掉。
 3. 故意做一个带 bug 的插件版本（例如模板会渲染出坏配置），推给灰度设备。
@@ -1970,3 +1968,6 @@ D3 update (2026-10-17): Kazuha delegated isolated VM provisioning and authorized
 D3 update (2026-10-17): Kazuha provided access details for a dedicated OPNsense test machine and confirmed it is suitable for testing, with no production workload or signing private keys. A dedicated SSH public key has been supplied for installation. Connection and system readiness have not yet been verified. Access details and private key material stay outside this repository. Public relay, DNS, and two carrier networks remain unconfirmed.
 
 D3 verification (2026-10-17): Dedicated SSH access succeeded. Read-only checks confirmed an installed UFS root at `/dev/gpt/rootfs`, OPNsense 26.7.7, FreeBSD 15.1-RELEASE-p4 amd64, Python 3.13.15, os-frp 1.0.1, and frpc 0.71.0. There were no running frpc processes. The unchanged W0 client TOML passed `frpc verify` on the device; its temporary copy was removed. No service, firmware, or system configuration was changed. This verifies device preparation only; public relay, DNS, and the six W0 experiments are still outstanding.
+
+
+Decision #20 / D3 revision (2026-10-17): Kazuha explicitly permits package building, signing, and NetHub use on the designated packaging test machine. This supersedes the earlier requirement to move signing keys and build/signing scratch off that machine or relocate signing to another host. Device key presence was not inspected and is no longer a readiness gate for this approved host. Production-router restrictions and the remaining stage/release decisions still apply. Relay SSH access and wildcard DNS checks have now passed on the Debian 12 x86_64 LXC. Kazuha authorized temporarily stopping the existing Xray and OpenResty listeners during the W0 window and restoring them afterward.
