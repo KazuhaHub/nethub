@@ -538,7 +538,7 @@ jobs:
 ### 验收
 
 - [x] GitHub 上有 `KazuhaHub/nethub`，第一次提交包含现有的文件（`f529e1d`，见 P0-3）
-- [ ] 提交里没有任何真实地址、密钥，也没有 AI 署名。检查署名用下面这条，它只看作者、提交者和提交信息，不会被 CONTRIBUTING 里的规则文字误报，应该没有输出：
+- [x] 提交里没有任何真实地址、密钥，也没有 AI 署名。History audit on 2026-10-17 covered all eight main commits through `db3ff7b`: IPv4 literals were documentation/loopback/unspecified addresses only; the sole valid IPv6 literal was `::`; no private-key block or tracked secret-file candidate was found. The long token assignment was a configuration-template expression. Commit author, committer, and message checks found no prohibited attribution. 检查署名用下面这条，它只看作者、提交者和提交信息，不会被 CONTRIBUTING 里的规则文字误报，应该没有输出：
   `git log --format='%an <%ae>%n%cn <%ce>%n%B' | grep -niE 'co-authored-by|generated with'`
 - [x] CI 在 PR 上能跑，绿；故意改坏时会红（[pass](https://github.com/KazuhaHub/nethub/actions/runs/39025182708)、[expected failure](https://github.com/KazuhaHub/nethub/actions/runs/39025232350)、[restored](https://github.com/KazuhaHub/nethub/actions/runs/39025309568)）
 - [x] Dependabot 配置已合并（PR #1，`6612cdb`；Kazuha approved the merge on 2026-10-17）
