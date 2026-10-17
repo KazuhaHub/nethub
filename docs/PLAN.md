@@ -174,8 +174,8 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 
 | 编号 | 问题 | 最晚什么时候定 | 卡住哪个阶段 | 推荐（来源） | 状态 |
 |---|---|---|---|---|---|
-| D1 | 许可证：NetHub 已定 Apache-2.0，但组织里另有"产品用 AGPL、库和节点用 Apache"的分层规则，NetHub 要不要按这条改？（DESIGN §14 Q0） | 第一次公开 commit 之前 | P0 | 保持 Apache-2.0（DESIGN）；作为分层规则的例外写进决策记录（本计划建议） | 待定 |
-| D2 | GitHub 仓库 `KazuhaHub/nethub` 什么时候建、一开始私有还是公开；谁做第一次提交 | P0 开始 | P0 | 先建私有仓库，W7 公开（本计划建议） | 部分完成（2026-10-17）：Kazuha 做了第一次提交，仓库已建为私有并推送；什么时候公开仍待定 |
+| D1 | 许可证：NetHub 已定 Apache-2.0，但组织里另有"产品用 AGPL、库和节点用 Apache"的分层规则，NetHub 要不要按这条改？（DESIGN §14 Q0） | 第一次公开 commit 之前 | P0 | 保持 Apache-2.0（DESIGN）；作为分层规则的例外写进决策记录（本计划建议） | 已确认（2026-10-17）：保持 Apache-2.0，作为组织分层规则的例外，继续 P0 |
+| D2 | GitHub 仓库 `KazuhaHub/nethub` 什么时候建、一开始私有还是公开；谁做第一次提交 | P0 开始 | P0 | 先建私有仓库，W7 公开（本计划建议） | 部分完成（2026-10-17）：Kazuha 做了第一次提交，仓库已建为私有并推送；2026-10-17 Kazuha 确认先保持私有，到 W7 再决定公开 |
 | D3 | 测试资源由谁准备、费用谁出：一台公网 VPS、一个能配泛解析的域名、一台 OPNsense 测试机（不能是打包仓库的专用测试机），以及测试机上要装好 `os-frp`（W2 共存测试用）；两家不同运营商的 4G/5G 网络（RUNBOOK ④ 要求至少两家） | W0 开始前 | W0 及以后 | 见第 5.2 节 | 待定 |
 | D4 | frp 从 0.71.0 升到 0.71.1 的时机。要同时改打包仓库里 `os-frp` 的版本，那是 Kazuha 的仓库 | W2 开始前 | W2 | W2 之前三处一起升（DESIGN §5） | 待定 |
 | D5 | 8443 端口在受限网络下不好用的话，要不要把浏览器入口也放到 443（DESIGN §14 Q2） | W0 第 ④ 项结果出来后 | W5、W7 | 按 Q2 的数据规则判断（DESIGN） | 等 W0 |
@@ -392,6 +392,8 @@ psql --version        # 只用客户端，不需要在本机跑 Postgres 服务
 
 4. 给 GitHub 账号开两步验证。
 
+**执行环境检查（2026-10-17）：** Git 2.53.0.windows.3、GitHub CLI 2.102.0、Go 1.26.9、Node 24.14.0、npm 11.9.0、Python 3.12.14、actionlint 1.7.12。GitHub CLI、Go、actionlint 的下载包已经对照上游 SHA256 校验。Python 3.12 可执行当前 W0 文件检查，后续设备侧开发仍需 3.13；Docker/Compose、psql、jq、OpenSSL 未在 PATH 找到。上述版本来自本次执行环境，不代表用户另开的 PowerShell 可直接使用相同路径。
+
 ### 5.2 测试资源【D3】
 
 这些资源由 Kazuha 决定谁准备。资源到位之前，只能做 P0 和读文档。
@@ -459,6 +461,8 @@ gh repo create KazuhaHub/nethub --private --source . --push   # --private 或 --
 `docs/PLAN.md`（本文件）要不要进仓库，按【D12】决定。如果不进，提交前把它挪出仓库目录。
 
 **P0-4 加最小 CI（你做，走 PR）。**
+**进度（2026-10-17）：** [PR #1](https://github.com/KazuhaHub/nethub/pull/1) 已实现 CI 与 Dependabot；actionlint v1.7.12、TOML 结构检查与探针语法检查通过。GitHub CLI 的 `workflow` scope 已补充授权，推送恢复。线上[正常配置运行](https://github.com/KazuhaHub/nethub/actions/runs/39025182708) 的两个检查通过；将 `metadatas.device_id` 移到代理表下后，[负例运行](https://github.com/KazuhaHub/nethub/actions/runs/39025232350) 的结构检查按预期拒绝有效但字段错位的 TOML。配置已恢复，恢复后的线上运行链接见 PR。尚未审核合并，不把 P0 标为完成。
+
 现在还没有代码，CI 先检查已有的东西：Weekend 0 的两份 TOML 能正确解析，`probe.py` 语法正确，workflow 文件本身没错。
 写法参考 `KazuhaHub/authcore` 的 `.github/workflows/ci.yml`，主要学这几点：
 
@@ -529,6 +533,8 @@ jobs:
 新建 `.github/dependabot.yml`，先只配 `github-actions`（每周一次）。Go 和 npm 的配置等 W3 有代码了再加。可以参考 authcore 的 `.github/dependabot.yml`。
 
 **P0-6 仓库保护规则（Kazuha 做）。**
+**进度（2026-10-17）：** 查询 `repos/KazuhaHub/nethub/rules/branches/main` 返回 HTTP 403：`Upgrade to GitHub Pro or make this repository public to enable this feature.` 仓库保持私有；升级套餐或其他处理方式由 Kazuha 决定，不把这项标为已完成。CI 配置中的检查名为 `weekend0 kit checks` 与 `workflow lint`。
+
 请 Kazuha 按组织里其他仓库的规则，给 `main` 开保护：禁止直推、必须走 PR、必须 CI 通过。
 你需要告诉他 CI 里 job 的名字（例如 `weekend0 kit checks`），因为保护规则要按名字引用必过的检查。
 
@@ -1934,3 +1940,22 @@ git log --format='%an <%ae>%n%cn <%ce>%n%B' origin/main..HEAD | grep -niE 'co-au
 ```
 
 有命中的，逐条确认是不是占位值。拿不准就问。
+
+### G. 已确认的决策记录
+
+- 编号：D1
+  - 问题：NetHub 是否作为组织许可证分层规则的例外。
+  - 选项：保持 Apache-2.0；按组织分层规则调整许可证。
+  - 结论：保持 Apache-2.0，作为例外，继续 P0。
+  - 决定人：Kazuha
+  - 日期：2026-10-17
+  - 影响：P0-2；DESIGN §2、§14 Q0 子项。
+- 编号：D2
+  - 问题：仓库可见性与公开时间。
+  - 选项：现在公开；先保持私有，到 W7 再决定公开。
+  - 结论：先保持私有，到 W7 再决定公开；本次没有授权变更可见性。
+  - 决定人：Kazuha
+  - 日期：2026-10-17
+  - 影响：P0-2、W7 公开前审查。内部文档已经进入历史，D12 仍需另行决定。
+
+D3 的资源负责人和就绪状态尚未明确，仍待确认，不启动 W0。
