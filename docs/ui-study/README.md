@@ -17,7 +17,7 @@ W3-0 compares Ant Design, Mantine, and shadcn/ui using the same sign-in screen, 
 
 All three baseline integrations passed the interaction checks without CSP violations when inline styles were allowed. None of the three default integrations passed the strict policy without blocked style elements.
 
-The additional shadcn variant replaces only its modal with native HTML `dialog`. It retains the shadcn controls and Radix label/slot primitives. Focus containment, Escape dismissal, focus return to the opener, filtering, enrollment preview, and the 390 px mobile viewport passed under the strict policy.
+The additional shadcn variant replaces only its modal with native HTML `dialog`. It retains the shadcn controls and Radix label/slot primitives. Initial modal focus, eight Tab and eight Shift+Tab steps without entering the inert background page, Escape dismissal, focus return to the opener, filtering, enrollment preview, and the 390 px mobile viewport passed under the strict policy.
 
 Recommendation for D9: shadcn/ui with the tested native dialog adapter. It has the smallest build in this sample and the narrowest demonstrated change needed to meet the style policy. This is a proposal, not an approved product dependency.
 

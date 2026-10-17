@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-17T10:54:50.715Z",
+  "generatedAt": "2026-10-17T11:08:05.218Z",
   "browser": "155.0.8059.80",
   "strictPolicy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   "cases": [
@@ -870,6 +870,7 @@
         "borderRadius": "7px",
         "fontSize": "14px"
       },
+      "nativeFocusChecks": "Initial modal focus, 8 Tab and 8 Shift+Tab steps, Escape, and focus return",
       "mobile": {
         "viewportWidth": 390,
         "documentWidth": 390
