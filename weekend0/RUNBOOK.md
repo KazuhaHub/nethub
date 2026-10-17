@@ -10,6 +10,14 @@ Run it from GitHub Actions with **Run workflow**, or open a PR changing the pref
 
 This is preparation, not W0 acceptance. The live installer is not an installed, updated test device. The six experiments below still require the specified OPNsense version, public relay, DNS, and real external networks.
 
+## Selected local NAT test topology
+
+Kazuha clarified on 2026-10-17 that the current Windows machine hosts the OPNsense VM/client and the remote LXC runs the NetHub server/relay. Hyper-V installation and reboot completed, but guest startup at 3, 2, and 1.5 GiB failed with `0x8007000E`. Closing auxiliary windows was insufficient: the Hyper-V memory-balancer counter remained below 1 GiB available for guests. Increasing the Windows page file cannot supply its startup RAM; [Smart Paging](https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/dynamic-memory) does not apply to starting a VM from the off state.
+
+At Kazuha's request, the current attempt uses QEMU TCG on the same Windows machine. Its 2 GiB guest memory is pageable, with a separate QCOW2 overlay over the verified image. The WAN uses outbound user-mode NAT; the management LAN is isolated, with GUI/SSH forwards bound only to host loopback. No public bridge or public inbound forwarding is configured. The Hyper-V guest and the abandoned LXC guest remain off. Continue the existing QEMU process instead of launching another guest.
+
+FreeBSD boot and filesystem expansion were observed, but initialization reported a template-generation failure. Console readiness, interfaces, credentials, firmware update, and GUI access remain unverified. Inspect that failure, configure the guest, update the signed 26.7 base image to the required version below, and verify outbound access before testing. Record TCG and host paging in the environment notes; software-emulation overhead must not be presented as product throughput. Local NAT is not carrier CGNAT evidence; real external-network samples are still required.
+
 ## 这是什么、为什么要做
 
 这是 NetHub 项目写第一行产品代码之前的第一步。目的只有一个：用真实的 frp
@@ -65,7 +73,7 @@ This is preparation, not W0 acceptance. The live installer is not an installed, 
     2026-10-17): Kazuha permits package building, signing, and NetHub use on
     this machine. Removing signing keys or build/signing scratch is no longer
     required before testing. Other signing hosts remain outside scope.
-  - 用打包仓库那台专用测试机时，注意它和"NAT 后面的家用路由器"不一样（PLAN §5.2）：
+  - If using the earlier public packaging test device for a separate comparison, account for its differences from the selected NAT guest (PLAN §5.2):
     GUI 不在 443，第 2.3 步要把 `localPort` 改成它实际的 GUI 端口；它有公网 IP，
     GUI 端口在 WAN 上对外开放，做验收项①之前要把这条放行规则限制成只允许你自己的 IP，
     否则①证明不了"不开入站端口也能访问"，结果里也要写明它不在 NAT/CGNAT 后面。

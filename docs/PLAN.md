@@ -176,7 +176,7 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 |---|---|---|---|---|---|
 | D1 | 许可证：NetHub 已定 Apache-2.0，但组织里另有"产品用 AGPL、库和节点用 Apache"的分层规则，NetHub 要不要按这条改？（DESIGN §14 Q0） | 第一次公开 commit 之前 | P0 | 保持 Apache-2.0（DESIGN）；作为分层规则的例外写进决策记录（本计划建议） | 已确认（2026-10-17）：保持 Apache-2.0，作为组织分层规则的例外，继续 P0 |
 | D2 | GitHub 仓库 `KazuhaHub/nethub` 什么时候建、一开始私有还是公开；谁做第一次提交 | P0 开始 | P0 | 先建私有仓库，W7 公开（本计划建议） | 部分完成（2026-10-17）：Kazuha 做了第一次提交，仓库已建为私有并推送；2026-10-17 Kazuha 确认先保持私有，到 W7 再决定公开 |
-| D3 | 测试资源由谁准备、费用谁出：一台公网 VPS、一个能配泛解析的域名、一台 OPNsense 测试机，以及测试机上要装好 `os-frp`（W2 共存测试用）；两家不同运营商的 4G/5G 网络（RUNBOOK ④ 要求至少两家） | W0 开始前 | W0 及以后 | 见第 5.2 节 | 部分决定（2026-10-17）：OPNsense test host is the designated packaging test machine; building, signing, and NetHub use may coexist there. Relay SSH and wildcard DNS verified; temporary port window authorized; carrier-network testing remains pending |
+| D3 | 测试资源由谁准备、费用谁出：一台公网 VPS、一个能配泛解析的域名、一台 OPNsense 测试机，以及测试机上要装好 `os-frp`（W2 共存测试用）；两家不同运营商的 4G/5G 网络（RUNBOOK ④ 要求至少两家） | W0 开始前 | W0 及以后 | 见第 5.2 节 | 部分决定（2026-10-17）：Local Windows OPNsense NAT client and remote LXC server/relay selected. Hyper-V startup failed on host memory allocation; a 2 GiB QEMU TCG guest is now booting. Initialization error, guest readiness/update, and carrier-network testing remain pending. Relay SSH and wildcard DNS verified; temporary port window authorized. The earlier packaging host retains its co-hosting exception |
 | D4 | frp 从 0.71.0 升到 0.71.1 的时机。要同时改打包仓库里 `os-frp` 的版本，那是 Kazuha 的仓库 | W2 开始前 | W2 | W2 之前三处一起升（DESIGN §5） | 待定 |
 | D5 | 8443 端口在受限网络下不好用的话，要不要把浏览器入口也放到 443（DESIGN §14 Q2） | W0 第 ④ 项结果出来后 | W5、W7 | 按 Q2 的数据规则判断（DESIGN） | 等 W0 |
 | D6 | 撤销设备时怎么断开它已在线的隧道（DESIGN §5 候选机制 1–4） | W0 第 ⑥ 项结果出来后、W5 之前 | W5 | 待 W0 数据（DESIGN） | 等 W0 |
@@ -401,11 +401,15 @@ psql --version        # 只用客户端，不需要在本机跑 Postgres 服务
 |---|---|---|---|
 | 公网 VPS | Linux（推荐 Debian/Ubuntu），有独立公网 IPv4；W0 用 1 核 1GB 就够，W3 起建议 2 核 4GB | 中继 + 控制面 | W0 放行 7000 和 8443，做第 ④ 项时临时放行 443；W3 起长期放行 443、7000、8443。SSH 只允许你自己的 IP |
 | 域名 | 能自己改 DNS 记录 | 子域名路由 | 要加一条泛解析 `*.router.example.com → VPS 的 IP`（换成真实域名） |
-| OPNsense 测试机 | 打包仓库的专用测试机（2026-10-17 定）。OPNsense 26.7.x，版本 **≥ 26.7.1_1**；amd64；能上网 | 装插件、跑 frpc | 已经装好 Kazuha 的签名软件源。SSH、GUI 地址和 API 凭据找 Kazuha 私下要，**不要写进仓库**。Co-hosted building, signing, and NetHub use are approved (§4.1, rule 3). W2 起还要在上面装 `os-frp`，用来测共存 |
+| OPNsense test VM | Local Windows QEMU TCG guest behind NAT; amd64, OPNsense 26.7.x **≥ 26.7.1_1**, outbound Internet access | Run frpc and test the plugin | No public bridge or public inbound port mapping; local management forwards bind only to loopback. Configure the guest and update the verified 26.7 base image before acceptance. Install `os-frp` before W2 coexistence testing. Keep access details outside the repository |
 | 4G/5G 网络 | 能关掉 Wi-Fi、只走移动网络的手机；最好有两家不同运营商（RUNBOOK ④ 要求至少两家） | 从"真实的外部网络"访问 | W0 第 ①④⑤ 项要用。只有一家的话，在结果里写明 |
 | （可选）第二个受限网络 | 公司网络、校园网等 | W0 第 ④ 项 | 有就测，没有在结果里写明 |
 
-**关于 OPNsense 测试机：** 用打包仓库的专用测试机，不用自己装。这台机器和"家里 NAT 后面的路由器"有三处不同，测之前要知道：
+**Selected topology (owner clarification, 2026-10-17):** the current Windows machine hosts the OPNsense NAT client; the remote LXC runs the NetHub server/relay. Hyper-V is installed and the Windows host now has about 8 GiB RAM. The Generation 1 guest is configured with 2 GiB RAM, two vCPUs, separate internal LAN/WAN switches, outbound NAT, and no static inbound mappings. Startup attempts at 3, 2, and 1.5 GiB failed because the host could not allocate memory (`0x8007000E`). Closing auxiliary windows was insufficient; the Hyper-V memory-balancer counter remained below 1 GiB available for guests. It remains off and unconfigured; release memory or expand the host before retrying. The signed 26.7 Nano image and transferred VHDX were verified, but the guest still needs a firmware update to the required version. The exploratory LXC guest has been stopped.
+
+**Current fallback:** Kazuha requested another virtualization framework after the memory failures. QEMU for Windows is installed and its installer matches the publisher's SHA-512. The existing signed image backs a separate QCOW2 overlay; a 2 GiB, two-vCPU guest is running in TCG mode with pageable memory. Its WAN uses outbound user-mode NAT, and management forwards on a separate isolated LAN bind only to loopback. FreeBSD boot and filesystem expansion were observed, but initialization reported a template-generation failure. The guest has not reached verified readiness or been updated. Continue the existing process, inspect the error from the console, and record software-emulation overhead when interpreting W0 measurements. The Hyper-V guest remains off.
+
+**Earlier public packaging test device:** this remains owner-approved under the co-hosting exception, but is not the selected NAT client. The following caveats apply if it is used for a separate comparison:
 
 1. **GUI 不在 443 端口。** 实际端口问 Kazuha，W0 时把 `frpc.toml` 里的 `localPort` 改成这个端口（RUNBOOK 2.1）。
 2. **它有公网 IP，GUI 端口在 WAN 上对外开放。** 这样 W0 第 ① 项证明不了"不开入站端口也能访问"。
@@ -415,8 +419,8 @@ psql --version        # 只用客户端，不需要在本机跑 Postgres 服务
 
 **开始用之前：**
 
-1. 把你的 SSH 公钥发给 Kazuha，请他加进测试机 root 的 Authorized keys。确认能 `ssh` 登录。
-2. Use the designated packaging test host under the revised co-hosting rule (§4.1, rule 3); key or build-scratch removal is no longer required.
+1. Configure the local guest through its console, replace the default password, and verify dedicated SSH access through the loopback management forward.
+2. Verify outbound NAT and the absence of public inbound mappings; do not expose the guest GUI or SSH through the public host adapter. The earlier packaging host retains its separate co-hosting exception (§4.1, rule 3).
 3. 在 SSH 里运行 `opnsense-version`，确认版本 ≥ 26.7.1_1。
 4. 记录：OPNsense 版本、虚拟机还是物理机、有公网 IP 还是在 NAT/CGNAT 后面。这些要填进 W0 的结果模板。
 
@@ -1971,3 +1975,7 @@ D3 verification (2026-10-17): Dedicated SSH access succeeded. Read-only checks c
 
 
 Decision #20 / D3 revision (2026-10-17): Kazuha explicitly permits package building, signing, and NetHub use on the designated packaging test machine. This supersedes the earlier requirement to move signing keys and build/signing scratch off that machine or relocate signing to another host. Device key presence was not inspected and is no longer a readiness gate for this approved host. Production-router restrictions and the remaining stage/release decisions still apply. Relay SSH access and wildcard DNS checks have now passed on the Debian 12 x86_64 LXC. Kazuha authorized temporarily stopping the existing Xray and OpenResty listeners during the W0 window and restoring them afterward.
+
+D3 topology clarification and preparation (2026-10-17): Kazuha selected the local Windows machine for the OPNsense NAT client and the remote LXC for the NetHub server/relay. Hyper-V installation and reboot completed; approximately 8 GiB host RAM is visible. The local Generation 1 guest and its internal networks/NAT exist. Startup attempts at 3, 2, and 1.5 GiB failed with insufficient host memory; the guest is now configured at 2 GiB. Closing auxiliary windows did not free enough memory according to the Hyper-V memory-balancer counter. No guest configuration or update is complete. The verified 26.7 Nano disk must be updated before acceptance. A preceding temporary relay preflight reached the earlier public device's login form and matched its TLS leaf certificate; it did not test authenticated GUI use or prove NAT traversal. Test processes and the exploratory LXC guest are stopped; original relay listeners are restored. None of the six W0 experiments is accepted by this preparation.
+
+D3 runtime fallback (2026-10-17): following Kazuha's request for another framework, the local QEMU TCG guest is running with 2 GiB pageable memory and the verified VHDX as a read-only backing image. Initial boot has not completed verification; a template-generation failure must be diagnosed. Local management forwards bind only to loopback. The remote LXC remains the server/relay, and W0 remains unaccepted.
