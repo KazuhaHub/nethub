@@ -182,7 +182,7 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 | D6 | 撤销设备时怎么断开它已在线的隧道（DESIGN §5 候选机制 1–4） | W0 第 ⑥ 项结果出来后、W5 之前 | W5 | 待 W0 数据（DESIGN） | 等 W0 |
 | D7 | 设备登录页会暴露在公网上，要不要用 `NewUserConn` 做"点了打开才放行"的门禁；放行窗口要不要随访问顺延（DESIGN §14 Q7） | W0 第 ⑤ 项结果出来后、W5 之前 | W5 | 钩子可用就在 v1 做（DESIGN） | 等 W0 |
 | D8 | v1 功能清单的最终确认（DESIGN §1、§6） | W3 开始前 | W3 | 按 DESIGN v0.3 | 待定 |
-| D9 | 控制台用哪个 React 组件库（DESIGN §14 Q8）。你先在 W3-0 做 2–3 个示例给他挑 | W3-0 做完后 | W3 | 无，看示例再定 | 待定 |
+| D9 | 控制台用哪个 React 组件库（DESIGN §14 Q8）。你先在 W3-0 做 2–3 个示例给他挑 | W3-0 做完后 | W3 | 无，看示例再定 | Confirmed: shadcn/ui with native dialog (2026-10-17) |
 | D10 | 插件源码在 `agents/opnsense/plugin/` 里的目录结构；以及正式发布时，打包仓库怎样从 NetHub 的 release 构建这个插件（打包仓库按 `plugins.json` 的记录逐文件核对，具体怎么接还没定） | W1 开始前 | W1、W7 | 结构参照 `os-easytier` 的布局（本计划建议）；发布方式由 Kazuha 定 | 待定 |
 | D11 | DESIGN v0.3 里标「建议」的设计点逐条确认，重点是 §6：web/authz 进程拆分和列级授权、`nethub_backup` 角色、删掉 `frp_token_hash`、一次性撤销。另外还有几处 DESIGN §6 没写到、需要补表或补权限的地方：W5 的"立即断"请求、Q7 门禁的 IP 登记、Postgres 初始化时容器要拿到全部角色密码（和决策 #21"每个容器只拿自己的密钥"有出入）、邀请有效期（本计划暂按 72 小时）和"邀请限定身份提供方"是否要做 | W3 写数据库迁移之前 | W3、W4、W5、W6 | 按 DESIGN v0.3 | 待定 |
 | D12 | `docs/DESIGN.md` 公开之前要不要删改敏感内容：第三方名字、本地路径、针对签名主机的攻击路径描述；本计划 `docs/PLAN.md` 要不要放进公开仓库 | 仓库公开之前 | W7 | 公开前删改；PLAN.md 不公开（本计划建议） | 待定 |
@@ -1072,7 +1072,7 @@ DESIGN 决策 #14：每 5 分钟检查一次，服务是 stopped 并且存在 `f
 ### 步骤
 
 **W3-0 做 UI 组件库示例，交给 Kazuha 选【D9】。**
-**Progress (2026-10-17):** The three samples and strict-CSP measurements are complete; see [the comparison and raw evidence](ui-study/README.md). Gzip totals: Ant Design 274.5 KiB, Mantine 143.2 KiB, shadcn/ui 102.3 KiB. All default integrations inject blocked style elements. A shadcn/native-dialog variant passed the tested flows with zero CSP events, including focus containment, Escape dismissal, focus return, and mobile layout. D9 remains open; no sample source or product dependency has been added to main.
+**Progress (2026-10-17):** The three samples and strict-CSP measurements are complete; see [the comparison and raw evidence](ui-study/README.md). Gzip totals: Ant Design 274.5 KiB, Mantine 143.2 KiB, shadcn/ui 102.3 KiB. All default integrations inject blocked style elements. A shadcn/native-dialog variant passed the tested flows with zero CSP events, including focus containment, Escape dismissal, focus return, and mobile layout. Kazuha confirmed shadcn/ui with native dialog for D9; no sample source or product dependency has been added to main.
 
 在仓库之外新建一个临时的 Vite + React + TypeScript 工程，分别用三个候选库各做两页：登录页和设备列表页（用假数据，3–5 台设备，有在线和离线）。
 三个候选：
@@ -1961,3 +1961,13 @@ git log --format='%an <%ae>%n%cn <%ce>%n%B' origin/main..HEAD | grep -niE 'co-au
   - 影响：P0-2、W7 公开前审查。内部文档已经进入历史，D12 仍需另行决定。
 
 D3 update (2026-10-17): Kazuha delegated isolated VM provisioning and authorized the operations in this chat. The local 4 GiB execution host is too small for the guest; PR #2 has verified a signed, restricted live-image boot on a standard hosted runner: [evidence](https://github.com/KazuhaHub/nethub/actions/runs/39026961946). The guest reached its login prompt in 56 seconds and was terminated; it has not been installed or updated for W0. Public relay, DNS, and carrier-network availability remain unconfirmed. This is preflight work, not W0 acceptance.
+
+- Decision: D9
+  - Question: Which React component library should the console use?
+  - Options: Ant Design, Mantine, or shadcn/ui with the tested native dialog adaptation.
+  - Resolution: shadcn/ui with native dialog, explicitly confirmed in this chat.
+  - Owner: Kazuha
+  - Date: 2026-10-17
+  - Impact: W3-0 selection complete; W3 console implementation uses this choice. W0 remains a prerequisite for product implementation.
+
+D3 update (2026-10-17): Kazuha provided access details for a dedicated OPNsense test machine and confirmed it is suitable for testing, with no production workload or signing private keys. A dedicated SSH public key has been supplied for installation. Connection and system readiness have not yet been verified. Access details and private key material stay outside this repository. Public relay, DNS, and two carrier networks remain unconfirmed.
