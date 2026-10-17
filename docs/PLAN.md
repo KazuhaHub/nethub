@@ -1960,4 +1960,4 @@ git log --format='%an <%ae>%n%cn <%ce>%n%B' origin/main..HEAD | grep -niE 'co-au
   - 日期：2026-10-17
   - 影响：P0-2、W7 公开前审查。内部文档已经进入历史，D12 仍需另行决定。
 
-D3 update (2026-10-17): Kazuha delegated isolated VM provisioning and authorized the operations in this chat. The local 4 GiB execution host is too small for the guest; PR #2 is testing a restricted, disposable live-image boot on a standard hosted runner. Public relay, DNS, and carrier-network availability remain unconfirmed. This is preflight work, not W0 acceptance.
+D3 update (2026-10-17): Kazuha delegated isolated VM provisioning and authorized the operations in this chat. The local 4 GiB execution host is too small for the guest; PR #2 has verified a signed, restricted live-image boot on a standard hosted runner: [evidence](https://github.com/KazuhaHub/nethub/actions/runs/39026961946). The guest reached its login prompt in 56 seconds and was terminated; it has not been installed or updated for W0. Public relay, DNS, and carrier-network availability remain unconfirmed. This is preflight work, not W0 acceptance.
