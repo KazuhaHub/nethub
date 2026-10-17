@@ -28,6 +28,7 @@ class SerialConsole:
         self.process = process
         self.buffer = ""
         self.transcript = bytearray()
+        self.application_cursor = False
 
     def expect(self, pattern: str, timeout: float = 60) -> str:
         until = time.monotonic() + timeout
@@ -47,12 +48,23 @@ class SerialConsole:
                 continue
             if not chunk:
                 raise RuntimeError("Guest serial connection closed before the expected prompt")
+            previous_size = len(self.transcript)
             self.transcript.extend(chunk)
+            control_bytes = self.transcript[max(0, previous_size - 3):]
+            for _ in range(control_bytes.count(b"\x1b[6n")):
+                self.connection.sendall(b"\x1b[40;120R")
+            cursor_modes = re.findall(rb"\x1b\[\?1([hl])", self.transcript)
+            if cursor_modes:
+                self.application_cursor = cursor_modes[-1] == b"h"
             self.buffer += chunk.decode("utf-8", errors="replace")
         raise TimeoutError("Guest did not reach the expected serial prompt")
 
     def send(self, text: str) -> None:
         self.connection.sendall(text.encode("utf-8"))
+
+    def arrow(self, direction: str) -> None:
+        key = {"down": "B", "left": "D"}[direction]
+        self.send(("\x1bO" if self.application_cursor else "\x1b[") + key)
 
 
 def installer_account() -> str:
@@ -150,7 +162,8 @@ def main() -> None:
         console.send("stty rows 40 cols 120; env BSDINSTALL_KEYMAP_DONE=1 opnsense-installer\n")
         console.expect(r"Choose one of the following tasks to perform\.")
         console.expect(r"Install \(UFS\)")
-        console.send("\x1b[B\r")
+        console.arrow("down")
+        console.send("\r")
         summary["phase"] = "select disposable disk"
         console.expect(r"Please select a disk to continue\.")
         console.expect(r"\bvtbd1\b")
@@ -160,15 +173,18 @@ def main() -> None:
         confirmation = console.expect(r"Last Chance!.*?vtbd1")
         if re.search(r"\bvtbd0\b", confirmation):
             raise RuntimeError("Installer confirmation includes the installation media; refusing to continue")
-        console.send("\x1b[D\r")
+        console.arrow("left")
+        console.send("\r")
         summary["phase"] = "install system"
         print("Installing onto the dedicated virtual target disk.", flush=True)
         console.expect(r"Final Configuration", timeout=300)
         console.expect(r"Complete Install")
-        console.send("\x1b[B\r")
+        console.arrow("down")
+        console.send("\r")
         console.expect(r"Installation Complete", timeout=60)
         console.expect(r"Halt now")
-        console.send("\x1b[B\r")
+        console.arrow("down")
+        console.send("\r")
         process.wait(timeout=90)
         if process.returncode != 0:
             raise RuntimeError("Installer guest did not shut down cleanly")
