@@ -58,7 +58,7 @@ v0.2 写完之后，用户在 2026-09-17 的会话里拍板了一批事项，它
 | 新增 **Q10：设备 ↔ 中继控制通道没有服务端认证**（frpc 未配 CA 时不校验 frps 证书），可被路径上的中间人截取 domain claim（§14） | 写威胁模型时对 frp v0.71.0 源码核实发现 | 待定（v1 前必须解决） | 2026-10-16 |
 | 威胁模型与控制台 API 初稿审查后的补充：`NewProxy` 拒绝任何 custom domain、设备不能承载控制台域名、控制台 HSTS 不带 `includeSubDomains`（§5）；被攻破的控制台能借设备列表钓鱼、frps / Caddy 被攻破的后果、authz 能取消撤销（§6）；web 对 `enroll_tokens` 少数列的 `SELECT`（§6）；始终保留一个本地密码 admin（§6）；Q10 修复方案细化（部署 CA、PEM、frps 不热加载证书、`Login` 可重放） | 写 `docs/threat-model.md` 与 `docs/console-api.md` 时的审查发现 | 建议 | 2026-10-16 |
 
-**仍未决定（本文不替用户回答）：** 控制通道的服务端认证（Q10）；OPNsense 主机名检查的处理（Q9）；React UI 组件库（Q8）；v1 功能清单的最终确认；
+**仍未决定（本文不替用户回答）：** 控制通道的服务端认证（Q10）；OPNsense 主机名检查的处理（Q9）；v1 功能清单的最终确认；
 设备 GUI 公网暴露面的处理（Q7）；frp 升到 0.71.1 的时机（§5）。
 
 ---
@@ -1095,9 +1095,8 @@ v0.2 列过的其它候选（`sallyport` / `gatehouse` / `beacon`）不再考虑
 
 *状态：* 待用户决定。
 
-**Q8（新，待用户决定）：React UI 组件库。**
-会做 2–3 个示例给用户比较后再选。组织内的 Report-Portal 用的是 antd，但这不构成 NetHub 的决定。
-W3 要搭 React 外壳，所以建议在 W3 之前定下来。
+**Q8 (confirmed 2026-10-17): React component library.**
+Kazuha selected shadcn/ui with native HTML dialog after reviewing the W3-0 samples and strict-CSP results. See [the comparison](ui-study/README.md) and the D9 decision record in PLAN. W3 will implement this choice after W0 is accepted; the sample source remains outside the product repository.
 
 **Q9（新，待实测与用户决定）：OPNsense 自己的主机名检查。**
 OPNsense 的 Web GUI 自带 DNS 重绑定检查和 HTTP_REFERER 检查（System → Settings → Administration，另有"Alternate Hostnames"一栏）。

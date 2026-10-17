@@ -131,3 +131,7 @@ PLAN §2 列了 D1–D22，**全部归 Kazuha 拍板**。你的职责有三件�
 3. 你打算这一周做什么。
 
 然后开始按 PLAN §5 装环境。
+
+### Dedicated test device verification (2026-10-17)
+
+Kazuha supplied and approved an independent test device without production workloads or signing private keys. SSH access and read-only checks passed: installed UFS root, OPNsense 26.7.7, FreeBSD 15.1-RELEASE-p4 amd64, Python 3.13.15, os-frp 1.0.1, and frpc 0.71.0. No frpc process was running. The stock W0 client configuration passed strict validation, and the temporary copy was removed. Firmware and services were unchanged. Public relay, DNS, and carrier-network tests remain open; this is not W0 acceptance. Access details and SSH private key material remain outside the repository.
