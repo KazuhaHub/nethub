@@ -10,6 +10,14 @@ Run it from GitHub Actions with **Run workflow**, or open a PR changing the pref
 
 This is preparation, not W0 acceptance. The live installer is not an installed, updated test device. The six experiments below still require the specified OPNsense version, public relay, DNS, and real external networks.
 
+## Supplemental installed-system preflight
+
+The `W0 installed VM preflight` workflow uses the original UFS installer through a private serial terminal, writes a new 40 GiB virtual disk, removes the installation image, and checks the installed version and root filesystem after another boot. The guest has restricted user-mode networking and no published ports. Disks are discarded with the runner; only redacted logs, terminal screens, and JSON summaries are uploaded.
+
+The public installer account is read from the vendor installation documentation at runtime and is never embedded in source or exported evidence. The terminal parser runs in an isolated virtual environment with wheel hashes pinned in `weekend0/terminal-requirements.txt`. Protocol regression checks run in normal CI.
+
+This preflight does not update firmware or provision SSH. The base 26.7 installation still needs the version and access setup listed below before W0 can start. Refer to the workflow's actual result and artifact summary for installation status.
+
 ## 这是什么、为什么要做
 
 这是 NetHub 项目写第一行产品代码之前的第一步。目的只有一个：用真实的 frp

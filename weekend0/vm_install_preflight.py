@@ -22,6 +22,7 @@ import urllib.request
 import pyte
 
 INSTALL_DOCS = "https://docs.opnsense.org/manual/install.html"
+INSTALL_MENU_PATTERN = r"Install \(ZFS\).*Install \(UFS\)"
 INSTALLED_CHECK_COMMAND = (
     "printf '\\nNH_%s=' VERSION; opnsense-version -V; "
     "mount -p | awk '$2 == \"/\" {printf \"NH_%s=%s\\n\", \"ROOT\", $1; "
@@ -180,15 +181,13 @@ def main() -> None:
         print("Live-system serial login succeeded; starting the vendor installer.", flush=True)
         summary["phase"] = "installer menu"
         console.send("stty rows 40 cols 120; env BSDINSTALL_KEYMAP_DONE=1 opnsense-installer\n")
-        console.expect(r"Choose one of the following tasks to perform\.", screen=True)
-        console.expect(r"Install \(UFS\)", screen=True)
+        console.expect(INSTALL_MENU_PATTERN, screen=True)
         console.arrow("down")
         console.send("\r")
         summary["phase"] = "select disposable disk"
-        console.expect(r"Please select a disk to continue\.", screen=True)
-        console.expect(r"\bvtbd1\b", screen=True)
+        console.expect(r"UFS Configuration.*\bvtbd1\b", screen=True)
         console.send("\r")
-        console.expect(r"recommended swap partition", screen=True)
+        console.expect(r"recommended", screen=True)
         console.send("\t\r")
         confirmation = console.expect(r"Last Chance!.*?vtbd1", screen=True)
         if re.search(r"\bvtbd0\b", confirmation):

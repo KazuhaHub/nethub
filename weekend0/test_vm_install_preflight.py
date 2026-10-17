@@ -59,6 +59,16 @@ class SerialProtocolTests(unittest.TestCase):
         self.guest.sendall(b"\x1b[2J\x1b[1;1HChooxe one\x1b[1;5Hs")
         self.assertIn("Choose one", self.console.expect("Choose one", timeout=1, screen=True))
 
+    def test_installer_menu_detection_tolerates_wrapped_help(self):
+        self.guest.sendall(
+            b"\x1b[2J\x1b[1;1HChoose one of the following tasks to"
+            b"\x1b[2;1Hperform.\x1b[4;1HInstall (ZFS)  ZFS GPT/UEFI Hybrid"
+            b"\x1b[5;1HInstall (UFS)  UFS GPT/UEFI Hybrid"
+        )
+        menu = self.console.expect(module["INSTALL_MENU_PATTERN"], timeout=1, screen=True)
+        self.assertIn("Install (ZFS)", menu)
+        self.assertIn("Install (UFS)", menu)
+
     def test_closed_serial_connection_fails(self):
         self.guest.close()
         with self.assertRaisesRegex(RuntimeError, "connection closed"):
