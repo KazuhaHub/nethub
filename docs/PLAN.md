@@ -459,6 +459,8 @@ gh repo create KazuhaHub/nethub --private --source . --push   # --private 或 --
 `docs/PLAN.md`（本文件）要不要进仓库，按【D12】决定。如果不进，提交前把它挪出仓库目录。
 
 **P0-4 加最小 CI（你做，走 PR）。**
+**进度（2026-10-17）：** 本地分支 `ci/p0-bootstrap` 已实现 CI 与 Dependabot；actionlint v1.7.12 通过，工作流中的 TOML 结构检查与探针语法检查通过；临时目录中将 `metadatas.device_id` 移到代理表下，TOML 可解析但结构检查按预期拒绝。GitHub 拒绝 workflow 推送，原因是现有 OAuth 凭据缺少 `workflow` scope；尚未创建 PR、尚无线上红/绿证据，不能勾选线上 CI 验收。
+
 现在还没有代码，CI 先检查已有的东西：Weekend 0 的两份 TOML 能正确解析，`probe.py` 语法正确，workflow 文件本身没错。
 写法参考 `KazuhaHub/authcore` 的 `.github/workflows/ci.yml`，主要学这几点：
 
@@ -529,6 +531,8 @@ jobs:
 新建 `.github/dependabot.yml`，先只配 `github-actions`（每周一次）。Go 和 npm 的配置等 W3 有代码了再加。可以参考 authcore 的 `.github/dependabot.yml`。
 
 **P0-6 仓库保护规则（Kazuha 做）。**
+**进度（2026-10-17）：** 查询 `repos/KazuhaHub/nethub/rules/branches/main` 返回 HTTP 403：`Upgrade to GitHub Pro or make this repository public to enable this feature.` 仓库保持私有；升级套餐或其他处理方式由 Kazuha 决定，不把这项标为已完成。CI 配置中的检查名为 `weekend0 kit checks` 与 `workflow lint`。
+
 请 Kazuha 按组织里其他仓库的规则，给 `main` 开保护：禁止直推、必须走 PR、必须 CI 通过。
 你需要告诉他 CI 里 job 的名字（例如 `weekend0 kit checks`），因为保护规则要按名字引用必过的检查。
 
