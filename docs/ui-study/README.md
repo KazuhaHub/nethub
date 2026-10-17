@@ -1,6 +1,6 @@
 # Console component library study
 
-W3-0 compares Ant Design, Mantine, and shadcn/ui using the same sign-in screen, five sample devices, filters, device details, and enrollment preview. The sample application stays outside the product repository. D9 remains open.
+W3-0 compares Ant Design, Mantine, and shadcn/ui using the same sign-in screen, five sample devices, filters, device details, and enrollment preview. The sample application stays outside the product repository. Kazuha confirmed shadcn/ui with native dialog for D9 on 2026-10-17.
 
 ![Device inventory comparison](comparison.png)
 
@@ -19,7 +19,7 @@ All three baseline integrations passed the interaction checks without CSP violat
 
 The additional shadcn variant replaces only its modal with native HTML `dialog`. It retains the shadcn controls and Radix label/slot primitives. Initial modal focus, eight Tab and eight Shift+Tab steps without entering the inert background page, Escape dismissal, focus return to the opener, filtering, enrollment preview, and the 390 px mobile viewport passed under the strict policy.
 
-Recommendation for D9: shadcn/ui with the tested native dialog adapter. It has the smallest build in this sample and the narrowest demonstrated change needed to meet the style policy. This is a proposal, not an approved product dependency.
+D9 decision: use shadcn/ui with the tested native dialog adapter. It has the smallest build in this sample and the narrowest demonstrated change needed to meet the style policy. Product integration belongs to W3, after the W0 prerequisites are satisfied.
 
 ## Method and limits
 
