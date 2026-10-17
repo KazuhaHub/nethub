@@ -1,5 +1,15 @@
 # Weekend 0 传输层验证 RUNBOOK
 
+## Supplemental VM boot preflight
+
+The `W0 VM preflight` workflow boots the official 26.7 serial live image on a disposable Ubuntu runner. It checks KVM and memory first, validates the compressed image and the release signing key against the pinned upstream announcement, verifies the image signature, and waits for the guest login prompt.
+
+The guest receives 3072 MiB, snapshot-only writes, and two restricted user-mode networks. No network bridge, published port, credentials, or NetHub package is configured. QEMU is terminated on completion or failure. The workflow uploads only a JSON summary and redacted serial output, retained for seven days.
+
+Run it from GitHub Actions with **Run workflow**, or open a PR changing the preflight script/workflow. The first [verified boot](https://github.com/KazuhaHub/nethub/actions/runs/39026961946) reached the login prompt in 56 seconds after image verification.
+
+This is preparation, not W0 acceptance. The live installer is not an installed, updated test device. The six experiments below still require the specified OPNsense version, public relay, DNS, and real external networks.
+
 ## 这是什么、为什么要做
 
 这是 NetHub 项目写第一行产品代码之前的第一步。目的只有一个：用真实的 frp
