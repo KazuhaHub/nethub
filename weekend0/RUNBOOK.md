@@ -61,10 +61,14 @@ This is preparation, not W0 acceptance. The live installer is not an installed, 
 - 一台可以临时 SSH 上去、装了 OPNsense 26.7.x（26.7.1_1 或更新）、能出网的测试机，
   它必须同时满足：
   - **不是生产路由器**。这台机器会被临时装上手工运行的 frpc，验证完要清理干净。
-  - **不是插件包的构建/签名机**（DESIGN 决策 #20：持有仓库签名私钥的那台机器排除在
-    本项目的部署范围之外，验收用一台不持私钥的独立测试机）。打包仓库那台专用测试机
-    就是构建和签名机，所以它不能拿来做这件事。
-  - 最好是一台专用虚拟机，并且**同时装着 os-frp**：这样可以顺便提前看一眼两套 frpc
+  - **不持有仓库签名私钥**（DESIGN 决策 #20：持有签名私钥的机器排除在本项目的部署
+    范围之外）。2026-10-17 起签名改在 Irvine Home 上做；打包仓库那台专用测试机就是
+    本项目的测试机，但要等 Kazuha 确认签名私钥和构建/签名临时文件已经移走才能用。
+  - 用打包仓库那台专用测试机时，注意它和"NAT 后面的家用路由器"不一样（PLAN §5.2）：
+    GUI 不在 443，第 2.3 步要把 `localPort` 改成它实际的 GUI 端口；它有公网 IP，
+    GUI 端口在 WAN 上对外开放，做验收项①之前要把这条放行规则限制成只允许你自己的 IP，
+    否则①证明不了"不开入站端口也能访问"，结果里也要写明它不在 NAT/CGNAT 后面。
+  - 最好**同时装着 os-frp**：这样可以顺便提前看一眼两套 frpc
     能不能共存（本套件手工跑的 frpc 用的是 `/tmp` 下的独立二进制和配置，不碰 os-frp
     的 `/usr/local/sbin/frpc`、`/usr/local/etc/frp/frpc.toml`，也没有开 frpc 的
     `[webServer]`，不会去抢 os-frp 管理界面的 127.0.0.1:7400）。
@@ -339,10 +343,11 @@ strict_config 下拼错字段名会直接报错，不会等到运行时才行为
 
 ### 2.1 SSH 进 OPNsense，确认 Web UI 本地端口
 
-OPNsense 默认 Web UI 跑在 443（HTTPS）。用下面的命令确认本地确实监听着：
+OPNsense 默认 Web UI 跑在 443（HTTPS），打包仓库那台专用测试机改过端口。Web UI 由
+lighttpd 提供，用下面的命令看它实际监听的端口：
 
 ```sh
-sockstat -4 -l | grep 443
+sockstat -4 -l | grep lighttpd
 ```
 
 如果你的 OPNsense 把管理端口改成了别的（比如 8443、10443），记得同步改
@@ -359,6 +364,8 @@ scp frp_0.71.0_freebsd_amd64/frpc frpc.toml root@<opnsense测试机>:/tmp/
 
 - `serverAddr` 换成你 VPS 的真实公网 IP（或域名）。
 - `subdomain` 保持 `weekend0-test`，或者换成任何你喜欢的、还没被占用的子域名。
+- `localPort` 改成测试机实际的 GUI 端口（第 2.1 步查到的那个）。打包仓库那台专用测试机的
+  GUI 不在 443。
 - 如果你按第 1.4 步给 frps 加了 `auth.token`，这里也要填一样的值：去掉
   `frpc.toml` 里那行 `# auth.token = ...` 的注释。它必须留在原位（顶层，`[[proxies]]`
   之前），挪到 `[[proxies]]` 下面就会变成 `proxies[0].auth`，strict_config 下 frpc
