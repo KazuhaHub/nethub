@@ -7,6 +7,8 @@ on:
       - .github/workflows/w0-install.yml
       - weekend0/vm_install_preflight.py
       - weekend0/vm_preflight.py
+      - weekend0/terminal-requirements.txt
+      - weekend0/test_vm_install_preflight.py
 
 permissions: {}
 
@@ -37,7 +39,10 @@ jobs:
           sudo apt-get install --no-install-recommends -y qemu-system-x86 qemu-utils
 
       - name: Install and verify an independent guest boot
-        run: python3 -I weekend0/vm_install_preflight.py --output "$RUNNER_TEMP/w0-install"
+        run: |
+          python3 -m venv "$RUNNER_TEMP/w0-terminal-venv"
+          "$RUNNER_TEMP/w0-terminal-venv/bin/python" -m pip install --require-hashes --only-binary=:all: -r weekend0/terminal-requirements.txt
+          "$RUNNER_TEMP/w0-terminal-venv/bin/python" -I weekend0/vm_install_preflight.py --output "$RUNNER_TEMP/w0-install"
 
       - name: Upload redacted evidence
         if: always()
@@ -48,6 +53,7 @@ jobs:
             ${{ runner.temp }}/w0-install/install-summary.json
             ${{ runner.temp }}/w0-install/installer-redacted.log
             ${{ runner.temp }}/w0-install/installed-redacted.log
+            ${{ runner.temp }}/w0-install/*-screen-redacted.txt
             ${{ runner.temp }}/w0-install/image/summary.json
           if-no-files-found: ignore
           retention-days: 7

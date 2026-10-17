@@ -43,6 +43,12 @@ jobs:
       - name: Check probe.py syntax
         run: python3 -I -X pycache_prefix="$RUNNER_TEMP/nethub-pycache" -m py_compile weekend0/probe.py
 
+      - name: Check installer serial protocol
+        run: |
+          python3 -m venv "$RUNNER_TEMP/w0-terminal-venv"
+          "$RUNNER_TEMP/w0-terminal-venv/bin/python" -m pip install --require-hashes --only-binary=:all: -r weekend0/terminal-requirements.txt
+          "$RUNNER_TEMP/w0-terminal-venv/bin/python" -I -m unittest discover -s weekend0 -p 'test_vm_install_preflight.py' -v
+
   actionlint:
     name: workflow lint
     runs-on: ubuntu-latest

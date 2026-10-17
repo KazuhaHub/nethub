@@ -19,7 +19,26 @@ import sys
 import time
 import urllib.request
 
+import pyte
+
 INSTALL_DOCS = "https://docs.opnsense.org/manual/install.html"
+INSTALLED_CHECK_COMMAND = (
+    "printf '\\nNH_%s=' VERSION; opnsense-version -V; "
+    "mount -p | awk '$2 == \"/\" {printf \"NH_%s=%s\\n\", \"ROOT\", $1; "
+    "printf \"NH_%s=%s\\n\", \"FSTYPE\", $3}'; "
+    "printf '\\nNH_%s\\n' CHECK_DONE\n"
+)
+
+
+class ReplyScreen(pyte.Screen):
+    def __init__(self, connection: socket.socket):
+        self.connection = connection
+        self.replies: list[str] = []
+        super().__init__(120, 40)
+
+    def write_process_input(self, data: str) -> None:
+        self.replies.append(data)
+        self.connection.sendall(data.encode("utf-8"))
 
 
 class SerialConsole:
@@ -28,9 +47,10 @@ class SerialConsole:
         self.process = process
         self.buffer = ""
         self.transcript = bytearray()
-        self.application_cursor = False
+        self.screen = ReplyScreen(connection)
+        self.stream = pyte.ByteStream(self.screen)
 
-    def expect(self, pattern: str, timeout: float = 60) -> str:
+    def expect(self, pattern: str, timeout: float = 60, screen: bool = False) -> str:
         until = time.monotonic() + timeout
         expression = re.compile(pattern, re.I | re.S)
         while time.monotonic() < until:
@@ -40,6 +60,11 @@ class SerialConsole:
                 text = self.buffer[:match.end()]
                 self.buffer = self.buffer[match.end():]
                 return text
+            if screen:
+                rendered = "\n".join(self.screen.display)
+                if expression.search(rendered):
+                    self.buffer = ""
+                    return rendered
             try:
                 chunk = self.connection.recv(65536)
             except socket.timeout:
@@ -48,14 +73,8 @@ class SerialConsole:
                 continue
             if not chunk:
                 raise RuntimeError("Guest serial connection closed before the expected prompt")
-            previous_size = len(self.transcript)
             self.transcript.extend(chunk)
-            control_bytes = self.transcript[max(0, previous_size - 3):]
-            for _ in range(control_bytes.count(b"\x1b[6n")):
-                self.connection.sendall(b"\x1b[40;120R")
-            cursor_modes = re.findall(rb"\x1b\[\?1([hl])", self.transcript)
-            if cursor_modes:
-                self.application_cursor = cursor_modes[-1] == b"h"
+            self.stream.feed(chunk)
             self.buffer += chunk.decode("utf-8", errors="replace")
         raise TimeoutError("Guest did not reach the expected serial prompt")
 
@@ -64,7 +83,7 @@ class SerialConsole:
 
     def arrow(self, direction: str) -> None:
         key = {"down": "B", "left": "D"}[direction]
-        self.send(("\x1bO" if self.application_cursor else "\x1b[") + key)
+        self.send(("\x1bO" if (1 << 5) in self.screen.mode else "\x1b[") + key)
 
 
 def installer_account() -> str:
@@ -159,30 +178,31 @@ def main() -> None:
         console = start_guest("installer", live=True)
         login(console, password)
         print("Live-system serial login succeeded; starting the vendor installer.", flush=True)
+        summary["phase"] = "installer menu"
         console.send("stty rows 40 cols 120; env BSDINSTALL_KEYMAP_DONE=1 opnsense-installer\n")
-        console.expect(r"Choose one of the following tasks to perform\.")
-        console.expect(r"Install \(UFS\)")
+        console.expect(r"Choose one of the following tasks to perform\.", screen=True)
+        console.expect(r"Install \(UFS\)", screen=True)
         console.arrow("down")
         console.send("\r")
         summary["phase"] = "select disposable disk"
-        console.expect(r"Please select a disk to continue\.")
-        console.expect(r"\bvtbd1\b")
+        console.expect(r"Please select a disk to continue\.", screen=True)
+        console.expect(r"\bvtbd1\b", screen=True)
         console.send("\r")
-        console.expect(r"recommended swap partition")
+        console.expect(r"recommended swap partition", screen=True)
         console.send("\t\r")
-        confirmation = console.expect(r"Last Chance!.*?vtbd1")
+        confirmation = console.expect(r"Last Chance!.*?vtbd1", screen=True)
         if re.search(r"\bvtbd0\b", confirmation):
             raise RuntimeError("Installer confirmation includes the installation media; refusing to continue")
         console.arrow("left")
         console.send("\r")
         summary["phase"] = "install system"
         print("Installing onto the dedicated virtual target disk.", flush=True)
-        console.expect(r"Final Configuration", timeout=300)
-        console.expect(r"Complete Install")
+        console.expect(r"Final Configuration", timeout=300, screen=True)
+        console.expect(r"Complete Install", screen=True)
         console.arrow("down")
         console.send("\r")
-        console.expect(r"Installation Complete", timeout=60)
-        console.expect(r"Halt now")
+        console.expect(r"Installation Complete", timeout=60, screen=True)
+        console.expect(r"Halt now", screen=True)
         console.arrow("down")
         console.send("\r")
         process.wait(timeout=90)
@@ -198,7 +218,7 @@ def main() -> None:
             raise RuntimeError("Guest still reports installation-media mode after removing the installer")
         console.send("stty -echo\n")
         console.expect(r"[^\r\n]* #\s*$")
-        console.send("printf '\\nNH_VERSION='; opnsense-version -V; mount -p | awk '$2 == \"/\" {print \"NH_ROOT=\" $1; print \"NH_FSTYPE=\" $3}'; printf '\\nNH_CHECK_DONE\\n'\n")
+        console.send(INSTALLED_CHECK_COMMAND)
         evidence = console.expect(r"NH_CHECK_DONE")
         version = re.search(r"NH_VERSION=([^\r\n]+)", evidence)
         if version is None or not version.group(1).startswith("26.7"):
@@ -223,10 +243,15 @@ def main() -> None:
                 process.kill()
                 process.wait(timeout=5)
         for name, console in consoles:
+            summary.setdefault("terminal_reply_counts", {})[name] = len(console.screen.replies)
             text = console.transcript.decode("utf-8", errors="replace")
             if password:
                 text = text.replace(password, "[installer credential redacted]")
             (output / f"{name}-redacted.log").write_text(helpers["redact"](text), encoding="utf-8")
+            rendered = "\n".join(console.screen.display)
+            if password:
+                rendered = rendered.replace(password, "[installer credential redacted]")
+            (output / f"{name}-screen-redacted.txt").write_text(helpers["redact"](rendered), encoding="utf-8")
             console.connection.close()
         for stream in streams:
             stream.close()
