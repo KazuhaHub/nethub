@@ -1,0 +1,117 @@
+# ---------------------------------------------------------------------------
+# NetHub-specific: generated secrets and local overrides.
+# `nethub init` generates real key material, per-service secret files (under
+# deploy/secrets/) and local config — none of this must ever be committed.
+# The Weekend 0 throwaway test certificate and key (*.pem) are covered too.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+deploy/secrets/
+docker-compose.override.yml
+
+# ---------------------------------------------------------------------------
+# Go (the control plane under server/)
+# ---------------------------------------------------------------------------
+*.test
+*.out
+*.exe
+# A go.work in a parent directory is picked up by checkouts beneath it; never
+# commit one here. (Run Go commands with GOWORK=off if a parent has one.)
+go.work
+go.work.sum
+
+# ---------------------------------------------------------------------------
+# Python (agent side: agentctl.py and its tests, weekend0/probe.py)
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing / type-checking / linting caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+nosetests.xml
+coverage.xml
+*.cover
+
+# ---------------------------------------------------------------------------
+# Node (the console SPA under server/web/; the built dist/ is embedded into the
+# Go binary at build time and is never committed)
+# ---------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+dist/
+.next/
+.nuxt/
+.turbo/
+.parcel-cache/
+
+# ---------------------------------------------------------------------------
+# Docker
+# ---------------------------------------------------------------------------
+*.pid
+docker-compose.override.yaml
+
+# ---------------------------------------------------------------------------
+# IDE / editors
+# ---------------------------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ---------------------------------------------------------------------------
+# OS
+# ---------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ---------------------------------------------------------------------------
+# Logs / misc local artifacts
+# ---------------------------------------------------------------------------
+*.log
+logs/
+.cache/

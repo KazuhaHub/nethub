@@ -1,0 +1,145 @@
+# =============================================================================
+# frpc.toml —— Weekend 0 传输层验证套件 / 设备侧（frpc）最小可用配置
+#
+# frp 版本：0.71.0（跟 os-frp 保持一致，见 RUNBOOK 第 0 步的版本说明）。
+# 字段名照着 fatedier/frp v0.71.0 tag 上的 pkg/config/v1/client.go、
+# common.go、proxy.go 里的 json tag 核对过（含 transport.heartbeatInterval /
+# transport.heartbeatTimeout）。
+#
+# 用途：验证阶段在 OPNsense 测试机上手工跑（不装插件，跑完记得按 RUNBOOK 里的
+# 步骤清理），确认"从外部网络打开 OPNsense 登录页"这条链路本身是通的。
+#
+# 启动前先检查：./frpc verify -c frpc.toml
+# 启动方式：    ./frpc -c frpc.toml
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 先读这一段：TOML 的表作用域陷阱
+#
+# TOML 里一旦出现 [某个表] 或 [[某个数组表]] 这样的表头，后面所有的
+# key = value 都归这个表，一直到下一个表头为止——缩进、空行、注释都不能
+# "跳出"表。所以：
+#   - 所有顶层字段（serverAddr、serverPort、auth.*、log.*、metadatas.*、
+#     transport.*）必须写在第一个表头之前；
+#   - 本文件里唯一的表头是最下面的 [[proxies]]，它后面只能放这条代理自己的字段。
+#
+# 上一版套件就踩了这个坑：metadatas.* 写在 [transport] 后面，实际被解析成
+# transport.metadatas；log.* 写在 [[proxies]] 后面，实际变成了 proxies[0].log；
+# auth.token 提示也在 [[proxies]] 后面，去掉注释就会变成 proxies[0].auth。
+# frp 0.71.0 默认 --strict_config=true：未知字段在 pkg/config/load.go 解码时
+# 直接报错，cmd/frpc/sub/root.go 打印错误后 os.Exit(1)，不会静默忽略——按源码，
+# 那一版 frpc 一启动就会因为未知字段退出。
+#
+# 更隐蔽的情况：一个字段放错了表，但在新位置上恰好也是合法字段，strict_config
+# 就拦不住。典型例子是 metadatas.*——如果挪到 [[proxies]] 下面，它会变成这条
+# 代理自己的 metadatas（ProxyBaseConfig 里也有这个字段），verify 照样通过，
+# 但 Login 请求里的 metas 就是空的，验收项②会得出错误结论。
+# 所以除了 ./frpc verify，RUNBOOK 第 1.5 步还用 python3 tomllib 打印一遍
+# 顶层字段，人眼确认 metadatas 在顶层。
+# -----------------------------------------------------------------------------
+
+# --- 连到哪台 frps ---
+# 换成你自己 VPS 的公网 IP 或域名；这里用 RFC 5737 文档地址占位。
+serverAddr = "203.0.113.10"
+serverPort = 7000
+
+# --- 没有写但强烈建议在真实验证里补上的一项：auth.token ---
+# 这份最小配置没有配认证，frps 会用默认的 auth.method（也是 "token"，但双方
+# 都不填 token 时相当于空口令）。哪怕只是周末验证，frps 也会跑在一台公网 VPS
+# 上、监听公网 IP 的 7000 端口，建议至少加一对双方一致的随机 token。
+# 要加的话，去掉下面这行的注释，并且它必须留在这里（顶层，[[proxies]] 之前）：
+# auth.token = "跟 frps.toml 里 auth.token 一致的随机字符串"
+# 这条不是本轮六个验收问题要回答的内容，但清理阶段之前不要忘了这茬。
+
+# --- 日志（顶层）---
+log.to = "console"
+log.level = "info"
+
+# --- 设备识别信息（预留，顶层）---
+# 这些 key/value 会被原样带到 frps 的 [[httpPlugins]] 请求里：Login 请求的
+# content.metas，以及之后 NewProxy / NewUserConn 请求的 content.user.metas。
+# 这就是验收项②要确认的"归属校验能拿到的字段"之一。Weekend 0 先填占位值，
+# 看 probe.py 收到的 JSON 里这些字段长什么样；真正的签名声明（HMAC
+# signature）以后会放在这里。
+metadatas.device_id = "weekend0-test-device"
+metadatas.claim_placeholder = "REPLACE_WITH_SIGNED_DOMAIN_CLAIM"
+
+# --- 控制通道加密（顶层，用点号写法，不开 [transport] 表头）---
+# 这个 transport.tls 是 frpc <-> frps 控制连接本身的 TLS，跟下面 https 类型
+# vhost 的 SNI 透传是两回事，不要混：
+#   - transport.tls  加密的是 frpc 和 frps 之间传"登录/心跳/NewProxy 注册"
+#     这些控制消息的那条 TCP 连接（走 bindPort=7000）。
+#   - [[proxies]] 里 type = "https" 走的 SNI 透传，加密的是浏览器到 OPNsense
+#     之间的用户流量（走 vhostHTTPSPort=8443），frps/frpc 全程看不到明文，
+#     也不参与这段 TLS 握手。
+# 两者独立，都应该开，这里只是先把第一个打开。
+# 写成 transport.tls.enable 而不是 [transport] 表头，是为了让本文件只有
+# [[proxies]] 这一个表头，少一处作用域陷阱。
+transport.tls.enable = true
+
+# --- 应用层心跳（顶层，点号写法；为验收项⑥"撤销/断线机制"而显式打开）---
+# 为什么必须显式写：transport.tcpMux 默认是 true，这时 frpc 的应用层心跳默认是
+# 关的——v0.71.0 pkg/config/v1/client.go 的 ClientTransportConfig.Complete() 在
+# tcpMux 为 true 时把 heartbeatInterval / heartbeatTimeout 都补成 -1（tcpMux 为
+# false 时才是 30 / 90），只靠 yamux 自己的 keepalive。心跳关着，frpc 就根本不发
+# Ping，frps.toml 里订阅的 Ping 钩子永远不会被调用，"拒绝 Ping 来断线"无从谈起。
+# Complete() 用的是 EmptyOr，只替换零值，所以这里写的显式值会原样保留。
+#
+# json tag 已对照 v0.71.0 的 ClientTransportConfig 核对：heartbeatInterval、
+# heartbeatTimeout（单位都是秒）。
+#
+# 取值是为了让验收项⑥测得快：
+#   - heartbeatInterval = 10：frpc 每 10 秒发一次 Ping（会话建立时立刻发第一次，
+#     之后固定间隔，见 client/control.go 的 heartbeatWorker）。所以探针把 Ping 切到
+#     deny 之后，最迟一个间隔（约 10 秒）frpc 就会收到带错误的 Pong 并自己断开。
+#   - heartbeatTimeout = 30：连续约 30 秒收不到 Pong，frpc 自己断开重连（相当于
+#     丢了 3 次心跳）。校验规则（pkg/config/v1/validation/client.go）要求两者都大于
+#     0 时 timeout 不能小于 interval。frps.toml 里 transport.heartbeatTimeout 也是 30。
+# 这只是 Weekend 0 的测试值，不是产品默认值：生产上每台设备每个间隔都会让 authz
+# 处理一次 Ping（N 台设备、间隔 T 秒，大约就是 N/T 次/秒），间隔越短断线越快、
+# authz 压力越大，取多少等⑥的实测结果出来再定（DESIGN §5）。
+#
+# 副作用要心里有数：从 frpc 连上那一刻起，每 10 秒一次 Ping 都要过探针。探针没起、
+# 正在重启、或者对 Ping 返回 deny/500，按源码 frpc 会在约一个间隔内断开整条隧道；
+# 探针卡住（hang）时约 30 秒后心跳超时断开。
+# 所以验收项①～⑤期间 Ping 必须保持 allow、探针不能停；换模式用模式文件，不要重启
+# 探针（见 RUNBOOK 第 1.6 步）。
+transport.heartbeatInterval = 10
+transport.heartbeatTimeout = 30
+
+# =============================================================================
+# 从这里往下只放这条代理自己的字段。任何顶层字段都不要写在这一行之后。
+# =============================================================================
+[[proxies]]
+# 代理名。frpc 日志里的标签就是它，例如 "[opnsense-webui] start proxy success"；
+# frps 发给 httpPlugins 的 NewProxy / NewUserConn 请求里的 proxy_name 也是它。
+name = "opnsense-webui"
+
+# 重点：必须是 "https"，不能是 "http"。
+# OPNsense 的 Web UI 本身是 HTTPS（自带自签证书，443 端口）。frp 的
+# type = "http" 是按明文 HTTP 的 Host 头做路由，处理的是 80 端口那种流量；
+# 如果对着一个说 TLS 的端口用 type = "http"，frps 会尝试把收到的字节当成
+# HTTP 请求头解析，实际收到的是 TLS ClientHello 的二进制数据，解析失败，
+# 代理直接不通。
+# type = "https" 才是做 TLS SNI 透传的那条路径（frps 只窥探 ClientHello
+# 里的 SNI 字段来决定转发去哪台设备，不终止 TLS、不解密），这也是为什么
+# OPNsense 的 PHP 前端完全不用改一行代码就能被穿透——frps 自始至终没有
+# "看见"过 HTTP 内容，只看见了域名。
+type = "https"
+
+# OPNsense Web UI 监听在设备自己的 127.0.0.1:443（frpc 和 OPNsense 的
+# lighttpd/PHP 服务跑在同一台设备上，所以永远是回环地址；生产环境里这个
+# localPort 应该跟 OPNsense 实际配置的 HTTPS 管理端口保持一致）。
+localIP = "127.0.0.1"
+localPort = 443
+
+# 二选一，跟 frps.toml 里的 subDomainHost 配合用：
+# 用 subdomain 时，frps 会拼成 <subdomain>.<subDomainHost>
+# （这里就是 weekend0-test.router.example.com），依赖的是通配符 DNS 记录，
+# 不用为每台设备单独加 DNS——这是生产模式，每台设备接入零额外 DNS 操作。
+subdomain = "weekend0-test"
+
+# 如果不想依赖泛域名、或者要给某台设备接一个客户自带的域名，用 customDomains
+# 代替 subdomain（这条域名需要单独指向 frps 的 IP）。两者可以只留一个，
+# 这里注释掉留作参考：
+# customDomains = ["weekend0-test.example.com"]

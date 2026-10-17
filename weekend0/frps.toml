@@ -1,0 +1,133 @@
+# =============================================================================
+# frps.toml —— Weekend 0 传输层验证套件 / 云端中继（frps）最小可用配置
+#
+# frp 版本：0.71.0（跟 os-frp 保持一致，见 RUNBOOK 第 0 步的版本说明。0.52 起
+# 配置格式改为 TOML，字段名与旧版 ini 不同，这份配置每个字段都是照着
+# fatedier/frp v0.71.0 tag 上的 pkg/config/v1/server.go、common.go 里的
+# json tag 核对过的，不是凭记忆写的）。
+#
+# 部署位置：一台干净公网 VPS。IP 举例用 203.0.113.10（RFC 5737 文档地址），
+# 域名举例用 example.com / *.router.example.com，实际验证时换成你自己的。
+#
+# 启动前先检查：./frps verify -c frps.toml
+# 启动方式：    ./frps -c frps.toml
+#
+# TOML 表作用域提醒：一旦出现 [webServer] 或 [[httpPlugins]] 这样的表头，
+# 后面所有 key = value 都归那个表，直到下一个表头。所以所有顶层字段
+# （bindPort、auth.*、vhostHTTPSPort、subDomainHost、log.*、transport.*）都必须写在
+# 第一个表头 [webServer] 之前。上一版套件把 log.* 放在 [[httpPlugins]] 后面，
+# 实际被解析成 httpPlugins[0].log；frp 0.71.0 默认 --strict_config=true，
+# 这种未知字段会让 frps 直接报错退出，不会静默忽略。
+# =============================================================================
+
+# --- 控制通道端口 ---
+# frpc（设备侧）用这个端口和 frps 建立长连接（登录、心跳、NewProxy 注册消息都走这里）。
+# 这是"控制面"，不是用户浏览器访问 OPNsense 走的端口——浏览器走的是下面的
+# vhostHTTPSPort。7000 是 frp 的官方默认值，这里显式写出来只是为了清楚。
+# 必须在 VPS 防火墙上放行（TCP 7000），否则 frpc 连不上。
+bindPort = 7000
+
+# --- 没有写但强烈建议在真实验证里补上的一项：auth.token ---
+# 这份最小配置没有配认证；frps 默认监听公网就能接受任何 frpc 的登录。哪怕只是
+# 周末验证也建议加一对双方一致的随机 token（frpc.toml 里对应加 auth.token）。
+# 要加的话，去掉下面这行的注释，并且它必须留在顶层（[webServer] 之前）：
+# auth.token = "跟 frpc.toml 里 auth.token 一致的随机字符串"
+# 这不是本轮六个验收问题要回答的内容，只是别忘了这是个公网服务。
+
+# --- HTTPS 虚拟主机端口（这是本项目的核心）---
+# frps 会在这个端口上做基于 TLS SNI 的按域名转发（peek ClientHello 里的
+# ServerName，不解密、不终止 TLS——证书和私钥全程留在 OPNsense 本机，frps
+# 只看得到域名，看不到 HTTP 请求内容）。这正是 NetHub 不碰设备 config.xml、
+# 不解密流量这条产品边界能成立的技术前提。
+# 必须在 VPS 防火墙上放行（TCP 8443），且是浏览器直接连接的端口。
+vhostHTTPSPort = 8443
+
+# --- 泛域名后缀 ---
+# 配合 frpc 侧 [[proxies]] 里的 `subdomain = "xxx"`，frps 会把它和这里的
+# subDomainHost 拼成 `xxx.router.example.com` 来做路由匹配。
+# 前提：DNS 必须有一条泛解析记录 `*.router.example.com` -> 203.0.113.10
+# （这是 README 第一屏就要写清楚的自建前置条件之一）。
+# 如果不想用泛域名模式，也可以让 frpc 侧改用 customDomains 指定完整域名，
+# 但那样每台设备都要单独加一条 DNS 记录，不满足"零配置接入"的产品目标。
+subDomainHost = "router.example.com"
+
+# --- 日志（顶层，必须在 [webServer] 之前）---
+# console 输出足够验证阶段排障用；正式部署再考虑落盘 + 轮转。
+log.to = "console"
+log.level = "info"
+
+# --- 心跳超时（顶层，点号写法；为验收项⑥"撤销/断线机制"而显式打开）---
+# transport.tcpMux 默认是 true，这时 frps 的 heartbeatTimeout 默认是 -1（v0.71.0
+# pkg/config/v1/server.go 的 ServerTransportConfig.Complete()；tcpMux 为 false 时才是
+# 90），server/control.go 的 heartbeatWorker 一看到 <= 0 就直接返回，frps 不会因为
+# 收不到心跳而断开任何客户端。这里显式设成 30 秒：一个控制连接超过 30 秒没有一次
+# "成功的" Ping（handlePing 只有插件放行、校验通过时才刷新 lastPing），frps 就记一条
+# "heartbeat timeout" 并关掉它。这是 frps 侧的兜底：被拒绝 Ping 之后不肯自己断开的
+# frpc（比如被改过的 frpc），也会在 30 秒内被 frps 断开控制连接。
+# 跟 frpc.toml 的 transport.heartbeatInterval = 10 / heartbeatTimeout = 30 配套；
+# json tag 已对照 v0.71.0 的 ServerTransportConfig 核对（heartbeatTimeout，单位秒）。
+# 注意：这个值对所有连上来的 frpc 都生效。没开应用层心跳的 frpc（tcpMux 默认配置）
+# 每 30 秒就会被断开一次——验收项⑥第 6.5 步就是故意用这一点测 frps 侧的兜底。
+transport.heartbeatTimeout = 30
+
+# =============================================================================
+# 从这里往下是表。任何顶层字段都不要写在这一行之后。
+# =============================================================================
+
+# --- 本地管理面板（dashboard / admin API）---
+# port 非 0 时 frps 就会启动这个 web 服务；[webServer] 在这里只用来看
+# frps 自身的运行状态（连接数、代理列表），跟 NetHub 自己的控制面 UI 无关。
+# 刻意绑定在 127.0.0.1，不对公网暴露——要看的话在 VPS 上 SSH 隧道过去，
+# 或者用 Caddy/nginx 单独做一层认证代理，不要直接把 7500 开到公网。
+[webServer]
+addr = "127.0.0.1"
+port = 7500
+# 这两行必须改掉再启动（RUNBOOK 第 1.4 步）。admin/admin 之类的占位密码在
+# 验证阶段一样危险：frps 的 admin API 能看到所有客户端和代理的信息（主机名、
+# 客户端 IP、代理配置等，见 v0.71.0 server/api_router.go），7500 虽然只绑
+# 回环，但这台 VPS 上任何一个能开 shell 的进程都够得着它。
+# 生成一次性强密码： openssl rand -base64 24
+user = "CHANGE_ME"
+password = "CHANGE_ME_openssl_rand_base64_24"
+
+# --- httpPlugins：这是本次验证的重点 ---
+# frps 在处理 Login / NewProxy / NewUserConn / Ping 等操作时，会把请求内容 POST 给下面
+# 配置的地址，等它返回"放行/拒绝"再继续。这就是 NetHub 未来做"签名声明 +
+# 数据库双重校验"的挂载点。addr 指向本机回环地址上的 probe.py（Weekend 0 只是
+# 用探针接住请求打印出来看字段名，还不是真正的归属校验逻辑）。
+#
+# 注意 ops 数组：这里显式声明这个插件只接收 Login、NewProxy、NewUserConn、Ping 四种
+# 操作（frps 端按 op 分别维护订阅列表，见 pkg/plugin/server/manager.go 的
+# Register() 方法——一个 httpPlugin 条目可以同时订阅多个 op，都会转发到
+# 同一个 addr+path，请求 body 里的 "op" 字段和查询串 ?op=xxx 会告诉你这次
+# 具体是哪个操作；probe.py 就是按查询串里的 op 分别计数、分别选应答模式的）。
+#
+# 为什么加 NewUserConn：它是为 DESIGN Q7（设备 GUI 公网暴露面）收集数据用的。
+# frps 每接受一条发往这条 https 代理的浏览器 TCP 连接，就会先带着 remote_addr、
+# proxy_name、proxy_type 和 user 信息问一次插件（server/proxy/proxy.go 的
+# handleUserTCPConnection）。Weekend 0 只看它是否真的触发、字段长什么样、
+# 拒绝能不能真的挡住连接（RUNBOOK 验收项⑤），不做任何真正的放行判断。
+# 副作用要心里有数：订阅了 NewUserConn 之后，probe.py 没起、或者对
+# NewUserConn 返回拒绝/500/卡住，浏览器那一侧就打不开页面（按源码是
+# fail-closed）。所以验收项①～④期间 NewUserConn 必须保持 allow。
+#
+# 为什么加 Ping：它是为验收项⑥"撤销/断线机制实测"加的。v0.71.0 的 frps admin API
+# 断不了在线的客户端或代理（DESIGN §5），候选主机制是"对已撤销设备的 Ping 返回
+# 拒绝"：frps 每收到一次 frpc 的心跳 Ping 就问一次插件（server/control.go 的
+# handlePing，请求体带 user.metas 和 run_id，能对应到设备）；插件拒绝或调用出错时，
+# frps 回一个带错误的 Pong、不刷新心跳时间，正常的 frpc 收到后自己关掉整个会话
+# （client/control.go 的 handlePong）。前提是 frpc 真的发 Ping——tcpMux 默认开着时
+# 应用层心跳默认是关的，所以 frpc.toml 显式写了 transport.heartbeatInterval。
+# Ping 跟另外三个 op 一样是 fail-closed（pkg/plugin/server/manager.go 的
+# handleMutableContent：拒绝、非 200、连不上、超时都算失败），而且它管的是已经在线的
+# 隧道：探针没起、正在重启、或者对 Ping 返回 deny/500，按源码 frpc 会在约一个心跳
+# 间隔（10 秒）内断开整条隧道，已打开的浏览器页面预计也会跟着断；探针卡住（hang）时
+# 30 秒左右双方的心跳超时也会把它断开。所以验收项①～⑤期间 Ping 必须保持 allow、探针不能停，
+# 换模式用探针的模式文件（PROBE_MODES_FILE），不要重启探针。这个"控制面一停、
+# 所有隧道一起断"的代价本身就是⑥要记录的结论之一。
+[[httpPlugins]]
+name = "nethub-probe"
+addr = "127.0.0.1:9000"
+path = "/handler"
+ops = ["Login", "NewProxy", "NewUserConn", "Ping"]
+# tlsVerify = false  # 探针是明文 http，不需要这行；如果 addr 写 https:// 且用自签证书才需要关掉校验。

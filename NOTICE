@@ -1,0 +1,58 @@
+NetHub
+Copyright 2026 Kazuha Mo
+
+This product includes software developed by Kazuha Mo and
+distributed under the Apache License, Version 2.0. See the LICENSE file at
+the root of this repository for the full license text.
+
+NetHub is designed as a control plane and set of protocol definitions for
+self-hosted remote access to open-source routers and firewalls. This NOTICE
+file is provided in accordance with Section 4(d) of the Apache License,
+Version 2.0, and lists the third-party components that NetHub is designed to
+distribute with, or vendor/bundle.
+
+================================================================================
+Third-party components
+================================================================================
+
+--------------------------------------------------------------------------------
+frp (fast reverse proxy)
+--------------------------------------------------------------------------------
+  Homepage:  https://github.com/fatedier/frp
+  Version:   0.71.0
+  License:   Apache License, Version 2.0
+  Copyright: Copyright 2016 fatedier, <fatedier@gmail.com>
+
+  NetHub is designed to vendor the `frpc` client binary as the sole
+  persistent process on the device side (to be run from within the OPNsense
+  agent plugin), and to run `frps` as the relay/server component of the
+  NetHub control plane. frp is intended to be used unmodified, with only
+  NetHub-specific configuration; no changes to frp's own source are planned.
+  Its full license text is available at
+  https://github.com/fatedier/frp/blob/master/LICENSE and is reproduced in
+  full in the Apache License, Version 2.0 referenced above.
+
+--------------------------------------------------------------------------------
+
+NetHub is pre-alpha (see the top-level project README and `CONTRIBUTING.md`):
+`server/` does not yet contain a committed dependency manifest or lockfile.
+Once the control plane's dependencies are pinned, the Go modules it will use
+(the control plane is planned in Go) will be declared in `go.mod` and
+`go.sum` under `server/`, and the npm packages for its console (a planned
+React + TypeScript single-page app under `server/web/`) in `package.json` and
+`package-lock.json`. These are ordinary package-managed dependencies, each
+licensed under its own respective terms; the expectation is chiefly
+MIT/BSD/Apache-2.0-family licenses, but that has not been verified and will be
+checked once the dependency set is pinned. This NOTICE file calls out frp
+explicitly because it is to be vendored/bundled rather than pulled as an
+ordinary package dependency; it will be extended if additional vendored (as
+opposed to ordinarily package-managed) components are added.
+
+================================================================================
+
+All NetHub source, including the planned OPNsense plugin under
+agents/opnsense/plugin/, will be contained in this repository and covered by
+this NOTICE. Binary FreeBSD packages are planned to be assembled by a separate
+packaging repository (KKazuhaK/OPNsense-repo) from tagged NetHub releases,
+once any exist; that repository carries its own licensing for its own
+packaging code and for the other, unrelated plugins it hosts.
