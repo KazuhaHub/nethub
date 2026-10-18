@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+# W1 has no tunnel service to stop.
+exit 0

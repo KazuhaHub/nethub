@@ -186,3 +186,11 @@ W0 acceptance (2026-10-18): Kazuha accepted the six measured experiments and
 recorded limits, confirmed D5/D6/D7/D17, and authorized the DESIGN update and
 progression through the W1 gates. See [accepted results](../weekend0/results-2026-10-17.md).
 No product code exists yet; D10/D20 and package metadata remain W1 decisions.
+
+
+W1 decisions (2026-10-18): Kazuha confirmed D10/D20, independent source and
+standalone unsigned development packaging, without kazuha.sh mirror. Release
+recipe integration remains deferred. Public product_email is admin@kazuha.org
+(the owner input used a full-width dot, normalized to an ASCII dot); product_website
+is https://github.com/KazuhaHub/nethub. A clean powered-off Hyper-V checkpoint
+was created before installing the development plugin. Implementation is in progress.

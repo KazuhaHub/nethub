@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+test -x /usr/local/opnsense/scripts/firmware/register.php
+test -x /usr/local/opnsense/mvc/script/run_migrations.php

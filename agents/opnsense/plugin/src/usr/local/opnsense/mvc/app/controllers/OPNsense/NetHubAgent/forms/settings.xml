@@ -1,0 +1,8 @@
+<form>
+    <field>
+        <id>nethubagent.enabled</id>
+        <label>Enable</label>
+        <type>checkbox</type>
+        <help>Save the agent preference. This development version does not start a tunnel.</help>
+    </field>
+</form>
