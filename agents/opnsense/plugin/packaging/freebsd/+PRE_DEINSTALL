@@ -1,7 +1,11 @@
 #!/bin/sh
 set -eu
 if [ -x /usr/local/etc/rc.d/nethub_agent_frpc ]; then
-    if service nethub_agent_frpc onestatus >/dev/null 2>&1; then
-        service nethub_agent_frpc onestop
-    fi
+    install -d -m 0700 /var/db/nethub-agent
+    touch /var/db/nethub-agent/uninstalling
+    /usr/bin/lockf -k -t 30 /var/db/nethub-agent/reconcile.lock /bin/sh -c '
+        if service nethub_agent_frpc onestatus >/dev/null 2>&1; then
+            service nethub_agent_frpc onestop
+        fi
+    '
 fi

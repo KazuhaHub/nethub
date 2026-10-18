@@ -203,3 +203,5 @@ OPNsense 26.7.7. Firmware registration cleanup was fixed and retested. See
 remains installed for W2 and starts no tunnel. D4/D21/D22 and the pinned-download
 choice were confirmed on 2026-10-18; coordinate the 0.71.1 upgrade before W2 integration. Test access was simplified
 at the owner's request; credentials remain outside Git.
+
+W2 update (2026-10-18): draft PR #23 implements the independent service, validated reconcile, and GUI debug interface. Native partial evidence is in plugin/tests/w2-progress.md. Kazuha confirmed package-owned cron.d entries, shared nonblocking lockf, persistent rollback quarantine, and local revoked suppression under W2-7. Cron lifecycle, full coexistence, reboot, and WAN-address recovery remain acceptance work; do not report W2 complete.

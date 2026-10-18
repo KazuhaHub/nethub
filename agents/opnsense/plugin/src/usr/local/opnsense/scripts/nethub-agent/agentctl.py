@@ -3,6 +3,7 @@
 import argparse
 from datetime import datetime, timezone
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -90,7 +91,7 @@ class Agent:
                      'frpc rejected the candidate configuration; live configuration was retained')
 
     def reconcile_locked(self, force=False):
-        if ((self.state / 'disabled').exists() or (self.state / 'stopped').exists()
+        if (any((self.state / marker).exists() for marker in ['disabled', 'stopped', 'revoked', 'uninstalling'])
                 or not self.enabled()):
             self.rc_enable(False)
             if self.running():
@@ -100,6 +101,19 @@ class Agent:
         self.checked(self.command(['/usr/local/sbin/configctl', 'template', 'reload', 'OPNsense/NetHubAgent']),
                      'Template rendering failed; live configuration was retained')
         self.candidate.chmod(0o600)
+        desired_hash = hashlib.sha256(self.candidate.read_bytes()).hexdigest()
+        journal = self.state / 'recovery.json'
+        if journal.exists():
+            recovery = json.loads(journal.read_text())
+            if (not isinstance(recovery, dict) or recovery.get('version') != 1
+                    or not isinstance(recovery.get('rejected_sha256'), str)
+                    or not re.fullmatch('[a-f0-9]{64}', recovery['rejected_sha256'])
+                    or not isinstance(recovery.get('attempted'), bool)
+                    or not isinstance(recovery.get('abandoned'), bool)):
+                raise AgentError('Recovery state is invalid; operator review is required')
+            if recovery.get('rejected_sha256') == desired_hash:
+                self.candidate.unlink()
+                return self.record(False, 'Desired configuration is quarantined after watchdog recovery', 'quarantined')
         self.validate_candidate()
         content = self.candidate.read_bytes()
         changed = not self.live.exists() or self.live.read_bytes() != content
@@ -110,6 +124,8 @@ class Agent:
         else:
             self.candidate.unlink()
         self.rc_enable(True)
+        # Only a different, validated desired configuration can release quarantine.
+        journal.unlink(missing_ok=True)
         active = self.running()
         action = 'restart' if active and (changed or force) else 'start' if not active else 'unchanged'
         if action != 'unchanged':
@@ -120,14 +136,15 @@ class Agent:
             (self.state / 'rollback-attempt').unlink(missing_ok=True)
         return self.record(True, 'Configuration verified', action)
 
-    def apply(self, action):
+    def apply(self, action, locked=False):
         for directory in [self.config, self.state]:
             directory.mkdir(parents=True, exist_ok=True)
             directory.chmod(0o700)
         os.umask(0o077)
         with (self.state / 'reconcile.lock').open('a') as lock:
             try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                if not locked:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
             try:
@@ -150,6 +167,7 @@ class Agent:
         return {'status': 'running' if self.running() else 'stopped', 'last_reconcile': state,
                 'log': self.log_tail(),
                 'disabled': (self.state / 'disabled').exists(),
+                'revoked': (self.state / 'revoked').exists(),
                 'operator_stopped': (self.state / 'stopped').exists()}
 
     def log_tail(self):
@@ -184,14 +202,16 @@ class Agent:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--locked', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('action', choices=['reconcile', 'status', 'start', 'stop', 'restart',
                                           'enroll', 'unenroll', 'rotate'])
-    action = parser.parse_args().action
+    arguments = parser.parse_args()
+    action = arguments.action
     if action in ('enroll', 'unenroll', 'rotate'):
         result = {'success': False, 'message': 'Not implemented'}
     else:
         agent = Agent()
-        result = agent.status() if action == 'status' else agent.apply(action)
+        result = agent.status() if action == 'status' else agent.apply(action, locked=arguments.locked)
     print(json.dumps(result))
     return 1 if result.get('success') is False else 0
 

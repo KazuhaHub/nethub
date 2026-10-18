@@ -11,7 +11,14 @@ server certificate. Save the settings, then Apply; candidates are verified befor
 replacing the live configuration. A failed candidate keeps the previous file and
 running process. Stop sets a persistent local stop marker; Start clears that
 marker but never clears the separate kill switch. No newwanip hook is registered.
-The periodic reconcile and independent watchdog mechanism awaits W2-7 approval.
+Package-owned system cron entries run reconcile each minute and an independent
+watchdog every five minutes. Both use the same persistent `lockf -t 0` lock and
+skip contention; logs go to `/var/log/nethub-agent/scheduler.log`. The watchdog
+records a rejected configuration hash and one-attempt recovery budget in
+`/var/db/nethub-agent/recovery.json`. Reconcile cannot reapply that configuration
+or restart an abandoned service until a different desired configuration validates.
+The local `revoked` marker blocks both jobs and explicit Start; authenticated
+remote revocation receipt remains W5 work. pkg owns and removes the cron file.
 
 On the isolated OPNsense test guest, run `sh build.sh`, then install
 `dist/os-nethub-agent.pkg` with `pkg add`. Build requirements are FreeBSD, pkg,

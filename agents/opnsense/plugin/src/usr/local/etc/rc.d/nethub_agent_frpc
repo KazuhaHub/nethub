@@ -21,6 +21,8 @@ nethub_agent_prestart()
 {
     [ ! -e /var/db/nethub-agent/disabled ] || return 1
     [ ! -e /var/db/nethub-agent/stopped ] || return 1
+    [ ! -e /var/db/nethub-agent/revoked ] || return 1
+    [ ! -e /var/db/nethub-agent/uninstalling ] || return 1
     install -d -m 0700 /var/log/nethub-agent
     touch /var/log/nethub-agent/frpc.log
     chmod 0600 /var/log/nethub-agent/frpc.log "$required_files"
