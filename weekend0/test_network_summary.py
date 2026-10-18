@@ -3,7 +3,10 @@ import csv
 from datetime import datetime, timedelta, timezone
 import importlib.util
 import io
+import os
 from pathlib import Path
+import subprocess
+import tempfile
 import unittest
 
 spec = importlib.util.spec_from_file_location('network_summary', Path(__file__).with_name('network_summary.py'))
@@ -98,6 +101,62 @@ class NetworkSummaryTests(unittest.TestCase):
                 values[0].update(mutation)
                 with self.assertRaises(summary.InvalidSample):
                     summary.summarize(encode(values))
+
+
+@unittest.skipIf(os.name == 'nt', 'POSIX process integration runs on the Linux CI runner')
+class PosixSamplerTests(unittest.TestCase):
+    def test_complete_sample_preserves_tcp_success_when_tls_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            binary = root / 'bin'
+            binary.mkdir()
+            curl = binary / 'curl'
+            curl.write_text('''#!/bin/sh
+printf '%s\\n' "$*" >> "$W0_STUB_CALLS"
+for argument do last=$argument; done
+case "$last" in
+    *:443/) printf '200,0.03,0.1,0.13,private-peer,private-source'; exit 0;;
+    *:8443/) printf '000,0.03,0,0.13,private-peer,private-source'; exit 35;;
+    *) exit 2;;
+esac
+''')
+            curl.chmod(0o755)
+            sleeper = binary / 'sleep'
+            sleeper.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$W0_STUB_SLEEPS"\n')
+            sleeper.chmod(0o755)
+            environment = os.environ | {
+                'PATH': str(binary) + os.pathsep + os.environ['PATH'],
+                'W0_STUB_CALLS': str(root / 'calls'),
+                'W0_STUB_SLEEPS': str(root / 'sleeps'),
+            }
+            script = Path(__file__).with_name('sample-network.sh')
+            completed = subprocess.run(['sh', str(script), 'sample.invalid', 'A', str(root/'output')],
+                                       env=environment, capture_output=True, text=True, timeout=15)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            calls = (root/'calls').read_text().splitlines()
+            self.assertEqual(len(calls), 40)
+            for index, call in enumerate(calls):
+                self.assertTrue(call.endswith(f':{443 if index % 2 == 0 else 8443}/'))
+                self.assertIn('--connect-timeout 5 --max-time 10', call)
+            self.assertEqual((root/'sleeps').read_text().splitlines(), ['2'] * 19)
+            sample = next((root/'output').glob('*.sanitized.csv')).read_bytes()
+            self.assertNotIn(b'private-peer', sample)
+            self.assertNotIn(b'private-source', sample)
+            result = summary.summarize(sample)
+            self.assertEqual(result['ports']['8443']['tcp_successes'], 20)
+            self.assertEqual(result['ports']['8443']['tls_completed'], 0)
+            self.assertFalse(result['q2_triggered'])
+
+    def test_repository_output_is_rejected_before_curl(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/'.git').mkdir()
+            script = Path(__file__).with_name('sample-network.sh')
+            result = subprocess.run(['sh', str(script), 'sample.invalid', 'A', str(root/'output')],
+                                    capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn('outside repositories', result.stderr)
+            self.assertEqual(list((root/'output').iterdir()), [])
 
 
 if __name__ == '__main__':
