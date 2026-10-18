@@ -19,6 +19,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/auth"
 	"github.com/KazuhaHub/nethub/server/internal/store"
 	"github.com/KazuhaHub/nethub/server/internal/web"
+	"github.com/KazuhaHub/nethub/server/internal/webui"
 )
 
 type proxyFlags []netip.Prefix
@@ -68,6 +69,10 @@ func runWeb(args []string, stdout, stderr io.Writer) int {
 	if _, err := auth.NewOriginPolicy(*origin); err != nil {
 		fmt.Fprintln(stderr, "Console origin must be an absolute HTTPS origin without a path")
 		return 2
+	}
+	if !webui.Ready() {
+		fmt.Fprintln(stderr, "Build the console assets before starting web")
+		return 1
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

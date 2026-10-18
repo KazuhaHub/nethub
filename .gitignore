@@ -77,6 +77,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .pnpm-store/
+
 dist/
 .next/
 .nuxt/
@@ -115,3 +116,10 @@ Thumbs.db
 *.log
 logs/
 .cache/
+
+# Source utilities and the embedded-build placeholder override generic rules.
+!server/web/src/lib/
+!server/web/src/lib/**
+!server/internal/webui/dist/
+server/internal/webui/dist/*
+!server/internal/webui/dist/.gitkeep

@@ -1,0 +1,37 @@
+{
+  "name": "nethub-console",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "format:check": "prettier --check src tests tools vite.config.ts tsconfig.json package.json index.html",
+    "build": "tsc --noEmit && vite build && node tools/licenses.mjs",
+    "test": "node --test tests/api.test.mjs",
+    "verify": "node tests/browser.mjs"
+  },
+  "dependencies": {
+    "@radix-ui/react-label": "2.1.17",
+    "@radix-ui/react-slot": "1.5.0",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "1.59.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tailwind-merge": "3.7.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "playwright": "1.62.1",
+    "prettier": "3.9.10",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vite": "8.3.4"
+  }
+}

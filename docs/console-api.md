@@ -2,8 +2,8 @@
 
 > **Status: partially implemented, updated 2026-10-18 against design v0.3.**
 > W3 implements health, local login/logout/session, device listing, and enroll-token
-> issuance through `nethub web`. The React console and complete deployment are
-> still pending. W4-W7 endpoints below remain proposals until their code lands.
+> issuance through `nethub web`. The React console implements these W3 flows;
+> complete deployment remains pending. W4-W7 endpoints below remain proposals.
 > Update this document in the same pull request as any API contract change.
 > [`DESIGN.md`](DESIGN.md) is the authority on behaviour; where this document
 > and DESIGN disagree, DESIGN wins.
