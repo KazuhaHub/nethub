@@ -2,6 +2,8 @@
 set -eu
 /usr/local/opnsense/scripts/firmware/register.php install os-nethub-agent
 /usr/local/opnsense/mvc/script/run_migrations.php
+install -d -m 0700 /usr/local/etc/nethub-agent /var/db/nethub-agent /var/log/nethub-agent
 rm -f /var/lib/php/tmp/opnsense_menu_cache.xml /var/lib/php/tmp/opnsense_acl_cache.json
 service configd restart
+/usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/agentctl.py reconcile || true
 echo 'NetHub Agent installed. Open Services > NetHub Agent.'

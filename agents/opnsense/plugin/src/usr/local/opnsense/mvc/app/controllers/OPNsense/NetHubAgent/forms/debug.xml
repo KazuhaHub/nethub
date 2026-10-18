@@ -1,0 +1,8 @@
+<form>
+    <field><id>nethubagent.server_addr</id><label>Relay hostname</label><type>text</type><help>Must match the relay certificate name.</help></field>
+    <field><id>nethubagent.server_port</id><label>Relay control port</label><type>text</type></field>
+    <field><id>nethubagent.subdomain</id><label>Assigned subdomain</label><type>text</type></field>
+    <field><id>nethubagent.device_id</id><label>Device ID</label><type>text</type></field>
+    <field><id>nethubagent.frp_token</id><label>Relay token</label><type>password</type><help>Leave blank to retain the stored token.</help></field>
+    <field><id>nethubagent.domain_claim</id><label>Domain claim</label><type>password</type><help>Leave blank to retain the stored claim.</help></field>
+</form>

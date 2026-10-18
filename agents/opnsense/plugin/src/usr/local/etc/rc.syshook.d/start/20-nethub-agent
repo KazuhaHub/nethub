@@ -1,0 +1,2 @@
+#!/bin/sh
+/usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/agentctl.py reconcile >/dev/null 2>&1 &

@@ -1,0 +1,31 @@
+#!/bin/sh
+# PROVIDE: nethub_agent_frpc
+# REQUIRE: NETWORKING
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name=nethub_agent_frpc
+rcvar=nethub_agent_frpc_enable
+load_rc_config "$name"
+: "${nethub_agent_frpc_enable:=NO}"
+nethub_agent_frpc_flags=""
+command=/usr/sbin/daemon
+procname=/usr/local/opnsense/nethub-agent/bin/frpc
+pidfile=/var/run/nethub_agent_frpc.pid
+required_files=/usr/local/etc/nethub-agent/frpc.toml
+command_args="-f -p $pidfile -t $name -o /var/log/nethub-agent/frpc.log $procname -c $required_files"
+start_precmd=nethub_agent_prestart
+
+nethub_agent_prestart()
+{
+    [ ! -e /var/db/nethub-agent/disabled ] || return 1
+    [ ! -e /var/db/nethub-agent/stopped ] || return 1
+    install -d -m 0700 /var/log/nethub-agent
+    touch /var/log/nethub-agent/frpc.log
+    chmod 0600 /var/log/nethub-agent/frpc.log "$required_files"
+    "$procname" verify --strict_config=true -c "$required_files" >/dev/null 2>&1
+}
+
+# frpc reconnects internally. A crashing configuration must not loop under daemon -r.
+run_rc_command "$1"

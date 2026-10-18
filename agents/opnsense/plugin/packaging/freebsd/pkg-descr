@@ -1,3 +1,3 @@
 NetHub Agent provides the OPNsense settings interface for NetHub remote access.
-This development package contains the plugin skeleton. Tunnel integration and
-enrollment are not implemented in this version.
+This development package includes the settings page and an independent frpc
+service with validated configuration application. Enrollment is not implemented.

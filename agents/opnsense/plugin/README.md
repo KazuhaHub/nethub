@@ -1,8 +1,17 @@
 # OPNsense plugin development
 
-This unsigned development skeleton provides Services → NetHub Agent and an Enable
-preference. It does not enroll devices, start a tunnel, or install a service.
+The W2 integration under development adds an independent frpc service to
+Services → NetHub Agent. Native tunnel acceptance is still pending. It does not
+enroll devices; temporary debug settings will be removed or made read-only in W4.
 Saved model settings remain in config.xml after uninstall.
+
+The service requires a locally provisioned deployment CA at
+`/usr/local/etc/nethub-agent/relay-ca.pem`. The relay hostname must match the
+server certificate. Save the settings, then Apply; candidates are verified before
+replacing the live configuration. A failed candidate keeps the previous file and
+running process. Stop sets a persistent local stop marker; Start clears that
+marker but never clears the separate kill switch. No newwanip hook is registered.
+The periodic reconcile and independent watchdog mechanism awaits W2-7 approval.
 
 On the isolated OPNsense test guest, run `sh build.sh`, then install
 `dist/os-nethub-agent.pkg` with `pkg add`. Build requirements are FreeBSD, pkg,
