@@ -43,6 +43,9 @@ jobs:
       - name: Check probe.py syntax
         run: python3 -I -X pycache_prefix="$RUNNER_TEMP/nethub-pycache" -m py_compile weekend0/probe.py
 
+      - name: Check network sample validation and Q2 boundaries
+        run: python3 -I -X pycache_prefix="$RUNNER_TEMP/nethub-pycache" -m unittest discover -s weekend0 -p test_network_summary.py
+
   actionlint:
     name: workflow lint
     runs-on: ubuntu-latest
