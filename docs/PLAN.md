@@ -131,7 +131,7 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 
 | 组件 | 是什么 | 谁写 |
 |---|---|---|
-| `frps` / `frpc` | 开源项目 frp 的服务端和客户端，版本锁定 0.71.0 | 不改源码，只写配置 |
+| `frps` / `frpc` | 开源项目 frp 的服务端和客户端，版本锁定 0.71.1（D4 confirmed） | 不改源码，只写配置 |
 | `nethub web` | Go 程序，公网控制台 | 你写（W3、W6） |
 | `nethub authz` | Go 程序（同一个二进制的另一种运行方式），处理设备 enroll 和 frps 的校验回调 | 你写（W4、W5） |
 | `os-nethub-agent` | OPNsense 插件：PHP 页面 + Python 脚本 `agentctl.py` + 自带的 frpc | 你写（W1、W2、W4） |
@@ -177,7 +177,7 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 | D1 | 许可证：NetHub 已定 Apache-2.0，但组织里另有"产品用 AGPL、库和节点用 Apache"的分层规则，NetHub 要不要按这条改？（DESIGN §14 Q0） | 第一次公开 commit 之前 | P0 | 保持 Apache-2.0（DESIGN）；作为分层规则的例外写进决策记录（本计划建议） | 已确认（2026-10-17）：保持 Apache-2.0，作为组织分层规则的例外，继续 P0 |
 | D2 | GitHub 仓库 `KazuhaHub/nethub` 什么时候建、一开始私有还是公开；谁做第一次提交 | P0 开始 | P0 | 先建私有仓库，W7 公开（本计划建议） | 部分完成（2026-10-17）：Kazuha 做了第一次提交，仓库已建为私有并推送；2026-10-17 Kazuha 确认先保持私有，到 W7 再决定公开 |
 | D3 | 测试资源由谁准备、费用谁出：一台公网 VPS、一个能配泛解析的域名、一台 OPNsense 测试机，以及测试机上要装好 `os-frp`（W2 共存测试用）；两家不同运营商的 4G/5G 网络（RUNBOOK ④ 要求至少两家） | W0 开始前 | W0 及以后 | 见第 5.2 节 | 部分决定（2026-10-17）：Local Windows OPNsense NAT client and remote LXC server/relay selected. OPNsense 26.7.7, dedicated SSH, outbound TLS, and bounded NAT transport preparation passed; complete mobile GUI ① and hook experiments ②/③ now pass. Windows restart and WHPX readiness passed. Native Hyper-V now passes complete local/public GUI diagnostics using a verified copy of the restored disk at 1 GiB; Kazuha approved the recorded 1 GiB resource exception; W0 accepted by Kazuha on 2026-10-18. A/B samples from two mobile carriers pass; Kazuha explicitly waived company/campus sampling. Relay SSH and wildcard DNS verified; temporary port windows authorized. The earlier packaging host retains its co-hosting exception |
-| D4 | frp 从 0.71.0 升到 0.71.1 的时机。要同时改打包仓库里 `os-frp` 的版本，那是 Kazuha 的仓库 | W2 开始前 | W2 | W2 之前三处一起升（DESIGN §5） | 待定 |
+| D4 | frp 从 0.71.0 升到 0.71.1 的时机。要同时改打包仓库里 `os-frp` 的版本，那是 Kazuha 的仓库 | W2 开始前 | W2 | W2 之前三处一起升（DESIGN §5） | Confirmed 2026-10-18: upgrade os-frp, NetHub frpc, and frps together to 0.71.1 before W2 integration. |
 | D5 | 8443 端口在受限网络下不好用的话，要不要把浏览器入口也放到 443（DESIGN §14 Q2） | W0 第 ④ 项结果出来后 | W5、W7 | 按 Q2 的数据规则判断（DESIGN） | Confirmed 2026-10-18: retain 8443; measured A/B networks did not trigger Q2. |
 | D6 | 撤销设备时怎么断开它已在线的隧道（DESIGN §5 候选机制 1–4） | W0 第 ⑥ 项结果出来后、W5 之前 | W5 | 待 W0 数据（DESIGN） | Confirmed 2026-10-18: heartbeat 10s, timeout 30s; deny Ping/Login/NewProxy together. Accept backend-outage costs, stale admin status, and recovery instability; bound hook work internally. |
 | D7 | 设备登录页会暴露在公网上，要不要用 `NewUserConn` 做"点了打开才放行"的门禁；放行窗口要不要随访问顺延（DESIGN §14 Q7） | W0 第 ⑤ 项结果出来后、W5 之前 | W5 | 钩子可用就在 v1 做（DESIGN） | Confirmed 2026-10-18: v1 source-IP gating; authenticated Open grants 30 minutes, another explicit Open renews; traffic never extends the window. |
@@ -194,8 +194,8 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 | D18 | 控制台用哪个域名：泛域名的根（例如 `router.example.com`）还是它下面的某个子域名。如果在泛域名下面，这个前缀必须保留、永远不分给设备 | W3-8 之前 | W3、W4 | 无，Kazuha 定 | 待定 |
 | D19 | 路由器上的插件怎么知道控制台地址：enroll 页面多一个"控制台地址"输入框，还是把地址编进 enroll token 里 | W4-1 之前（协议里要写清楚） | W4 | 无，Kazuha 定 | 待定 |
 | D20 | 打包仓库里的现有插件文件能不能直接复制进 NetHub。打包仓库的根许可证是 MIT，而且有其他版权人；NetHub 要保持单一版权的 Apache-2.0（DESIGN §2） | W1 开始前 | W1、W2 | 只当结构参考、自己重写；确实要复制某个文件前，先问 Kazuha 那个文件是谁写的（本计划建议） | Confirmed 2026-10-18: independently write NetHub files; reference structure only, no third-party copying. Omit kazuha.sh mirror. |
-| D21 | 要不要注册 `newwanip` 钩子：DESIGN 决策 #17 要求注册（带防抖），但打包仓库的 `os-frp` 故意不注册，理由是 frpc 自己会重连，WAN 地址变化时重启反而会断掉正常的隧道 | W2-6 之前 | W2 | 无，Kazuha 定（看 `os-frp` 的 `frp.inc` 里那段注释） | 待定 |
-| D22 | 设备到中继 7000 端口的控制通道怎么做服务端认证（DESIGN §14 Q10）：frpc 不配 CA 时根本不校验 frps 的证书，路径上的中间人能截下 domain claim | W2-3 写模板之前定方向，W4 enroll 之前定细节 | W2、W4 | `nethub init` 生成部署 CA、给 frps 签长期证书 + enroll 响应下发 CA 证书（PEM）+ 模板写 `transport.tls.trustedCaFile`（DESIGN Q10） | 待定 |
+| D21 | 要不要注册 `newwanip` 钩子：DESIGN 决策 #17 要求注册（带防抖），但打包仓库的 `os-frp` 故意不注册，理由是 frpc 自己会重连，WAN 地址变化时重启反而会断掉正常的隧道 | W2-6 之前 | W2 | 无，Kazuha 定（看 `os-frp` 的 `frp.inc` 里那段注释） | Confirmed 2026-10-18: do not register newwanip; use frpc reconnect and periodic reconcile. W2 must measure recovery after a real WAN address change; if automatic recovery fails, switch to the debounced hook in DESIGN #17. |
+| D22 | 设备到中继 7000 端口的控制通道怎么做服务端认证（DESIGN §14 Q10）：frpc 不配 CA 时根本不校验 frps 的证书，路径上的中间人能截下 domain claim | W2-3 写模板之前定方向，W4 enroll 之前定细节 | W2、W4 | `nethub init` 生成部署 CA、给 frps 签长期证书 + enroll 响应下发 CA 证书（PEM）+ 模板写 `transport.tls.trustedCaFile`（DESIGN Q10） | Confirmed direction 2026-10-18: deployment CA, relay server certificate, device trustedCaFile and serverName; keep the CA private key outside runtime containers. Enrollment and rotation details remain W4 work. |
 
 ---
 
@@ -878,10 +878,7 @@ W0 清理时已经拆掉了中继。而且 W0 的 `frps.toml` 是为实验写的
 W2 做完照样清理。
 
 **W2-1 放入 frpc 二进制【停】。**
-DESIGN 的设计是把 frp 官方的 `frp_0.71.0_freebsd_amd64.tar.gz` 放在插件的 `vendor/` 目录里，旁边放一个 sha256 文件。
-`build.sh` 只解压出里面的 `frpc`，装到 `/usr/local/opnsense/nethub-agent/bin/frpc`，同时生成一个 `FRP_VERSION` 文件（DESIGN 决策 #19）。
-
-这个压缩包有十几 MB。**是把它提交进仓库，还是构建时按固定的 sha256 下载**，先问 Kazuha。
+Confirmed 2026-10-18: download the official frp 0.71.1 FreeBSD amd64 archive at build time, verify its repository-pinned SHA256 against the upstream checksum manifest, and stage only `frpc` under `/usr/local/opnsense/nethub-agent/bin/frpc` with `FRP_VERSION`. Do not commit the binary archive to NetHub.
 
 不管哪种做法：
 
@@ -966,7 +963,7 @@ os-frp 那边也要有一个 `FRP_VERSION` 文件，那是 Kazuha 的仓库，�
 
 1. 如果存在本地熔断文件 `/var/db/nethub-agent/disabled`：停掉服务，记录状态，退出。**不碰 `config.xml`。**
 2. 用文件锁（`fcntl.flock`）保证同一时间只有一个 reconcile 在跑。
-3. 如果是 `newwanip` 触发的（用参数区分；要不要注册这个钩子见【D21】）：距离上次运行不到 60 秒就跳过；否则随机等 0–30 秒再继续。
+3. D21: do not register `newwanip`. Let frpc reconnect and run periodic reconcile. If W2 WAN-address recovery fails, implement the fallback hook with a 60-second minimum interval and 0–30-second jitter.
    这个等待**不能卡住 OPNsense 的 WAN 事件处理**：钩子里只负责把 reconcile 放到后台启动，立刻返回。
 4. 运行 `configctl template reload OPNsense/NetHubAgent`，生成 `.candidate` 文件，**马上** `os.chmod(candidate, 0o600)`。
    里面有 token，不能让其他用户读到。`/usr/local/etc/nethub-agent/` 目录本身也设成 `0700`。
@@ -990,8 +987,7 @@ os-frp 那边也要有一个 `FRP_VERSION` 文件，那是 Kazuha 的仓库，�
 - `src/usr/local/etc/inc/plugins.inc.d/nethub_agent.inc`。**文件名用下划线**：OPNsense 用文件名拼出钩子函数名（`nethub_agent_services()`、`nethub_agent_configure()`），
   PHP 函数名里不能有连字符，写成 `nethub-agent.inc` 的话服务和钩子都不会生效。打包仓库的 `os-sing-box` 就是用 `sing_box.inc`。
   - 注册服务，让它出现在 Services 状态页。写法看 `os-frp` 的 `frp.inc`。
-  - 注册 `newwanip` 钩子前，先看【D21】：`os-frp` 的 `frp.inc` 里有一段注释，解释了它为什么故意不注册。
-    如果 Kazuha 决定要注册，写法看 `os-mihomo` 的 `mihomo.inc`（`'newwanip' => [...]`）。
+  - D21 confirmed: omit `newwanip`; use automatic reconnect and periodic reconcile. Register a debounced hook only if the WAN-address recovery acceptance test fails.
 - 开机收敛：OPNsense 的开机钩子目录在 `/usr/local/etc/rc.syshook.d/`（先在测试机上 `ls` 确认），
   在插件里对应放 `src/usr/local/etc/rc.syshook.d/start/20-nethub-agent`。
   这一步补上"`config.xml` 被恢复到一台已经装了插件的机器上"的情况（DESIGN §4）。
@@ -1027,6 +1023,7 @@ DESIGN 决策 #14：每 5 分钟检查一次，服务是 stopped 并且存在 `f
 
 ### 验收（对应 DESIGN §10 W2）
 
+- [ ] Change the WAN address on the NAT test guest while an isolated tunnel is active. Record address-change, disconnect, registration, and GUI-recovery times. Do not invoke reconcile manually. If frpc and scheduled reconcile cannot recover automatically, implement and retest the debounced newwanip fallback before W2 passes (D21).
 - [ ] 用调试区手填 W2-0 中继的地址和 token，服务启动并连上。frps 日志里有这台设备的 `new proxy ... success`（贴日志，地址打码）
 - [ ] 故意把模板改坏（例如加一个不存在的键），reconcile 报错、**不重启**、旧配置还在、页面上显示错误（贴输出）
 - [ ] 熔断文件存在时，隧道停下，`config.xml` 没有变化（对比前后的 sha256）；删掉熔断文件再 reconcile，隧道恢复
@@ -1562,7 +1559,7 @@ DESIGN §10 W5 要求开机收敛和定时收敛都要有：除了开机钩子�
 
 - 重启路由器；
 - 在 OPNsense 里恢复一份备份的 `config.xml`；
-- WAN 口换 IP（`newwanip`，有防抖）。
+- WAN address changes: rely on frpc reconnect and periodic reconcile; enable the debounced hook only if W2 recovery testing requires it (D21).
 
 **W5-7 enroll 页面加提醒。**
 Enroll 前提示用户：请确认你有**不依赖 NetHub** 的其他访问方式（本地控制台、物理接入），以防远程访问出问题时进不去（DESIGN W5 验收项）。
@@ -2045,5 +2042,5 @@ installation, enabled save, uninstall with retained settings, and reinstall on
 OPNsense 26.7.7. Firmware registration cleanup was fixed and retested. See
 [the evidence](../agents/opnsense/plugin/tests/native-validation.md). The plugin
 remains installed for W2 and starts no tunnel. D4/D21/D22 and the pinned-download
-choice remain pending before their respective W2 steps. Test access was simplified
+choice were confirmed on 2026-10-18; the three-way 0.71.1 upgrade is now a W2 prerequisite. Test access was simplified
 at the owner's request; credentials remain outside Git.

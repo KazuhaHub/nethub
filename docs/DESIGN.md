@@ -39,7 +39,7 @@ v0.2 写完之后，用户在 2026-09-17 的会话里拍板了一批事项，它
 | 公网端口统一写成 **443 / 7000 / 8443**（§5、§7） | v0.2 部分地方只写了 443 和 8443，漏了 frps `bindPort` 7000 | 建议（事实修正） | 2026-10-16 |
 | 数据模型修正与扩展：`devices` 补 `platform` / `capabilities`、`opnsense_version` 改名 `platform_version`、加 `revoked_at` / `revoked_by_user_id` 与展示用 `label`；`audit_log` 补 `tenant_id`；`users` 调整；新增 `user_identities` / `oidc_providers` / `invites` / `sessions`（§6） | v0.2 的 DDL 与 §2、与 RLS 策略自相矛盾；新范围需要新表；列级授权需要一个明确的"展示标签"列 | 建议 | 2026-10-16 |
 | `os-frp` 同机共存规则写进 §4；`status` 不再使用 frpc `[webServer]` | 其默认 `127.0.0.1:7400` 与 os-frp 的管理界面冲突 | 建议 | 2026-09-17（分析）/ 2026-10-16（写入） |
-| frp 暂时继续锁 0.71.0；0.71.1 的升级计划为三处一起升、在 Weekend 2 之前（§5） | 与 os-frp 保持一致（决策 #19） | 建议（升级本身待用户确认） | 2026-10-16 |
+| Upgrade os-frp, NetHub frpc, and frps together to 0.71.1 before W2; pin official build-time downloads | Keep all three versions aligned (#19) | Confirmed by Kazuha | 2026-10-18 |
 | 更正：frp 默认 `--strict_config=true`，未知字段直接报错退出，不会被静默忽略（§5） | v0.2 的 Weekend 0 套件文字有误，且套件里 TOML 表作用域的写法会让 frps/frpc 启动即退出 | 建议（事实修正） | 2026-10-16 |
 | 新增 **Q7：设备 GUI 的公网暴露面**，以及基于 frps `NewUserConn` 的候选缓解（§14） | v0.2 完全没写这个暴露面 | 待定（用户） | 2026-10-16 |
 | 新增 **Q8：React UI 组件库**（§14） | 用户要求以示例形式比较后再选 | 待定（用户） | 2026-10-16 |
@@ -56,13 +56,13 @@ v0.2 写完之后，用户在 2026-09-17 的会话里拍板了一批事项，它
 | 候选断线机制 1（拒绝 `Ping`）补上可用性代价：`Ping` 订阅给 authz 后同样 fail-closed，authz 一次崩溃、挂起或数据库卡顿会在心跳窗口内切断**全部**已建立的隧道，"新连接的单点"变成"全部远程访问的单点"；写明缓解（`Ping` 只查内存撤销状态、不碰数据库，严格内部超时，健康检查重启），并写明这些缓解只能缩短恢复时间、挡不住断线；断线机制的推荐组合改标为"待 Weekend 0 数据，未定"；Weekend 0 第 6 项加测这一代价（§5、§9、§10、§12、§13、§15） | 原文只写了这条机制能断线，没写它把 authz 的故障从"挡新连接"放大成"断掉所有远程访问"；已对 frp v0.71.0 源码核实 `Ping` 的处理路径 | 建议 | 2026-10-16 |
 | 撤销相关表述统一为"轮询器只负责发现，断线机制待 Weekend 0"：§5 人工「立即断」旁路、§9 撤销一行、W5 验收不再暗示轮询器能断线或 W5 一定能断线；§2 不再拿 `os-mihomo` 当打包仓库正在发布的例子（它只有 `src/` 目录，不在 `plugins.json` 里，见 §15）；Q2 写明 443 也是 0/20 时的处理，与 Weekend 0 套件一致；§15 措辞去掉具体工具名 | 消除与 §5、§15、Weekend 0 套件之间的不一致 | 建议（事实修正） | 2026-10-16 |
 | 新增 **Q9：OPNsense 自己的 DNS 重绑定 / HTTP_REFERER 检查**可能拦下经中继的访问（§14） | 设备 GUI 看到的主机名是中继分配的子域名，不是设备自己的主机名；v0.3 之前没有考虑 | 待定（先实测） | 2026-10-16 |
-| 新增 **Q10：设备 ↔ 中继控制通道没有服务端认证**（frpc 未配 CA 时不校验 frps 证书），可被路径上的中间人截取 domain claim（§14） | 写威胁模型时对 frp v0.71.0 源码核实发现 | 待定（v1 前必须解决） | 2026-10-16 |
+| Q10 / D22: authenticate the relay using a deployment CA, trustedCaFile and serverName; exclude the CA private key from runtime containers | Prevent control-channel impersonation and claim theft | Direction confirmed; W4 lifecycle details pending | 2026-10-18 |
 | 威胁模型与控制台 API 初稿审查后的补充：`NewProxy` 拒绝任何 custom domain、设备不能承载控制台域名、控制台 HSTS 不带 `includeSubDomains`（§5）；被攻破的控制台能借设备列表钓鱼、frps / Caddy 被攻破的后果、authz 能取消撤销（§6）；web 对 `enroll_tokens` 少数列的 `SELECT`（§6）；始终保留一个本地密码 admin（§6）；Q10 修复方案细化（部署 CA、PEM、frps 不热加载证书、`Login` 可重放） | 写 `docs/threat-model.md` 与 `docs/console-api.md` 时的审查发现 | 建议 | 2026-10-16 |
 | 仓库签名改在 Irvine Home 上做；打包仓库的专用测试机移走签名私钥和构建/签名临时文件之后，用作 NetHub 的 OPNsense 测试机（决策 #20、§10） | 用户："就用那台，签名 Irvine Home 也可以做"。决策 #20 的原则不变：持有签名私钥的机器不装、不跑 NetHub 的任何部分 | 用户; superseded by the subsequent co-hosting decision below | 2026-10-17 |
 | Decision #20 revised: the designated packaging test host may build, sign, and run NetHub; no signing-key or build-scratch removal is required | Kazuha explicitly changed the rule in this chat; the approved host shares its compromise boundary with any signing material present | Kazuha | 2026-10-17 |
 
 **仍未决定（本文不替用户回答）：** 控制通道的服务端认证（Q10）；OPNsense 主机名检查的处理（Q9）；v1 功能清单的最终确认；
-设备 GUI 公网暴露面的处理（Q7）；frp 升到 0.71.1 的时机（§5）。
+设备 GUI 公网暴露面的处理（Q7）。D4 upgrade timing was confirmed on 2026-10-18 (§5).
 
 ---
 
@@ -181,7 +181,7 @@ KKazuhaK/OPNsense-repo            ← 只有打包配方，不含 NetHub 源码
 
 | # | 决策 | 选了什么 | 否决了什么 | 理由 | 后悔成本 |
 |---|---|---|---|---|---|
-| 1 | 控制/远程通道协议 | **复用 frp 0.71.0**（vhost-https + SNI passthrough；0.71.1 的升级计划见 §5） | MQTT/EMQX、gRPC 双向流、WebRTC/TURN、Cloudflare Tunnel、自研 QUIC/WireGuard mesh | v1 没有任何需要控制面主动下发的指令。"在不在线"这一件事，frp 的控制连接本身就回答了 | 低 |
+| 1 | 控制/远程通道协议 | **复用 frp 0.71.1**（vhost-https + SNI passthrough；D4 upgrade confirmed 2026-10-18） | MQTT/EMQX、gRPC 双向流、WebRTC/TURN、Cloudflare Tunnel、自研 QUIC/WireGuard mesh | v1 没有任何需要控制面主动下发的指令。"在不在线"这一件事，frp 的控制连接本身就回答了 | 低 |
 | 2 | 是否复用用户已装的 `os-frp` | **不复用，自带独立 vendored frpc 实例** | 读写用户 `os-frp` 的 `frpc.toml` | `frpc.toml` 全局只有一个 `serverAddr`/`token`，会和用户自己的 os-frp 配置冲突。同机共存的具体规则见 §4 | 低（多打包约 12MB 已验证二进制） |
 | 3 | `frpc.toml` 生成方式 | **Jinja2 + OPNsense 官方 `+TARGETS`** | `tomllib` 只读 + 手写 emitter、vendor `tomlkit` | 决策 2 成立后这份文件由本插件独占，不存在合并需求 | 低 |
 | 4 | 设备身份 / 域名归属校验 | **签名声明（HMAC-SHA256）+ DB 记录双重校验，签名与验签只发生在 `nethub authz` 进程里**。`httpPlugins` 的 `Login`/`NewProxy` 做主校验；authz 每 15s 轮询 frps admin API 核对，**连续 3 次（~45s）异常才判定要断线**，另留人工「确认失窃、立即断」旁路。frps 0.71.0 的 admin API 没有断开在线连接的接口，所以轮询只负责发现，真正断线走 D6 explicit-heartbeat Ping denial with Login/NewProxy denial (§5)。公网控制台 `nethub web` 与 authz 分进程、分 Postgres 角色、按列授权：web 拿不到签名密钥，不能新建设备行，不能写 `subdomain`、声明字段和密钥哈希列；子域名由 authz 随机生成（落地细节见 §6） | 只用共享 token、单次不一致即踢线；web 与授权逻辑同进程、只靠"代码里不去读密钥" | 如果只信任 DB 一行记录，公网控制台一旦被打穿（API 越权/SQLi/XSS/session 伪造），攻击者改一行 SQL 就能让自己的 frpc 冒充任意设备抢占它的子域名（`subdomain`）——用户看到的还是"和平时一样"的证书警告，一次渗透 = 全量钓鱼。签名密钥**不暴露给 web 进程**，DB 整表被篡改也伪造不出有效声明。v0.3 把"不暴露"落到进程、文件挂载和列级授权三层上，并如实写出被攻破的 web 仍然能做什么（§6） | 中 |
@@ -197,7 +197,7 @@ KKazuhaK/OPNsense-repo            ← 只有打包配方，不含 NetHub 源码
 | 14 | 独立看门狗 | 一条**独立于 agent 代码之外**的 cron（每 5 分钟）：服务 `stopped` 且存在"上一份能跑的 `frpc.toml`" → 回滚并重启**一次**，不无限重试 | 依赖用户自己发现 | 回滚计时器必须活在能被这次变更拖死的进程之外 | 低 |
 | 15 | 插件发布方式 | **灰度 canary**：复用 `os-kazuha-repo` 现有的 series 切换，先切一小撮（自己 + 志愿者），观察 `last_seen_at` 正常再全量 | 新版本直接全量推送 | 批量升级把一片设备变砖是最坏的失败模式，而这套机制不需要新组件 | 低 |
 | 16 | config.xml 写路径的并发与输入安全 | `enroll`/`unenroll` **幂等**（已有非空 `DeviceId` 直接返回成功）；控制面返回的字段写入前**严格白名单校验**（`subdomain` 只匹配 `^[a-z0-9-]{1,63}$`）；复用 OPNsense 全局配置锁 | 假设"走官方 setAction 就天然安全" | 本插件引入了三条别的插件都没有的高频脚本化写入路径。对一台边界防火墙，config.xml 损坏比远程 UI 打不开严重一个数量级 | 低 |
-| 17 | `newwanip` 触发 reconcile 的防抖 | 最短间隔 60s 合并 + 0–30s 随机抖动 | 无防抖直接注册 | CARP 主备切换/上联抖动会让多台机器几乎同时触发，叠加决策 #4 的轮询容易把正常 failover 误判成异常 | 低 |
+| 17 | WAN address changes | **Confirmed 2026-10-18: do not register newwanip.** Use frpc reconnect and periodic reconcile. W2 must measure recovery after changing the WAN address. If automatic recovery fails, implement a hook with a 60s minimum interval and 0–30s jitter, then repeat acceptance. | Unconditional restart on every WAN event | Avoid disrupting healthy tunnels on unrelated WAN or CARP events; measured recovery determines whether the fallback is required. | Low |
 | 18 | 凭证/服务端地址原地轮换 | `agentctl.py rotate` 子命令：拉一套新凭证后原地更新并重启，不走完整 enroll | 只有 enroll/unenroll，轮换 = 重新带外交付 | 中继地址/端口/token 一旦需要轮换（迁移、泄露），否则唯一补救是要求每个用户手动重新 enroll | 低 |
 | 19 | 供应链版本一致性 | CI 检查：`os-frp` 与 `os-nethub-agent` 两份 vendored frp 版本号必须一致，否则构建失败——两个包各带一份 `FRP_VERSION` 文件供 CI 直接比对；server 侧 `frps` 版本由 compose 锁定且与之匹配 | 无机制防止悄悄分叉 | 决策 2 让版本从"1 处要更新"变成"3 处必须同步"，需要机制兜底而不是靠记性 | 低 |
 | 20 | 签名私钥主机的部署边界 | Kazuha permits building, signing, and NetHub use on the designated packaging test machine (revised 2026-10-17). Removing its signing keys or build/signing scratch, or relocating signing, is no longer required. Other signing hosts remain outside deployment scope; production routers remain excluded | 在日常路由器上装新插件做验收 | 一旦决策 #4 的劫持路径成立而受害机恰好是私钥主机，攻击者拿到管理员凭证登入 shell 就能拿到签名私钥，把"控制面被攻破"升级成"能对仓库里的全部插件（截至 2026-10-16 共 13 个）重新签名推给所有用户"。这是产品自己给现有生态制造的新攻击面 | 低（纯运维纪律） |
@@ -214,9 +214,8 @@ KKazuhaK/OPNsense-repo            ← 只有打包配方，不含 NetHub 源码
 ```
 src/os-nethub-agent/
   FRP_VERSION                                  # 决策 #19：CI 与 os-frp 的同名文件比对
-  vendor/
-    frp_0.71.0_freebsd_amd64.tar.gz            # 与 os-frp 同一份已验证产物，独立打包
-    frp_0.71.0_freebsd_amd64.tar.gz.sha256
+  frp-artifacts.json                          # Official release SHA256 pins; no archive in Git
+  frp_artifact.py                             # Build-time download and validation
   src/
     usr/local/etc/rc.syshook.d/start/20-nethub-agent   # 开机后 reconcile 一次
     （看门狗的定时入口）                       # 决策 #14：独立看门狗；用哪种定时机制待实现时定
@@ -249,7 +248,7 @@ src/os-nethub-agent/
 | 命令 | 行为 |
 |---|---|
 | `enroll <token>` | POST 控制面 `/api/v1/devices/enroll`（经 Caddy 443 转给 `nethub authz`），请求里上报 `platform`、`platform_version`、`agent_version`、`agent_protocol_version` 与 `capabilities`（v1 只有 `remote.web`）；把返回的 `device_id / device_secret / frp_token / server_addr / server_port（7000）/ subdomain（authz 随机分配）/ domain_claim` 写入 Settings 模型。写入前逐字段白名单校验；已有非空 `DeviceId` 直接返回成功 |
-| `reconcile` | 先查 kill switch 文件（决策 #10）→ 渲染 `frpc.toml` 到临时文件 → `frpc verify` 通过才 `mv` + 按需 restart（决策 #13）；不通过则保留旧文件、写本地状态、**不重启**。由 `newwanip` 触发时带防抖（决策 #17） |
+| `reconcile` | 先查 kill switch 文件（决策 #10）→ 渲染 `frpc.toml` 到临时文件 → `frpc verify` 通过才 `mv` + 按需 restart（决策 #13）；不通过则保留旧文件、写本地状态、**不重启**。WAN changes rely on reconnect and periodic reconcile; only the measured fallback uses a debounced hook (decision #17) |
 | `status` | rc.d 状态 + 本插件 frpc 日志的尾部 + 上次 reconcile 的结果/失败原因 + 证书剩余天数（v1.1），拼 JSON 给 GUI。**不启用 frpc 的 `[webServer]`**（原因见下方共存规则）；设备在不在线由控制面另行通过 `last_seen_at` 掌握 |
 | `unenroll` | 停服务、清空凭证字段、通知控制面注销 |
 | `rotate` | 拉一套新凭证/新中继地址，原地更新并 reconcile 一次，不需要重走带外流程（决策 #18） |
@@ -263,7 +262,7 @@ src/os-nethub-agent/
 - **`+POST_INSTALL` 必须手写四步**（native 管线不走官方 `Mk/plugins.mk`，这几步官方流程下是自动生成的）：
   `configctl template reload OPNsense/NetHubAgent` → `run_migrations.php` → ACL/菜单缓存刷新 → `configd restart`。
   直接抄 `os-mihomo`/`os-sing-box` 现成实现，不重新发明。
-- `plugins.inc.d/nethub_agent.inc` 注册 Services 状态页 + `bootup`/`newwanip` 钩子（函数名 `nethub_agent_services()` 等；PHP 函数名不能含连字符）。是否注册 `newwanip` 待确认：打包仓库的 `os-frp` 故意不注册，理由是 frpc 自己会重连（见其 `frp.inc` 注释），与决策 #17 的取舍需要用户拍板。
+- `plugins.inc.d/nethub_agent.inc` registers Services status and boot reconciliation. D21 confirmed: omit `newwanip`, use frpc reconnect and periodic reconcile, and measure WAN-address recovery in W2. Fall back to a debounced hook only if automatic recovery fails (decision #17).
 - **HA/CARP**：enroll 时加一个可选字段标注"本机是 CARP 集群成员"，v1 不做任何自动化，只在控制台标注，
   供人工判断"这几台同时异常是不是同一次 failover"，并作为决策 #4 降级为告警的参考信号。
 
@@ -291,7 +290,7 @@ src/os-nethub-agent/
 - **version_file**：每个插件各自在 `plugins.json` 里声明 `version_file` 路径，由通用管线生成。
   （注意：`os-kazuha-repo` **只**维护它自己的 `version/kazuha-repo`，包内容被显式校验为只含 3 个文件，
   它不会替其它插件写版本文件——照惯例加一条自己的即可。）
-- **vendor 二进制**：复用与 `os-frp` 相同的 `frp_0.71.0_freebsd_amd64.tar.gz`，
+- **Pinned download** (confirmed 2026-10-18): fetch the same official release as `os-frp`, `frp_0.71.1_freebsd_amd64.tar.gz`，
   安装到 `/usr/local/opnsense/nethub-agent/bin/frpc` 避免冲突；版本一致性由决策 #19 的 CI 兜底。
 - **`+TARGETS`/Jinja2/pytest/native builder**：整套复用。
 
@@ -311,7 +310,7 @@ src/os-nethub-agent/
 
 ### 控制通道 = 远程 UI 通道
 
-- frp 0.71.0，client → server 走 TCP，连到 frps `bindPort = 7000`，`[transport.tls] enable = true`。
+- frp 0.71.1 (D4 confirmed)，client → server 走 TCP，连到 frps `bindPort = 7000`，`[transport.tls] enable = true`。
   **注意：只开 TLS、不配 CA 时 frpc 不校验 frps 的证书，控制通道没有服务端认证，见 Q10。**
 - `frps` 开 `vhostHTTPSPort = 8443`、`subDomainHost = "<部署者的域名>"`。
 - 设备侧渲染出唯一一块 `[[proxies]]`：`localIP = "127.0.0.1"`、`localPort = 443`、
@@ -435,10 +434,9 @@ D7 selects frps `NewUserConn` source-IP gating in v1; its limits are described i
 
 ### frp 版本
 
-- 暂时继续锁 **0.71.0**：与打包仓库里的 `os-frp` 一致（截至 2026-10-16 仍锁 0.71.0），守住决策 #19。
-- frp v0.71.1 于 2026-10-14 发布：重连与控制连接修复、yamux 替换；配置字段名和 `pkg/plugin/server` 都没有变化。
-- 计划（升级本身待用户确认）：`os-frp`、NetHub vendored 的 frpc、frps 镜像**三处一起**升到 0.71.1，
-  在 Weekend 2 之前完成。按上面这份 diff，Weekend 0 在 0.71.0 上得到的结果可以沿用到 0.71.1。
+- D4 confirmed 2026-10-18: upgrade `os-frp`, NetHub frpc, and frps together to **0.71.1** before W2 integration.
+- Fetch official artifacts at build time with repository-pinned SHA256 values checked against the upstream checksum manifest. NetHub does not store release archives in Git.
+- Keep W0 evidence labeled 0.71.0. Verify the new binaries, strict configuration, hook contracts, TLS authentication, and reconnect behavior on 0.71.1 before relying on them in W2. The upgrade is not itself proof that all W0 observations remain unchanged.
 - 两个 frp 安全公告（GHSA-26gq-p25f-99cp，影响 ≤0.70.0；GHSA-pq96-pwvg-vrr9，影响 ≤0.68.0）不影响 0.71.x。
 
 ### 被否决的方案
@@ -456,7 +454,7 @@ frp XTCP P2P 打洞（成功率不可控，做不了"点一下就开"的 UX）�
 
 | 服务 | 说明 |
 |---|---|
-| `frps` | frp 0.71.0（与设备侧严格同版本）。公网 `bindPort 7000`、`vhostHTTPSPort 8443`，`subDomainHost=<域名>`；`[webServer]`（admin API）只监听内部网络，供 authz 轮询；`[[httpPlugins]]` 指向 `nethub-authz` 的内部端点，ops 为 `Login`、`NewProxy`、`NewUserConn`、`Ping` (D6/D7 confirmed; see §5)。admin API 没有断开在线连接的接口 |
+| `frps` | frp 0.71.1（与设备侧严格同版本）。公网 `bindPort 7000`、`vhostHTTPSPort 8443`，`subDomainHost=<域名>`；`[webServer]`（admin API）只监听内部网络，供 authz 轮询；`[[httpPlugins]]` 指向 `nethub-authz` 的内部端点，ops 为 `Login`、`NewProxy`、`NewUserConn`、`Ping` (D6/D7 confirmed; see §5)。admin API 没有断开在线连接的接口 |
 | `nethub-web` | `nethub web`：公网控制台，React SPA + `/api/v1/console/...` JSON API。功能：本地与 OIDC 登录、用户与邀请、OIDC 提供方、设备列表、enroll token、撤销、审计视图。Postgres 角色 `nethub_web`。**永远不持有**签名密钥、frps admin 凭证和 frps auth token |
 | `nethub-authz` | `nethub authz`：面向设备与中继。设备 API `/api/v1/devices/{enroll,rotate,unenroll,status}`（Caddy 从 443 转来）；frps `httpPlugins` 处理器（只在内部网络）；frps admin API 轮询器（只能发现异常，断不了在线连接；断线走 §5 已确认的 D6 机制）。持有签名密钥（只挂进这个容器的文件）、frps admin 凭证，以及要交给设备的 frps auth token。Postgres 角色 `nethub_authz` |
 | `caddy` | 公网 443，自动 Let's Encrypt；`/api/v1/devices/*` → `nethub-authz`，其余 → `nethub-web` |
@@ -815,7 +813,7 @@ OIDC 提供方不在 init 里配：init 完成后由管理员在控制台里添�
 | 审计 | `audit_log` 哈希链，人工动作**和**系统自动行为（断线、rotate、reconcile 失败）都记，认证事件（登录成功/失败、身份绑定、邀请）也记；运行时角色只能追加；防护范围有诚实限定（见 §6） |
 | config.xml 写入安全 | 幂等 + 字段白名单 + 复用全局配置锁（决策 #16） |
 | 灰度与回滚 | canary 发布（#15）+ 验证后才应用（#13）+ 独立看门狗回滚一次（#14） |
-| CARP/HA | `newwanip` 防抖 + 抖动 + 控制台标注 + 异常判定降级为告警（#17） |
+| CARP/HA | frpc reconnect + periodic reconcile; debounced hook only if W2 recovery fails; console labels and alert-only anomaly handling (#17) |
 | 证书批量到期 | v1.1 存量迁移**打散签发时间**（按 device_id 哈希分桶）；到期前 30 天开始重试；`status` 上报剩余天数，<14 天标红 |
 | 供应链 | frps/frpc 锁同版本 + CI 一致性检查（#19，两个包各带 `FRP_VERSION`）；signing hosts excluded except the owner-approved packaging test host (#20)；`authcore` 钉到核实过的 tag（#23） |
 | 可观测性 | 部署文档提供 uptime 监控接入示例（自建者自己接）；`doctor` 可定期跑 |
@@ -895,6 +893,7 @@ vendor 二进制；rc.d；`+TARGETS` / `frpc.toml.j2`；reconcile 的「验证�
 **验收：** 手填 Weekend 0 的中继地址/token，服务能启动并连上；
 **并且**故意渲染一份坏 `frpc.toml`，确认 reconcile 不重启、保留旧文件；
 **并且** os-frp 照常工作（它的进程、配置和端口都不受影响）。
+**D21 acceptance:** change the WAN address while the tunnel is active, measure automatic registration and GUI recovery without manual reconcile, and record elapsed times. If automatic recovery fails, implement the 60s/0–30s debounced newwanip fallback and repeat the test before W2 passes.
 
 ### Weekend 3 — Go 控制面骨架 + 部署体验
 
@@ -1029,7 +1028,7 @@ W0 confirmed D6/D7 mechanisms on the stock client. Backend hangs can leave admin
 | 3 | 撤销逻辑自我锁死（用户在异地被误踢，够不着本地开关） | 单次不一致即踢线，DB 竞态/轮询 bug 会误伤；采用 D6 拒绝 `Ping` 断线，authz 自身故障也会在心跳窗口内断掉全部隧道（§5） | 连续 3 次确认 + 限流降级为告警 + 人工强制旁路；`Ping` 只查内存撤销状态 + 严格内部超时 + 健康检查重启(D6 confirmed; measured hang-state lag and recovery instability retained)；onboarding 要求用户确认有带外手段 |
 | 4 | 批量升级把一片设备变砖 | 新版模板有 bug → 渲染坏配置 → `verify` 失败 → restart 失败 → 停机且无人重试（`daemon(8)` 故意不带 `-r`） | #13 验证后应用 + #14 独立看门狗回滚一次 + #15 canary |
 | 5 | Agent bug 写坏 config.xml | enroll/reconcile/unenroll 高频脚本化写路径 | #16 幂等 + 白名单 + 全局配置锁 |
-| 6 | CARP 双机惊群式重连 | failover → 两台几乎同时 `newwanip` → 撞上轮询判定 | #17 防抖 + 抖动 + HA 标注 + 降级为告警 |
+| 6 | CARP 双机惊群式重连 | failover → 两台几乎同时 `newwanip` → 撞上轮询判定 | #17 reconnect + periodic reconcile, conditional debounced fallback + HA labels + alert-only handling |
 | 7 | 证书批量到期集中失效 | v1.1 存量同批迁移，90 天窗口高度集中 | 打散签发时间 + 提前 30 天重试 + 剩余天数上报 |
 | 8 | **签名私钥被当跳板：控制面渗透升级为全生态沦陷** | 场景 1 成立 + 受害机恰好持有仓库全部插件（截至 2026-10-16 共 13 个）的签名私钥 | Default exclusion under #20; the owner-approved packaging test host is an explicit exception and retains this risk. Offline signing remains Q4 |
 | 9 | 设备失联却没法远程修 | 重启后默认路由未装载（26.7 的 core#10597 已在 26.7.1_1 修复，同类故障仍可能由别的原因引起） | 要求 26.7.1_1 或更新；此类故障**无技术防线**，runbook 兜底 |
@@ -1043,7 +1042,7 @@ W0 confirmed D6/D7 mechanisms on the stock client. Backend hangs can leave admin
 
 ## 14. 待拍板的问题
 
-另有两件事不单列编号但同样待用户：v1 功能清单的最终确认；frp 升到 0.71.1 的时机（§5）。
+另有 v1 功能清单的最终确认待用户决定。D4 upgrade timing was confirmed on 2026-10-18 (§5).
 
 **Q0：许可证。已决定 Apache-2.0（用户，2026-09-17）。**
 v0.2 的推荐理由保留作背景：目标是"个人和企业都能自建"，而 AGPL 卡的恰恰是企业——
@@ -1130,7 +1129,7 @@ the manual step and show the assigned exact hostname. Do not disable either
 check or have the plugin write unrelated system settings. Reassess automation
 only through a separate owner decision.
 
-**Q10（新，待用户决定）：设备 ↔ 中继控制通道没有服务端认证。**
+**Q10 (D22 direction confirmed 2026-10-18): authenticate the relay control channel.**
 已对 frp v0.71.0 源码核实（`pkg/transport/tls.go`）：frpc 开了 `transport.tls.enable` 但没配 `transport.tls.trustedCaFile` 时，
 `NewClientTLSConfig` 直接设 `InsecureSkipVerify = true`，接受任何证书；frps 没配证书时每次启动随机生成一对密钥。
 也就是说，按目前的设计，7000 端口上的控制通道**只加密、不认证**：设备到中继这段路径上的中间人（运营商、CGNAT、被攻破的上游设备）
@@ -1138,12 +1137,12 @@ only through a separate owner decision.
 效果等同于 §13 场景 #1，却不需要攻破控制面。
 按源码阅读还有两点让它更严重：frp 的 token 认证不检查时间戳新鲜度，截获的 `Login` 可以原样重放（攻击者连 frps token 都不需要）；
 路径上的中间人还能随时让真设备掉线，再趁机抢注；冒充中继时它也能直接访问设备 GUI，绕过 Q7 门禁。
-建议：（1）`nethub init` 生成一个部署 CA，签发一张长有效期的中继服务器证书，frps 只拿这张证书和它的私钥；
+Confirmed direction: （1）`nethub init` 生成一个部署 CA，签发一张长有效期的中继服务器证书，frps 只拿这张证书和它的私钥；
 CA 私钥只进部署者的密钥备份、不挂进任何容器（决策 #21 新增一项密钥）。不建议直接用公信证书：它大约 90 天续期一次，
 而 frps 只在启动时加载证书，换证书就得重启 frps、断掉所有隧道；frpc 也不会回退到系统根证书，同样要配 `trustedCaFile`。
 （2）enroll / rotate 响应经已校验的 HTTPS 通道下发 CA 证书（PEM 格式；frpc 只读 PEM 文件，不支持指纹钉扎）。
 （3）设备侧模板渲染 `transport.tls.trustedCaFile` 与 `transport.tls.serverName`。
-另外 claim 本身是持有即可用的凭据，长期方案见 Q1（设备级 mTLS）。v1 发布前必须解决。待用户决定具体做法。
+另外 claim 本身是持有即可用的凭据，长期方案见 Q1（设备级 mTLS）。The direction is confirmed; enrollment, rotation, and certificate lifecycle details must be specified in W4 before v1.
 
 ---
 

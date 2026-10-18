@@ -6,6 +6,8 @@ import subprocess
 import sys
 import tempfile
 
+from frp_artifact import fetch, read_lock
+
 
 def build(version):
     root = Path(__file__).resolve().parent
@@ -22,6 +24,12 @@ def build(version):
         work = Path(temporary)
         stage, meta = work / 'stage', work / 'metadata'
         shutil.copytree(source, stage, ignore=shutil.ignore_patterns('.DS_Store', '._*', '__pycache__'))
+        frpc = stage / 'usr/local/opnsense/nethub-agent/bin/frpc'
+        fetch('freebsd_amd64', 'frpc', frpc)
+        expected = read_lock()['version']
+        if subprocess.check_output([str(frpc), '--version'], text=True).strip() != expected:
+            raise ValueError('Downloaded frpc reports an unexpected version')
+        (frpc.parent / 'FRP_VERSION').write_text(expected + '\n')
         meta.mkdir()
         abi = subprocess.check_output(['pkg', 'config', 'ABI'], text=True).strip()
         if subprocess.check_output(['uname', '-m'], text=True).strip() != 'amd64':
@@ -44,6 +52,7 @@ def build(version):
             if path.is_symlink():
                 raise ValueError('Package source must not contain symlinks')
             path.chmod(0o755 if path.is_dir() else 0o644)
+        frpc.chmod(0o755)
         manifest['flatsize'] = sum(path.stat().st_size for path in files)
         (meta / '+MANIFEST').write_text(json.dumps(manifest))
         plist = work / 'pkg-plist'

@@ -60,7 +60,7 @@ only the release flow is genuinely cross-repository.
 ## What the agent is
 
 The device runs **no NetHub daemon**. The only persistent process is a
-vendored, unmodified `frpc` binary. Everything else is a one-shot script
+independently packaged, unmodified `frpc` binary. Everything else is a one-shot script
 invoked through OPNsense's `configd`, which is what keeps the agent's
 privileges narrow: the control plane cannot execute arbitrary commands, only
 the actions explicitly registered in `actions_nethub-agent.conf`.
@@ -75,7 +75,7 @@ Python is used only for `agentctl.py` and the Weekend 0 `probe.py`.
 | Subcommand  | What it does |
 |-------------|--------------|
 | `enroll`    | Exchanges a one-time token for device credentials and a signed domain claim, and writes them to the plugin's settings model. It posts to `/api/v1/devices/enroll` on port 443 (served by `nethub authz`) and validates every returned field against a whitelist before writing it. The relay it then connects to is on port 7000. |
-| `reconcile` | Checks the local kill switch first, then renders `frpc.toml` from settings to a temporary file, validates it with `frpc verify` **before** replacing the live file, and restarts the tunnel only if validation passed. If it fails, the old file is kept and nothing restarts. Triggered by `newwanip` with a debounce. |
+| `reconcile` | Checks the local kill switch first, then renders `frpc.toml` from settings to a temporary file, validates it with `frpc verify` **before** replacing the live file, and restarts the tunnel only if validation passed. If it fails, the old file is kept and nothing restarts. WAN changes rely on frpc reconnect and periodic reconcile. W2 measures recovery; a debounced hook is required only if automatic recovery fails (D21). |
 | `status`    | Reports service state, the tail of the plugin's own `frpc` log, and the last reconcile result — without enabling `frpc`'s `[webServer]` (see below). Whether the device is online is tracked by the control plane separately, as `last_seen_at`. |
 | `unenroll`  | Stops the tunnel, clears credentials, and notifies the control plane so the subdomain is released. |
 | `rotate`    | Pulls fresh credentials or a new relay address in place, without a full re-enrollment. |
@@ -104,7 +104,7 @@ Rules that follow from this:
   control plane separately knows `last_seen_at`.
 - **Ship a `FRP_VERSION` file** in both packages, so CI can enforce that the
   frp version in `os-frp` and in `os-nethub-agent` match (DESIGN decision
-  #19). The pin is 0.71.0 for now, and the `frps` image on the server side
+  #19). The selected pin is 0.71.1 (D4 confirmed), and the `frps` image on the server side
   must match.
 - **Test it on a box that has `os-frp` installed and running.** Weekend 2's
   acceptance is that `os-frp` keeps working — its process, config and ports
