@@ -19,7 +19,7 @@ Third-party components
 frp (fast reverse proxy)
 --------------------------------------------------------------------------------
   Homepage:  https://github.com/fatedier/frp
-  Version:   0.71.0
+  Version:   0.71.1 (historical Weekend 0 measurements used 0.71.0)
   License:   Apache License, Version 2.0
   Copyright: Copyright 2016 fatedier, <fatedier@gmail.com>
 
@@ -34,19 +34,24 @@ frp (fast reverse proxy)
 
 --------------------------------------------------------------------------------
 
-NetHub is pre-alpha (see the top-level project README and `CONTRIBUTING.md`):
-`server/` does not yet contain a committed dependency manifest or lockfile.
-Once the control plane's dependencies are pinned, the Go modules it will use
-(the control plane is planned in Go) will be declared in `go.mod` and
-`go.sum` under `server/`, and the npm packages for its console (a planned
-React + TypeScript single-page app under `server/web/`) in `package.json` and
-`package-lock.json`. These are ordinary package-managed dependencies, each
-licensed under its own respective terms; the expectation is chiefly
-MIT/BSD/Apache-2.0-family licenses, but that has not been verified and will be
-checked once the dependency set is pinned. This NOTICE file calls out frp
-explicitly because it is to be vendored/bundled rather than pulled as an
-ordinary package dependency; it will be extended if additional vendored (as
-opposed to ordinarily package-managed) components are added.
+Go modules are pinned in server/go.mod and server/go.sum. Console npm packages
+are pinned in server/web/package.json and package-lock.json. Each dependency
+retains its own license. The console build includes runtime dependency license
+texts at /third-party-licenses.txt; the build fails if a runtime package lacks
+an included license file.
+
+--------------------------------------------------------------------------------
+shadcn/ui New York components
+--------------------------------------------------------------------------------
+  Homepage:  https://ui.shadcn.com/
+  License:   MIT
+  Copyright: Copyright (c) 2023 shadcn
+
+  The console includes the button, input, label, and table component sources
+  from the previously reviewed New York registry snapshot, with formatting
+  changes. The original MIT text is retained in
+  server/web/THIRD_PARTY_LICENSE.txt and included in the built license page.
+  The native dialog adapter and application screens are NetHub source.
 
 ================================================================================
 

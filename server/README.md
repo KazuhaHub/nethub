@@ -12,15 +12,18 @@ the reasoning.
 > module directly imports authcore/saml v0.6.2; the SAML adapter delegates protocol
 > processing and enforces console policy. The CLI provides the console API, migrate,
 > and help/version; other commands still fail explicitly. Database bootstrap,
-> migrations, and actual-role PostgreSQL/HTTPS API tests pass. The React console,
-> device enrollment, init/admin, complete deployment, and SSO flows remain unfinished.
+> migrations, and actual-role PostgreSQL/HTTPS API tests pass. The React console
+> passes isolated browser flows under strict CSP. Device enrollment, init/admin,
+> complete deployment, and SSO flows remain unfinished.
 
 The local [password/session service](internal/auth/README.md) and tenant-bound
 PostgreSQL authentication store are implemented, with actual-role tests for
 expiry, logout, account disable, and password-check races. The
 [console API](internal/web/README.md) wires cookie/CSRF/Origin/proxy checks and
-atomic audit for login, logout, and token issuance. Browser CSRF/CSP acceptance,
-first-admin creation, and complete deployment startup remain W3 work.
+atomic audit for login, logout, and token issuance. The [React UI](web/README.md)
+uses these routes and embeds its production build in Go. Isolated browser evidence
+is in [UI validation](web/validation.md); first-admin creation and complete
+deployment/browser startup remain W3 work.
 
 ## Technology stack
 

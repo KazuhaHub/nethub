@@ -13,6 +13,7 @@ import (
 
 	"github.com/KazuhaHub/nethub/server/internal/auth"
 	"github.com/KazuhaHub/nethub/server/internal/clientip"
+	"github.com/KazuhaHub/nethub/server/internal/webui"
 )
 
 const prefix = "/api/v1/console"
@@ -127,7 +128,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			s.enroll(w, r, ip)
 		}
 	default:
-		writeError(w, r, 404, "not_found", "Not found")
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			writeError(w, r, 404, "not_found", "Not found")
+		} else {
+			webui.Handler().ServeHTTP(w, r)
+		}
 	}
 }
 
