@@ -502,3 +502,29 @@ If any of these turns out false, this document must be revised.
    verification. The F1 fix depends on it. DESIGN §4 does not yet state it.
 8. **How the device's GUI sees relayed clients** (as `127.0.0.1`), and what
    that does to OPNsense's own lockout and logs, is **unverified** (4.1).
+
+
+## W0 decisions and measured limits (2026-10-18)
+
+Kazuha accepted the [W0 report](../weekend0/results-2026-10-17.md) and confirmed
+D5/D6/D7/D17. These are implementation requirements, not implemented controls.
+
+- Keep the public GUI relay on 8443. Two mobile networks did not trigger Q2;
+  company/campus and IPv6 coverage remain untested.
+- Use explicit 10-second heartbeats and 30-second client/server timeouts. Revoke
+  through combined Ping/Login/NewProxy denial; deny new user connections too.
+  Three stock-client trials disconnected in 2.136–4.958 seconds. A hung hook
+  invalidates any unconditional latency bound: admin state stayed online after
+  heartbeat timeout while API requests failed, and recovery flapped.
+- Authz process loss or HTTP 500 interrupted online access. Bound handler work
+  internally, keep Ping free of blocking database calls, and preserve independent
+  out-of-band access. Health recovery does not remove this availability dependency.
+- Authenticated Open grants device/source-IP access for 30 minutes. Another Open
+  renews the deadline; hook calls and traffic do not. Existing connections can
+  outlive expiry. Shared CGNAT peers can share authorization; this is a network
+  position check, not user identity or a replacement for OPNsense authentication.
+- Require manual exact Alternate Hostnames setup, keeping DNS rebinding and
+  HTTP_REFERER checks enabled. Do not write unrelated system settings automatically.
+
+The control-channel server-authentication gap remains D22 and must be resolved
+before release. Modified clients retaining old streams were not tested.

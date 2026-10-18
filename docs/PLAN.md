@@ -176,11 +176,11 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 |---|---|---|---|---|---|
 | D1 | 许可证：NetHub 已定 Apache-2.0，但组织里另有"产品用 AGPL、库和节点用 Apache"的分层规则，NetHub 要不要按这条改？（DESIGN §14 Q0） | 第一次公开 commit 之前 | P0 | 保持 Apache-2.0（DESIGN）；作为分层规则的例外写进决策记录（本计划建议） | 已确认（2026-10-17）：保持 Apache-2.0，作为组织分层规则的例外，继续 P0 |
 | D2 | GitHub 仓库 `KazuhaHub/nethub` 什么时候建、一开始私有还是公开；谁做第一次提交 | P0 开始 | P0 | 先建私有仓库，W7 公开（本计划建议） | 部分完成（2026-10-17）：Kazuha 做了第一次提交，仓库已建为私有并推送；2026-10-17 Kazuha 确认先保持私有，到 W7 再决定公开 |
-| D3 | 测试资源由谁准备、费用谁出：一台公网 VPS、一个能配泛解析的域名、一台 OPNsense 测试机，以及测试机上要装好 `os-frp`（W2 共存测试用）；两家不同运营商的 4G/5G 网络（RUNBOOK ④ 要求至少两家） | W0 开始前 | W0 及以后 | 见第 5.2 节 | 部分决定（2026-10-17）：Local Windows OPNsense NAT client and remote LXC server/relay selected. OPNsense 26.7.7, dedicated SSH, outbound TLS, and bounded NAT transport preparation passed; complete mobile GUI ① and hook experiments ②/③ now pass. Windows restart and WHPX readiness passed. Native Hyper-V now passes complete local/public GUI diagnostics using a verified copy of the restored disk at 1 GiB; Kazuha approved the recorded 1 GiB resource exception; W0 acceptance remains pending. A/B samples from two mobile carriers pass; Kazuha explicitly waived company/campus sampling. Relay SSH and wildcard DNS verified; temporary port windows authorized. The earlier packaging host retains its co-hosting exception |
+| D3 | 测试资源由谁准备、费用谁出：一台公网 VPS、一个能配泛解析的域名、一台 OPNsense 测试机，以及测试机上要装好 `os-frp`（W2 共存测试用）；两家不同运营商的 4G/5G 网络（RUNBOOK ④ 要求至少两家） | W0 开始前 | W0 及以后 | 见第 5.2 节 | 部分决定（2026-10-17）：Local Windows OPNsense NAT client and remote LXC server/relay selected. OPNsense 26.7.7, dedicated SSH, outbound TLS, and bounded NAT transport preparation passed; complete mobile GUI ① and hook experiments ②/③ now pass. Windows restart and WHPX readiness passed. Native Hyper-V now passes complete local/public GUI diagnostics using a verified copy of the restored disk at 1 GiB; Kazuha approved the recorded 1 GiB resource exception; W0 accepted by Kazuha on 2026-10-18. A/B samples from two mobile carriers pass; Kazuha explicitly waived company/campus sampling. Relay SSH and wildcard DNS verified; temporary port windows authorized. The earlier packaging host retains its co-hosting exception |
 | D4 | frp 从 0.71.0 升到 0.71.1 的时机。要同时改打包仓库里 `os-frp` 的版本，那是 Kazuha 的仓库 | W2 开始前 | W2 | W2 之前三处一起升（DESIGN §5） | 待定 |
-| D5 | 8443 端口在受限网络下不好用的话，要不要把浏览器入口也放到 443（DESIGN §14 Q2） | W0 第 ④ 项结果出来后 | W5、W7 | 按 Q2 的数据规则判断（DESIGN） | 等 W0 |
-| D6 | 撤销设备时怎么断开它已在线的隧道（DESIGN §5 候选机制 1–4） | W0 第 ⑥ 项结果出来后、W5 之前 | W5 | 待 W0 数据（DESIGN） | 等 W0 |
-| D7 | 设备登录页会暴露在公网上，要不要用 `NewUserConn` 做"点了打开才放行"的门禁；放行窗口要不要随访问顺延（DESIGN §14 Q7） | W0 第 ⑤ 项结果出来后、W5 之前 | W5 | 钩子可用就在 v1 做（DESIGN） | 等 W0 |
+| D5 | 8443 端口在受限网络下不好用的话，要不要把浏览器入口也放到 443（DESIGN §14 Q2） | W0 第 ④ 项结果出来后 | W5、W7 | 按 Q2 的数据规则判断（DESIGN） | Confirmed 2026-10-18: retain 8443; measured A/B networks did not trigger Q2. |
+| D6 | 撤销设备时怎么断开它已在线的隧道（DESIGN §5 候选机制 1–4） | W0 第 ⑥ 项结果出来后、W5 之前 | W5 | 待 W0 数据（DESIGN） | Confirmed 2026-10-18: heartbeat 10s, timeout 30s; deny Ping/Login/NewProxy together. Accept backend-outage costs, stale admin status, and recovery instability; bound hook work internally. |
+| D7 | 设备登录页会暴露在公网上，要不要用 `NewUserConn` 做"点了打开才放行"的门禁；放行窗口要不要随访问顺延（DESIGN §14 Q7） | W0 第 ⑤ 项结果出来后、W5 之前 | W5 | 钩子可用就在 v1 做（DESIGN） | Confirmed 2026-10-18: v1 source-IP gating; authenticated Open grants 30 minutes, another explicit Open renews; traffic never extends the window. |
 | D8 | v1 功能清单的最终确认（DESIGN §1、§6） | W3 开始前 | W3 | 按 DESIGN v0.3 | 待定 |
 | D9 | 控制台用哪个 React 组件库（DESIGN §14 Q8）。你先在 W3-0 做 2–3 个示例给他挑 | W3-0 做完后 | W3 | 无，看示例再定 | Confirmed: shadcn/ui with native dialog (2026-10-17) |
 | D10 | 插件源码在 `agents/opnsense/plugin/` 里的目录结构；以及正式发布时，打包仓库怎样从 NetHub 的 release 构建这个插件（打包仓库按 `plugins.json` 的记录逐文件核对，具体怎么接还没定） | W1 开始前 | W1、W7 | 结构参照 `os-easytier` 的布局（本计划建议）；发布方式由 Kazuha 定 | 待定 |
@@ -190,7 +190,7 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 | D14 | DESIGN §14 的 Q1、Q3、Q4、Q5（mTLS、审计链锚定、离线签名机、CARP） | W7 之前 | W7 | 按 DESIGN 里的推荐 | 待定 |
 | D15 | 首个管理员账号的创建顺序：`nethub init` 在 `docker compose up` 之前运行，那时数据库还没起来，管理员在哪一步创建；如果按 W3-8 的建议，就要新增一个 `nethub admin create` 子命令 | W3-8 之前 | W3 | 见 W3-8（本计划建议） | 待定 |
 | D16 | 技术选型：数据库迁移工具、协议版本号规则、命令行写法、运行镜像等（W3、W4 里会逐个提出） | 对应任务开始前 | W3、W4 | 各任务里给出推荐（本计划建议） | 待定 |
-| D17 | OPNsense 自己的 DNS 重绑定 / HTTP_REFERER 检查会不会拦下经中继的访问；会拦的话怎么处理（DESIGN §14 Q9） | W0 第 ① 项结果出来后、W4 之前 | W4、W5 | 先实测；会拦就让用户手动加 Alternate Hostnames，并在 enroll 页面提示（DESIGN） | 等 W0 |
+| D17 | OPNsense 自己的 DNS 重绑定 / HTTP_REFERER 检查会不会拦下经中继的访问；会拦的话怎么处理（DESIGN §14 Q9） | W0 第 ① 项结果出来后、W4 之前 | W4、W5 | 先实测；会拦就让用户手动加 Alternate Hostnames，并在 enroll 页面提示（DESIGN） | Confirmed 2026-10-18: manually add the exact Alternate Hostnames entry; preserve both security checks and explain the step during enrollment. |
 | D18 | 控制台用哪个域名：泛域名的根（例如 `router.example.com`）还是它下面的某个子域名。如果在泛域名下面，这个前缀必须保留、永远不分给设备 | W3-8 之前 | W3、W4 | 无，Kazuha 定 | 待定 |
 | D19 | 路由器上的插件怎么知道控制台地址：enroll 页面多一个"控制台地址"输入框，还是把地址编进 enroll token 里 | W4-1 之前（协议里要写清楚） | W4 | 无，Kazuha 定 | 待定 |
 | D20 | 打包仓库里的现有插件文件能不能直接复制进 NetHub。打包仓库的根许可证是 MIT，而且有其他版权人；NetHub 要保持单一版权的 Apache-2.0（DESIGN §2） | W1 开始前 | W1、W2 | 只当结构参考、自己重写；确实要复制某个文件前，先问 Kazuha 那个文件是谁写的（本计划建议） | 待定 |
@@ -419,7 +419,7 @@ The 3 GiB, two-vCPU WHPX VirtIO profile booted in about nine minutes and passed 
 
 The current native Hyper-V diagnostic uses a separate VHDX converted from that restored disk, with 1 GiB RAM and two vCPUs. Content comparison passed before and after clearing the host sparse-file flag required by Hyper-V. The converted copy booted successfully. Synthetic NICs were verified by pinned MAC; LAN was preserved and WAN was configured through the stock console for host NAT. Public-key SSH retained the verified host key. Current firmware/kernel/userland, package-mirror TLS, and five-second clock-progress checks passed with no guest swap activity. Local management forwards bind only to loopback. Complete local and public-relay desktop checks passed with the stock five-second widget timeout: system information, interface rows, charts, periodic clock updates, menu navigation, and no widget, request, HTTP, or page-script errors. Both GUI security checks remain enabled and the backend TLS leaf certificate matches through the relay. Original relay services/listeners were independently verified after cleanup, test listeners are closed, and the restoration timer was cancelled. The temporary credential page remains closed.
 
-These 1 GiB desktop checks are preparation, not numbered W0 acceptance. On 2026-10-17, Kazuha explicitly approved continuing W0 at 1 GiB with the deviation from the [documented 3 GiB VM minimum](https://docs.opnsense.org/manual/virtuals.html) recorded in the report. Keep memory, swapping, and performance observations; do not generalize this environment to production sizing. Public desktop self-testing and mobile ① now pass. Experiments ②/③ also pass; ④ now passes within the owner-approved two-mobile-network scope. Experiment ⑤ now passes; ⑥ measurements are complete; W0 owner review remains pending. No product implementation has started.
+These 1 GiB desktop checks are preparation, not numbered W0 acceptance. On 2026-10-17, Kazuha explicitly approved continuing W0 at 1 GiB with the deviation from the [documented 3 GiB VM minimum](https://docs.opnsense.org/manual/virtuals.html) recorded in the report. Keep memory, swapping, and performance observations; do not generalize this environment to production sizing. Public desktop self-testing and mobile ① now pass. Experiments ②/③ also pass; ④ now passes within the owner-approved two-mobile-network scope. Experiment ⑤ now passes; ⑥ measurements are complete; W0 was accepted by Kazuha on 2026-10-18. No product implementation has started.
 
 **Earlier public packaging test device:** this remains owner-approved under the co-hosting exception, but is not the selected NAT client. The following caveats apply if it is used for a separate comparison:
 
@@ -628,12 +628,12 @@ Kazuha 同意之后：
 
 ### 验收
 
-- [ ] 6 项都有记录。没做的写明原因
-- [ ] ② 的 `Login` 和 `NewProxy` 原始 JSON 已保存（脱敏后）
-- [ ] ③ 的结论是 fail-closed 还是 fail-open，写进了风险清单
+- [x] Six experiments recorded; limits, omitted coverage, and failed attempts are documented in `weekend0/results-2026-10-17.md`.
+- [x] Redacted Login/NewProxy JSON inputs are stored with the accepted results.
+- [x] Fail-closed and blocking-hook risks are recorded.
 - [x] ④ A/B each provide 20 rounds per port; Q2 did not trigger. Company/campus sampling was explicitly waived by Kazuha; see `weekend0/network-results.md`.
-- [ ] ① 记录了是否被 OPNsense 的主机名检查拦下
-- [ ] ⑤ ⑥ 的结论写清楚了，Kazuha 已据此定下【D5】【D6】【D7】【D17】
+- [x] Exact Alternate Hostnames resolved the observed rejection; both checks remained enabled.
+- [x] Kazuha accepted the findings and confirmed D5/D6/D7/D17 on 2026-10-18.
 - [ ] 测试机已按清理清单恢复（有快照就恢复快照），VPS 上的临时进程、证书、443 规则已清理
 - [ ] 仓库里提交的结果文件不含任何真实地址（提交前自己用 `grep -E "([0-9]{1,3}\.){3}[0-9]{1,3}"` 检查一遍）
 
@@ -653,7 +653,7 @@ Kazuha 同意之后：
 
 ---
 
-Experiment ⑤ (2026-10-17): mobile source IPv4 matched NewUserConn remote_addr; proxy identity and device metadata matched registration. New connections were denied while the existing mobile Dashboard remained usable and control heartbeats stayed allowed. Desktop HTTP 500 and restored-allow checks passed. Original relay services were restored. See [the user-connection report](../weekend0/userconn-results.md). Experiment ⑥ measurements are complete; W0 owner review remains pending.
+Experiment ⑤ (2026-10-17): mobile source IPv4 matched NewUserConn remote_addr; proxy identity and device metadata matched registration. New connections were denied while the existing mobile Dashboard remained usable and control heartbeats stayed allowed. Desktop HTTP 500 and restored-allow checks passed. Original relay services were restored. See [the user-connection report](../weekend0/userconn-results.md). Experiment ⑥ measurements are complete; W0 was accepted by Kazuha on 2026-10-18.
 
 ## 8. 阶段 W1：OPNsense 插件骨架
 
@@ -2000,14 +2000,14 @@ D3 external-network availability (2026-10-17): Kazuha confirmed access to two di
 
 D3 local NAT transport preparation (2026-10-17): the pinned FreeBSD client and private server/client configurations passed verification. A bounded relay window reached the local NAT guest login form with the same TLS leaf certificate as local access. The owned client and relay test processes were stopped; original listeners were rechecked and the restoration timer was cancelled. No authenticated mobile flow or numbered W0 experiment is accepted.
 
-D3 native Hyper-V diagnostic (2026-10-17): the restored updated disk copy passed content comparison and boot verification. Complete local and public desktop GUI checks passed at 1 GiB, with actual widget data, periodic refresh, navigation, unchanged security checks, and matching backend TLS. Relay restoration was independently verified. Kazuha explicitly approved continuing W0 at 1 GiB with the resource deviation recorded. Subsequent mobile ①, hook experiments ②/③, and scoped network experiment ④ now pass; ⑤ now passes; ⑥ measurements are complete; W0 owner review remains pending.
+D3 native Hyper-V diagnostic (2026-10-17): the restored updated disk copy passed content comparison and boot verification. Complete local and public desktop GUI checks passed at 1 GiB, with actual widget data, periodic refresh, navigation, unchanged security checks, and matching backend TLS. Relay restoration was independently verified. Kazuha explicitly approved continuing W0 at 1 GiB with the resource deviation recorded. Subsequent mobile ①, hook experiments ②/③, and scoped network experiment ④ now pass; ⑤ now passes; ⑥ measurements are complete; W0 was accepted by Kazuha on 2026-10-18.
 
 
 W0 progress (2026-10-17): experiment ① passed after the owner reported normal mobile login, Dashboard data, periodic refresh, menu navigation, and reload. Carrier, phone OS, and browser were left unrecorded at the owner's explicit request. The exact Alternate Hostnames entry was required; DNS rebinding and HTTP_REFERER checks remain enabled. Experiment ② passed using the fresh all-allow connection: Login metadata matches the configured top-level values, NewProxy `user.metas` matches Login, the requested subdomain matches, and the server-assigned NewProxy `user.run_id` is nonempty. The Login JSON omitted initial `client_id` and `run_id`. The control peer matched an independent connection through the same host NAT. See the [observed hook inputs](../proto/frp-hooks-0.71.0.md).
 
 Experiment ③ passed six isolated fault groups: Login and NewProxy each with deny, HTTP 500, and a 120-second sleeping hook. Deny/500 prevented registration. The NewProxy sleeping request remained pending at 115 seconds while the frps admin API responded; heartbeat timeout was observed by the 35-second sample. Future requests were switched to allow at 110 seconds for recovery, without interrupting the existing sleep. At 125 seconds its delayed response had completed but the route was still unavailable; by 140 seconds registration and access had recovered. Login hang caused the client to exit and did not create a proxy after the delayed response. Restoring all allow recovered registration, access, and approximately ten-second heartbeats. Original relay services and listeners were independently verified after cleanup. These bounded observations found no fail-open and do not prove an infinite timeout.
 
-Availability risk retained for review: a slow ownership hook blocks new registration; heartbeat timeout and control handoff can delay recovery even when frps itself remains responsive. Product hooks need bounded internal work and explicit failure handling. Decisions about NewUserConn/Ping gating and revocation latency still require ⑥ and the W0 review. Experiment ④ passes within the owner-approved two-mobile-network scope: A and B each returned TCP, TLS, and HTTP success in all 20 rounds on both ports, without triggering Q2. Company/campus sampling was explicitly waived by Kazuha and remains untested. See [the network report](../weekend0/network-results.md). Experiment ⑤ now passes; ⑥ measurements are complete; W0 owner review remains pending. All results use the owner-approved 1 GiB exception, with no guest swapping in the recorded samples. Raw payloads, credentials, and deployment details stay outside the repository. W0 is not fully accepted and no product code has started.
+Availability risk retained for review: a slow ownership hook blocks new registration; heartbeat timeout and control handoff can delay recovery even when frps itself remains responsive. Product hooks need bounded internal work and explicit failure handling. Decisions about NewUserConn/Ping gating and revocation latency still require ⑥ and the W0 review. Experiment ④ passes within the owner-approved two-mobile-network scope: A and B each returned TCP, TLS, and HTTP success in all 20 rounds on both ports, without triggering Q2. Company/campus sampling was explicitly waived by Kazuha and remains untested. See [the network report](../weekend0/network-results.md). Experiment ⑤ now passes; ⑥ measurements are complete; W0 was accepted by Kazuha on 2026-10-18. All results use the owner-approved 1 GiB exception, with no guest swapping in the recorded samples. Raw payloads, credentials, and deployment details stay outside the repository. W0 was accepted with the recorded limits on 2026-10-18; no product code has started.
 
 
 W0 review readiness (2026-10-17): all six experiments now have measurements.
@@ -2018,9 +2018,15 @@ HTTP 500 interrupted registered tunnels and blocked re-registration. The
 120-second backend hang exposed stale admin online status after heartbeat timeout
 and intermittent recovery; it must not be described as a clean 30-second revoke.
 Private evidence, failed/interrupted attempts, and a review draft are preserved
-outside Git. Final acceptance and D5/D6/D7/D17 remain pending; no product work
+outside Git. Kazuha accepted W0 and D5/D6/D7/D17 on 2026-10-18; no product work
 has started. Original relay services/listeners were independently verified
 restored, owned test processes and tracked temporary stages removed after private
 archival, and the Mac download publication removed. The updated local diagnostic
-VM is retained; no Hyper-V checkpoint exists to restore. Product implementation
-must wait for the W0 review and subsequent W1 gates.
+VM is retained; no Hyper-V checkpoint exists to restore. The W0 review is complete. Product implementation
+must pass the separate W1 gates.
+
+
+W0 acceptance (2026-10-18): Kazuha accepted the six measured experiments and
+recorded limits, confirmed D5/D6/D7/D17, and authorized the DESIGN update and
+progression through the W1 gates. See [accepted results](../weekend0/results-2026-10-17.md).
+No product code exists yet; D10/D20 and package metadata remain W1 decisions.

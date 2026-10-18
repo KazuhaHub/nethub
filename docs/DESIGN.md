@@ -23,6 +23,7 @@ v0.2 写完之后，用户在 2026-09-17 的会话里拍板了一批事项，它
 
 | 变更 | 原因 | 决定者（用户/建议） | 日期 |
 |---|---|---|---|
+| W0 accepted; D5 retains 8443, D6 selects explicit heartbeat revocation, D7 selects a fixed Open authorization window, and D17 requires manual exact Alternate Hostnames | Owner accepted measured limits, backend-outage costs, stale admin state, and recovery instability; see [W0 results](../weekend0/results-2026-10-17.md) | Kazuha | 2026-10-18 |
 | 服务端从 Python 单体（v0.2 的 FastAPI + SQLAlchemy + Jinja2 SSR）改为 **Go 单二进制 `nethub`**（决策 #5 重写） | 用户选择「Go（推荐）」；v0.2 否决 Go 的前提"团队没有自写 Go"不成立 | 用户 | 2026-09-17 |
 | 控制台改为 **React + TypeScript + Vite SPA**，构建产物 `go:embed` 进二进制；不再有服务端模板 | 用户选择 React；具体组件库以 2–3 个示例的形式再选（Q8） | 用户（React）/ 待定（组件库） | 2026-09-17 |
 | v1 新增**多用户**（`admin` / `member`、邀请制）与 **OIDC 登录（支持多个 IdP）**（§6、新增决策 #22） | 用户："要，计划着，需要做支持 SSO" | 用户（范围）/ 建议（具体设计） | 2026-09-17 |
@@ -183,7 +184,7 @@ KKazuhaK/OPNsense-repo            ← 只有打包配方，不含 NetHub 源码
 | 1 | 控制/远程通道协议 | **复用 frp 0.71.0**（vhost-https + SNI passthrough；0.71.1 的升级计划见 §5） | MQTT/EMQX、gRPC 双向流、WebRTC/TURN、Cloudflare Tunnel、自研 QUIC/WireGuard mesh | v1 没有任何需要控制面主动下发的指令。"在不在线"这一件事，frp 的控制连接本身就回答了 | 低 |
 | 2 | 是否复用用户已装的 `os-frp` | **不复用，自带独立 vendored frpc 实例** | 读写用户 `os-frp` 的 `frpc.toml` | `frpc.toml` 全局只有一个 `serverAddr`/`token`，会和用户自己的 os-frp 配置冲突。同机共存的具体规则见 §4 | 低（多打包约 12MB 已验证二进制） |
 | 3 | `frpc.toml` 生成方式 | **Jinja2 + OPNsense 官方 `+TARGETS`** | `tomllib` 只读 + 手写 emitter、vendor `tomlkit` | 决策 2 成立后这份文件由本插件独占，不存在合并需求 | 低 |
-| 4 | 设备身份 / 域名归属校验 | **签名声明（HMAC-SHA256）+ DB 记录双重校验，签名与验签只发生在 `nethub authz` 进程里**。`httpPlugins` 的 `Login`/`NewProxy` 做主校验；authz 每 15s 轮询 frps admin API 核对，**连续 3 次（~45s）异常才判定要断线**，另留人工「确认失窃、立即断」旁路。frps 0.71.0 的 admin API 没有断开在线连接的接口，所以轮询只负责发现，真正断线另走候选机制（§5，待 Weekend 0 实测）。公网控制台 `nethub web` 与 authz 分进程、分 Postgres 角色、按列授权：web 拿不到签名密钥，不能新建设备行，不能写 `subdomain`、声明字段和密钥哈希列；子域名由 authz 随机生成（落地细节见 §6） | 只用共享 token、单次不一致即踢线；web 与授权逻辑同进程、只靠"代码里不去读密钥" | 如果只信任 DB 一行记录，公网控制台一旦被打穿（API 越权/SQLi/XSS/session 伪造），攻击者改一行 SQL 就能让自己的 frpc 冒充任意设备抢占它的子域名（`subdomain`）——用户看到的还是"和平时一样"的证书警告，一次渗透 = 全量钓鱼。签名密钥**不暴露给 web 进程**，DB 整表被篡改也伪造不出有效声明。v0.3 把"不暴露"落到进程、文件挂载和列级授权三层上，并如实写出被攻破的 web 仍然能做什么（§6） | 中 |
+| 4 | 设备身份 / 域名归属校验 | **签名声明（HMAC-SHA256）+ DB 记录双重校验，签名与验签只发生在 `nethub authz` 进程里**。`httpPlugins` 的 `Login`/`NewProxy` 做主校验；authz 每 15s 轮询 frps admin API 核对，**连续 3 次（~45s）异常才判定要断线**，另留人工「确认失窃、立即断」旁路。frps 0.71.0 的 admin API 没有断开在线连接的接口，所以轮询只负责发现，真正断线走 D6 explicit-heartbeat Ping denial with Login/NewProxy denial (§5)。公网控制台 `nethub web` 与 authz 分进程、分 Postgres 角色、按列授权：web 拿不到签名密钥，不能新建设备行，不能写 `subdomain`、声明字段和密钥哈希列；子域名由 authz 随机生成（落地细节见 §6） | 只用共享 token、单次不一致即踢线；web 与授权逻辑同进程、只靠"代码里不去读密钥" | 如果只信任 DB 一行记录，公网控制台一旦被打穿（API 越权/SQLi/XSS/session 伪造），攻击者改一行 SQL 就能让自己的 frpc 冒充任意设备抢占它的子域名（`subdomain`）——用户看到的还是"和平时一样"的证书警告，一次渗透 = 全量钓鱼。签名密钥**不暴露给 web 进程**，DB 整表被篡改也伪造不出有效声明。v0.3 把"不暴露"落到进程、文件挂载和列级授权三层上，并如实写出被攻破的 web 仍然能做什么（§6） | 中 |
 | 5 | 控制面技术栈 | **Go 单二进制 `nethub`**（Go 1.26，与组织内其它 Go 仓库同一条线；源码在 `server/`，模块路径 `github.com/KazuhaHub/nethub/server`），两个运行角色 `nethub web` / `nethub authz`；控制台 React + TypeScript + Vite SPA，构建产物 `go:embed` 进二进制（与组织内 Report-Portal 同构）；Postgres 16 + Caddy，单机 docker compose。**设备侧不变**：Python 3.13 `agentctl.py` + PHP/Phalcon MVC（由 OPNsense 决定） | Python/FastAPI 单体（v0.2 的选择）；Go 微服务 | **更正 v0.2 的理由**：v0.2 以"团队'用 Go'的全部经验是打包上游预编译二进制，仓库里没有一行自己写的 `.go`"否决 Go——这在 2026-09-17 就不成立：owner 维护着约 18 万行自写 Go（Passwall-Sub-Panel、Report-Portal、Passwall-Node、AlertHub）。v0.2 的另一半理由"自建项目的部署简单度直接决定采用率"仍然成立，而且更支持 Go：单个静态二进制；与 frp 同语言同工具链；能直接用 `authcore`。微服务仍然否决——一个二进制两个角色就够了。用户 2026-09-17 拍板 | 低 |
 | 6 | 设备侧是否需要常驻 daemon | **不需要**，唯一常驻进程是 vendored `frpc` | 自写 Go/Python `agentd` | 在线状态 = frpc 控制连接是否存活，frp 自己已经在维护 | 低 |
 | 7 | 租户模型 | **v1 就上 `owner_user_id` + Postgres `FORCE ROW LEVEL SECURITY`**，但不做递归 org 树 | 完全不做 RLS；第一天上完整 org 树 | 自建 = 一个组织一个实例，**递归 org 树/计费**确实可以推迟；但 RLS 是防御纵深，防的是代码 bug。企业实例里天然有多个管理员、多个部门，任何一条查询忘了加过滤就是越权。几十行迁移脚本换"哪怕 handler 漏了 WHERE，DB 也返回空集"。**v0.3 注**：v1 每个实例恰好一个租户，所以租户级 RLS 在 v1 防的是"`app.tenant_id` 设错/漏设"一类 bug，并让 v3 多租户不用补课；租户**内**按用户的隔离（`member` 只看自己的设备）是应用层的 `owner_user_id` 过滤，不是 RLS 提供的（§6） | 低 |
@@ -335,19 +336,19 @@ src/os-nethub-agent/
   会把控制台 cookie 发给这台设备（任何 member 的设备都行）。所以**任何设备都不能承载控制台的域名**。
   另外，若控制台放在设备泛域名的根上，控制台的 HSTS 不能带 `includeSubDomains`，否则浏览器不再允许点过设备自签名证书的警告。
   （`custom_domains` 留给以后的"客户自带域名"场景，届时另行设计校验。）
-  v0.3 另加 `NewUserConn`：Weekend 0 先只收集数据，只有 Q7 获批才用于拦截。
+  D7 requires NewUserConn gating in v1; the HTTPS hook and mobile source IPv4 were verified in W0.
 - 签名声明 = 对规范化载荷 `{device_id, subdomain, tenant_id, issued_at, key_id}` 做 HMAC-SHA256；
   `key_id` 让签名密钥可以轮换。只有 authz 签名、也只有 authz 验签，所以对称密钥（HMAC）就够了。
 - 签名密钥由 `nethub init` 生成，是一个**只挂进 authz 容器**的文件；web 进程读不到这个文件，
   它的 Postgres 角色也写不了子域名和声明字段（§6）。
 - authz 每 15s 轮询 frps admin API（只在内部网络）核对活跃代理；连续 3 次异常才判定要断线，避免单次竞态误伤；
   判定和执行结果都写入 `audit_log`。人工「确认失窃、立即断」旁路保留（跳过连续确认）：web 只能写撤销标记，
-  断线由 authz 经下面的候选机制执行——轮询器自己断不了线，"立即"实际能有多快取决于 Weekend 0 选定的机制。
+  D6 executes revocation through Ping/Login/NewProxy denial; the poller itself cannot disconnect clients. Immediate bypass skips confirmation, not heartbeat scheduling or hook delays.
 - **轮询只能发现，不能断线。** 已对 frp v0.71.0 源码核实（`server/api_router.go`、`server/http/controller.go`、
   `server/http/controller_v2.go`）：admin API 除了列出客户端 / 代理 / 流量的只读接口，只有两个写接口——
   `DELETE /api/proxies?status=offline` 与 `POST /api/v2/system/prune`——都只清理**离线**代理；
   没有任何接口能断开一个在线的客户端或代理。不另找机制的话，被撤销或被盗的设备会一直保持隧道，
-  直到它自己因为别的原因重连（重连时 `Login` 校验才会把它挡住）。候选机制如下，**全部未经实测**，列为 Weekend 0 验证项（§10）：
+  直到它自己因为别的原因重连（重连时 `Login` 校验才会把它挡住）。The mechanisms below describe the design space; W0 measured mechanisms 1/2 and Kazuha selected D6/D7. Restarting or patching frps was not tested:
   1. **拒绝 `Ping`，配合显式心跳。** `tcpMux = true`（默认）时 frpc 的应用层心跳默认关闭（`heartbeatInterval` 默认 -1，
      见 `pkg/config/v1/client.go` 的 `Complete`），frps 的 `heartbeatTimeout` 同样默认 -1。所以要由设备侧模板渲染显式的
      `transport.heartbeatInterval`、frps 设置显式的 `transport.heartbeatTimeout`，并把 `Ping` 加进 `httpPlugins` 的 ops
@@ -363,7 +364,7 @@ src/os-nethub-agent/
 
   **机制 1 的可用性代价（必须和它的断线能力放在一起权衡）。** 一旦 frps 把 `Ping` 订阅给 authz 插件，`Ping` 就和
   `Login` / `NewProxy` 一样 fail-closed：`pkg/plugin/server/manager.go` 的 `handleMutableContent` 把插件调用的任何错误
-  （连接失败、HTTP 状态码非 200、响应解析失败）都当作拒绝处理。下面的路径已对 v0.71.0 源码核实（只读过源码，未经实测）：
+  （连接失败、HTTP 状态码非 200、响应解析失败）都当作拒绝处理。下面的路径已对 v0.71.0 源码核实(with W0 observations and limits below):
   - authz 崩溃、正在重启（连接被拒）或返回 500：frps 回一个带错误的 `Pong`、不刷新心跳时间（`server/control.go` 的 `handlePing`），
     frpc 收到后立即关闭会话（`client/control.go` 的 `handlePong`）；
   - authz 挂起（进程卡死、数据库卡住）：frps 调插件用的 `http.Client` 没有超时，请求上下文也没有 deadline；
@@ -391,20 +392,35 @@ src/os-nethub-agent/
   这个代价到底多大由 Weekend 0 第 6 项实测：订阅 `Ping` 后让后端整体停掉 / 返回 500 / 挂起，看已在线的设备多久被断开、
   后端恢复后多久自动连回来（§10）。
 
-  建议（**待 Weekend 0 数据，未定**）：1 作主机制，2 同时生效作补充（若 Q7 门禁落地，`NewUserConn` 本来就要接入），3 只作人工旁路的兜底。
-  另一种取舍是不订阅 `Ping`，只用 2 挡新访问、等重连时被 `Login` 挡住，并如实接受"已建立的隧道断不掉"这一缺口。
-  选哪一种，要看第 6 项测出的断线时延和可用性代价。
-  控制连接断开后，已建立的浏览器连接是否随之断开、实际断线时延是多少，都要 Weekend 0 实测；在那之前本文不承诺任何断线时延。
-- **`httpPlugins` 的具体字段名和 fail-open/fail-closed 行为需 Weekend 0 用真实二进制实测**——
-  轮询的"发现"不依赖这些细节；但上面的候选断线机制本身就建立在 `httpPlugins`（`Ping` / `NewUserConn` / `Login`）之上，
-  所以断线能否成立同样取决于实测结果。`NewUserConn` 对 `type = "https"` vhost 代理是否触发、
-  `remote_addr` 是否为真实客户端 IP、拒绝是否真能挡住连接，同样要 Weekend 0 实测。
+  **D6 confirmed by Kazuha, 2026-10-18:** use mechanism 1 as the primary
+  revocation path with explicit client heartbeat interval 10 seconds and client/server
+  timeout 30 seconds. Revoke by denying Ping, Login, and NewProxy together;
+  NewUserConn must also reject a revoked device. Ping-only denial permits repeated
+  registration. Retain mechanism 2 for new-connection gating and mechanism 3 as a
+  manual fallback. The admin API discovers state; it does not disconnect clients.
+
+  Three stock-client trials disconnected after 2.136, 3.032, and 4.958 seconds.
+  These measurements are not an unconditional latency guarantee. Backend process
+  loss and HTTP 500 also disconnected online clients. A 120-second hanging backend
+  produced heartbeat timeout and unusable browser requests while admin status stayed
+  online; recovery later flapped. Hook handlers must bound their own work internally,
+  and the Ping path must avoid blocking database calls. The owner accepted the
+  availability dependency and retained out-of-band access as a deployment requirement.
+  See [the accepted report](../weekend0/results-2026-10-17.md).
+
+- **Measured hook contract:** fresh Login metadata and NewProxy user.metas matched;
+  NewProxy carried the requested subdomain and server-assigned run ID. Initial Login
+  omitted run_id/client_id. Login/NewProxy deny and HTTP 500 prevented registration;
+  delayed hooks blocked progress until completion. HTTPS NewUserConn carried the
+  independently checked mobile IPv4 and matching registration identity. Denial blocked
+  a fresh mobile window while an existing Dashboard tab remained usable and the
+  registered control tunnel stayed online. See [observed fields](../proto/frp-hooks-0.71.0.md).
 
 ### 设备 GUI 的公网暴露面（Q7）
 
 SNI 透传意味着：任何知道或猜到主机名的人，都能直接打开 `https://<subdomain>.<domain>:8443`，
 看到这台设备的 OPNsense 登录页——控制台的登录和 SSO 不挡在它前面。v0.2 没写这一点。
-候选缓解（frps `NewUserConn` 源 IP 门禁）、它的局限与推荐见 §14 Q7。无论是否上门禁，
+D7 selects frps `NewUserConn` source-IP gating in v1; its limits are described in §14 Q7.
 文档都要如实写明这个暴露面，并建议在设备上开启 OPNsense 自带的 TOTP 两步验证。
 
 ### 一处诚实的删除
@@ -412,7 +428,7 @@ SNI 透传意味着：任何知道或猜到主机名的人，都能直接打开 
 原方案有一条「远程会话并发上限 1、TTL 20 分钟」。**在 SNI passthrough 架构下这条无法实现**——
 控制面连一次 HTTP 请求的边界都看不到，谈不上"会话"何时开始结束。删掉它，而不是留一条编不出实现方式的控制。
 结构上每台设备本来就只有一个 `[[proxies]]` 绑定（模板渲染的产物），这是结构性保证；
-真正管暴露窗口的是上面的断线机制（具体机制待 Weekend 0 实测）。保留"按租户每月中继流量的可见软计数器"（这是真实可测的指标）。
+真正管暴露窗口的是上面的断线机制（D6: explicit-heartbeat Ping denial plus Login/NewProxy denial）。保留"按租户每月中继流量的可见软计数器"（这是真实可测的指标）。
 
 **v0.3 注**：如果 Q7 的 `NewUserConn` 门禁落地，它会以可测量的形式重新带回一个"远程会话"的概念——
 但可见粒度是每条 TCP 连接，不是每个 HTTP 请求。
@@ -440,9 +456,9 @@ frp XTCP P2P 打洞（成功率不可控，做不了"点一下就开"的 UX）�
 
 | 服务 | 说明 |
 |---|---|
-| `frps` | frp 0.71.0（与设备侧严格同版本）。公网 `bindPort 7000`、`vhostHTTPSPort 8443`，`subDomainHost=<域名>`；`[webServer]`（admin API）只监听内部网络，供 authz 轮询；`[[httpPlugins]]` 指向 `nethub-authz` 的内部端点，ops 为 `Login`、`NewProxy`（`NewUserConn` 视 Q7 而定；`Ping` 是候选断线机制，待 Weekend 0，见 §5）。admin API 没有断开在线连接的接口 |
+| `frps` | frp 0.71.0（与设备侧严格同版本）。公网 `bindPort 7000`、`vhostHTTPSPort 8443`，`subDomainHost=<域名>`；`[webServer]`（admin API）只监听内部网络，供 authz 轮询；`[[httpPlugins]]` 指向 `nethub-authz` 的内部端点，ops 为 `Login`、`NewProxy`、`NewUserConn`、`Ping` (D6/D7 confirmed; see §5)。admin API 没有断开在线连接的接口 |
 | `nethub-web` | `nethub web`：公网控制台，React SPA + `/api/v1/console/...` JSON API。功能：本地与 OIDC 登录、用户与邀请、OIDC 提供方、设备列表、enroll token、撤销、审计视图。Postgres 角色 `nethub_web`。**永远不持有**签名密钥、frps admin 凭证和 frps auth token |
-| `nethub-authz` | `nethub authz`：面向设备与中继。设备 API `/api/v1/devices/{enroll,rotate,unenroll,status}`（Caddy 从 443 转来）；frps `httpPlugins` 处理器（只在内部网络）；frps admin API 轮询器（只能发现异常，断不了在线连接；断线走 §5 的候选机制，待 Weekend 0 实测）。持有签名密钥（只挂进这个容器的文件）、frps admin 凭证，以及要交给设备的 frps auth token。Postgres 角色 `nethub_authz` |
+| `nethub-authz` | `nethub authz`：面向设备与中继。设备 API `/api/v1/devices/{enroll,rotate,unenroll,status}`（Caddy 从 443 转来）；frps `httpPlugins` 处理器（只在内部网络）；frps admin API 轮询器（只能发现异常，断不了在线连接；断线走 §5 已确认的 D6 机制）。持有签名密钥（只挂进这个容器的文件）、frps admin 凭证，以及要交给设备的 frps auth token。Postgres 角色 `nethub_authz` |
 | `caddy` | 公网 443，自动 Let's Encrypt；`/api/v1/devices/*` → `nethub-authz`，其余 → `nethub-web` |
 | `postgres` | Postgres 16 单实例，不对外；四个角色 `nethub_owner`（只给迁移用）/ `nethub_web` / `nethub_authz` / `nethub_backup`（只给 `backup` 用）；另有官方镜像的引导超级用户，只在首次初始化时使用 |
 | `backup` | 每日 `pg_dump` + 可选 `rclone` 到对象存储（自建者自己配）；以只读角色 `nethub_backup` 连接（见下） |
@@ -788,14 +804,14 @@ OIDC 提供方不在 init 里配：init 完成后由管理员在控制台里添�
 | 设备身份 / 域名归属 | 签名声明（HMAC-SHA256，`key_id` 可轮换）+ DB 记录双重校验（决策 #4；控制通道的服务端认证见 Q10）；`NewProxy` 拒绝任何 custom domain，设备不能承载控制台域名（§5）；`nethub web` / `nethub authz` 进程拆分，签名密钥只挂进 authz；列级授权：web 不能新建设备行、不能写子域名 / 声明 / 哈希列、不能改归属；子域名由 authz 随机生成 |
 | 密钥归属 | 每部署自生成，上游不持有任何全局密钥；按服务分文件，每个容器只拿自己的（决策 #21） |
 | 准入 | 设备：enroll token 一次性、15 分钟过期（由数据库默认值和 `consume_enroll_token` 强制，web 定不了有效期，见 §6）、带外交付；用户：只能经邀请（一次性、只存哈希、会过期），无自助注册 / JIT |
-| 远程会话撤销 | authz 每 15s 轮询 frps admin API，连续 3 次（~45s）异常才判定该断线；轮询器**只负责发现**，**frps 0.71.0 的 admin API 断不了在线连接**。速率限制降级为告警；人工「确认失窃、立即断」旁路跳过连续确认（web 只写撤销标记）；判定与执行都在 authz。断线机制待 Weekend 0：候选为拒绝 `Ping` + 显式心跳、拒绝 `NewUserConn`、重启 frps（人工兜底），推荐组合（`Ping` 为主）**待 Weekend 0 数据，未定**；全部未经实测，验证之前不承诺断线时延。**代价**：订阅 `Ping` 后它同样 fail-closed，authz 的一次故障会在心跳窗口内切断全部已建立的隧道；缓解为 `Ping` 只查内存撤销状态、不碰数据库 + 严格内部超时 + 健康检查重启，代价由 Weekend 0 第 6 项实测（§5、§12） |
+| 远程会话撤销 | Authz polls for discovery every 15s with three confirmations; manual bypass skips confirmation. D6 denies Ping/Login/NewProxy together with explicit 10s heartbeat and 30s timeout. Three stock-client trials disconnected in 2.136–4.958s. Authz failure interrupts access; hangs can leave admin state stale and recovery unstable. Bound handler work and retain independent out-of-band access; see §5 and the accepted W0 report. |
 | 爆炸半径 | 控制面唯一写权限 = "决定这台设备的隧道能不能连上"。不能改防火墙规则、不能重启服务、不能读 config.xml |
 | 设备侧权限 | 所有特权动作限定在显式注册的 configd action 内，无任意 shell 执行路径 |
 | 本地熔断 | `/var/db/nethub-agent/disabled` flat file，不写 config.xml；onboarding 明确提示用户确认拥有**独立于本产品之外**的带外/物理访问手段 |
 | 控制台防护 | 服务端 session（cookie 只放不透明随机 token：HttpOnly / Secure / SameSite=Lax，库里只存哈希；空闲 + 绝对超时，可吊销）+ 每 session 同步器 CSRF token（自定义请求头）+ 严格 CSP、无服务端模板 + 按 IP 与按账号的登录限流 + argon2id + OIDC 只按 `(issuer, subject)` 绑定（新绑定只在从邀请链接发起的流程里发生：邀请 token 有效 + `email_verified` + email 与邀请一致） |
 | 控制台角色 | `admin` / `member`；member 只能操作自己的设备（应用层按 `owner_user_id` 过滤，RLS 按租户）；本地 break-glass 管理员不依赖任何 IdP |
 | 客户端 IP | 只信任可信代理发来的 `X-Forwarded-For`；未声明的对端发来代理头时醒目告警；结果用于登录限流与审计 |
-| 设备 GUI 暴露面 | SNI 透传下 `https://<subdomain>.<domain>:8443` 对任何知道或猜到主机名的人都是 OPNsense 登录页，控制台登录 / SSO 不在这条路径上。候选缓解：frps `NewUserConn` 源 IP 门禁（Q7，待 Weekend 0 实测与用户决定）；无论如何都如实写明，并建议开启 OPNsense 自带 TOTP 两步验证 |
+| 设备 GUI 暴露面 | SNI 透传下 `https://<subdomain>.<domain>:8443` 对任何知道或猜到主机名的人都是 OPNsense 登录页，控制台登录 / SSO 不在这条路径上。候选缓解：frps `NewUserConn` 源 IP 门禁(D7 confirmed, 2026-10-18)；无论如何都如实写明，并建议开启 OPNsense 自带 TOTP 两步验证 |
 | 审计 | `audit_log` 哈希链，人工动作**和**系统自动行为（断线、rotate、reconcile 失败）都记，认证事件（登录成功/失败、身份绑定、邀请）也记；运行时角色只能追加；防护范围有诚实限定（见 §6） |
 | config.xml 写入安全 | 幂等 + 字段白名单 + 复用全局配置锁（决策 #16） |
 | 灰度与回滚 | canary 发布（#15）+ 验证后才应用（#13）+ 独立看门狗回滚一次（#14） |
@@ -816,6 +832,8 @@ IdP 或 IdP 账号被攻破的后果；设备 GUI 的公网暴露面（Q7）；
 ---
 
 ## 10. MVP：W0–W7 + 缓冲
+
+W0 accepted by Kazuha on 2026-10-18 with the recorded 1 GiB exception and two-mobile-network scope. All six experiments have evidence; see [results](../weekend0/results-2026-10-17.md). W1 still requires D10/D20. This section describes subsequent implementation acceptance.
 
 v0.2 的计划是 7 个周末（W0–W6 + 0.5 缓冲）。v0.3 的范围更大（多用户、OIDC、进程拆分），
 排期变成 W0–W7 再加一段缓冲，**估算的不确定性也随之变大**——下面是计划，不是承诺。
@@ -899,7 +917,7 @@ session / CSRF / 限流；React 外壳（登录、设备列表、生成 enroll t
 ### Weekend 5 — 远程 UI 端到端 + 撤销
 
 SNI 子域名链路打通；kill switch；撤销 = 轮询发现（连续确认）+ 按 Weekend 0 第 6 项结果选定的断线机制（见 §5；轮询器自己断不了线）；开机收敛 + cron reconcile（带防抖）；
-若 Q7 获批，加上 `NewUserConn` 门禁。
+D7 requires `NewUserConn` gating: authenticated Open grants 30 minutes for the device and source IP; another explicit Open renews the deadline. Traffic does not extend it.
 
 **验收：** 手机开 4G，从控制台点开设备远程 UI 能登录 GUI；
 切 kill switch 后隧道立即停且不碰 config.xml；点"撤销"后，被撤销设备的新浏览器连接被拒；
@@ -957,15 +975,16 @@ enroll 流程里提示"确认拥有独立于本产品之外的带外访问手段
 
 - 设备侧凭证明文落盘（与 OPNsense 自身存 API key 的方式同级）。
 - v1 自签名证书浏览器警告（v1.1 有明确修复路径；根因层面的域名劫持已在决策 #4 修复）。
-- `httpPlugins` 的 fail-open/fail-closed 行为在 Weekend 0 实测前是未知项；`NewUserConn` 对 https vhost 代理的行为同样未知。
-- **断线机制未定**：frps 0.71.0 的 admin API 没有断开在线客户端或代理的接口（§5）。在 Weekend 0 验证候选机制之前，
-  被撤销或被盗的设备可能一直保持隧道，直到它自己重连、被 `Login` 校验挡住为止；"撤销后 ~45 秒断线"只是目标。
-- **authz 是新连接的单点；若订阅 `Ping`，就成了全部远程访问的单点。** 按源码 `Login` / `NewProxy` fail-closed：
-  authz 故障时，新建或重连的设备连不上，已在线的隧道不受影响。候选断线机制 1 把 `Ping` 也交给 authz 之后，
-  authz 的一次崩溃、挂起或数据库卡顿会在心跳窗口内切断**每一条**已建立的隧道，计划内的重启也会断掉一部分设备（§5）。
-  缓解：`Ping` 只查内存里的撤销状态、不碰数据库；严格的内部超时；健康检查 + 自检失败即退出、由容器重启。
-  这些只缩短恢复时间：authz 不可达超过约一个心跳间隔，订阅了 `Ping` 的隧道仍会全部断开。
-  代价大小由 Weekend 0 第 6 项实测；是否采用机制 1 待这组数据，未定。
+- **Measured fail-closed behavior:** Login/NewProxy denial and HTTP 500 block
+  registration. Hanging hooks block control progress; internal deadlines are required.
+- **D6 availability cost:** Ping-based revocation makes authz availability a
+  dependency of existing remote access. Process loss and HTTP 500 disconnected the
+  tested stock client. With a 120-second hang, admin state remained online after
+  heartbeat timeout while the GUI API was unavailable, and recovery flapped.
+  Admin online status is not proof of usable access or completed revocation.
+  Three normal denial trials took 2.136–4.958 seconds; this is not a hung-backend
+  latency guarantee. Keep bounded work, a nonblocking Ping path, health recovery,
+  and independent out-of-band access. Kazuha accepted this cost on 2026-10-18.
 - **被改过的 frpc 可能让已打开的连接活过撤销。** 不理会错误 `Pong`、不再发心跳的 frpc，只会在 frps 的
   `heartbeatTimeout` 到期后失去控制流和代理监听；按源码，它已经打开的工作流可能继续存活。正常 frpc 会自己关闭整个会话，
   所以这条只针对被篡改的设备端，Weekend 0 用正常 frpc 测不出来（§5）。
@@ -979,7 +998,7 @@ enroll 流程里提示"确认拥有独立于本产品之外的带外访问手段
 - `rotate` 依赖设备在线：强制轮换窗口内恰好离线的设备需要手动重走 enroll。
 - The designated packaging test host may also run NetHub under the owner's revised decision #20. Signing material present on that host shares its compromise boundary. Other signing hosts remain excluded; offline signing remains Q4.
 - **设备 GUI 公网暴露（Q7）**：知道或猜到主机名就能打到 OPNsense 登录页；v1.1 证书进 CT 日志后主机名可枚举。
-  门禁定下来之前，这个暴露面只能靠 OPNsense 自己的登录与两步验证兜底。
+  D7 gates new connections by source IP, but shared CGNAT peers can share authorization and existing connections can outlive expiry. OPNsense login and two-step verification remain necessary.
 - **IdP 或 IdP 账号被攻破**：等于拿到所有与之绑定的用户的控制台访问（若绑定的是 admin，就是管理员权限：
   发邀请、撤销全部设备、看审计）。边界由决策 #4 限定：照样拿不到已有子域名的有效声明、改不了归属、读不了 config.xml；
   设备 GUI 仍有自己的登录；本地 break-glass 管理员不依赖任何 IdP。
@@ -1001,11 +1020,13 @@ enroll 流程里提示"确认拥有独立于本产品之外的带外访问手段
 
 ## 13. 灾难场景与设计防线
 
+W0 confirmed D6/D7 mechanisms on the stock client. Backend hangs can leave admin status stale and cause recovery instability. Test hook deadlines, real GUI availability, reconnect behavior, and out-of-band recovery; an online label alone is insufficient.
+
 | # | 场景 | 触发路径 | 防线 |
 |---|---|---|---|
 | 1 | 控制面被攻破 → 拿用户"点掉警告"的习惯钓鱼 | 控制台出洞（API 越权/SQLi/XSS/session 伪造）→ 改 DB 域名归属 → 自己的 frpc 冒充受害设备；另一条路径是设备到中继之间的中间人截取声明（Q10） | 决策 #4 双重校验 + web/authz 进程拆分 + 列级授权（web 写不了子域名与声明列、拿不到签名密钥）；控制通道服务端认证（Q10）；根因不是证书类型而是归属校验。残余：被攻破的控制台仍能在设备列表里放仿冒条目（§6），靠用户核对主机名 |
 | 2 | 租户内越权（member A 看到/撤销 member B 的设备） | 某个端点漏了 `owner_user_id` 过滤 | `store` 层统一按 `owner_user_id` 过滤 + Weekend 3 测试；`FORCE RLS`（决策 #7）只按租户，v1 每实例一个租户，所以这里**不能**指望 RLS 兜底 |
-| 3 | 撤销逻辑自我锁死（用户在异地被误踢，够不着本地开关） | 单次不一致即踢线，DB 竞态/轮询 bug 会误伤；若采用拒绝 `Ping` 断线，authz 自身故障也会在心跳窗口内断掉全部隧道（§5） | 连续 3 次确认 + 限流降级为告警 + 人工强制旁路；`Ping` 只查内存撤销状态 + 严格内部超时 + 健康检查重启（是否采用待 Weekend 0 第 6 项）；onboarding 要求用户确认有带外手段 |
+| 3 | 撤销逻辑自我锁死（用户在异地被误踢，够不着本地开关） | 单次不一致即踢线，DB 竞态/轮询 bug 会误伤；采用 D6 拒绝 `Ping` 断线，authz 自身故障也会在心跳窗口内断掉全部隧道（§5） | 连续 3 次确认 + 限流降级为告警 + 人工强制旁路；`Ping` 只查内存撤销状态 + 严格内部超时 + 健康检查重启(D6 confirmed; measured hang-state lag and recovery instability retained)；onboarding 要求用户确认有带外手段 |
 | 4 | 批量升级把一片设备变砖 | 新版模板有 bug → 渲染坏配置 → `verify` 失败 → restart 失败 → 停机且无人重试（`daemon(8)` 故意不带 `-r`） | #13 验证后应用 + #14 独立看门狗回滚一次 + #15 canary |
 | 5 | Agent bug 写坏 config.xml | enroll/reconcile/unenroll 高频脚本化写路径 | #16 幂等 + 白名单 + 全局配置锁 |
 | 6 | CARP 双机惊群式重连 | failover → 两台几乎同时 `newwanip` → 撞上轮询判定 | #17 防抖 + 抖动 + HA 标注 + 降级为告警 |
@@ -1016,7 +1037,7 @@ enroll 流程里提示"确认拥有独立于本产品之外的带外访问手段
 | 11 | 中继地址/token 需轮换但设备离线 | 迁移或泄露触发强制轮换 | #18 `rotate`（在线设备原地轮换）；离线设备仍需手动，已接受 |
 | 12 | **部署者丢失密钥** | 决策 #21 的代价：没有任何人能替他找回 | `init` 强制备份提示 + `doctor` 检查备份是否存在 |
 | 13 | **OIDC 账号接管：按 email 绑定** | 攻击者在某个已配置的 IdP 上拿到一个 email 与受害者相同的账号（例如该 IdP 不验证邮箱、发出可变的 email 声明，或者是一个管理员能把任意 email 标成已验证的自建 IdP）→ 如果控制面按 email 认人，就直接登成受害者；如果只凭 email 认领待处理邀请，就领走发给别人的邀请（可能是 admin 角色） | 只按 `(iss, sub)` 绑定（决策 #22）；新绑定必须从邀请链接发起，邀请 token 有效、`email_verified=true`、email 与邀请一致同时成立，不把 `email_verified` 当作跨 IdP 可信的证据；可选把邀请限定到一个提供方；不做 JIT；W6 验收"只凭 email 的绑定被拒绝""没有邀请链接、经另一个 IdP 认领邀请被拒绝" |
-| 14 | **经中继爆破或利用设备 GUI** | 主机名被猜到（v1.1 起可从 CT 日志枚举）→ 直接访问 `https://<subdomain>.<domain>:8443` → 对 OPNsense 登录页爆破，或利用 GUI 漏洞 | Q7 的 `NewUserConn` 源 IP 门禁（待 Weekend 0 与用户决定）+ OPNsense 自带 TOTP 两步验证；子域名随机生成提高 v1 的猜测成本 |
+| 14 | **经中继爆破或利用设备 GUI** | 主机名被猜到（v1.1 起可从 CT 日志枚举）→ 直接访问 `https://<subdomain>.<domain>:8443` → 对 OPNsense 登录页爆破，或利用 GUI 漏洞 | Q7 的 `NewUserConn` 源 IP 门禁(D7 confirmed, 2026-10-18)+ OPNsense 自带 TOTP 两步验证；子域名随机生成提高 v1 的猜测成本 |
 
 ---
 
@@ -1040,7 +1061,9 @@ AGPL 能替你保住的东西不多。**唯一该选 AGPL 的情况**：你觉�
 mTLS 需要一整套设备端 PKI（签发/分发/吊销/CA 维护），对 W0–W7 的 MVP 不成比例。
 而 v1.1 本来就要为 UX 上每设备独立证书，到时顺带评估复用同一套基础设施做 mTLS 是否更合算。
 
-**Q2：如果 Weekend 0 测出 8443 在受限网络经常不可达，要不要让 frps 也 listen 443？**
+**Q2 / D5 (confirmed 2026-10-18): retain 8443 for v1.**
+Two mobile networks each returned 20/20 TCP successes per port. Neither Q2 condition triggered. Company/campus sampling was explicitly waived and remains untested. Retain the following rule for future evidence.
+
 推荐 **先不做，用明确的数据规则等结果**。这需要第二个公网 IP（做 SNI 分流）或一个与 Caddy 共用 IP 的
 SNI dispatcher，是有意义的额外复杂度。建议规则：**实测样本中 8443 成功率比 443 低 20 个百分点以上，
 或出现完全无法建连的样本，才启动这项工作**，否则维持现状。Weekend 0 套件按这条规则在同一循环里交替采样
@@ -1066,7 +1089,7 @@ SNI dispatcher，是有意义的额外复杂度。建议规则：**实测样本�
 一起按这个名字定，不要后面改。
 v0.2 列过的其它候选（`sallyport` / `gatehouse` / `beacon`）不再考虑。
 
-**Q7（新，待用户决定）：设备 GUI 的公网暴露面怎么处理？**
+**Q7 / D7 (confirmed 2026-10-18): source-IP gating for new GUI connections.**
 
 *缺口：*
 
@@ -1077,9 +1100,8 @@ v0.2 列过的其它候选（`sallyport` / `gatehouse` / `beacon`）不再考虑
 
 *与透传兼容的候选缓解：* 用 frps 的 server plugin op `NewUserConn`——frp 对每条进来的用户连接调用它，带 `remote_addr` 与代理名。
 
-- authz 只放行这样的连接：其源 IP 在一个滑动窗口内（如 30 分钟）由一位已登录的控制台用户对这台设备点过"打开"而登记；
-- Weekend 0 必须先确认三件事：这个钩子对 `type = "https"` 的 vhost 代理会触发；`remote_addr` 是真实客户端 IP；
-  拒绝确实能挡住连接。
+- Authenticated Open authorizes the requesting user's source IP for the selected device for 30 minutes. Another explicit Open renews the deadline. Neither traffic nor hook calls extend it. Revoked devices are always denied. Check tenant/device access before registering authorization.
+- W0 verified HTTPS hook invocation, mobile IPv4 correlation, and denial of a fresh mobile window without disconnecting the registered tunnel. Existing connections remained usable; expiry only gates new connections.
 
 *局限：*
 
@@ -1091,23 +1113,22 @@ v0.2 列过的其它候选（`sallyport` / `gatehouse` / `beacon`）不再考虑
 
 *推荐：*
 
-- 如果 Weekend 0 证实钩子可用，v1 就实现这个门禁；
+- Implement this gate in v1, as confirmed by Kazuha. IPv6 and dual-stack source matching remain untested and require explicit implementation validation;
 - 无论是否上门禁，都在文档里如实写明这个暴露面，并建议在设备上开启 OPNsense 自带的 TOTP 两步验证；
 - 注意它会以可测的形式带回 v0.2 §5 删掉的"远程会话"概念——可见粒度是每条 TCP 连接，不是每个 HTTP 请求。
 
-*状态：* 待用户决定。
+*Status:* D7 confirmed by Kazuha on 2026-10-18.
 
 **Q8 (confirmed 2026-10-17): React component library.**
 Kazuha selected shadcn/ui with native HTML dialog after reviewing the W3-0 samples and strict-CSP results. See [the comparison](ui-study/README.md) and the D9 decision record in PLAN. W3 will implement this choice after W0 is accepted; the sample source remains outside the product repository.
 
-**Q9（新，待实测与用户决定）：OPNsense 自己的主机名检查。**
-OPNsense 的 Web GUI 自带 DNS 重绑定检查和 HTTP_REFERER 检查（System → Settings → Administration，另有"Alternate Hostnames"一栏）。
-浏览器经中继用 `<subdomain>.<域名>:8443` 访问时，请求里的主机名不是设备自己的主机名，很可能被这两项检查拦下，显示错误页而不是登录页。
-这一点尚未实测，Weekend 0 第 ① 项要先确认。若确认会拦，可选做法有：
-（1）由用户手动把设备子域名加进 Alternate Hostnames（最简单，但每台设备多一步手工操作）；
-（2）插件在 enroll 时自动写入 Alternate Hostnames——这会写到插件自己 Settings 模型之外的系统配置，与决策 #16 和 §8"只写自己的标量字段"的边界冲突，需要单独评估；
-（3）让用户关闭这两项检查（降低设备自身的防护，不推荐）。
-建议：先按 Weekend 0 实测；若会拦，v1 采用（1）并在 enroll 页面给出明确的操作提示，（2）另行评估。待用户决定。
+**Q9 / D17 (confirmed 2026-10-18): manual exact Alternate Hostnames.**
+W0 encountered HTTP_REFERER rejection through the relay. Adding only the exact
+test hostname through the stock Administration form allowed complete GUI use;
+DNS rebinding and HTTP_REFERER checks remained enabled. Enrollment must explain
+the manual step and show the assigned exact hostname. Do not disable either
+check or have the plugin write unrelated system settings. Reassess automation
+only through a separate owner decision.
 
 **Q10（新，待用户决定）：设备 ↔ 中继控制通道没有服务端认证。**
 已对 frp v0.71.0 源码核实（`pkg/transport/tls.go`）：frpc 开了 `transport.tls.enable` 但没配 `transport.tls.trustedCaFile` 时，
@@ -1135,8 +1156,8 @@ CA 私钥只进部署者的密钥备份、不挂进任何容器（决策 #21 新
 - **调研过程中网络检索配额中途耗尽**，以下结论可信度较低、使用前请自行复核：
   爱快云的内部协议细节（唯一来源是一篇 2022 年的第三方抓包博客，非官方规范）、
   部分竞品的定价数字、部分中间件的性能基准数字、以及许可与商业模式那一路调研（这一路调研没有产出）。
-- `httpPlugins` 的精确字段与 fail-open/fail-closed 行为**未经实测**，是 Weekend 0 的第一优先级验证项。
-- 中国大陆网络可达性相关的一切判断**均未实测**，Weekend 0 才有数据。
+- W0 verified the observed hook inputs and fail-closed outcomes; see the accepted report and observed-field notes. Product authorization remains unimplemented.
+- W0 coverage is limited to owner-attested A/B mobile networks; locations and carrier names were not recorded. No region-wide or company/campus reachability claim follows from those samples.
 
 ### v0.3 补充说明
 
@@ -1150,12 +1171,11 @@ CA 私钥只进部署者的密钥备份、不挂进任何容器（决策 #21 新
     `ratelimit` 已移除、`clientip` 已回退（ADR 0003）。
 - **Weekend 0 套件的 TOML 表作用域 bug**：`frpc.toml` / `frps.toml` 里本该是顶层的键（`log.*`、`metadatas.*` 等）写在了表头之后，
   会被解析进前一张表；在 `strict_config` 下 frps / frpc 启动即退出。已发现并修正，并在 RUNBOOK 里加了 verify 步骤。
-- **`NewUserConn` 对 https vhost 代理的行为在 Weekend 0 之前未经验证**；Q7 的候选缓解完全建立在它之上。
+- W0 verified HTTPS NewUserConn invocation, mobile IPv4 correlation, and denial. D7 selects it for new-connection gating; IPv6 and dual-stack matching remain untested.
 - **frps 0.71.0 的 admin API 没有断线接口**（已对 v0.71.0 源码核实：只读接口之外，只有清理离线代理的
   `DELETE /api/proxies?status=offline` 与 `POST /api/v2/system/prune`）。v0.2 的"轮询后踢线"假设了一个不存在的接口；
-  §5 的候选断线机制（拒绝 `Ping` + 显式心跳、拒绝 `NewUserConn`、重启 frps）只做过源码阅读，**未经实测**。
-  订阅 `Ping` 之后 authz 故障会断掉全部隧道这一推论同样只来自源码（`handleMutableContent` 把插件错误当拒绝、
-  `handlePing` / `handlePong` 的处理、插件 HTTP 请求没有超时、同一控制连接上的消息串行处理），由 Weekend 0 第 6 项实测。
+  §5 now records W0 measurements and the owner-confirmed D6 mechanism; restarting frps remains a manual fallback, not a measured revocation path.
+  W0 measured online-tunnel loss after process loss and HTTP 500, plus stale admin state and recovery instability during a long backend hang. See the accepted report for timing and scope.
 - **frps 0.71.0 拒绝落在 `subDomainHost` 之下的 `customDomains`**（`validateDomainConfigForServer`，已对源码核实），
   所以 §5 改为 `subdomain`；Weekend 0 套件本来就用 `subdomain`，这一点不会被 Weekend 0 暴露出来，是读源码发现的。
 - `pg_dump` 遇到 `FORCE ROW LEVEL SECURITY` 时需要 `BYPASSRLS` 或超级用户（Postgres 文档的行为），§6 的 `nethub_backup` 角色据此设计，
