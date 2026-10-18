@@ -4,9 +4,9 @@ Thanks for your interest in NetHub. This document covers how contributions are
 licensed, how the repository is organized and how it relates to the separate
 packaging repository, and the conventions we expect from pull requests.
 
-NetHub is **pre-alpha**, with accepted W0 measurements and a validated W1
-OPNsense settings skeleton. There is no released version or complete deployment;
-enrollment, tunnels, and the control plane remain unimplemented. The design and
+NetHub is **pre-alpha**, with accepted W0 measurements and natively validated
+W2 OPNsense tunnel integration. There is no released version or complete deployment;
+enrollment and the control plane remain unimplemented. The design and
 stage-specific READMEs distinguish verified behavior from planned features.
 
 ## Table of contents

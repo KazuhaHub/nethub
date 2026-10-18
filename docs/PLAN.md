@@ -1035,19 +1035,21 @@ that remote revocation propagation already exists.
 
 ### 验收（对应 DESIGN §10 W2）
 
-- [ ] Install the package without restarting cron and observe its first scheduled execution within one minute.
-- [ ] Reboot the guest and verify the package-owned cron entries still execute.
-- [ ] Uninstall the package and verify pkg removed the cron file and scheduled jobs no longer run.
-- [ ] Exercise shared-lock contention, one-attempt rollback quarantine, changed-desired release, abandoned-service suppression, and revoked-device suppression.
-- [ ] Change the WAN address on the NAT test guest while an isolated tunnel is active. Record address-change, disconnect, registration, and GUI-recovery times. Do not invoke reconcile manually. If frpc and scheduled reconcile cannot recover automatically, implement and retest the debounced newwanip fallback before W2 passes (D21).
-- [ ] 用调试区手填 W2-0 中继的地址和 token，服务启动并连上。frps 日志里有这台设备的 `new proxy ... success`（贴日志，地址打码）
-- [ ] 故意把模板改坏（例如加一个不存在的键），reconcile 报错、**不重启**、旧配置还在、页面上显示错误（贴输出）
-- [ ] 熔断文件存在时，隧道停下，`config.xml` 没有变化（对比前后的 sha256）；删掉熔断文件再 reconcile，隧道恢复
-- [ ] `pkg delete` 之后没有残留的 frpc 进程（`ps aux | grep nethub_agent_frpc` 只看到 grep 自己）
-- [ ] 在同一台测试机上装 `os-frp` 并让它运行：两个服务同时正常，`sockstat -4 -l` 里没有端口冲突，os-frp 的配置文件前后 sha256 一致
-- [ ] 重启测试机后，服务自动起来并连上
-- [ ] 渲染出的 `frpc.toml` 权限不是所有人可读（`ls -l` 贴输出），因为里面有 token
-- [ ] 单元测试在 CI 里跑，绿
+Native checks completed 2026-10-18; see [evidence and limits](../agents/opnsense/plugin/tests/w2-progress.md).
+
+- [x] Install the package without restarting cron and observe its first scheduled execution within one minute.
+- [x] Reboot the guest and verify the package-owned cron entries still execute.
+- [x] Uninstall the package and verify pkg removed the cron file and scheduled jobs no longer run.
+- [x] Exercise shared-lock contention, one-attempt rollback quarantine, changed-desired release, abandoned-service suppression, and revoked-device suppression.
+- [x] Change the WAN address on the NAT test guest while an isolated tunnel is active. Record address-change, disconnect, registration, and GUI-recovery times. Do not invoke reconcile manually. If frpc and scheduled reconcile cannot recover automatically, implement and retest the debounced newwanip fallback before W2 passes (D21).
+- [x] 用调试区手填 W2-0 中继的地址和 token，服务启动并连上。frps 日志里有这台设备的 `new proxy ... success`（贴日志，地址打码）
+- [x] 故意把模板改坏（例如加一个不存在的键），reconcile 报错、**不重启**、旧配置还在、页面上显示错误（贴输出）
+- [x] 熔断文件存在时，隧道停下，`config.xml` 没有变化（对比前后的 sha256）；删掉熔断文件再 reconcile，隧道恢复
+- [x] `pkg delete` 之后没有残留的 frpc 进程（`ps aux | grep nethub_agent_frpc` 只看到 grep 自己）
+- [x] 在同一台测试机上装 `os-frp` 并让它运行：两个服务同时正常，`sockstat -4 -l` 里没有端口冲突，os-frp 的配置文件前后 sha256 一致
+- [x] 重启测试机后，服务自动起来并连上
+- [x] 渲染出的 `frpc.toml` 权限不是所有人可读（`ls -l` 贴输出），因为里面有 token
+- [x] 单元测试在 CI 里跑，绿
 
 ### 常见坑
 

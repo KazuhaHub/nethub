@@ -1,7 +1,8 @@
 # OPNsense plugin development
 
-The W2 integration under development adds an independent frpc service to
-Services → NetHub Agent. Native tunnel acceptance is still pending. It does not
+The W2 integration adds an independently managed frpc service to
+Services → NetHub Agent. Native validation is recorded in
+[the integration report](tests/w2-progress.md). It does not
 enroll devices; temporary debug settings will be removed or made read-only in W4.
 Saved model settings remain in config.xml after uninstall.
 
@@ -26,7 +27,7 @@ remote revocation receipt remains W5 work. pkg owns and removes the cron file.
 
 On the isolated OPNsense test guest, run `sh build.sh`, then install
 `dist/os-nethub-agent.pkg` with `pkg add`. Build requirements are FreeBSD, pkg,
-sha256, and Python 3.13. Python is a build tool here, not a new runtime service.
+sha256, and Python 3.13. The installed agent and independent watchdog also use the existing Python runtime.
 The builder validates version agreement, stages source files, and checks the
 resulting package before publishing the local artifact. Release packaging and
 signing remain separate from this development build.
@@ -50,4 +51,4 @@ The W2 build stages official frpc 0.71.1 under
 downloaded during the build and checked against `frp-artifacts.json`; it is not
 committed to NetHub. `FRP_VERSION` accompanies the executable. The builder checks
 the FreeBSD amd64 ELF header and native `--version` before creating the package.
-This prerequisite adds no tunnel service or enrollment behavior.
+Enrollment is implemented separately in W4.

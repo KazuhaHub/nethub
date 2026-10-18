@@ -3,7 +3,7 @@
 > 设计方案 v0.3（草案，2026-10-16）。v0.2 基于一轮调研与两轮对抗评审（15 条完整性评审 + 8 个红队灾难场景；
 > §13 已把这 8 个扩展为 12 个，v0.3 再补 2 个，现为 14 个），并按「全部开源、个人与企业均可自行搭建」的前提重写。
 > v0.3 纳入用户在 2026-09-17 会话里做出的决定（服务端改 Go、React 控制台、v1 多用户 + OIDC 等），
-> 并修正 v0.2 的若干事实错误与自相矛盾之处，逐条见 §0。**Implementation status (2026-10-18): W1 settings skeleton is natively validated; enrollment, frpc integration, and the control plane remain planned.**
+> 并修正 v0.2 的若干事实错误与自相矛盾之处，逐条见 §0。**Implementation status (2026-10-18): W2 frpc integration is natively validated; enrollment and the control plane remain planned.**
 >
 > 仓库 `github.com/KazuhaHub/nethub` · 许可证 Apache-2.0 · 贡献协议 DCO（不用 CLA）
 >
@@ -132,7 +132,7 @@ KKazuhaK/OPNsense-repo            ← 只有打包配方，不含 NetHub 源码
   src/os-nethub-agent/build.sh      拉取 NetHub 的 release tarball、校验 sha256、进流水线
 ```
 
-以上目录是规划；目前仓库里只有文档和 Weekend 0 套件，没有代码。`nethub init` / `nethub doctor`
+以上目录包含规划；目前仓库已有文档、Weekend 0 套件和 OPNsense 开发插件。`nethub init` / `nethub doctor`
 是 `server/` 里同一个二进制的子命令，不再"位置待定"。
 
 **为什么源码不放进打包仓库。** 那个仓库是 2026-09-12 从 `Opnwall/OPNsense-repo` fork 来的，
@@ -831,7 +831,7 @@ IdP 或 IdP 账号被攻破的后果；设备 GUI 的公网暴露面（Q7）；
 
 ## 10. MVP：W0–W7 + 缓冲
 
-W0 accepted by Kazuha on 2026-10-18 with the recorded 1 GiB exception and two-mobile-network scope. All six experiments have evidence; see [results](../weekend0/results-2026-10-17.md). W1 still requires D10/D20. This section describes subsequent implementation acceptance.
+W0 accepted by Kazuha on 2026-10-18 with the recorded 1 GiB exception and two-mobile-network scope. All six experiments have evidence; see [results](../weekend0/results-2026-10-17.md). D10/D20 are confirmed. This section describes subsequent implementation acceptance.
 
 v0.2 的计划是 7 个周末（W0–W6 + 0.5 缓冲）。v0.3 的范围更大（多用户、OIDC、进程拆分），
 排期变成 W0–W7 再加一段缓冲，**估算的不确定性也随之变大**——下面是计划，不是承诺。
@@ -878,7 +878,7 @@ v0.2 的计划是 7 个周末（W0–W6 + 0.5 缓冲）。v0.3 的范围更大�
 
 ### Weekend 1 — 插件骨架
 
-W1 now has the independent plugin model, ACL, menu, settings page, lifecycle hooks, and unsigned development build. Native install/save/uninstall/reinstall passed; see [validation](../agents/opnsense/plugin/tests/native-validation.md). Packaging-repository entry and release integration remain deferred under D10; no packaging repository was changed.
+W1 now has the independent plugin model, ACL, menu, settings page, lifecycle hooks, and unsigned development build. Native install/save/uninstall/reinstall passed; see [validation](../agents/opnsense/plugin/tests/native-validation.md). NetHub packaging-repository entry and release integration remain deferred under D10. D4 separately authorized the coordinated os-frp upgrade.
 
 **验收：** ①`pkg install` 到测试路由器，Services 下出现菜单，能存 `Enabled` 并在 config.xml 看到字段；
 ②verify registration, model migration, ACL/menu cache invalidation, and configd restart. Template reload starts in W2 when a template exists. Uninstall unregisters package restore intent while preserving settings;
@@ -894,6 +894,11 @@ vendor 二进制；rc.d；`+TARGETS` / `frpc.toml.j2`；reconcile 的「验证�
 **并且**故意渲染一份坏 `frpc.toml`，确认 reconcile 不重启、保留旧文件；
 **并且** os-frp 照常工作（它的进程、配置和端口都不受影响）。
 **D21 acceptance:** change the WAN address while the tunnel is active, measure automatic registration and GUI recovery without manual reconcile, and record elapsed times. If automatic recovery fails, implement the 60s/0–30s debounced newwanip fallback and repeat the test before W2 passes.
+
+W2 native integration validation is complete within the recorded test scope; see
+[the report](../agents/opnsense/plugin/tests/w2-progress.md). WAN registration
+recovered in 17.072s and relayed login in 21.375s without a process restart or
+manual reconcile. D21 therefore retains automatic reconnect for this NAT profile.
 
 ### Weekend 3 — Go 控制面骨架 + 部署体验
 
@@ -1181,7 +1186,7 @@ CA 私钥只进部署者的密钥备份、不挂进任何容器（决策 #21 新
   尚未实际跑过。
 - **v0.2 决策 #5 的前提是错的**（"没有自写 Go"），v0.3 已更正。
 - §6 的 DDL 与授权语句是示意，迁移落地时定稿。
-- W1 settings/package scaffolding is implemented and natively validated. Later-stage descriptions remain plans; see component READMEs for implementation status.
+- W2 tunnel integration is implemented and natively validated. Enrollment and control-plane descriptions remain plans; see component READMEs for implementation status.
 
 ---
 
