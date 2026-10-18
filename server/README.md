@@ -8,11 +8,11 @@ services on the device. That boundary is deliberate — see the top-level
 [project README](../README.md) and [`docs/DESIGN.md`](../docs/DESIGN.md) for
 the reasoning.
 
-> **Status:** pre-alpha, design stage. The design is v0.3 (a draft;
-> [`docs/DESIGN.md`](../docs/DESIGN.md) is the authority). Weekend 0, the
-> transport spike that gates all of this, has not been run. **No code exists
-> yet.** This README describes the intended stack and layout; everything below
-> is a plan to build against, not a description of something that works.
+> **Status:** W3 foundation work has started after native W2 acceptance. The Go
+> module directly imports authcore/saml v0.6.1; the SAML adapter delegates protocol
+> processing and enforces console policy. The CLI currently provides help/version
+> and explicitly fails unimplemented service commands. Database, HTTP endpoints,
+> the console, enrollment, and complete SSO login are not implemented yet.
 
 ## Technology stack
 
@@ -22,16 +22,13 @@ the reasoning.
 - **React + TypeScript + Vite** — the console is a single-page app whose
   source lives in `server/web/`. The build output is embedded into the binary
   with `go:embed`, so the console ships inside `nethub web`; the built `dist/`
-  is not committed. Which UI component library to use is still an open
-  question (DESIGN Q8): 2–3 examples will be built for the owner to choose
-  from.
+  is not committed. The selected UI is shadcn/ui with native dialog.
 - **PostgreSQL 16** — primary datastore, with row-level security and
   column-level grants doing real work (see [Data model](#data-model) below).
 - **Caddy** — reverse proxy and TLS termination on port 443, in front of the
   control plane's HTTP surfaces.
 - **frps** (upstream frp, not written here — see [`NOTICE`](../NOTICE)) — the
-  relay. Pinned to frp 0.71.0 for now, to match the device-side `frpc`; a bump
-  to 0.71.1 is planned (DESIGN §5) and is not yet decided. It is configured
+  relay. Pinned to frp 0.71.1 alongside the device-side frpc. It is configured
   with `bindPort = 7000` (the device control channel, TLS),
   `vhostHTTPSPort = 8443` and `subDomainHost` set, doing SNI passthrough to
   the device-side `frpc`. Its `httpPlugins` call back into `nethub authz` for
@@ -243,7 +240,7 @@ of this same binary, not separate tools.
   which `nethub init` generates and only `web` holds.
 - **Disabled users.** A user with `disabled_at` set cannot sign in, and their
   sessions are revoked with it.
-- **SAML** is planned for v1.1, via `authcore/saml`, as a pure service
+- **SAML** is included in v1, via `authcore/saml`, as a pure service
   provider.
 - **Sessions.** A server-side `sessions` table. The cookie holds an opaque
   random token (HttpOnly, Secure, SameSite=Lax); only its hash is stored.
@@ -419,3 +416,13 @@ console; it does not widen what the control plane may do to a device. Anything
 beyond that (config backup, config push, bulk upgrade, telemetry) is out of
 scope for v1; see the top-level [project README](../README.md) and the roadmap
 in [`docs/DESIGN.md`](../docs/DESIGN.md) §11.
+
+## Shared authentication code
+
+Use authcore packages directly for matching capabilities; do not copy or locally
+reimplement them. Reusable gaps can be added to authcore with its own regression
+tests and PR. NetHub owns user, tenant, invitation, session, and device policy.
+SAML callback routes and persistent replay storage are W6 work. The current
+adapter is a foundation, not a working SAML login feature.
+
+Run `GOWORK=off go test ./...`, `go vet ./...`, and `go mod verify` in this directory.

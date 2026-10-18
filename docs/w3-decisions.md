@@ -1,24 +1,24 @@
 # W3 decision brief
 
-Status: proposals only. W3 implementation has not started. PLAN requires owner
-confirmation of D8, D11, and D15 before W3, plus the relevant D16/D18 choices.
-Kazuha requested uninterrupted rest; no question is pending in the UI.
-
-The accepted W0 scope and W2 validation remain unchanged. This brief collects the
-remaining decisions so the next review can cover them together.
+Status: confirmed by Kazuha on 2026-10-18. Proceed with the proposed W3
+scope, data/process permissions, administrator ordering, technology choices, and
+separate console hostname. SAML is added to v1 through a direct authcore module
+dependency. Reuse authcore packages for matching capabilities; improve the shared
+module when a reusable gap is found instead of duplicating it in NetHub.
+Protocol/enrollment and release decisions not covered here remain later gates.
 
 ## D8: v1 scope
 
-Propose the scope already described in DESIGN sections 1 and 6:
+Implement the scope already described in DESIGN sections 1 and 6:
 
 - OPNsense-only enrollment with a single-use, 15-minute token and a random
   device subdomain; signed device claims and opaque device secrets.
 - TLS passthrough GUI access, online/offline state, explicit source-IP Open
   grants, revocation, device-side kill switch, and credential rotation.
 - One tenant per installation; admin/member roles, invitation-only accounts,
-  local password login, multiple OIDC providers, and audit history.
+  local password login, multiple OIDC and SAML providers, and audit history.
 - Self-hosted Compose deployment, init/doctor, backup/restore, and staged plugin
-  release support. SAML remains v1.1; router configuration management remains
+  release support. SAML uses authcore/saml in v1; router configuration management remains
   outside v1. Console authentication does not replace the device's own login.
 
 Already confirmed: source-IP grants last 30 minutes and renew only on explicit
@@ -27,8 +27,8 @@ keep browser port 8443 and both device hostname security checks enabled.
 
 ## D11: database and process permissions
 
-Propose the process split and table model in DESIGN section 6, with these concrete
-boundaries and additions. These are proposed grants, not implemented migrations.
+Use the process split and table model in DESIGN section 6, with these concrete
+boundaries and additions. These grants are approved; migrations remain unimplemented.
 
 | Role | Authority |
 |---|---|
@@ -48,7 +48,7 @@ Keep the proposed core tables: tenants, users, user_identities, oidc_providers,
 invites, sessions, devices, enroll_tokens, audit_log. No per-device frp_token_hash:
 the shared relay token is a deployment secret, not a device identity.
 
-Additional proposals needed before migration:
+Approved details to implement in migration:
 
 - One-way device revocation: database enforcement rejects true-to-false changes.
   A revoked identity is replaced by new enrollment. Web cannot change ownership,
@@ -67,14 +67,14 @@ Additional proposals needed before migration:
 - Audit append is serialized by a narrow function, with no UPDATE/DELETE for
   runtime roles. Its hash chain is an operational integrity check, not protection
   against a compromised database or signing authority.
-- Invites expire after 72 hours and are single-use; propose optional provider_id
+- Invites expire after 72 hours and are single-use; include optional provider_id
   binding in v1. OIDC claim requires the original invitation flow, verified email
   match, and an enabled provider. Existing identities bind by issuer/subject.
 - Keep at least one enabled local-password admin. Serialize changes that might
   remove the last such account, including concurrent disable/demotion requests.
 
 Bootstrap secret exception: PostgreSQL initialization needs all four role
-passwords as well as the bootstrap superuser password. Propose allowing that
+passwords as well as the bootstrap superuser password. Allow that
 explicit exception for the database container; PostgreSQL already controls those
 roles. Web/authz/migrate/backup still receive only their own credentials. The
 CA private key and claim signing key do not belong in the database container.
@@ -89,7 +89,7 @@ frps, and Caddy remain stronger trust points as described in the threat model.
 
 ## D15: initial administrator
 
-Propose init before the database: generate service-separated secrets/configuration,
+Run init before the database: generate service-separated secrets/configuration,
 show a mandatory backup acknowledgement, and print the subsequent commands.
 Compose starts PostgreSQL, runs migration once, then starts web. A local
 `nethub admin create --email ...` command creates the first admin after migration;
@@ -99,7 +99,7 @@ schema-owner credentials to web. Subsequent account management uses the console.
 
 ## D16: W3 implementation choices
 
-Propose the existing PLAN choices: Go 1.26.x, standard net/http, flag, log/slog,
+Use the existing PLAN choices: Go 1.26.x, standard net/http, flag, log/slog,
 pgx/v5 pools, goose/v3 embedded SQL, React/TypeScript/Vite, and the already accepted
 shadcn/native-dialog integration. Pin exact versions and image digests after
 checking official sources at implementation time; this brief does not pin them.
@@ -110,12 +110,12 @@ parameters verified when implemented. Protocol version rules remain a W4 decisio
 
 ## D18: domain layout
 
-Propose a separate console hostname, such as console.example.com, and a device
+Use a separate console hostname, such as console.example.com, and a device
 wildcard under router.example.com. Console host-only cookies use the __Host-
 prefix. Reserve any console label if an owner instead chooses a hostname below
 the device wildcard. Actual deployment names remain outside repository records.
 
-## Acceptance work after the decisions
+## Acceptance work
 
 1. Pin the approved toolchain/dependencies and create the module/front-end shell.
 2. Test fresh and repeated database initialization and migrations, including secret
@@ -146,3 +146,22 @@ The workstation has Node 24.14.0 and Go 1.27.0. PLAN calls for Go 1.26.x; the
 existing CI selects 1.26.0. A separate 1.26.0 toolchain was downloaded and its version verified without
 changing the global installation. Select a supported patch version before W3
 implementation and keep local/CI/container builds aligned.
+
+## SAML and shared-module implementation
+
+Import github.com/KazuhaHub/authcore/saml from the pinned v0.6.1 module. The tag
+was resolved to commit 3daf913e5f0afe2cd05cc3017d61fc8e0ce33033 and the Go module
+checksum was recorded. No authcore source is copied or vendored into NetHub.
+Matching authentication capabilities use the shared packages; a missing reusable
+primitive can be implemented and tested in authcore with a separate PR. Tenant,
+user, invitation, session, and device-authorization rules remain application code.
+
+SAML integration is W6 work alongside OIDC, not a prerequisite for the W3 local
+password shell. Include provider configuration, metadata, SP-initiated requests,
+ACS validation, persistent assertion replay protection, browser-bound one-time
+request state, invitation restrictions, and account-disable checks. Bind identities
+to provider/issuer plus a stable NameID, never email alone; reject transient NameIDs
+for durable accounts. Do not enable unsolicited IdP-initiated login. Keep metadata
+trust and refresh bounded and explicit. Test signed-response success, wrong issuer,
+audience/destination, expired assertions, request mismatch, replay across restart,
+account confusion, and concurrent consumption before claiming SAML login works.

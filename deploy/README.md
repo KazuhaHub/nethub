@@ -177,7 +177,7 @@ link: the invite is bound into that sign-in flow, and the binding completes
 only if the invite token is still valid and unused, the ID token has
 `email_verified=true`, and its email matches the invite. A sign-in through an
 identity provider without the link is rejected, even if its email matches a
-pending invite. SAML is planned for v1.1.
+pending invite. SAML is included in v1 through authcore/saml.
 
 Console sign-in and SSO do **not** protect the device's own OPNsense GUI: that
 page keeps its own login, and `https://<subdomain>.router.example.com:8443`

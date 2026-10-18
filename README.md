@@ -232,7 +232,7 @@ Summary of what v1 is designed to guarantee:
   console. The full boundary is in [`docs/DESIGN.md`](docs/DESIGN.md) §6.
 - **Console sign-in is a local password or OIDC.** `nethub init` creates the
   first admin with a local password (argon2id), which stays as a break-glass
-  account. OIDC supports multiple providers (SAML is planned for v1.1).
+  account. OIDC supports multiple providers (SAML is included in v1 through authcore/saml).
   External identities are bound by `(issuer, subject)`, never by email alone,
   and there is no self sign-up: other users join by invitation. Sessions are
   server-side, with CSRF protection and a strict Content-Security-Policy.
@@ -299,7 +299,7 @@ Everything in this table is plan, not shipped.
 | Version | Focus |
 |---|---|
 | v1 | Remote web UI access for OPNsense devices behind CGNAT/dynamic IP, plus a multi-user console (admin/member, invitation-only) with OIDC sign-in — no config read/write |
-| v1.1 | SAML sign-in, per-device TLS certificates, arm64 |
+| v1.1 | Per-device TLS certificates, arm64 |
 | v1.2 | Telemetry: tunnel/device health metrics |
 | v2 | Encrypted config backup: the device encrypts `config.xml` with a key derived on the device before uploading, and the control plane stores ciphertext it cannot decrypt (so no server-side diffing) |
 | v2.5 | Config push (send config changes to devices) |
@@ -327,8 +327,7 @@ project and is not affiliated with, endorsed by, or sponsored by Deciso B.V.*
 NetHub 是一个自托管的远程访问与设备管理工具：让藏在 CGNAT 或动态 IP 后面的
 开源路由器/防火墙（首发支持 OPNsense）无需端口转发即可远程打开 Web UI。v1
 只做远程访问，不读取、不修改设备配置；批量升级和遥测都不在 v1 范围内。控制台
-计划支持多用户（admin / member，邀请制）和 OIDC 登录（可配置多个 IdP），SAML
-放在 v1.1。项目目前处于 pre-alpha 的设计阶段：设计方案是 v0.3 草案，还没有任何
+计划支持多用户（admin / member，邀请制）、OIDC 和 SAML 登录（可配置多个 IdP）。项目目前处于 pre-alpha 的设计阶段：设计方案是 v0.3 草案，还没有任何
 代码，Weekend 0 传输层验证也尚未运行，不能用于生产。中文设计文档见
 [`docs/DESIGN.md`](docs/DESIGN.md)，完整的中文 README 见
 [`docs/README.zh-CN.md`](docs/README.zh-CN.md)。

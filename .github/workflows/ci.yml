@@ -12,6 +12,38 @@ concurrency:
 permissions: {}
 
 jobs:
+  control-plane:
+    name: Control plane checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: server
+    env:
+      GOWORK: "off"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Check module integrity and formatting
+        run: |
+          go mod verify
+          test -z "$(gofmt -l cmd internal)"
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+      - name: Test and vet
+        run: |
+          go test -race ./...
+          go vet ./...
+      - name: Build foundation CLI
+        run: CGO_ENABLED=0 go build -trimpath -o "$RUNNER_TEMP/nethub" ./cmd/nethub
+
   opnsense-plugin:
     name: OPNsense plugin checks
     runs-on: ubuntu-latest
