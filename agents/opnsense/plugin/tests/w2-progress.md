@@ -78,6 +78,38 @@ was explicitly stopped. Test configuration and the CA certificate remain on the
 guest for the next bounded test window. CA private keys remain on the workstation,
 outside the relay container.
 
-Outstanding: simultaneous live os-frp/NetHub tunnel coexistence, NetHub automatic
-tunnel recovery after reboot, complete relayed GUI behavior, and measured WAN-address recovery
-under D21. The temporary debug form must be removed or made read-only in W4.
+Remaining acceptance work is NetHub automatic tunnel rejoin after reboot, final
+package/CI verification, and test cleanup. The temporary debug form must be
+removed or made read-only in W4. Further evidence below completes the other
+previously outstanding checks.
+
+Additional native acceptance evidence:
+
+- os-frp and NetHub ran concurrently with distinct frpc PIDs. The legacy tunnel
+  remained usable; both legacy TOML files and both rc fragments matched the
+  baseline hashes. NetHub had no admin listener, its live configuration was 0600,
+  and the sample recorded zero swap-out pages.
+- The relayed browser authenticated, loaded eleven Dashboard widgets with populated
+  data/charts, observed repeated clock/API refresh, navigated to administration,
+  and returned successfully with no JavaScript, HTTP, or request failures. DNS
+  rebinding and referrer checks stayed enabled. Browser ingress used a temporary
+  SSH forward to the relay's loopback vhost; the device control connection crossed
+  the public network. This is not a new carrier/public-8443 reachability sample.
+- A kernel WAN-address replacement with a valid default route reconnected without
+  manual reconcile: registration/source-address recovery was observed at 17.072s
+  and the relayed login page at 21.375s. The frpc PID stayed unchanged; the original
+  address and default route were restored. An earlier 115s trial had accidentally
+  removed the default route and produced network-unreachable retries; it is an
+  invalid network-preparation trial, not evidence that a WAN hook is required.
+  D21 remains automatic reconnect with periodic reconcile for this tested profile.
+- A deliberate valid-but-unreachable candidate stopped the real process. The
+  independent watchdog restored the previous configuration and persisted the
+  rejected hash/attempt budget. A scheduled reconcile left that recovered file
+  and PID intact. After another controlled stop, watchdog refused a second
+  attempt, reconcile remained quarantined, and the real rc entry rejected startup
+  of the abandoned service. Restoring a different desired template released the
+  quarantine and started the service through normal reconcile.
+- These tests exposed and fixed two integration details: configd must retain
+  structured failure output, and service(8) requires an explicit `-E KEY=value`
+  assignment for the one-time recovery flag. The watchdog cron entry now has a
+  ten-second offset to avoid systematic minute-boundary contention.

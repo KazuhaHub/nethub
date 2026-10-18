@@ -20,8 +20,12 @@ def test_package_cron_uses_system_format_and_absolute_commands():
     for index, line in enumerate(lines):
         fields = shlex.split(line)
         assert fields[:6] == ['*' if index == 0 else '*/5', '*', '*', '*', '*', 'root']
-        assert fields[6:12] == ['/usr/bin/lockf', '-sk', '-t', '0', LOCK, '/usr/local/bin/python3.13']
-        assert fields[12].startswith('/usr/local/opnsense/scripts/nethub-agent/')
+        command = fields[6:]
+        if index == 1:
+            assert command[:3] == ['/bin/sleep', '10', '&&']
+            command = command[3:]
+        assert command[:6] == ['/usr/bin/lockf', '-sk', '-t', '0', LOCK, '/usr/local/bin/python3.13']
+        assert command[6].startswith('/usr/local/opnsense/scripts/nethub-agent/')
         assert '--locked' in fields
         assert fields[-3:] == ['>>', '/var/log/nethub-agent/scheduler.log', '2>&1']
     assert cron.read_bytes().endswith(b'\n')
@@ -34,6 +38,7 @@ def test_configd_mutations_take_the_same_lock():
         command = shlex.split(parser[name]['command'])
         assert command[:6] == ['/usr/bin/lockf', '-sk', '-t', '0', LOCK, '/usr/local/bin/python3.13']
         assert command[-2:] == ['--locked', name]
+        assert parser[name]['errors'] == 'no'
 
 
 def test_boot_recreates_log_directory_before_output_redirection():

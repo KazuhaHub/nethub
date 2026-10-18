@@ -14,6 +14,10 @@ marker but never clears the separate kill switch. No newwanip hook is registered
 Package-owned system cron entries run reconcile each minute and an independent
 watchdog every five minutes. Both use the same persistent `lockf -t 0` lock and
 skip contention; logs go to `/var/log/nethub-agent/scheduler.log`. The watchdog
+starts ten seconds after the minute boundary to avoid recurring contention with
+ordinary reconcile runs. Failed configd actions preserve their structured JSON
+result; callers must check `success` rather than the transport exit status.
+The watchdog
 records a rejected configuration hash and one-attempt recovery budget in
 `/var/db/nethub-agent/recovery.json`. Reconcile cannot reapply that configuration
 or restart an abandoned service until a different desired configuration validates.

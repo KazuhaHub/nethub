@@ -70,7 +70,7 @@ class WatchdogTests(unittest.TestCase):
                 record = json.loads(self.watchdog.journal.read_text())
                 self.assertTrue(record['attempted'])
                 self.assertTrue(record['abandoned'])
-                self.assertEqual(kwargs['env']['NETHUB_WATCHDOG_RECOVERY_ONCE'], '1')
+                self.assertEqual(args[1:3], ['-E', 'NETHUB_WATCHDOG_RECOVERY_ONCE=1'])
                 observed.append(True)
             return self.fixture.command(args, **kwargs)
         self.watchdog.runner = inspect_start

@@ -24,8 +24,11 @@ class Watchdog:
         return self.runner([str(value) for value in args], capture_output=True, text=True, timeout=30, **kwargs)
 
     def service(self, verb, recovery=False):
-        options = {'env': dict(os.environ, NETHUB_WATCHDOG_RECOVERY_ONCE='1')} if recovery else {}
-        return self.run(['/usr/sbin/service', 'nethub_agent_frpc', verb], **options)
+        command = ['/usr/sbin/service']
+        if recovery:
+            # service(8) clears its environment; -E takes an explicit assignment.
+            command += ['-E', 'NETHUB_WATCHDOG_RECOVERY_ONCE=1']
+        return self.run(command + ['nethub_agent_frpc', verb])
 
     def atomic(self, path, content):
         descriptor, name = tempfile.mkstemp(prefix='.watchdog-', dir=path.parent)
