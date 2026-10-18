@@ -141,6 +141,6 @@ services were left running; no database or product stack was started. These are
 readiness observations, not a successful Compose deployment.
 
 The workstation has Node 24.14.0 and Go 1.27.0. PLAN calls for Go 1.26.x; the
-existing CI selects 1.26.0. A separate 1.26.0 toolchain is being prepared without
+existing CI selects 1.26.0. A separate 1.26.0 toolchain was downloaded and its version verified without
 changing the global installation. Select a supported patch version before W3
 implementation and keep local/CI/container builds aligned.
