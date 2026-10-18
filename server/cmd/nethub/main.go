@@ -24,7 +24,7 @@ Commands:
   admin        Manage the initial administrator
   version      Print the build version
 
-The console API, migrations, and help/version are implemented in this build.
+The console, migrations, first-admin creation, and help/version are implemented.
 `
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -71,7 +71,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	case "web":
 		return runWeb(args[1:], stdout, stderr)
-	case "authz", "init", "doctor", "admin":
+	case "admin":
+		return runAdmin(args[1:], stdout, stderr)
+	case "authz", "init", "doctor":
 		fmt.Fprintf(stderr, "%s is not implemented in this foundation build\n", args[0])
 		return 1
 	default:

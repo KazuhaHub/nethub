@@ -66,3 +66,14 @@ EXECUTE permission caused login, logout, and issuance to fail without persisting
 partial mutations or emitting credentials. Restoring permission recovered them.
 The native run passed in 3.63 seconds; private logs retain the run. This tests the
 server handler and actual role credentials, not complete Compose/browser startup.
+
+## Initial administrator follow-up (2026-10-18)
+
+Thirteen genuine PostgreSQL boundary groups passed in 3.40 seconds, including
+owner-only bootstrap on the freshly migrated single tenant. An audit rejection
+rolled back both the user and local-admin counter. Four concurrent requests
+produced exactly one administrator; subsequent attempts refused creation. The
+stored Argon2id hash verified and the new account passed normal login/logout.
+Web/authz roles were rejected and the bootstrap audit omitted credential material.
+This covers the database operation; the actual one-shot Compose service and
+interactive deployment flow remain acceptance work.

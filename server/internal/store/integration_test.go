@@ -54,6 +54,8 @@ func TestPostgresBoundaries(t *testing.T) {
 	if selected, err := SoleTenant(ctx, web); err != nil || selected != tenantA {
 		t.Fatalf("single-tenant startup selection: %v", err)
 	}
+	var bootstrapID string
+	t.Run("initial_admin_bootstrap", func(t *testing.T) { bootstrapID = testAdminBootstrap(t, ctx, owner, web, authz, tenantA) })
 	if err := owner.QueryRowContext(ctx, `INSERT INTO tenants(name) VALUES('Integration B') RETURNING id`).Scan(&tenantB); err != nil {
 		t.Fatal(err)
 	}
@@ -66,6 +68,10 @@ func TestPostgresBoundaries(t *testing.T) {
 		return id
 	}
 	adminA := user(tenantA, "admin-a@example.com", "admin")
+	// Restore the existing boundary fixtures after testing the empty deployment.
+	if _, err := owner.ExecContext(ctx, `DELETE FROM users WHERE id=$1`, bootstrapID); err != nil {
+		t.Fatal(err)
+	}
 	memberA, memberOther := user(tenantA, "member-a@example.com", "member"), user(tenantA, "other-a@example.com", "member")
 	adminB := user(tenantB, "admin-b@example.com", "admin")
 	device := func(tenant, actor, subdomain string) string {

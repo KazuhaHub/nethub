@@ -15,6 +15,14 @@ single `nethub` binary** built from `server/` (see
 > working release. See [`CONTRIBUTING.md`](../CONTRIBUTING.md) for the
 > project's overall pre-alpha status.
 
+Implementation checkpoint (2026-10-18): the console, migrations, and local
+`nethub admin create` command now exist. See
+[the bootstrap command](../server/cmd/nethub/admin-bootstrap.md). It must run as a
+separate one-shot service after migration, with owner credentials; web receives
+only its own role secret. The initializer, Compose/Caddy stack, and full clean
+deployment remain unfinished. The intended flow below must not be treated as a
+working release or as authorization to mount owner credentials into web.
+
 ## Prerequisites
 
 Before self-hosting NetHub, you need, ahead of time:
