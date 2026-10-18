@@ -26,6 +26,10 @@ export function NativeDialog({
       className="native-dialog"
       aria-labelledby={titleId}
       onClose={onClose}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
       onKeyDown={(event) => {
         if (event.key !== "Tab") return;
         const dialog = ref.current;
