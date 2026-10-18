@@ -53,6 +53,11 @@ def build(version):
                 raise ValueError('Package source must not contain symlinks')
             path.chmod(0o755 if path.is_dir() else 0o644)
         frpc.chmod(0o755)
+        for name in ['usr/local/etc/rc.d/nethub_agent_frpc',
+                     'usr/local/etc/rc.syshook.d/start/20-nethub-agent']:
+            path = stage / name
+            if path.exists():
+                path.chmod(0o755)
         manifest['flatsize'] = sum(path.stat().st_size for path in files)
         (meta / '+MANIFEST').write_text(json.dumps(manifest))
         plist = work / 'pkg-plist'

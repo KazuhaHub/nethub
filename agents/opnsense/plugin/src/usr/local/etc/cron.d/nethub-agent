@@ -1,0 +1,4 @@
+# Package-owned system cron entries. Both jobs use the same persistent lock.
+* * * * * root /usr/bin/lockf -sk -t 0 /var/db/nethub-agent/reconcile.lock /usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/agentctl.py --locked reconcile >> /var/log/nethub-agent/scheduler.log 2>&1
+# Offset the watchdog so ordinary minute-boundary reconcile runs do not starve it.
+*/5 * * * * root /bin/sleep 10 && /usr/bin/lockf -sk -t 0 /var/db/nethub-agent/reconcile.lock /usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/watchdog.py --locked >> /var/log/nethub-agent/scheduler.log 2>&1

@@ -15,7 +15,9 @@
 
 ### 当前状态（2026-10-18）
 
-- **The W1 plugin skeleton is implemented and natively validated.** Enrollment, frpc integration, and the control plane remain unimplemented. GitHub 仓库是 <https://github.com/KazuhaHub/nethub>，2026-10-17 建好，**私有**。第一次提交 `f529e1d` 和之后的状态更新都已推送到 `main`。`main` has CI and weekly Actions dependency updates after PR #1 merged as `6612cdb`; branch protection is still unavailable on the current private-repository plan. Kazuha 已确认先保持私有，到 W7 再决定公开（【D2】）。
+- **Latest W2 state:** PR #23 implements independent frpc, strict TLS trust, safe reconcile, package-owned cron, and an independent one-attempt watchdog. Native tests cover live rollback/quarantine, WAN recovery (17.072s registration; 21.375s GUI), full relayed GUI, reboot, install/uninstall scheduling, and simultaneous os-frp use. Packaging PR #50 fixed disabled sample defaults overriding enabled services at boot; native reboot now starts both plugins automatically with unchanged legacy configuration hashes. Test settings were restored, temporary listeners closed, and private evidence archived. See [W2 validation](../agents/opnsense/plugin/tests/w2-progress.md). W3 requires D8/D11/D15 and relevant D16/D18 decisions; do not treat pending proposals as approved. Kazuha is resting and requested no questions; prepare review material and continue independent work.
+
+- **W2 tunnel integration is implemented and natively validated.** Enrollment and the control plane remain unimplemented. GitHub 仓库是 <https://github.com/KazuhaHub/nethub>，2026-10-17 建好，**私有**。第一次提交 `f529e1d` 和之后的状态更新都已推送到 `main`。`main` has CI and weekly Actions dependency updates after PR #1 merged as `6612cdb`; branch protection is still unavailable on the current private-repository plan. Kazuha 已确认先保持私有，到 W7 再决定公开（【D2】）。
 - 设计方案是 `docs/DESIGN.md` v0.3（中文），它是架构上的权威。
   执行计划是 `docs/PLAN.md`（中文），它把设计拆成按顺序做的任务：P0、W0–W7，再加缓冲。
 - **W0 was accepted by Kazuha on 2026-10-18.** All six experiments are recorded in [the accepted report](../weekend0/results-2026-10-17.md), including the 1 GiB exception, A/B-only network scope, and backend-hang findings. D5/D6/D7/D17 are confirmed; D10/D20 and package metadata were confirmed; W1 native validation is recorded in the plugin tests directory.
@@ -203,3 +205,5 @@ OPNsense 26.7.7. Firmware registration cleanup was fixed and retested. See
 remains installed for W2 and starts no tunnel. D4/D21/D22 and the pinned-download
 choice were confirmed on 2026-10-18; coordinate the 0.71.1 upgrade before W2 integration. Test access was simplified
 at the owner's request; credentials remain outside Git.
+
+W2 update (2026-10-18): draft PR #23 implements the independent service, validated reconcile, and GUI debug interface. Native partial evidence is in plugin/tests/w2-progress.md. Kazuha confirmed package-owned cron.d entries, shared nonblocking lockf, persistent rollback quarantine, and local revoked suppression under W2-7. Cron lifecycle, full coexistence, reboot, and WAN-address recovery remain acceptance work; do not report W2 complete.

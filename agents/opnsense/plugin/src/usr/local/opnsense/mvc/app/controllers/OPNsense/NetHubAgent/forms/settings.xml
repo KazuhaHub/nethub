@@ -3,6 +3,6 @@
         <id>nethubagent.enabled</id>
         <label>Enable</label>
         <type>checkbox</type>
-        <help>Save the agent preference. This development version does not start a tunnel.</help>
+        <help>Allow the NetHub tunnel to run. A verified relay CA and valid relay settings are required.</help>
     </field>
 </form>

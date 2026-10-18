@@ -1,12 +1,33 @@
 # OPNsense plugin development
 
-This unsigned development skeleton provides Services → NetHub Agent and an Enable
-preference. It does not enroll devices, start a tunnel, or install a service.
+The W2 integration adds an independently managed frpc service to
+Services → NetHub Agent. Native validation is recorded in
+[the integration report](tests/w2-progress.md). It does not
+enroll devices; temporary debug settings will be removed or made read-only in W4.
 Saved model settings remain in config.xml after uninstall.
+
+The service requires a locally provisioned deployment CA at
+`/usr/local/etc/nethub-agent/relay-ca.pem`. The relay hostname must match the
+server certificate. Save the settings, then Apply; candidates are verified before
+replacing the live configuration. A failed candidate keeps the previous file and
+running process. Stop sets a persistent local stop marker; Start clears that
+marker but never clears the separate kill switch. No newwanip hook is registered.
+Package-owned system cron entries run reconcile each minute and an independent
+watchdog every five minutes. Both use the same persistent `lockf -t 0` lock and
+skip contention; logs go to `/var/log/nethub-agent/scheduler.log`. The watchdog
+starts ten seconds after the minute boundary to avoid recurring contention with
+ordinary reconcile runs. Failed configd actions preserve their structured JSON
+result; callers must check `success` rather than the transport exit status.
+The watchdog
+records a rejected configuration hash and one-attempt recovery budget in
+`/var/db/nethub-agent/recovery.json`. Reconcile cannot reapply that configuration
+or restart an abandoned service until a different desired configuration validates.
+The local `revoked` marker blocks both jobs and explicit Start; authenticated
+remote revocation receipt remains W5 work. pkg owns and removes the cron file.
 
 On the isolated OPNsense test guest, run `sh build.sh`, then install
 `dist/os-nethub-agent.pkg` with `pkg add`. Build requirements are FreeBSD, pkg,
-sha256, and Python 3.13. Python is a build tool here, not a new runtime service.
+sha256, and Python 3.13. The installed agent and independent watchdog also use the existing Python runtime.
 The builder validates version agreement, stages source files, and checks the
 resulting package before publishing the local artifact. Release packaging and
 signing remain separate from this development build.
@@ -30,4 +51,4 @@ The W2 build stages official frpc 0.71.1 under
 downloaded during the build and checked against `frp-artifacts.json`; it is not
 committed to NetHub. `FRP_VERSION` accompanies the executable. The builder checks
 the FreeBSD amd64 ELF header and native `--version` before creating the package.
-This prerequisite adds no tunnel service or enrollment behavior.
+Enrollment is implemented separately in W4.

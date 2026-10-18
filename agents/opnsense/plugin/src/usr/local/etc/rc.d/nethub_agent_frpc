@@ -1,0 +1,45 @@
+#!/bin/sh
+# PROVIDE: nethub_agent_frpc
+# REQUIRE: NETWORKING
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name=nethub_agent_frpc
+rcvar=nethub_agent_frpc_enable
+load_rc_config "$name"
+: "${nethub_agent_frpc_enable:=NO}"
+nethub_agent_frpc_flags=""
+command=/usr/sbin/daemon
+procname=/usr/local/opnsense/nethub-agent/bin/frpc
+pidfile=/var/run/nethub_agent_frpc.pid
+required_files=/usr/local/etc/nethub-agent/frpc.toml
+command_args="-f -p $pidfile -t $name -o /var/log/nethub-agent/frpc.log $procname -c $required_files"
+start_precmd=nethub_agent_prestart
+
+nethub_agent_prestart()
+{
+    [ ! -e /var/db/nethub-agent/disabled ] || return 1
+    [ ! -e /var/db/nethub-agent/stopped ] || return 1
+    [ ! -e /var/db/nethub-agent/revoked ] || return 1
+    [ ! -e /var/db/nethub-agent/uninstalling ] || return 1
+    if [ -e /var/db/nethub-agent/recovery.json ] && [ "${NETHUB_WATCHDOG_RECOVERY_ONCE:-0}" != 1 ]; then
+        /usr/local/bin/python3.13 -c '
+import json, re, sys
+with open("/var/db/nethub-agent/recovery.json") as source:
+    state = json.load(source)
+valid = (isinstance(state, dict) and state.get("version") == 1
+         and isinstance(state.get("rejected_sha256"), str)
+         and re.fullmatch("[a-f0-9]{64}", state["rejected_sha256"])
+         and state.get("attempted") is True and state.get("abandoned") is False)
+sys.exit(0 if valid else 1)
+' >/dev/null 2>&1 || return 1
+    fi
+    install -d -m 0700 /var/log/nethub-agent
+    touch /var/log/nethub-agent/frpc.log
+    chmod 0600 /var/log/nethub-agent/frpc.log "$required_files"
+    "$procname" verify --strict_config=true -c "$required_files" >/dev/null 2>&1
+}
+
+# frpc reconnects internally. A crashing configuration must not loop under daemon -r.
+run_rc_command "$1"

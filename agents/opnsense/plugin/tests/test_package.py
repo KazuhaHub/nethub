@@ -46,12 +46,15 @@ def test_version_and_package_identity_agree():
     assert product['product_website'] == manifest['www']
 
 
-@pytest.mark.parametrize('path', sorted((ROOT / 'src').rglob('*.php')), ids=lambda p: p.name)
+@pytest.mark.parametrize('path', sorted([*(ROOT / 'src').rglob('*.php'), *(ROOT / 'src').rglob('*.inc')]), ids=lambda p: p.name)
 def test_php_syntax(path):
     subprocess.run(['php', '-l', str(path)], check=True, capture_output=True)
 
 
-@pytest.mark.parametrize('path', [ROOT / 'build.sh', ROOT.parent / 'dev-deploy.sh', *sorted((ROOT / 'packaging/freebsd').glob('+*INSTALL'))])
+@pytest.mark.parametrize('path', [ROOT / 'build.sh', ROOT.parent / 'dev-deploy.sh',
+                                ROOT / 'src/usr/local/etc/rc.d/nethub_agent_frpc',
+                                ROOT / 'src/usr/local/etc/rc.syshook.d/start/20-nethub-agent',
+                                *sorted((ROOT / 'packaging/freebsd').glob('+*INSTALL'))])
 def test_shell_syntax(path):
     subprocess.run(['sh', '-n', str(path)], check=True, capture_output=True)
 

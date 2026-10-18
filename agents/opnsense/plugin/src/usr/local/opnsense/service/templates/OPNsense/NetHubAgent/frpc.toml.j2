@@ -1,0 +1,24 @@
+{% if OPNsense.NetHubAgent.enabled|default('0') == '1' %}
+serverAddr = "{{ OPNsense.NetHubAgent.server_addr }}"
+serverPort = {{ OPNsense.NetHubAgent.server_port }}
+auth.token = "{{ OPNsense.NetHubAgent.frp_token }}"
+loginFailExit = false
+log.to = "console"
+log.level = "info"
+metadatas.device_id = "{{ OPNsense.NetHubAgent.device_id }}"
+metadatas.domain_claim = "{{ OPNsense.NetHubAgent.domain_claim }}"
+transport.heartbeatInterval = 10
+transport.heartbeatTimeout = 30
+transport.tls.enable = true
+transport.tls.trustedCaFile = "/usr/local/etc/nethub-agent/relay-ca.pem"
+transport.tls.serverName = "{{ OPNsense.NetHubAgent.server_addr }}"
+
+[[proxies]]
+name = "nethub-webgui"
+type = "https"
+localIP = "127.0.0.1"
+localPort = {{ system.webgui.port|default('443', true) }}
+subdomain = "{{ OPNsense.NetHubAgent.subdomain }}"
+{% else %}
+# NetHub Agent is disabled.
+{% endif %}

@@ -7,9 +7,9 @@ VyOS.
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Stars](https://img.shields.io/github/stars/KazuhaHub/nethub?style=social)
 
-**Status: pre-alpha, W1 plugin skeleton.** W0 transport measurements are accepted,
-and the OPNsense development plugin passed install/save/uninstall/reinstall checks.
-Enrollment, tunnel integration, and the control plane remain unimplemented. See
+**Status: pre-alpha, W2 tunnel integration.** W0 measurements are accepted;
+the OPNsense development plugin has native tunnel, recovery, scheduler lifecycle,
+and coexistence validation. Enrollment and the control plane remain unimplemented. See
 [Project status](#project-status) before using the development files.
 
 **Before you self-host, you will need:** a domain name you control DNS for, a
@@ -34,7 +34,8 @@ see [Requirements](#requirements) for the full list.
 
 ## What v1 is designed to do
 
-Nothing below exists yet; this is the planned scope of v1.
+The following describes the complete v1 scope; only the transport and development
+plugin are implemented.
 
 - Give an OPNsense box sitting behind CGNAT or a dynamic IP a stable, working
   web UI URL — no port forwarding, no dynamic DNS hacks, no VPN client
@@ -155,8 +156,8 @@ docs/             DESIGN.md (v0.3, in Chinese), threat model and console API (dr
 weekend0/         Weekend 0 transport-test kit (RUNBOOK, frps/frpc configs, probe.py)
 ```
 
-This is the planned layout. At the moment the repository holds documentation
-and the Weekend 0 kit only; there is no code.
+This layout includes planned components. The repository currently contains the
+documentation, Weekend 0 kit, and OPNsense development plugin.
 
 All of NetHub lives in this repository, including the OPNsense plugin source
 under `agents/opnsense/plugin/`. FreeBSD packages are *built* elsewhere:
@@ -193,8 +194,8 @@ above.
 > **Note — these commands don't exist yet.** NetHub is pre-alpha (see
 > [Project status](#project-status)). The steps below describe the intended
 > v1 flow so you know what "done" looks like; `nethub init`, the console, and
-> the OPNsense plugin have not been written. There is nothing to `git clone`
-> and run today.
+> enrollment are not implemented. The development plugin is for isolated tests;
+> the complete self-hosted stack cannot be run yet.
 
 | Step | What happens | Time |
 |---|---|---|
@@ -281,9 +282,10 @@ Full write-up: the [threat model draft](docs/threat-model.md) and
 ## Project status
 
 The repository contains the design, accepted [W0 results](weekend0/results-2026-10-17.md),
-and the [W1 development plugin](agents/opnsense/plugin/README.md). Native validation
-covers installation, settings persistence, uninstall, and reinstall on OPNsense
-26.7.7. The plugin currently saves only an Enable preference; it starts no tunnel.
+and the [W2 development plugin](agents/opnsense/plugin/README.md).
+[Native validation](agents/opnsense/plugin/tests/w2-progress.md) covers tunnel
+startup, authenticated relay TLS, safe configuration application, bounded recovery,
+cron lifecycle, WAN reconnect, reboot, and os-frp coexistence on OPNsense 26.7.7.
 There is no released version or complete deployment. Interfaces remain subject to change.
 
 The owner selected shadcn/ui with native dialog, source-IP gating, and explicit

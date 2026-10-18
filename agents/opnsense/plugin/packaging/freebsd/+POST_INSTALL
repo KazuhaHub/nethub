@@ -2,6 +2,11 @@
 set -eu
 /usr/local/opnsense/scripts/firmware/register.php install os-nethub-agent
 /usr/local/opnsense/mvc/script/run_migrations.php
+install -d -m 0700 /usr/local/etc/nethub-agent /var/db/nethub-agent /var/log/nethub-agent
+rm -f /var/db/nethub-agent/uninstalling
+touch /var/log/nethub-agent/scheduler.log
+chmod 0600 /var/log/nethub-agent/scheduler.log
 rm -f /var/lib/php/tmp/opnsense_menu_cache.xml /var/lib/php/tmp/opnsense_acl_cache.json
 service configd restart
+/usr/bin/lockf -sk -t 0 /var/db/nethub-agent/reconcile.lock /usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/agentctl.py --locked reconcile || true
 echo 'NetHub Agent installed. Open Services > NetHub Agent.'
