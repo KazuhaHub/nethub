@@ -13,8 +13,12 @@ the reasoning.
 > processing and enforces console policy. The CLI provides the console API, migrate,
 > and help/version; other commands still fail explicitly. Database bootstrap,
 > migrations, and actual-role PostgreSQL/HTTPS API tests pass. The React console
-> passes isolated browser flows under strict CSP. Device enrollment, init/admin,
+> passes isolated browser flows under strict CSP. Device enrollment, init,
 > complete deployment, and SSO flows remain unfinished.
+
+The local [first-admin command](cmd/nethub/admin-bootstrap.md) is implemented with
+hidden terminal entry or protected stdin, owner-role isolation, and atomic one-time
+creation. The init wizard and its Compose bootstrap service remain pending.
 
 The local [password/session service](internal/auth/README.md) and tenant-bound
 PostgreSQL authentication store are implemented, with actual-role tests for
@@ -22,7 +26,7 @@ expiry, logout, account disable, and password-check races. The
 [console API](internal/web/README.md) wires cookie/CSRF/Origin/proxy checks and
 atomic audit for login, logout, and token issuance. The [React UI](web/README.md)
 uses these routes and embeds its production build in Go. Isolated browser evidence
-is in [UI validation](web/validation.md); first-admin creation and complete
+is in [UI validation](web/validation.md); one-shot admin deployment and complete
 deployment/browser startup remain W3 work.
 
 ## Technology stack
