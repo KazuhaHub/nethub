@@ -4,7 +4,9 @@ On 2026-10-18, the actual PostgreSQL 16 image and initialization hook passed an
 isolated native run on the designated development LXC. The test container had
 network mode none and no published ports; existing services were not stopped.
 Random temporary passwords stayed in files, and the container/anonymous data
-volume were removed by the harness afterward.
+volume were removed by the harness afterward. A separate final check found zero
+remaining test containers; four owned upload stages were archived privately before
+removal.
 
 The two embedded Goose migrations applied successfully and a second application
 was a no-op. Re-running the real role bootstrap succeeded with the same files.
