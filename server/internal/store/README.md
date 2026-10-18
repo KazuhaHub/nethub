@@ -39,3 +39,10 @@ store policy, not a claim that tenant RLS protects against compromised web SQL.
 SAML/OIDC HTTP flows, persistent SAML replay storage, password/session handlers,
 Compose product startup, init/doctor, and the browser UI remain unimplemented.
 Passing these database checks does not complete W3 or provide a working login.
+
+The tenant-bound AuthStore now supplies the local password/session service.
+Login rechecks the verified password and active user under a user-row lock.
+Session lookup locks user then session in separate statements before checking
+current-time expiry; a single UPDATE can evaluate expiry before a blocking lock
+wait. Actual PostgreSQL regressions cover both user-row and session-row waits.
+Every lookup reloads role/disable state; logout deletes the persisted session.

@@ -39,3 +39,18 @@ accepted as a passing database check.
 This validates the database foundation, not W3 completion. The browser/API auth,
 initial admin CLI, deployed secret preparation, full Compose startup, and SAML/OIDC
 login still require implementation and their own acceptance checks.
+# Local authentication follow-up (2026-10-18)
+
+The isolated PostgreSQL suite now includes local password login, normalized email,
+generic unknown/wrong/disabled credential failure, persisted bearer/CSRF digests,
+tenant isolation, current role state, immediate disabled-account rejection,
+password changes and disable during verification, idle/absolute expiry, and
+logout of an active session. The authz role still cannot read console credentials.
+
+A new regression initially failed: a session that expired during a user-row lock
+wait was accepted by a single UPDATE with a materialized actor CTE, even with
+clock_timestamp() predicates. The implementation now obtains user then session
+locks in separate statements and checks expiry afterward. Both lock-wait cases
+pass on genuine PostgreSQL 16. The final local run passed all eleven boundary
+groups in 1.99 seconds. Private logs retain the failed and corrected attempts.
+HTTP endpoints, browser acceptance, and complete Compose startup remain open.
