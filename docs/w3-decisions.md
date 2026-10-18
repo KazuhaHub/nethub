@@ -134,7 +134,9 @@ repository protection-plan limitation and public disclosure decisions remain W7 
 
 ## Development readiness observed on 2026-10-18
 
-W2 merged as `43f9307`; packaging boot repair merged as `fcaf6fe`. The isolated
+W2 merged as `43f9307`; packaging boot repair merged as `fcaf6fe`. The subsequent
+W2 timing audit retained disconnect-cleanup/login/registration UTC events and
+reverified cleanup; see the native integration report. The isolated
 server already has a working Docker daemon (29.2.1) and Compose (5.1.0), four
 logical CPUs, 4 GiB RAM, and about 8 GiB free disk at observation time. Existing
 services were left running; no database or product stack was started. These are

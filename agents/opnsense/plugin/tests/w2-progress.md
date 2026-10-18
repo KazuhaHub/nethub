@@ -116,3 +116,27 @@ Selected native harness results (deployment identifiers omitted):
   }
 }
 ```
+
+WAN timing follow-up completed after the acceptance-record audit:
+
+| Event | UTC timestamp |
+|---|---|
+| Kernel address change command completed | 2026-10-18 12:55:38.169 |
+| Relay logged old control cleanup completion | 2026-10-18 12:55:49.598 |
+| Device logged successful login | 2026-10-18 12:55:49.626 |
+| Device logged successful proxy registration | 2026-10-18 12:55:49.637 |
+
+The PID remained unchanged, the control socket used the new source address, and
+the relayed login page recovered without manual reconcile. The relayed login-page check
+completed within 17.110s of the harness start, which preceded the address change;
+this is a conservative observation window, not packet-level downtime. The earlier
+21.375s GUI observation has the same harness-start interpretation. UTC timestamps
+come from separate host logs; submillisecond cross-host accuracy is not claimed.
+The relay event marks completion of old control cleanup, rather than the first
+lost packet, as defined by the [upstream control worker](https://github.com/fatedier/frp/blob/v0.71.1/server/control.go).
+
+After this targeted follow-up, original model subtrees and legacy files were
+verified restored again. All test services remained stopped, the temporary CA and
+live configuration were absent, test relay listeners were closed, and original
+relay listeners remained active. The previous and follow-up private archives
+were retained separately.
