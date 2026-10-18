@@ -63,6 +63,20 @@ class WatchdogTests(unittest.TestCase):
         self.assertEqual(self.agent.apply('reconcile')['action'], 'quarantined')
         self.assertEqual(self.fixture.mutations(), ['onestart'])
 
+    def test_attempt_budget_is_persisted_before_one_time_start_override(self):
+        observed = []
+        def inspect_start(args, **kwargs):
+            if str(args[-1]) == 'onestart':
+                record = json.loads(self.watchdog.journal.read_text())
+                self.assertTrue(record['attempted'])
+                self.assertTrue(record['abandoned'])
+                self.assertEqual(kwargs['env']['NETHUB_WATCHDOG_RECOVERY_ONCE'], '1')
+                observed.append(True)
+            return self.fixture.command(args, **kwargs)
+        self.watchdog.runner = inspect_start
+        self.assertTrue(self.watchdog.apply()['success'])
+        self.assertEqual(observed, [True])
+
     def test_no_backup_abandons_without_restart(self):
         self.agent.backup.unlink()
         self.assertEqual(self.watchdog.apply()['action'], 'no_last_good')

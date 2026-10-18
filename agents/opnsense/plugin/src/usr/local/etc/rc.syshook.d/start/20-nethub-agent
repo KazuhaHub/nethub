@@ -1,2 +1,6 @@
 #!/bin/sh
+umask 077
+install -d -m 0700 /var/db/nethub-agent /var/log/nethub-agent
+touch /var/log/nethub-agent/scheduler.log
+chmod 0600 /var/log/nethub-agent/scheduler.log
 /usr/bin/lockf -sk -t 0 /var/db/nethub-agent/reconcile.lock /usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/agentctl.py --locked reconcile >> /var/log/nethub-agent/scheduler.log 2>&1 &

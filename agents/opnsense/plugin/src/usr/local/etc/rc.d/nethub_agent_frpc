@@ -23,6 +23,18 @@ nethub_agent_prestart()
     [ ! -e /var/db/nethub-agent/stopped ] || return 1
     [ ! -e /var/db/nethub-agent/revoked ] || return 1
     [ ! -e /var/db/nethub-agent/uninstalling ] || return 1
+    if [ -e /var/db/nethub-agent/recovery.json ] && [ "${NETHUB_WATCHDOG_RECOVERY_ONCE:-0}" != 1 ]; then
+        /usr/local/bin/python3.13 -c '
+import json, re, sys
+with open("/var/db/nethub-agent/recovery.json") as source:
+    state = json.load(source)
+valid = (isinstance(state, dict) and state.get("version") == 1
+         and isinstance(state.get("rejected_sha256"), str)
+         and re.fullmatch("[a-f0-9]{64}", state["rejected_sha256"])
+         and state.get("attempted") is True and state.get("abandoned") is False)
+sys.exit(0 if valid else 1)
+' >/dev/null 2>&1 || return 1
+    fi
     install -d -m 0700 /var/log/nethub-agent
     touch /var/log/nethub-agent/frpc.log
     chmod 0600 /var/log/nethub-agent/frpc.log "$required_files"

@@ -20,11 +20,12 @@ class Watchdog:
         self.config = root / 'usr/local/etc/nethub-agent'
         self.journal = self.state / 'recovery.json'
 
-    def run(self, args):
-        return self.runner([str(value) for value in args], capture_output=True, text=True, timeout=30)
+    def run(self, args, **kwargs):
+        return self.runner([str(value) for value in args], capture_output=True, text=True, timeout=30, **kwargs)
 
-    def service(self, verb):
-        return self.run(['/usr/sbin/service', 'nethub_agent_frpc', verb])
+    def service(self, verb, recovery=False):
+        options = {'env': dict(os.environ, NETHUB_WATCHDOG_RECOVERY_ONCE='1')} if recovery else {}
+        return self.run(['/usr/sbin/service', 'nethub_agent_frpc', verb], **options)
 
     def atomic(self, path, content):
         descriptor, name = tempfile.mkstemp(prefix='.watchdog-', dir=path.parent)
@@ -87,7 +88,7 @@ class Watchdog:
         rc = self.root / 'etc/rc.conf.d'
         rc.mkdir(parents=True, exist_ok=True)
         self.atomic(rc / 'nethub_agent_frpc', b'nethub_agent_frpc_enable="YES"\n')
-        started = self.service('onestart').returncode == 0
+        started = self.service('onestart', recovery=True).returncode == 0
         running = started and self.service('onestatus').returncode == 0
         record['abandoned'] = not running
         self.save(record)

@@ -38,10 +38,38 @@ Further native evidence from 2026-10-18:
   the live file or PID. Candidate/live permissions were 0600. Restoring the
   template produced an unchanged result. The kill switch stopped the process
   without changing config.xml; removing it allowed service start.
-- Eight watchdog branch tests passed natively, including the actual FreeBSD lockf
+- Nine watchdog branch tests passed natively, including the actual FreeBSD lockf
   contention check, one-attempt persistence, quarantine release, abandoned-service
   suppression, and local revocation suppression. The package scheduler shape tests
-  passed locally. Full cron lifecycle testing is still outstanding.
+  passed locally. The rc startup guard also rejects abandoned or malformed recovery
+  state; only the watchdog's budgeted attempt supplies a one-time start override.
+
+Cron lifecycle evidence:
+
+- The cron file was listed by pkg and installed as a package-owned file. A fresh
+  reinstall produced scheduled output after 3.558 seconds without changing the
+  cron master PID. The scheduler log was mode 0600.
+- Uninstall stopped an actual running NetHub frpc, removed the cron file, and
+  retained model settings. No scheduled output appeared during the following
+  65-second observation. Reinstall restored scheduling.
+- The first reboot exposed a missing scheduler log directory: the cron entry
+  persisted but redirection failed before Python ran. The boot hook now recreates
+  protected logging paths before redirecting output. A second native reboot
+  verified the cron file persisted and subsequent scheduled output appeared during
+  a 7.016-second observation. The operator stop marker remained effective.
+- The stock SSH host key and password authentication passed after reboot. The
+  private observation helper switched to password authentication because its
+  runtime-added public key did not authenticate after boot; no SSH settings were
+  changed by the plugin or this workaround.
+
+The os-frp baseline has a separate boot defect: OPNsense rc.freebsd sources every
+file under rc.conf.d, and this guest's frpc.sample is read after the live frpc
+fragment, overriding YES with NO. The server started, but the client did not.
+Both live TOML files and both rc fragments retained their baseline hashes. A
+manual start restored the baseline tunnel without changing those hashes. This
+does not prove legacy-plugin automatic startup; do not attribute that failure to
+NetHub or claim it passed. No packaging-repository changes for this defect are
+included in this PR.
 
 Kazuha confirmed W2-7 cron scheduling with shared lockf, package ownership,
 persistent rejected hashes/attempt budgets, and revoked-device suppression.
@@ -50,6 +78,6 @@ was explicitly stopped. Test configuration and the CA certificate remain on the
 guest for the next bounded test window. CA private keys remain on the workstation,
 outside the relay container.
 
-Outstanding: cron install/reboot/uninstall execution, live os-frp tunnel
-coexistence, complete native lifecycle behavior, and measured WAN-address recovery
+Outstanding: simultaneous live os-frp/NetHub tunnel coexistence, NetHub automatic
+tunnel recovery after reboot, complete relayed GUI behavior, and measured WAN-address recovery
 under D21. The temporary debug form must be removed or made read-only in W4.
