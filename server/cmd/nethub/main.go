@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"io"
 	"os"
+	"time"
+
+	"github.com/KazuhaHub/nethub/server/internal/store"
 )
 
 var version = "dev"
@@ -19,7 +24,7 @@ Commands:
   admin        Manage the initial administrator
   version      Print the build version
 
-Service and deployment commands are not implemented in this foundation build.
+Only migrations and help/version are implemented in this build.
 `
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -38,7 +43,33 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		fmt.Fprintln(stdout, "nethub", version)
 		return 0
-	case "web", "authz", "migrate", "init", "doctor", "admin":
+	case "migrate":
+		flags := flag.NewFlagSet("migrate", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		host := flags.String("host", "postgres", "Database hostname")
+		port := flags.Uint("port", 5432, "Database port")
+		database := flags.String("database", "nethub", "Database name")
+		passwordFile := flags.String("password-file", "", "Owner password file")
+		tls := flags.String("sslmode", "verify-full", "verify-full, or disable for an isolated local database")
+		if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 || *port == 0 || *port > 65535 || *passwordFile == "" {
+			fmt.Fprintln(stderr, "migrate requires a password file and valid database settings")
+			return 2
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		db, err := store.OpenRole(ctx, store.DatabaseConfig{Host: *host, Port: uint16(*port), Database: *database, PasswordFile: *passwordFile, SSLMode: *tls}, "nethub_owner")
+		if err != nil {
+			fmt.Fprintln(stderr, "Migration database connection failed; check settings and the owner password file")
+			return 1
+		}
+		defer db.Close()
+		if err := store.Migrate(ctx, db); err != nil {
+			fmt.Fprintln(stderr, "Database migration failed; check role permissions and migration state")
+			return 1
+		}
+		fmt.Fprintln(stdout, "Database migrations applied")
+		return 0
+	case "web", "authz", "init", "doctor", "admin":
 		fmt.Fprintf(stderr, "%s is not implemented in this foundation build\n", args[0])
 		return 1
 	default:

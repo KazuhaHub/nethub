@@ -1147,16 +1147,12 @@ go mod init github.com/KazuhaHub/nethub/server
   1. 创建四个角色 `nethub_owner`、`nethub_web`、`nethub_authz`、`nethub_backup`，密码从各自的密钥文件读；
   2. `CREATE DATABASE nethub OWNER nethub_owner;`。Postgres 15 起，普通角色默认不能在 `public` schema 里建表，所以要让 `nethub_owner` 当库的属主；
   3. 按 DESIGN §6 和【D11】的结论设置各角色属性（谁有 `BYPASSRLS` 等）。
-- 密码不要拼进命令行。用 `psql -v` 传变量、SQL 从标准输入进去，`psql` 才会替换 `:'变量名'`：
-
-  ```sh
-  #!/bin/sh
-  set -eu
-  web_pw="$(cat /run/secrets/pg_nethub_web)"
-  psql -v ON_ERROR_STOP=1 -v web_pw="$web_pw" --username "$POSTGRES_USER" <<'SQL'
-  CREATE ROLE nethub_web LOGIN PASSWORD :'web_pw';
-  SQL
-  ```
+- Passwords must never appear in argv or generated SQL text. The initialization
+  hook reads service-specific mounted files with PostgreSQL pg_read_file inside
+  a privileged bootstrap block. Disable statement/error-statement logging for
+  that session, validate generated hex secrets, and never print them. PostgreSQL
+  owns the mounted files before dropping root privileges. The earlier psql -v
+  password example is superseded by the confirmed D11 input/file requirement.
 
 - **这个目录里的脚本只在数据卷为空、第一次初始化时运行。** 改了脚本要重新测，就先删掉开发库的数据卷。
 - 这样做，Postgres 容器在初始化时要拿到全部四个角色的密码，和决策 #21"每个容器只拿自己的密钥"有出入，列在【D11】里请 Kazuha 确认。

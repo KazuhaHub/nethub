@@ -11,7 +11,8 @@ the reasoning.
 > **Status:** W3 foundation work has started after native W2 acceptance. The Go
 > module directly imports authcore/saml v0.6.1; the SAML adapter delegates protocol
 > processing and enforces console policy. The CLI currently provides help/version
-> and explicitly fails unimplemented service commands. Database, HTTP endpoints,
+> and explicitly fails unimplemented service commands. Database bootstrap,
+> migrations, and a scoped device store are under validation. HTTP endpoints,
 > the console, enrollment, and complete SSO login are not implemented yet.
 
 ## Technology stack
@@ -426,3 +427,7 @@ SAML callback routes and persistent replay storage are W6 work. The current
 adapter is a foundation, not a working SAML login feature.
 
 Run `GOWORK=off go test ./...`, `go vet ./...`, and `go mod verify` in this directory.
+
+Database development and genuine PostgreSQL boundary tests are documented in
+[the store README](internal/store/README.md). The migrate command is implemented;
+web, authz, init, doctor, and admin remain future work.
