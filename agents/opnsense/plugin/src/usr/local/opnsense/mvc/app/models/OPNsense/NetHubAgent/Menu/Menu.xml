@@ -2,4 +2,4 @@
     <Services>
         <NetHubAgent VisibleName="NetHub Agent" order="65" url="/ui/nethubagent/" />
     </Services>
-</menu>
+</broken-menu>
