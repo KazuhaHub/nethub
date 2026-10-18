@@ -859,6 +859,17 @@ Share only the companion `*.sanitized.csv`, which excludes both addresses.
 Labels A/B/C are enough; retain which distinct external networks they represent
 in the private test record.
 
+On macOS, use the POSIX sampler with the built-in curl, awk, and date tools;
+no Python installation is needed to collect the sample:
+
+```sh
+sh weekend0/sample-network.sh weekend0-test.router.example.com A
+```
+
+It writes the same raw and sanitized CSV formats under
+`$HOME/nethub-w0-results` by default. Keep the raw file private. Run one network
+at a time while its relay test window is open; use B/C for subsequent networks.
+
 ```console
 python weekend0/network_summary.py path/to/A.sanitized.csv
 ```
