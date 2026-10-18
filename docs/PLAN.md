@@ -183,7 +183,7 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 | D7 | 设备登录页会暴露在公网上，要不要用 `NewUserConn` 做"点了打开才放行"的门禁；放行窗口要不要随访问顺延（DESIGN §14 Q7） | W0 第 ⑤ 项结果出来后、W5 之前 | W5 | 钩子可用就在 v1 做（DESIGN） | Confirmed 2026-10-18: v1 source-IP gating; authenticated Open grants 30 minutes, another explicit Open renews; traffic never extends the window. |
 | D8 | v1 功能清单的最终确认（DESIGN §1、§6） | W3 开始前 | W3 | 按 DESIGN v0.3 | 待定 |
 | D9 | 控制台用哪个 React 组件库（DESIGN §14 Q8）。你先在 W3-0 做 2–3 个示例给他挑 | W3-0 做完后 | W3 | 无，看示例再定 | Confirmed: shadcn/ui with native dialog (2026-10-17) |
-| D10 | 插件源码在 `agents/opnsense/plugin/` 里的目录结构；以及正式发布时，打包仓库怎样从 NetHub 的 release 构建这个插件（打包仓库按 `plugins.json` 的记录逐文件核对，具体怎么接还没定） | W1 开始前 | W1、W7 | 结构参照 `os-easytier` 的布局（本计划建议）；发布方式由 Kazuha 定 | 待定 |
+| D10 | 插件源码在 `agents/opnsense/plugin/` 里的目录结构；以及正式发布时，打包仓库怎样从 NetHub 的 release 构建这个插件（打包仓库按 `plugins.json` 的记录逐文件核对，具体怎么接还没定） | W1 开始前 | W1、W7 | 结构参照 `os-easytier` 的布局（本计划建议）；发布方式由 Kazuha 定 | Confirmed 2026-10-18: src/, packaging/freebsd/, build.sh, tests under agents/opnsense/plugin; unsigned development packaging now, release integration deferred. |
 | D11 | DESIGN v0.3 里标「建议」的设计点逐条确认，重点是 §6：web/authz 进程拆分和列级授权、`nethub_backup` 角色、删掉 `frp_token_hash`、一次性撤销。另外还有几处 DESIGN §6 没写到、需要补表或补权限的地方：W5 的"立即断"请求、Q7 门禁的 IP 登记、Postgres 初始化时容器要拿到全部角色密码（和决策 #21"每个容器只拿自己的密钥"有出入）、邀请有效期（本计划暂按 72 小时）和"邀请限定身份提供方"是否要做 | W3 写数据库迁移之前 | W3、W4、W5、W6 | 按 DESIGN v0.3 | 待定 |
 | D12 | `docs/DESIGN.md` 公开之前要不要删改敏感内容：第三方名字、本地路径、针对签名主机的攻击路径描述；本计划 `docs/PLAN.md` 要不要放进公开仓库 | 仓库公开之前 | W7 | 公开前删改；PLAN.md 不公开（本计划建议） | 待定 |
 | D13 | 插件的正式包（签名后发布到软件源）由谁构建和发布 | 第一次给别人装插件之前 | W4 以后 | Kazuha 做；你只做未签名的开发包（本计划建议） | 待定 |
@@ -193,7 +193,7 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 | D17 | OPNsense 自己的 DNS 重绑定 / HTTP_REFERER 检查会不会拦下经中继的访问；会拦的话怎么处理（DESIGN §14 Q9） | W0 第 ① 项结果出来后、W4 之前 | W4、W5 | 先实测；会拦就让用户手动加 Alternate Hostnames，并在 enroll 页面提示（DESIGN） | Confirmed 2026-10-18: manually add the exact Alternate Hostnames entry; preserve both security checks and explain the step during enrollment. |
 | D18 | 控制台用哪个域名：泛域名的根（例如 `router.example.com`）还是它下面的某个子域名。如果在泛域名下面，这个前缀必须保留、永远不分给设备 | W3-8 之前 | W3、W4 | 无，Kazuha 定 | 待定 |
 | D19 | 路由器上的插件怎么知道控制台地址：enroll 页面多一个"控制台地址"输入框，还是把地址编进 enroll token 里 | W4-1 之前（协议里要写清楚） | W4 | 无，Kazuha 定 | 待定 |
-| D20 | 打包仓库里的现有插件文件能不能直接复制进 NetHub。打包仓库的根许可证是 MIT，而且有其他版权人；NetHub 要保持单一版权的 Apache-2.0（DESIGN §2） | W1 开始前 | W1、W2 | 只当结构参考、自己重写；确实要复制某个文件前，先问 Kazuha 那个文件是谁写的（本计划建议） | 待定 |
+| D20 | 打包仓库里的现有插件文件能不能直接复制进 NetHub。打包仓库的根许可证是 MIT，而且有其他版权人；NetHub 要保持单一版权的 Apache-2.0（DESIGN §2） | W1 开始前 | W1、W2 | 只当结构参考、自己重写；确实要复制某个文件前，先问 Kazuha 那个文件是谁写的（本计划建议） | Confirmed 2026-10-18: independently write NetHub files; reference structure only, no third-party copying. Omit kazuha.sh mirror. |
 | D21 | 要不要注册 `newwanip` 钩子：DESIGN 决策 #17 要求注册（带防抖），但打包仓库的 `os-frp` 故意不注册，理由是 frpc 自己会重连，WAN 地址变化时重启反而会断掉正常的隧道 | W2-6 之前 | W2 | 无，Kazuha 定（看 `os-frp` 的 `frp.inc` 里那段注释） | 待定 |
 | D22 | 设备到中继 7000 端口的控制通道怎么做服务端认证（DESIGN §14 Q10）：frpc 不配 CA 时根本不校验 frps 的证书，路径上的中间人能截下 domain claim | W2-3 写模板之前定方向，W4 enroll 之前定细节 | W2、W4 | `nethub init` 生成部署 CA、给 frps 签长期证书 + enroll 响应下发 CA 证书（PEM）+ 模板写 `transport.tls.trustedCaFile`（DESIGN Q10） | 待定 |
 
@@ -833,12 +833,12 @@ ssh root@<测试机地址> 'pkg delete -y os-nethub-agent'
 
 ### 验收（对应 DESIGN §10 W1）
 
-- [ ] 在测试机上 `pkg add` 后，Services 下出现 NetHub Agent 菜单（截图）
-- [ ] 勾选"启用"保存后，`grep -A 3 "<NetHubAgent" /conf/config.xml` 能看到 `enabled` 为 1（贴输出）
-- [ ] `+POST_INSTALL` 的每一步都核对过（贴安装时的输出）；卸载后再装一次也正常
-- [ ] `pkg delete` 之后菜单消失（刷新页面确认），`config.xml` 里的设置还在
-- [ ] 测试机的 OPNsense 版本 ≥ 26.7.1_1（贴 `opnsense-version` 的输出；DESIGN §10 W1 ③）
-- [ ] CI 里的插件静态检查是绿的，并且故意弄坏一个 XML 时会变红
+- [x] 在测试机上 `pkg add` 后，Services 下出现 NetHub Agent 菜单（截图）
+- [x] 勾选"启用"保存后，`grep -A 3 "<NetHubAgent" /conf/config.xml` 能看到 `enabled` 为 1（贴输出）
+- [x] `+POST_INSTALL` 的每一步都核对过（贴安装时的输出）；卸载后再装一次也正常
+- [x] `pkg delete` 之后菜单消失（刷新页面确认），`config.xml` 里的设置还在
+- [x] 测试机的 OPNsense 版本 ≥ 26.7.1_1（贴 `opnsense-version` 的输出；DESIGN §10 W1 ③）
+- [x] CI 里的插件静态检查是绿的，并且故意弄坏一个 XML 时会变红
 
 ### 常见坑
 
@@ -2030,3 +2030,20 @@ W0 acceptance (2026-10-18): Kazuha accepted the six measured experiments and
 recorded limits, confirmed D5/D6/D7/D17, and authorized the DESIGN update and
 progression through the W1 gates. See [accepted results](../weekend0/results-2026-10-17.md).
 No product code exists yet; D10/D20 and package metadata remain W1 decisions.
+
+
+W1 decisions (2026-10-18): Kazuha confirmed D10/D20, independent source and
+standalone unsigned development packaging, without kazuha.sh mirror. Release
+recipe integration remains deferred. Public product_email is admin@kazuha.org
+(the owner input used a full-width dot, normalized to an ASCII dot); product_website
+is https://github.com/KazuhaHub/nethub. A clean powered-off Hyper-V checkpoint
+was created before installing the development plugin. Implementation is in progress.
+
+
+W1 validation (2026-10-18): the unsigned development skeleton passed native build,
+installation, enabled save, uninstall with retained settings, and reinstall on
+OPNsense 26.7.7. Firmware registration cleanup was fixed and retested. See
+[the evidence](../agents/opnsense/plugin/tests/native-validation.md). The plugin
+remains installed for W2 and starts no tunnel. D4/D21/D22 and the pinned-download
+choice remain pending before their respective W2 steps. Test access was simplified
+at the owner's request; credentials remain outside Git.

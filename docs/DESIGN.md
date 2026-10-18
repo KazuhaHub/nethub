@@ -3,7 +3,7 @@
 > 设计方案 v0.3（草案，2026-10-16）。v0.2 基于一轮调研与两轮对抗评审（15 条完整性评审 + 8 个红队灾难场景；
 > §13 已把这 8 个扩展为 12 个，v0.3 再补 2 个，现为 14 个），并按「全部开源、个人与企业均可自行搭建」的前提重写。
 > v0.3 纳入用户在 2026-09-17 会话里做出的决定（服务端改 Go、React 控制台、v1 多用户 + OIDC 等），
-> 并修正 v0.2 的若干事实错误与自相矛盾之处，逐条见 §0。**目前没有任何代码；下文描述的全部是设计，不是现状。**
+> 并修正 v0.2 的若干事实错误与自相矛盾之处，逐条见 §0。**Implementation status (2026-10-18): W1 settings skeleton is natively validated; enrollment, frpc integration, and the control plane remain planned.**
 >
 > 仓库 `github.com/KazuhaHub/nethub` · 许可证 Apache-2.0 · 贡献协议 DCO（不用 CLA）
 >
@@ -880,10 +880,10 @@ v0.2 的计划是 7 个周末（W0–W6 + 0.5 缓冲）。v0.3 的范围更大�
 
 ### Weekend 1 — 插件骨架
 
-`packaging/plugins.json` 加 entry；`Settings.xml` + ACL + Menu + 空 `index.volt`。
+W1 now has the independent plugin model, ACL, menu, settings page, lifecycle hooks, and unsigned development build. Native install/save/uninstall/reinstall passed; see [validation](../agents/opnsense/plugin/tests/native-validation.md). Packaging-repository entry and release integration remain deferred under D10; no packaging repository was changed.
 
 **验收：** ①`pkg install` 到测试路由器，Services 下出现菜单，能存 `Enabled` 并在 config.xml 看到字段；
-②逐条核对 `+POST_INSTALL` 四步（`template reload` / `run_migrations.php` / ACL·菜单缓存 / `configd restart`）；
+②verify registration, model migration, ACL/menu cache invalidation, and configd restart. Template reload starts in W2 when a template exists. Uninstall unregisters package restore intent while preserving settings;
 ③确认测试机运行 OPNsense **26.7.1_1 或更新**：26.7 已知的 WAN 默认路由丢失 regression
 （opnsense/core#10597，静态 WAN 网关 + gateway monitoring 开启时重启后默认路由可能不装载）已在 26.7.1_1 热修复（2026-07-23）。
 "重启后失联，先查默认路由和 gateway monitoring"作为通用建议保留在 runbook 里。
@@ -1182,7 +1182,7 @@ CA 私钥只进部署者的密钥备份、不挂进任何容器（决策 #21 新
   尚未实际跑过。
 - **v0.2 决策 #5 的前提是错的**（"没有自写 Go"），v0.3 已更正。
 - §6 的 DDL 与授权语句是示意，迁移落地时定稿。
-- 仍然没有任何代码；本文所有"会 / 将 / 设计为"都是计划，不是现状。
+- W1 settings/package scaffolding is implemented and natively validated. Later-stage descriptions remain plans; see component READMEs for implementation status.
 
 ---
 

@@ -4,12 +4,10 @@ Thanks for your interest in NetHub. This document covers how contributions are
 licensed, how the repository is organized and how it relates to the separate
 packaging repository, and the conventions we expect from pull requests.
 
-NetHub is **pre-alpha**, at the design stage. There is no released version,
-and **no code exists yet**: the repository holds documentation and the
-Weekend 0 kit (`weekend0/`). `docs/DESIGN.md` (v0.3, written in Chinese)
-describes the planned design. If you are looking for a project to `git clone`
-and run today, this is not it yet — see [Development setup](#development-setup)
-below for the honest current state.
+NetHub is **pre-alpha**, with accepted W0 measurements and a validated W1
+OPNsense settings skeleton. There is no released version or complete deployment;
+enrollment, tunnels, and the control plane remain unimplemented. The design and
+stage-specific READMEs distinguish verified behavior from planned features.
 
 ## Table of contents
 

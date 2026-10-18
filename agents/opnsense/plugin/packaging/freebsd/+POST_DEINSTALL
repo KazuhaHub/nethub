@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+/usr/local/opnsense/scripts/firmware/register.php remove os-nethub-agent
+rm -f /var/lib/php/tmp/opnsense_menu_cache.xml /var/lib/php/tmp/opnsense_acl_cache.json
+service configd restart
+echo 'NetHub Agent removed. Saved settings are retained.'

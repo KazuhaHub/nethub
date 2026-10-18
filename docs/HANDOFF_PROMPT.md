@@ -15,10 +15,10 @@
 
 ### 当前状态（2026-10-18）
 
-- **No product code has been implemented.** The repository contains the design, W0 kit, and CI/preflight tooling. GitHub 仓库是 <https://github.com/KazuhaHub/nethub>，2026-10-17 建好，**私有**。第一次提交 `f529e1d` 和之后的状态更新都已推送到 `main`。`main` has CI and weekly Actions dependency updates after PR #1 merged as `6612cdb`; branch protection is still unavailable on the current private-repository plan. Kazuha 已确认先保持私有，到 W7 再决定公开（【D2】）。
+- **The W1 plugin skeleton is implemented and natively validated.** Enrollment, frpc integration, and the control plane remain unimplemented. GitHub 仓库是 <https://github.com/KazuhaHub/nethub>，2026-10-17 建好，**私有**。第一次提交 `f529e1d` 和之后的状态更新都已推送到 `main`。`main` has CI and weekly Actions dependency updates after PR #1 merged as `6612cdb`; branch protection is still unavailable on the current private-repository plan. Kazuha 已确认先保持私有，到 W7 再决定公开（【D2】）。
 - 设计方案是 `docs/DESIGN.md` v0.3（中文），它是架构上的权威。
   执行计划是 `docs/PLAN.md`（中文），它把设计拆成按顺序做的任务：P0、W0–W7，再加缓冲。
-- **W0 was accepted by Kazuha on 2026-10-18.** All six experiments are recorded in [the accepted report](../weekend0/results-2026-10-17.md), including the 1 GiB exception, A/B-only network scope, and backend-hang findings. D5/D6/D7/D17 are confirmed; D10/D20 and package metadata remain W1 gates. No product code exists yet.
+- **W0 was accepted by Kazuha on 2026-10-18.** All six experiments are recorded in [the accepted report](../weekend0/results-2026-10-17.md), including the 1 GiB exception, A/B-only network scope, and backend-hang findings. D5/D6/D7/D17 are confirmed; D10/D20 and package metadata were confirmed; W1 native validation is recorded in the plugin tests directory.
 - P0-4/P0-5: [PR #1](https://github.com/KazuhaHub/nethub/pull/1) merged with Kazuha's approval on 2026-10-17. PR pass/fail/pass evidence is linked there; the [main run](https://github.com/KazuhaHub/nethub/actions/runs/39026266818) also passed. The CLI workflow scope issue is resolved.
 - P0-6 受平台限制：查询 `main` 生效规则时，GitHub API 返回 403，提示当前私有仓库需升级套餐或公开才能启用。保持私有，不更改可见性；分支保护尚未完成。
 - W3-0: three UI samples, light/dark screenshots, bundle measurements, and strict-CSP interaction tests are complete. See [the comparison](ui-study/README.md). Default integrations all inject blocked styles; the shadcn/native-dialog adaptation passed the tested flows without CSP events. Kazuha confirmed shadcn/ui with native dialog for D9 on 2026-10-17. Sample source stays outside the product repository; product integration waits for W3.
@@ -186,3 +186,20 @@ W0 acceptance (2026-10-18): Kazuha accepted the six measured experiments and
 recorded limits, confirmed D5/D6/D7/D17, and authorized the DESIGN update and
 progression through the W1 gates. See [accepted results](../weekend0/results-2026-10-17.md).
 No product code exists yet; D10/D20 and package metadata remain W1 decisions.
+
+
+W1 decisions (2026-10-18): Kazuha confirmed D10/D20, independent source and
+standalone unsigned development packaging, without kazuha.sh mirror. Release
+recipe integration remains deferred. Public product_email is admin@kazuha.org
+(the owner input used a full-width dot, normalized to an ASCII dot); product_website
+is https://github.com/KazuhaHub/nethub. A clean powered-off Hyper-V checkpoint
+was created before installing the development plugin. Implementation is in progress.
+
+
+W1 validation (2026-10-18): the unsigned development skeleton passed native build,
+installation, enabled save, uninstall with retained settings, and reinstall on
+OPNsense 26.7.7. Firmware registration cleanup was fixed and retested. See
+[the evidence](../agents/opnsense/plugin/tests/native-validation.md). The plugin
+remains installed for W2 and starts no tunnel. D4/D21/D22 and the pinned-download
+choice remain pending before their respective W2 steps. Test access was simplified
+at the owner's request; credentials remain outside Git.

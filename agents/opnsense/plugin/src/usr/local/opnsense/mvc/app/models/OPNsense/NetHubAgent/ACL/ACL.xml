@@ -1,0 +1,9 @@
+<acl>
+    <page-services-nethubagent>
+        <name>Services: NetHub Agent</name>
+        <patterns>
+            <pattern>ui/nethubagent/*</pattern>
+            <pattern>api/nethubagent/*</pattern>
+        </patterns>
+    </page-services-nethubagent>
+</acl>

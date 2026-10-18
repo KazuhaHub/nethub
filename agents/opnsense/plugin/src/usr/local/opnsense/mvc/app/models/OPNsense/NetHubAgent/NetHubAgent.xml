@@ -1,0 +1,47 @@
+<model>
+    <mount>//OPNsense/NetHubAgent</mount>
+    <version>0.0.1</version>
+    <description>NetHub Agent settings</description>
+    <items>
+        <enabled type="BooleanField">
+            <Default>0</Default>
+            <Required>Y</Required>
+        </enabled>
+        <server_addr type="TextField">
+            <Required>N</Required>
+            <mask>/^[A-Za-z0-9][A-Za-z0-9.:-]{0,252}$/D</mask>
+            <ValidationMessage>Enter a relay hostname or IP address without spaces.</ValidationMessage>
+        </server_addr>
+        <server_port type="IntegerField">
+            <Default>7000</Default>
+            <MinimumValue>1</MinimumValue>
+            <MaximumValue>65535</MaximumValue>
+            <Required>Y</Required>
+        </server_port>
+        <subdomain type="TextField">
+            <Required>N</Required>
+            <mask>/^[a-z0-9-]{1,63}$/D</mask>
+            <ValidationMessage>Use up to 63 lowercase letters, digits, or hyphens.</ValidationMessage>
+        </subdomain>
+        <device_id type="TextField">
+            <Required>N</Required>
+            <mask>/^[A-Za-z0-9_-]{1,128}$/D</mask>
+        </device_id>
+        <device_secret type="TextField">
+            <Required>N</Required>
+            <mask>/^[A-Za-z0-9_+=\/-]{1,512}$/D</mask>
+        </device_secret>
+        <frp_token type="TextField">
+            <Required>N</Required>
+            <mask>/^[A-Za-z0-9_+=\/-]{1,512}$/D</mask>
+        </frp_token>
+        <domain_claim type="TextField">
+            <Required>N</Required>
+            <mask>/^[A-Za-z0-9_.+=\/-]{1,4096}$/D</mask>
+        </domain_claim>
+        <cluster_hint type="BooleanField">
+            <Default>0</Default>
+            <Required>Y</Required>
+        </cluster_hint>
+    </items>
+</model>

@@ -1,0 +1,13 @@
+{
+    "name": "os-nethub-agent",
+    "origin": "net/os-nethub-agent",
+    "version": "@VERSION@",
+    "comment": "NetHub Agent for OPNsense",
+    "maintainer": "admin@kazuha.org",
+    "www": "https://github.com/KazuhaHub/nethub",
+    "abi": "@ABI@",
+    "arch": "@ARCH@",
+    "prefix": "/usr/local",
+    "licenselogic": "single",
+    "licenses": ["Apache-2.0"]
+}
