@@ -149,12 +149,18 @@ implementation and keep local/CI/container builds aligned.
 
 ## SAML and shared-module implementation
 
-Import github.com/KazuhaHub/authcore/saml from the pinned v0.6.1 module. The tag
-was resolved to commit 3daf913e5f0afe2cd05cc3017d61fc8e0ce33033 and the Go module
+Import github.com/KazuhaHub/authcore/saml from the pinned v0.6.2 module. The tag
+was resolved to commit c5960e0d3e482fca92c8b3a736ea6aac9f2ffd70 and the Go module
 checksum was recorded. No authcore source is copied or vendored into NetHub.
 Matching authentication capabilities use the shared packages; a missing reusable
 primitive can be implemented and tested in authcore with a separate PR. Tenant,
 user, invitation, session, and device-authorization rules remain application code.
+
+The v0.6.2 capacity fix was implemented in authcore PR #30: memory replay records
+remain protected until expiry, and new assertions fail validation when the cache
+is full. Signed-response and concurrent-admission regressions passed alongside
+the complete Linux suite, race detector, vulnerability scan, and API check. NetHub
+still requires an explicit replay store; durable replay persistence remains W6.
 
 SAML integration is W6 work alongside OIDC, not a prerequisite for the W3 local
 password shell. Include provider configuration, metadata, SP-initiated requests,

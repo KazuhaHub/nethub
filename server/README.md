@@ -9,10 +9,10 @@ services on the device. That boundary is deliberate — see the top-level
 the reasoning.
 
 > **Status:** W3 foundation work has started after native W2 acceptance. The Go
-> module directly imports authcore/saml v0.6.1; the SAML adapter delegates protocol
+> module directly imports authcore/saml v0.6.2; the SAML adapter delegates protocol
 > processing and enforces console policy. The CLI currently provides help/version
-> and explicitly fails unimplemented service commands. Database bootstrap,
-> migrations, and a scoped device store are under validation. HTTP endpoints,
+> and migrate, and explicitly fails unimplemented service commands. Database bootstrap,
+> migrations, and a scoped device store passed isolated PostgreSQL validation. HTTP endpoints,
 > the console, enrollment, and complete SSO login are not implemented yet.
 
 ## Technology stack
