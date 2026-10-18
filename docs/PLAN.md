@@ -112,10 +112,10 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 - 设备用一次性 token 加入（enroll），自动分配一个随机子域名；
 - 路由器到中继保持一条长连接隧道，浏览器流量经中继原样转发到路由器，**中继不解密**；
 - 控制台能看到设备在线/离线状态；
-- 控制台支持多个用户（`admin` / `member` 两种角色，邀请制），可以用本地密码或 OIDC 单点登录（可以配多个身份提供方）；
+- 控制台支持多个用户（`admin` / `member` 两种角色，邀请制），可以用本地密码、OIDC 或 SAML 单点登录（可以配多个身份提供方）；
 - 可以撤销设备、本地有熔断开关。
 
-**v1 明确不做：** 读取或修改路由器配置（`config.xml`）、批量升级、监控指标、SAML（放到 v1.1）、OpenWrt/VyOS 支持。
+**v1 明确不做：** 读取或修改路由器配置（`config.xml`）、批量升级、监控指标、OpenWrt/VyOS 支持。
 
 ### 1.3 架构
 
@@ -181,17 +181,17 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 | D5 | 8443 端口在受限网络下不好用的话，要不要把浏览器入口也放到 443（DESIGN §14 Q2） | W0 第 ④ 项结果出来后 | W5、W7 | 按 Q2 的数据规则判断（DESIGN） | Confirmed 2026-10-18: retain 8443; measured A/B networks did not trigger Q2. |
 | D6 | 撤销设备时怎么断开它已在线的隧道（DESIGN §5 候选机制 1–4） | W0 第 ⑥ 项结果出来后、W5 之前 | W5 | 待 W0 数据（DESIGN） | Confirmed 2026-10-18: heartbeat 10s, timeout 30s; deny Ping/Login/NewProxy together. Accept backend-outage costs, stale admin status, and recovery instability; bound hook work internally. |
 | D7 | 设备登录页会暴露在公网上，要不要用 `NewUserConn` 做"点了打开才放行"的门禁；放行窗口要不要随访问顺延（DESIGN §14 Q7） | W0 第 ⑤ 项结果出来后、W5 之前 | W5 | 钩子可用就在 v1 做（DESIGN） | Confirmed 2026-10-18: v1 source-IP gating; authenticated Open grants 30 minutes, another explicit Open renews; traffic never extends the window. |
-| D8 | v1 功能清单的最终确认（DESIGN §1、§6） | W3 开始前 | W3 | 按 DESIGN v0.3 | 待定 |
+| D8 | v1 功能清单的最终确认（DESIGN §1、§6） | W3 开始前 | W3 | 按 DESIGN v0.3 | Confirmed 2026-10-18: approve v1 scope, including SAML via authcore/saml. |
 | D9 | 控制台用哪个 React 组件库（DESIGN §14 Q8）。你先在 W3-0 做 2–3 个示例给他挑 | W3-0 做完后 | W3 | 无，看示例再定 | Confirmed: shadcn/ui with native dialog (2026-10-17) |
 | D10 | 插件源码在 `agents/opnsense/plugin/` 里的目录结构；以及正式发布时，打包仓库怎样从 NetHub 的 release 构建这个插件（打包仓库按 `plugins.json` 的记录逐文件核对，具体怎么接还没定） | W1 开始前 | W1、W7 | 结构参照 `os-easytier` 的布局（本计划建议）；发布方式由 Kazuha 定 | Confirmed 2026-10-18: src/, packaging/freebsd/, build.sh, tests under agents/opnsense/plugin; unsigned development packaging now, release integration deferred. |
-| D11 | DESIGN v0.3 里标「建议」的设计点逐条确认，重点是 §6：web/authz 进程拆分和列级授权、`nethub_backup` 角色、删掉 `frp_token_hash`、一次性撤销。另外还有几处 DESIGN §6 没写到、需要补表或补权限的地方：W5 的"立即断"请求、Q7 门禁的 IP 登记、Postgres 初始化时容器要拿到全部角色密码（和决策 #21"每个容器只拿自己的密钥"有出入）、邀请有效期（本计划暂按 72 小时）和"邀请限定身份提供方"是否要做 | W3 写数据库迁移之前 | W3、W4、W5、W6 | 按 DESIGN v0.3 | 待定 |
+| D11 | DESIGN v0.3 里标「建议」的设计点逐条确认，重点是 §6：web/authz 进程拆分和列级授权、`nethub_backup` 角色、删掉 `frp_token_hash`、一次性撤销。另外还有几处 DESIGN §6 没写到、需要补表或补权限的地方：W5 的"立即断"请求、Q7 门禁的 IP 登记、Postgres 初始化时容器要拿到全部角色密码（和决策 #21"每个容器只拿自己的密钥"有出入）、邀请有效期（本计划暂按 72 小时）和"邀请限定身份提供方"是否要做 | W3 写数据库迁移之前 | W3、W4、W5、W6 | 按 DESIGN v0.3 | Confirmed 2026-10-18: use the process/data permissions and additions in w3-decisions.md; no per-device frp_token_hash, one-way revocation, scoped Open/cutoff records, backup role, bootstrap password exception, and invitation rules. |
 | D12 | `docs/DESIGN.md` 公开之前要不要删改敏感内容：第三方名字、本地路径、针对签名主机的攻击路径描述；本计划 `docs/PLAN.md` 要不要放进公开仓库 | 仓库公开之前 | W7 | 公开前删改；PLAN.md 不公开（本计划建议） | 待定 |
 | D13 | 插件的正式包（签名后发布到软件源）由谁构建和发布 | 第一次给别人装插件之前 | W4 以后 | Kazuha 做；你只做未签名的开发包（本计划建议） | 待定 |
 | D14 | DESIGN §14 的 Q1、Q3、Q4、Q5（mTLS、审计链锚定、离线签名机、CARP） | W7 之前 | W7 | 按 DESIGN 里的推荐 | 待定 |
-| D15 | 首个管理员账号的创建顺序：`nethub init` 在 `docker compose up` 之前运行，那时数据库还没起来，管理员在哪一步创建；如果按 W3-8 的建议，就要新增一个 `nethub admin create` 子命令 | W3-8 之前 | W3 | 见 W3-8（本计划建议） | 待定 |
-| D16 | 技术选型：数据库迁移工具、协议版本号规则、命令行写法、运行镜像等（W3、W4 里会逐个提出） | 对应任务开始前 | W3、W4 | 各任务里给出推荐（本计划建议） | 待定 |
+| D15 | 首个管理员账号的创建顺序：`nethub init` 在 `docker compose up` 之前运行，那时数据库还没起来，管理员在哪一步创建；如果按 W3-8 的建议，就要新增一个 `nethub admin create` 子命令 | W3-8 之前 | W3 | 见 W3-8（本计划建议） | Confirmed 2026-10-18: init, Compose/migrate, then one-shot admin create; never grant owner credentials to web. |
+| D16 | 技术选型：数据库迁移工具、协议版本号规则、命令行写法、运行镜像等（W3、W4 里会逐个提出） | 对应任务开始前 | W3、W4 | 各任务里给出推荐（本计划建议） | Confirmed for W3 on 2026-10-18: standard net/http, flag, slog, pgx/v5, goose/v3, nonroot static runtime; reuse matching authcore packages. W4 protocol rules remain pending. |
 | D17 | OPNsense 自己的 DNS 重绑定 / HTTP_REFERER 检查会不会拦下经中继的访问；会拦的话怎么处理（DESIGN §14 Q9） | W0 第 ① 项结果出来后、W4 之前 | W4、W5 | 先实测；会拦就让用户手动加 Alternate Hostnames，并在 enroll 页面提示（DESIGN） | Confirmed 2026-10-18: manually add the exact Alternate Hostnames entry; preserve both security checks and explain the step during enrollment. |
-| D18 | 控制台用哪个域名：泛域名的根（例如 `router.example.com`）还是它下面的某个子域名。如果在泛域名下面，这个前缀必须保留、永远不分给设备 | W3-8 之前 | W3、W4 | 无，Kazuha 定 | 待定 |
+| D18 | 控制台用哪个域名：泛域名的根（例如 `router.example.com`）还是它下面的某个子域名。如果在泛域名下面，这个前缀必须保留、永远不分给设备 | W3-8 之前 | W3、W4 | 无，Kazuha 定 | Confirmed 2026-10-18: separate console hostname and device wildcard, configured by the deployer. |
 | D19 | 路由器上的插件怎么知道控制台地址：enroll 页面多一个"控制台地址"输入框，还是把地址编进 enroll token 里 | W4-1 之前（协议里要写清楚） | W4 | 无，Kazuha 定 | 待定 |
 | D20 | 打包仓库里的现有插件文件能不能直接复制进 NetHub。打包仓库的根许可证是 MIT，而且有其他版权人；NetHub 要保持单一版权的 Apache-2.0（DESIGN §2） | W1 开始前 | W1、W2 | 只当结构参考、自己重写；确实要复制某个文件前，先问 Kazuha 那个文件是谁写的（本计划建议） | Confirmed 2026-10-18: independently write NetHub files; reference structure only, no third-party copying. Omit kazuha.sh mirror. |
 | D21 | 要不要注册 `newwanip` 钩子：DESIGN 决策 #17 要求注册（带防抖），但打包仓库的 `os-frp` 故意不注册，理由是 frpc 自己会重连，WAN 地址变化时重启反而会断掉正常的隧道 | W2-6 之前 | W2 | 无，Kazuha 定（看 `os-frp` 的 `frp.inc` 里那段注释） | Confirmed 2026-10-18: do not register newwanip; use frpc reconnect and periodic reconcile. W2 must measure recovery after a real WAN address change; if automatic recovery fails, switch to the debounced hook in DESIGN #17. |
@@ -1658,6 +1658,13 @@ Enroll 前提示用户：请确认你有**不依赖 NetHub** 的其他访问方�
    - 其他情况一律拒绝，提示信息不要透露具体原因。
 4. **不按邮箱自动绑定已有账号**，也不允许自助注册（DESIGN §6、决策 #22）。
 
+**W6-4a SAML login through authcore.** Directly import the shared module's saml
+package. Follow the integration and negative-test requirements in w3-decisions.md:
+SP-initiated browser-bound state, trusted metadata, durable replay protection,
+provider/issuer and stable NameID identity, invitation-only new binding, and no
+email-only matching. Include metadata/configuration UI and signed IdP integration
+tests; existing local-password emergency-admin access remains available.
+
 **W6-5 审计。**
 登录成功和失败、邀请的创建和使用、提供方配置的变更、用户被停用、会话被吊销，都写进 `audit_log`。
 记录客户端 IP（经可信代理解析）。
@@ -1776,7 +1783,7 @@ DESIGN §7 列的所有检查项都要实现，并分成两组：
 
 **v1 之后**（DESIGN §11，现在不做，先知道就行）：
 
-- v1.1：SAML（用组织的共享模块 `authcore/saml`）；每台设备独立的正式证书（DNS-01）；arm64；评估 mTLS；
+- v1.1：每台设备独立的正式证书（DNS-01）；arm64；评估 mTLS；
 - v1.2：遥测；
 - v2：加密的配置备份；
 - v2.5：配置下发；
