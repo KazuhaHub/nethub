@@ -22,6 +22,10 @@ directory.
 > needs, not a finished, stable API. Treat anything here as subject to change
 > until a `1.0.0` schema version is cut.
 
+W0 captured the upstream hook inputs in
+[Observed frp 0.71.0 hook inputs](frp-hooks-0.71.0.md). These are evidence for
+future consumers, not a published NetHub schema.
+
 ## Why this directory exists
 
 The control plane and every platform agent have to agree, exactly, on what a
