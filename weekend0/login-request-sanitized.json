@@ -1,0 +1,19 @@
+{
+  "version": "0.1.0",
+  "op": "Login",
+  "content": {
+    "version": "0.71.0",
+    "hostname": "REDACTED",
+    "os": "freebsd",
+    "arch": "amd64",
+    "privilege_key": "REDACTED",
+    "timestamp": 0,
+    "metas": {
+      "claim_placeholder": "REDACTED",
+      "device_id": "REDACTED"
+    },
+    "client_spec": {},
+    "pool_count": 1,
+    "client_address": "REDACTED"
+  }
+}

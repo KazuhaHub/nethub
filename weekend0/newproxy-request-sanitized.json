@@ -1,0 +1,17 @@
+{
+  "version": "0.1.0",
+  "op": "NewProxy",
+  "content": {
+    "user": {
+      "user": "REDACTED",
+      "metas": {
+        "claim_placeholder": "REDACTED",
+        "device_id": "REDACTED"
+      },
+      "run_id": "REDACTED"
+    },
+    "proxy_name": "opnsense-webui",
+    "proxy_type": "https",
+    "subdomain": "weekend0-test"
+  }
+}
