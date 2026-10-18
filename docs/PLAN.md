@@ -866,14 +866,14 @@ ssh root@<测试机地址> 'pkg delete -y os-nethub-agent'
 ### 步骤
 
 **W2-0 给 W2 准备一个专用的中继。**
-W0 清理时已经拆掉了中继。而且 W0 的 `frps.toml` 是为实验写的：它订阅了 `Ping` 和 `NewUserConn`，还设了 30 秒心跳超时。
-如果插件这边没开心跳（【D6】还没定），frps 会每 30 秒把设备踢掉一次，你会误以为是插件的问题。所以 W2 用一份专门的配置：
+W0 cleanup removed its temporary relay. Prepare an isolated W2 relay using the
+confirmed D6/D7/D22 settings; do not reuse an unauthenticated W0 control channel.
 
 1. 在 VPS 上复制一份 `weekend0/frps.toml`，命名为 `frps-w2.toml`（放在 VPS 上，不进仓库）；
-2. 删掉 `transport.heartbeatTimeout` 这一行；
-3. 把 `httpPlugins` 的 `ops` 改成 `["Login", "NewProxy"]`；
+2. Keep the D6 server heartbeat timeout at 30 seconds; configure the client with a 10-second interval and 30-second timeout.
+3. Keep `Login`, `NewProxy`, `NewUserConn`, and `Ping` subscribed with the isolated all-allow probe; product authorization remains later work.
 4. 配上 `auth.token`（顶层），把这个值记下来，W2-8 手填时要用；
-5. 运行 `./frps verify -c frps-w2.toml`，再按 RUNBOOK 1.6–1.7 启动探针（全 `allow`）和 frps。
+5. Generate a temporary deployment CA and a relay server certificate with the expected DNS SAN. Configure frps with the server certificate/key, and frpc with the CA PEM and matching serverName. Keep the CA private key outside the relay process working directory and runtime mounts. Validate both configurations with 0.71.1 before starting the probe and relay. Later negative tests must reject an unrelated CA and an incorrect serverName.
 
 W2 做完照样清理。
 
