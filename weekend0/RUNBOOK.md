@@ -844,6 +844,32 @@ done
   "一开始正常、几分钟后开始失败"这种非均匀模式——这种模式往往意味着运营商
   有基于流量特征的限速/QoS 策略，而不是单纯的端口封锁。
 
+**Optional Windows sampler and CSV validation.**
+[`sample-network.ps1`](sample-network.ps1) runs the same alternating 20-round
+comparison with a fresh IPv4 curl process for each request. Run it only while
+the relay's test listeners and all-allow probe are ready:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\weekend0\sample-network.ps1 -TestHostname weekend0-test.router.example.com -NetworkLabel A
+```
+
+Evidence defaults to `nethub-w0-results` under the user's home directory;
+repository output paths are rejected. The raw CSV retains network addresses.
+Share only the companion `*.sanitized.csv`, which excludes both addresses.
+Labels A/B/C are enough; retain which distinct external networks they represent
+in the private test record.
+
+```console
+python weekend0/network_summary.py path/to/A.sanitized.csv
+```
+
+The validator requires exactly 40 rows in round/port order, consistent TCP
+flags and finite timings. It reports per-port TCP counts, separate TLS
+completion statistics, early/late failures, and the unchanged Q2 rule below.
+A TCP connection followed by a TLS failure remains a TCP success. A valid CSV
+does not prove external-network provenance or that relay listeners stayed
+available; correlate it with the test window before accepting experiment ④.
+
 **判定标准（DESIGN Q2 的规则，这是主判据）**：只有满足下面任意一条，才启动
 "vhost-https 复用 443"这项工作，否则维持 8443：
 - 任意一个网络环境下，**8443 的连接成功率比同一网络下 443 的低 20 个百分点以上**
