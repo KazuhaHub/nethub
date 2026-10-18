@@ -51,6 +51,9 @@ func TestPostgresBoundaries(t *testing.T) {
 	if err := owner.QueryRowContext(ctx, `SELECT id FROM tenants`).Scan(&tenantA); err != nil {
 		t.Fatal(err)
 	}
+	if selected, err := SoleTenant(ctx, web); err != nil || selected != tenantA {
+		t.Fatalf("single-tenant startup selection: %v", err)
+	}
 	if err := owner.QueryRowContext(ctx, `INSERT INTO tenants(name) VALUES('Integration B') RETURNING id`).Scan(&tenantB); err != nil {
 		t.Fatal(err)
 	}
@@ -446,7 +449,7 @@ func TestPostgresBoundaries(t *testing.T) {
 		if _, err = service.Authenticate(ctx, login.Token); err != nil {
 			t.Fatal("logout precondition session is not active")
 		}
-		if err = service.Logout(ctx, login.Token); err != nil {
+		if err = service.Logout(ctx, login.Token, ip); err != nil {
 			t.Fatal(err)
 		}
 		if _, err = service.Authenticate(ctx, login.Token); !errors.Is(err, auth.ErrUnauthenticated) {
@@ -490,4 +493,5 @@ func TestPostgresBoundaries(t *testing.T) {
 			t.Fatalf("successful disables: %d", successes.Load())
 		}
 	})
+	t.Run("console_HTTP_with_real_database", func(t *testing.T) { testConsoleHTTP(t, ctx, owner, web, authz, tenantA, tenantB) })
 }

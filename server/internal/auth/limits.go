@@ -18,18 +18,22 @@ type attemptWindow struct {
 
 // Limits are process-local attempt budgets, not persistent account lockouts.
 // Live entries are never evicted to admit attacker-chosen account/IP keys.
-type loginLimiter struct {
+type AttemptLimiter struct {
 	mu       sync.Mutex
 	ips      map[netip.Addr]attemptWindow
 	accounts map[[32]byte]attemptWindow
 	capacity int
 }
 
-func newLoginLimiter(capacity int) *loginLimiter {
-	return &loginLimiter{ips: make(map[netip.Addr]attemptWindow), accounts: make(map[[32]byte]attemptWindow), capacity: capacity}
+// NewAttemptLimiter returns independent ten-per-IP and five-per-account minute
+// budgets for one console action, with at most 10,000 keys in each map.
+func NewAttemptLimiter() *AttemptLimiter { return newLoginLimiter(10000) }
+
+func newLoginLimiter(capacity int) *AttemptLimiter {
+	return &AttemptLimiter{ips: make(map[netip.Addr]attemptWindow), accounts: make(map[[32]byte]attemptWindow), capacity: capacity}
 }
 
-func (l *loginLimiter) allow(ip netip.Addr, account string, now time.Time) error {
+func (l *AttemptLimiter) Allow(ip netip.Addr, account string, now time.Time) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	key := sha256.Sum256([]byte(account))

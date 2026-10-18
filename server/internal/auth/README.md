@@ -1,8 +1,8 @@
 # Local console authentication
 
 This package implements the W3 password/session service and HTTP policy helpers.
-The HTTP endpoints and browser wiring are the next step; these checks alone do
-not provide a working console login.
+The console API now wires these helpers; React/browser and complete deployment
+acceptance remain open. These checks alone do not complete the console.
 
 Passwords use Argon2id (19 MiB, two iterations, one lane), a random 16-byte salt,
 and a 32-byte digest in PHC format. The parameters follow the
@@ -45,7 +45,7 @@ and ErrBusy to bounded retry responses without exposing account existence.
 The clientip package trusts X-Forwarded-For only from configured proxy prefixes,
 walks the chain from right to left, and stops at the first untrusted address.
 Forwarding headers from an untrusted socket peer are ignored and reported for
-warning logging. The future HTTP server must wire that warning and use the
+warning logging. The HTTP server wires that warning and uses the
 resolver result for login budgets and audit data.
 
 Tests cover malformed and oversized PHC parameters, salts, wrong passwords,
@@ -53,4 +53,4 @@ cookies, token separation, duplicate cookies, exact origins, spoofed chains,
 both limiter budgets, capacity/concurrency, repository errors, and worker limits.
 The isolated PostgreSQL suite covers actual web/authz roles, tenant separation,
 password-check races, live role/disable changes, idle/absolute expiry, expiry
-during user/session lock waits, and logout. Browser/API acceptance remains open.
+during user/session lock waits, and logout. Browser acceptance remains open.

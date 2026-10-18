@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/netip"
 	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/auth"
@@ -69,6 +70,9 @@ func (s *AuthStore) CreateSession(ctx context.Context, candidate auth.Candidate,
 	if err != nil {
 		return auth.SessionRecord{}, err
 	}
+	if err = appendConsoleAudit(ctx, tx, "user", record.ID, "auth.login", record.IP, ""); err != nil {
+		return auth.SessionRecord{}, err
+	}
 	return record, tx.Commit()
 }
 
@@ -115,13 +119,24 @@ func (s *AuthStore) LookupSession(ctx context.Context, digest []byte, idle time.
 	return record, tx.Commit()
 }
 
-func (s *AuthStore) DeleteSession(ctx context.Context, digest []byte) error {
+func (s *AuthStore) DeleteSession(ctx context.Context, digest []byte, ip netip.Addr) error {
 	tx, err := s.begin(ctx, false)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	var actor string
+	err = tx.QueryRowContext(ctx, `SELECT u.id FROM users u JOIN sessions s ON s.user_id=u.id AND s.tenant_id=u.tenant_id WHERE s.token_hash=$1 FOR SHARE OF u`, digest).Scan(&actor)
+	if errors.Is(err, sql.ErrNoRows) {
+		return tx.Commit()
+	}
+	if err != nil {
+		return err
+	}
 	if _, err = tx.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash=$1`, digest); err != nil {
+		return err
+	}
+	if err = appendConsoleAudit(ctx, tx, "user", actor, "auth.logout", ip, ""); err != nil {
 		return err
 	}
 	return tx.Commit()

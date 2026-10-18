@@ -35,7 +35,7 @@ func (r *testRepository) CreateSession(_ context.Context, _ Candidate, record Se
 func (r *testRepository) LookupSession(context.Context, []byte, time.Duration) (SessionRecord, error) {
 	return r.record, r.failure
 }
-func (r *testRepository) DeleteSession(context.Context, []byte) error { return r.failure }
+func (r *testRepository) DeleteSession(context.Context, []byte, netip.Addr) error { return r.failure }
 
 func TestServiceFailuresAndSynchronizerPersistence(t *testing.T) {
 	hash, err := HashPassword("a test passphrase")
@@ -71,7 +71,7 @@ func TestServiceFailuresAndSynchronizerPersistence(t *testing.T) {
 	if _, err = service.Authenticate(context.Background(), login.Token); err != ErrUnavailable {
 		t.Fatal("lookup failure did not fail closed")
 	}
-	if err = service.Logout(context.Background(), login.Token); err != ErrUnavailable {
+	if err = service.Logout(context.Background(), login.Token, netip.MustParseAddr("192.0.2.1")); err != ErrUnavailable {
 		t.Fatal("delete failure reported success")
 	}
 	for _, config := range []Config{{IdleTimeout: -1}, {AbsoluteTimeout: time.Second}, {AbsoluteTimeout: 8 * 24 * time.Hour}} {
