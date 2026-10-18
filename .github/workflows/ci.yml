@@ -41,6 +41,8 @@ jobs:
         run: |
           go test -race ./...
           go vet ./...
+      - name: Verify PostgreSQL security boundaries
+        run: sh tests/postgres.sh
       - name: Build foundation CLI
         run: CGO_ENABLED=0 go build -trimpath -o "$RUNNER_TEMP/nethub" ./cmd/nethub
 

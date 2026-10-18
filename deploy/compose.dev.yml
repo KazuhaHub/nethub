@@ -1,0 +1,21 @@
+name: nethub-dev
+services:
+  postgres:
+    image: postgres:16@sha256:5a65324fe84dc41709ff914e90b07f3e2f577073ed27bf917d4873aca0c9ec51
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_bootstrap
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - nethub-dev-db:/var/lib/postgresql/data
+      - ./postgres/00-nethub-roles.sh:/docker-entrypoint-initdb.d/00-nethub-roles.sh:ro
+      - ./secrets/postgres:/run/secrets:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d nethub"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+volumes:
+  nethub-dev-db:
