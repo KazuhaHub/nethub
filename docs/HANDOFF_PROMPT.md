@@ -124,7 +124,7 @@ PLAN §2 列了 D1–D22，**全部归 Kazuha 拍板**。你的职责有三件�
 11. **`go.work` 陷阱**：仓库上级目录有 `go.work` 时，Go 命令前要加 `GOWORK=off`。
 12. **测试机和"NAT 后面的家用路由器"不一样**（PLAN §5.2）：GUI 不在 443，`frpc.toml` 的 `localPort` 要改；
     它有公网 IP，GUI 端口在 WAN 上对外开放，做 W0 ① 之前要请 Kazuha 把这条规则限制成只允许你的 IP；它可能没有快照，测完按清理清单恢复。
-13. **frp 版本锁在 0.71.0**，和打包仓库的 `os-frp` 一致。0.71.1 已经出了，但**不要自己升级**，按 D4 等 Kazuha 决定。
+13. **D4 confirmed 2026-10-18:** coordinate the os-frp, NetHub frpc, and frps upgrade to 0.71.1 before W2 integration. Keep historical W0 evidence at 0.71.0. Build-time official downloads with fixed SHA256 are approved. D22 uses a deployment CA, trustedCaFile and serverName, without mounting the CA private key in runtime containers. D21 omits newwanip and requires measured WAN-address recovery in W2; failed automatic recovery requires a debounced hook and a repeated test.
 
 ### 怎么工作
 
@@ -201,5 +201,5 @@ installation, enabled save, uninstall with retained settings, and reinstall on
 OPNsense 26.7.7. Firmware registration cleanup was fixed and retested. See
 [the evidence](../agents/opnsense/plugin/tests/native-validation.md). The plugin
 remains installed for W2 and starts no tunnel. D4/D21/D22 and the pinned-download
-choice remain pending before their respective W2 steps. Test access was simplified
+choice were confirmed on 2026-10-18; coordinate the 0.71.1 upgrade before W2 integration. Test access was simplified
 at the owner's request; credentials remain outside Git.

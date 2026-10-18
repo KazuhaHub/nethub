@@ -53,7 +53,7 @@ Single host, `docker compose`, no Kubernetes. Planned services:
 
 | Service | What it is |
 |---|---|
-| `frps` | The frp relay (version-locked to the device-side `frpc`; pinned at 0.71.0 for now). Public `bindPort` 7000 and `vhostHTTPSPort` 8443, with `subDomainHost` set to your domain; its admin API (`[webServer]`) listens on the internal network only, for `nethub-authz` to poll. Its `httpPlugins` point at an internal `nethub-authz` endpoint, with ops `Login` and `NewProxy`; `NewUserConn` depends on DESIGN Q7 (Weekend 0 only collects data), and `Ping` is a candidate for the cut-off mechanism (see the `nethub-authz` row). |
+| `frps` | The frp relay (version-locked to the device-side `frpc`; pinned at 0.71.1 under D4). Public `bindPort` 7000 and `vhostHTTPSPort` 8443, with `subDomainHost` set to your domain; its admin API (`[webServer]`) listens on the internal network only, for `nethub-authz` to poll. Its `httpPlugins` point at an internal `nethub-authz` endpoint, with ops `Login` and `NewProxy`; `NewUserConn` depends on DESIGN Q7 (Weekend 0 only collects data), and `Ping` is a candidate for the cut-off mechanism (see the `nethub-authz` row). |
 | `nethub-web` | `nethub web`: the public console (SPA plus `/api/v1/console/...` JSON API). Postgres role `nethub_web`. Never holds the claim signing key or the `frps` admin credentials (nor, per decision #21, the `frps` auth token). |
 | `nethub-authz` | `nethub authz`: the device API, the `frps` `httpPlugins` handler, and a poller of the `frps` admin API. The poller only detects anomalies: in the frp 0.71.0 source the admin API has no endpoint that disconnects an online client, so how a revoked or stolen device is actually cut off is unresolved. [`docs/DESIGN.md`](../docs/DESIGN.md) §5 lists the candidate mechanisms, all pending Weekend 0 measurement, and no cut-off latency is promised until then. Holds the claim signing key, the `frps` admin credentials, and the `frps` auth token it hands to devices. Postgres role `nethub_authz`. |
 | `caddy` | Public 443 with automatic Let's Encrypt certificates; routes `/api/v1/devices/*` to `nethub-authz` and the rest to `nethub-web`. |
@@ -223,7 +223,7 @@ working. Planned checks:
   fail outright on the `FORCE`d tables (see the note under the secrets table).
 - **`frp` version match** — that the vendored `frpc` version shipped in the
   OPNsense plugin and the `frps` version run by the control plane are the
-  expected matching pair (frp 0.71.0 on both sides for now), since a
+  expected matching pair (frp 0.71.1 under D4), since a
   version mismatch between `frpc` and `frps` is a plausible source of subtle
   tunnel failures.
 

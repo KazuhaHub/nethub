@@ -28,6 +28,9 @@ jobs:
       - name: Validate plugin sources
         run: python3 -m pytest -q agents/opnsense/plugin/tests
 
+      - name: Verify official frp pins and os-frp version agreement
+        run: python3 deploy/frp/check_versions.py
+
   weekend0-kit:
     name: weekend0 kit checks
     runs-on: ubuntu-latest

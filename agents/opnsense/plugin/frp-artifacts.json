@@ -1,0 +1,9 @@
+{
+  "version": "0.71.1",
+  "checksums_sha256": "1f501ae59dffd4db6039d33dacbb23e2625fe44d188fe1ce456466e3386918ff",
+  "os_frp_commit": "3684a2ec81738bdd36022194ceab2b664bb2ce8b",
+  "archives": {
+    "freebsd_amd64": "c45ced953a4534f3a40e59fbfa476ec8b231275bcec939e2a40345a1300577ff",
+    "linux_amd64": "1d9875210972a5d1a62b2dc4c48df45ab0af05d3ca1b5e494a014428259df803"
+  }
+}

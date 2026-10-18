@@ -22,3 +22,12 @@ Reference structures were inspected at opnsense/plugins
 KKazuhaK/OPNsense-repo `b19db0c5b97fefa229b6a77c15107b4aac5177ef`
 (os-easytier). NetHub files are independently written. No reference plugin source,
 shared packaging files, or mirror scripts are incorporated.
+
+## frp build prerequisite
+
+The W2 build stages official frpc 0.71.1 under
+`/usr/local/opnsense/nethub-agent/bin/`, separately from os-frp. The archive is
+downloaded during the build and checked against `frp-artifacts.json`; it is not
+committed to NetHub. `FRP_VERSION` accompanies the executable. The builder checks
+the FreeBSD amd64 ELF header and native `--version` before creating the package.
+This prerequisite adds no tunnel service or enrollment behavior.
