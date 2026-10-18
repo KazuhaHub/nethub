@@ -11,13 +11,11 @@ agents/opnsense/
   tests/           contract tests against ../../proto/
 ```
 
-> **Status: pre-alpha, design stage.** None of this exists yet; the layout
-> above is planned. The design is v0.3 (a draft) — the full device-side design
-> is in [`docs/DESIGN.md`](../../docs/DESIGN.md) §4, and the decisions it cites
-> (#2, #10, #13, #14, #17, #19) are the authority for what is described here.
-> Weekend 0 (see [`weekend0/`](../../weekend0/RUNBOOK.md) in the repository
-> root) has not been run, and it has to validate the frp transport before any
-> of this gets written.
+> **Status: pre-alpha, W1 skeleton validated.** The plugin directory now contains
+> the settings model, menu, ACL, page, lifecycle hooks, and unsigned development
+> package tooling. Native install/save/uninstall/reinstall passed on OPNsense 26.7.7;
+> see [the evidence](plugin/tests/native-validation.md). Enrollment, frpc integration,
+> and protocol contracts remain planned. W0 was accepted with recorded limits.
 
 ## Why the source lives here and not in the packaging repository
 

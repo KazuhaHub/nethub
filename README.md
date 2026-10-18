@@ -7,9 +7,10 @@ VyOS.
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Stars](https://img.shields.io/github/stars/KazuhaHub/nethub?style=social)
 
-**Status: pre-alpha, design stage.** The design is at v0.3 (a draft); Weekend 0,
-the first transport test, has not been run; and **no code exists yet**. See
-[Project status](#project-status) before you invest any time here.
+**Status: pre-alpha, W1 plugin skeleton.** W0 transport measurements are accepted,
+and the OPNsense development plugin passed install/save/uninstall/reinstall checks.
+Enrollment, tunnel integration, and the control plane remain unimplemented. See
+[Project status](#project-status) before using the development files.
 
 **Before you self-host, you will need:** a domain name you control DNS for, a
 **wildcard DNS record** (`*.router.example.com` → your relay server's public
@@ -279,20 +280,15 @@ Full write-up: the [threat model draft](docs/threat-model.md) and
 
 ## Project status
 
-**Pre-alpha, design stage.** The design is at v0.3 (a draft dated 2026-10-16)
-and there is no code. The repository holds documentation and the Weekend 0
-kit: a transport test (a device behind CGNAT reaching a relay through `frp`
-with SNI passthrough, plus the `frps` plugin hooks the identity model relies
-on). Weekend 0 has not been run yet, and it is the gate before any
-security-model code is written. Nothing here is ready for production use, and
-interfaces (CLI flags, schema, plugin UI) will change without notice.
+The repository contains the design, accepted [W0 results](weekend0/results-2026-10-17.md),
+and the [W1 development plugin](agents/opnsense/plugin/README.md). Native validation
+covers installation, settings persistence, uninstall, and reinstall on OPNsense
+26.7.7. The plugin currently saves only an Enable preference; it starts no tunnel.
+There is no released version or complete deployment. Interfaces remain subject to change.
 
-Open design questions — which UI component library the React console uses,
-whether the device web UI gets a source-IP gate, and the final v1 feature list
-among them — are tracked in [`docs/DESIGN.md`](docs/DESIGN.md) §14.
-
-Issues and design discussion are welcome. "Doesn't work in production" is
-not a useful bug report yet — that's expected right now.
+The owner selected shadcn/ui with native dialog, source-IP gating, and explicit
+heartbeat revocation. Those product controls are design requirements awaiting
+implementation. Remaining decisions are tracked in [DESIGN](docs/DESIGN.md) §14.
 
 ## Roadmap
 

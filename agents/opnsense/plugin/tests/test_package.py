@@ -51,7 +51,7 @@ def test_php_syntax(path):
     subprocess.run(['php', '-l', str(path)], check=True, capture_output=True)
 
 
-@pytest.mark.parametrize('path', [ROOT / 'build.sh', *sorted((ROOT / 'packaging/freebsd').glob('+*INSTALL'))])
+@pytest.mark.parametrize('path', [ROOT / 'build.sh', ROOT.parent / 'dev-deploy.sh', *sorted((ROOT / 'packaging/freebsd').glob('+*INSTALL'))])
 def test_shell_syntax(path):
     subprocess.run(['sh', '-n', str(path)], check=True, capture_output=True)
 

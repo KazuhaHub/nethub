@@ -833,12 +833,12 @@ ssh root@<测试机地址> 'pkg delete -y os-nethub-agent'
 
 ### 验收（对应 DESIGN §10 W1）
 
-- [ ] 在测试机上 `pkg add` 后，Services 下出现 NetHub Agent 菜单（截图）
-- [ ] 勾选"启用"保存后，`grep -A 3 "<NetHubAgent" /conf/config.xml` 能看到 `enabled` 为 1（贴输出）
-- [ ] `+POST_INSTALL` 的每一步都核对过（贴安装时的输出）；卸载后再装一次也正常
-- [ ] `pkg delete` 之后菜单消失（刷新页面确认），`config.xml` 里的设置还在
-- [ ] 测试机的 OPNsense 版本 ≥ 26.7.1_1（贴 `opnsense-version` 的输出；DESIGN §10 W1 ③）
-- [ ] CI 里的插件静态检查是绿的，并且故意弄坏一个 XML 时会变红
+- [x] 在测试机上 `pkg add` 后，Services 下出现 NetHub Agent 菜单（截图）
+- [x] 勾选"启用"保存后，`grep -A 3 "<NetHubAgent" /conf/config.xml` 能看到 `enabled` 为 1（贴输出）
+- [x] `+POST_INSTALL` 的每一步都核对过（贴安装时的输出）；卸载后再装一次也正常
+- [x] `pkg delete` 之后菜单消失（刷新页面确认），`config.xml` 里的设置还在
+- [x] 测试机的 OPNsense 版本 ≥ 26.7.1_1（贴 `opnsense-version` 的输出；DESIGN §10 W1 ③）
+- [x] CI 里的插件静态检查是绿的，并且故意弄坏一个 XML 时会变红
 
 ### 常见坑
 
@@ -2038,3 +2038,12 @@ recipe integration remains deferred. Public product_email is admin@kazuha.org
 (the owner input used a full-width dot, normalized to an ASCII dot); product_website
 is https://github.com/KazuhaHub/nethub. A clean powered-off Hyper-V checkpoint
 was created before installing the development plugin. Implementation is in progress.
+
+
+W1 validation (2026-10-18): the unsigned development skeleton passed native build,
+installation, enabled save, uninstall with retained settings, and reinstall on
+OPNsense 26.7.7. Firmware registration cleanup was fixed and retested. See
+[the evidence](../agents/opnsense/plugin/tests/native-validation.md). The plugin
+remains installed for W2 and starts no tunnel. D4/D21/D22 and the pinned-download
+choice remain pending before their respective W2 steps. Test access was simplified
+at the owner's request; credentials remain outside Git.
