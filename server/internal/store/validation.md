@@ -54,3 +54,15 @@ locks in separate statements and checks expiry afterward. Both lock-wait cases
 pass on genuine PostgreSQL 16. The final local run passed all eleven boundary
 groups in 1.99 seconds. Private logs retain the failed and corrected attempts.
 HTTP endpoints, browser acceptance, and complete Compose startup remain open.
+
+## Console HTTP follow-up (2026-10-18)
+
+The genuine PostgreSQL suite now passes twelve boundary groups, including a real
+TLS HTTP server with member/admin cookie-jar clients. It verifies login/session,
+ownership and tenant-filtered cursor pagination, display-only device data, JSON
+expiry-override rejection, source-IP audit data, single-use HTTP-issued enrollment
+tokens, token throttling, logout, and disabled-account rejection. Revoking audit
+EXECUTE permission caused login, logout, and issuance to fail without persisting
+partial mutations or emitting credentials. Restoring permission recovered them.
+The native run passed in 3.63 seconds; private logs retain the run. This tests the
+server handler and actual role credentials, not complete Compose/browser startup.

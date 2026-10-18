@@ -10,7 +10,7 @@ type OriginPolicy struct{ origin string }
 
 func NewOriginPolicy(origin string) (*OriginPolicy, error) {
 	u, err := url.Parse(origin)
-	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" {
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" || u.String() != origin {
 		return nil, errors.New("console origin must be an absolute HTTPS origin without a path")
 	}
 	return &OriginPolicy{origin: origin}, nil

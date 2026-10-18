@@ -20,7 +20,7 @@ func TestOriginPolicy(t *testing.T) {
 			t.Fatalf("origin policy accepted an incorrect header shape: %v", values)
 		}
 	}
-	for _, origin := range []string{"", "http://console.example.com", "https://user@console.example.com", "https://console.example.com/", "https://console.example.com?", "https://console.example.com#fragment"} {
+	for _, origin := range []string{"", "http://console.example.com", "https://user@console.example.com", "https://console.example.com/", "https://console.example.com?", "https://console.example.com#fragment", "https://console.example.com#"} {
 		if _, err := NewOriginPolicy(origin); err == nil {
 			t.Fatalf("accepted invalid origin %q", origin)
 		}

@@ -10,15 +10,17 @@ the reasoning.
 
 > **Status:** W3 foundation work has started after native W2 acceptance. The Go
 > module directly imports authcore/saml v0.6.2; the SAML adapter delegates protocol
-> processing and enforces console policy. The CLI currently provides help/version
-> and migrate, and explicitly fails unimplemented service commands. Database bootstrap,
-> migrations, and a scoped device store passed isolated PostgreSQL validation. HTTP endpoints,
-> the console, enrollment, and complete SSO login are not implemented yet.
+> processing and enforces console policy. The CLI provides the console API, migrate,
+> and help/version; other commands still fail explicitly. Database bootstrap,
+> migrations, and actual-role PostgreSQL/HTTPS API tests pass. The React console,
+> device enrollment, init/admin, complete deployment, and SSO flows remain unfinished.
 
 The local [password/session service](internal/auth/README.md) and tenant-bound
 PostgreSQL authentication store are implemented, with actual-role tests for
-expiry, logout, account disable, and password-check races. HTTP wiring, browser
-CSRF/CSP acceptance, first-admin creation, and deployment startup remain W3 work.
+expiry, logout, account disable, and password-check races. The
+[console API](internal/web/README.md) wires cookie/CSRF/Origin/proxy checks and
+atomic audit for login, logout, and token issuance. Browser CSRF/CSP acceptance,
+first-admin creation, and complete deployment startup remain W3 work.
 
 ## Technology stack
 

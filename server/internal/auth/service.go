@@ -44,7 +44,7 @@ type Repository interface {
 	PasswordCandidate(context.Context, string) (Candidate, error)
 	CreateSession(context.Context, Candidate, SessionRecord) (SessionRecord, error)
 	LookupSession(context.Context, []byte, time.Duration) (SessionRecord, error)
-	DeleteSession(context.Context, []byte) error
+	DeleteSession(context.Context, []byte, netip.Addr) error
 }
 
 type Session struct {
@@ -67,7 +67,7 @@ type Service struct {
 	config     Config
 	dummyHash  string
 	workers    chan struct{}
-	limits     *loginLimiter
+	limits     *AttemptLimiter
 }
 
 func NewService(repository Repository, config Config) (*Service, error) {
@@ -110,7 +110,7 @@ func (s *Service) Login(ctx context.Context, email, password string, ip netip.Ad
 	if len(email) > 320 {
 		return LoginResult{}, ErrInvalidCredentials
 	}
-	if err := s.limits.allow(ip, strings.ToLower(strings.TrimSpace(email)), time.Now()); err != nil {
+	if err := s.limits.Allow(ip, strings.ToLower(strings.TrimSpace(email)), time.Now()); err != nil {
 		return LoginResult{}, err
 	}
 	select {
@@ -180,12 +180,15 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Session, erro
 	return Session{User: record.User, CSRFToken: csrf, ExpiresAt: record.ExpiresAt}, nil
 }
 
-func (s *Service) Logout(ctx context.Context, token string) error {
+func (s *Service) Logout(ctx context.Context, token string, ip netip.Addr) error {
+	if !ip.IsValid() || ip.Zone() != "" {
+		return ErrUnauthenticated
+	}
 	digest, err := tokenHash(token)
 	if err != nil {
 		return ErrUnauthenticated
 	}
-	if err = s.repository.DeleteSession(ctx, digest); err != nil {
+	if err = s.repository.DeleteSession(ctx, digest, ip.Unmap()); err != nil {
 		return ErrUnavailable
 	}
 	return nil

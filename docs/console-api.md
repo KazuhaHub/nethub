@@ -1,10 +1,10 @@
 # NetHub console API (draft)
 
-> **Status: draft, written 2026-10-16 against design v0.3. Not implemented.**
-> This is the planned JSON API between the React console and `nethub web`.
-> Paths, field names and error codes are proposals: they are meant to be
-> built against and revised, not relied on. When the code lands, this document
-> must be updated in the same pull request as any change to the API.
+> **Status: partially implemented, updated 2026-10-18 against design v0.3.**
+> W3 implements health, local login/logout/session, device listing, and enroll-token
+> issuance through `nethub web`. The React console and complete deployment are
+> still pending. W4-W7 endpoints below remain proposals until their code lands.
+> Update this document in the same pull request as any API contract change.
 > [`DESIGN.md`](DESIGN.md) is the authority on behaviour; where this document
 > and DESIGN disagree, DESIGN wins.
 
@@ -40,19 +40,22 @@ Not covered:
 
 ### Base URL and format
 
-- Base URL: `https://<console host>/api/v1/console`. Which host the console
-  uses is a deployment decision (open, see [§10](#10-open-items)).
+- Base URL: `https://<console host>/api/v1/console`. D18 uses a deployment-configured
+  console hostname separate from the device wildcard. Requests with a different
+  Host are rejected; forwarded host headers never select the console origin.
 - Requests and responses are JSON (`Content-Type: application/json`, UTF-8).
   Request bodies larger than 64 KiB are rejected with `413`.
 - Timestamps are RFC 3339 strings in UTC, for example `"2026-10-16T08:00:00Z"`.
 - IDs are UUID strings.
 - Unknown fields in a request body are rejected (`400 invalid_request`) rather
   than ignored.
+- Bodies must be UTF-8 JSON objects. Repeated top-level keys, trailing JSON values,
+  compressed bodies, and non-UTF-8 content are rejected. GET/HEAD do not accept bodies.
 
 ### Authentication
 
 - The console uses a **server-side session**. After sign-in the server sets a
-  cookie named `__Host-nethub_session` (proposed), with `HttpOnly`, `Secure`,
+  cookie named `__Host-nethub_session`, with `HttpOnly`, `Secure`,
   `SameSite=Lax`, `Path=/` and no `Domain` attribute.
 - The `__Host-` prefix matters here. Device pages are served on sibling
   subdomains (`<subdomain>.router.example.com`) whose content is controlled by
@@ -62,7 +65,8 @@ Not covered:
   `SameSite=Lax`, which the provider's redirect back to the console needs.
 - The cookie holds an opaque random token. The database stores only its hash.
 - Sessions have an idle timeout and an absolute timeout, and can be revoked
-  (DESIGN §6).
+  (DESIGN §6). Initial defaults are 30 minutes idle and 12 hours absolute.
+  Current active-account and role state is reloaded from PostgreSQL on each request.
 - A request without a valid session gets `401 unauthenticated`. The console
   then sends the user to the sign-in page.
 
@@ -78,9 +82,10 @@ Not covered:
   header `X-CSRF-Token: <token>`. The token is per session and is returned by
   `POST /login` and `GET /session`. A missing or wrong token gets
   `403 csrf_failed`. A present but foreign `Origin` is rejected too.
-- **`GET` requests never change state**, with one exception:
+- **`GET` requests never change business state**, with one exception:
   `GET /oidc/{slug}/callback`. That endpoint is protected by `state` plus the
-  flow cookie.
+  flow cookie. Authenticated reads update session activity bookkeeping; they
+  never renew a device source-IP grant or extend absolute session expiry.
 
 ### Roles
 
@@ -166,10 +171,22 @@ admin out.
 The client IP is taken from `X-Forwarded-For` only when the request comes from
 the declared trusted proxy (Caddy); DESIGN §6.
 
+W3 login and enroll issuance have separate process-local windows: ten attempts
+per source IP and five per normalized account/user per minute. Each counter map
+holds at most 10,000 live keys; new keys fail closed at capacity until expiry.
+Password work also has a two-verification concurrency bound, with Retry-After: 1
+when busy. These limits are for the single-process deployment, not replica-wide.
+
 ### Audit
 
 Endpoints marked **audited** write an entry to `audit_log`. The entry records
 the acting user, the client IP and the target. It never records secrets.
+
+W3 successful login, logout, and token issuance commit atomically with their audit
+entry. Invalid-credential attempts admitted by the login budget use an anonymous
+system actor and record source IP, without attempted email/password. Early malformed,
+CSRF, or rate-limit rejection does not append an audit row. Raw credentials,
+cookie/CSRF values, and enrollment tokens are absent from application/audit logs.
 
 ## 3. Endpoint summary
 
@@ -253,6 +270,7 @@ from signing the browser into an attacker's account.
 ### `POST /logout`
 
 Deletes the server-side session and clears the cookie. Response `204`.
+Request: `{}` with JSON Content-Type and the session CSRF header.
 
 ### `GET /session`
 
@@ -341,7 +359,7 @@ provider. It is a browser endpoint, not a JSON one.
   "platform_version": "26.7.7",
   "agent_version": "0.1.0",
   "capabilities": ["remote.web"],
-  "cluster_hint": false,
+  "cluster_hint": null,
   "online": true,
   "last_seen_at": "2026-10-16T08:00:00Z",
   "enrolled_at": "2026-10-01T12:00:00Z",
@@ -351,10 +369,11 @@ provider. It is a browser endpoint, not a JSON one.
 }
 ```
 
-- `online` is derived from `last_seen_at`, which `nethub authz` maintains
-  from the relay. `nethub web` never queries `frps`. Being online means the
-  device has a live tunnel, not that the OPNsense GUI itself is healthy
-  (DESIGN §12).
+- `online` means authz reported the tunnel within the last 45 seconds, derived
+  from non-future `last_seen_at`. This is a recent observation subject to polling
+  delay, not a real-time GUI health check. `nethub web` never queries `frps`.
+  Authz observation wiring remains W4; W3 verifies this using isolated fixtures.
+- `cluster_hint` is a nullable display string, matching the database model.
 - `owner` is included for admins. For members it is always themselves.
 - The exact column list is settled with the data model (DESIGN §6). Hash and
   claim columns are never exposed.
@@ -365,6 +384,10 @@ Lists devices. Admins see all devices; members see only their own.
 
 - Optional filters: `?online=true|false`, `?revoked=true|false`.
 - Response: a paginated list of device objects.
+- W3 uses UUID-ascending keyset pagination. The opaque base64url cursor identifies
+  the last returned UUID; the server re-applies actor/tenant filters on every page.
+  Limit is 1-200 (default 50). Unknown, repeated, or malformed query parameters
+  return `400 invalid_request`.
 
 ### `GET /devices/{id}`
 
@@ -393,11 +416,9 @@ page cannot reach the console tab. It also shows the hostname, so the user
 can check where they are going. This is the user's only defence if the
 console itself is compromised.
 
-- If the source-IP gate is adopted (DESIGN §14 Q7, open), this call also
+- The confirmed source-IP gate (D7) means this call also
   registers the caller's client IP for this device for 30 minutes, and the
   response adds `"gate_expires_at"`.
-- Without the gate, this endpoint only returns the URL. It exists so the gate
-  can be added without changing the console.
 - Errors: `409 device_revoked`.
 
 ### `POST /devices/{id}/revoke`
@@ -405,11 +426,10 @@ console itself is compromised.
 Marks the device revoked. Request: `{}`. Response: the updated device object.
 
 - Revocation is one-way in the recommended design: a revoked device must
-  re-enroll (DESIGN §6; open).
-- The relay stops accepting the device on its next login or proxy
-  registration.
-- How a **live** tunnel is cut is not settled yet (DESIGN §5), so the API
-  promises no cut-off time.
+  re-enroll (DESIGN §6; enforced in the database).
+- D6 denies Ping, Login, and NewProxy together. Live tunnel interruption uses
+  the confirmed heartbeat mechanism, subject to the W0 backend-failure/hang limits.
+  This HTTP route and authz integration remain W5; no immediate cutoff is promised.
 
 ### `POST /devices/{id}/cut-now`
 
@@ -436,12 +456,14 @@ Response `201`:
 - The token is shown only in this response. The database stores its hash.
 - The expiry comes from the database default (15 minutes) and cannot be set
   by the caller (DESIGN §6).
-- The token's format may carry the console address, depending on an open
-  decision (§10). In that case the plugin must show the address and ask the
+- W3 emits 32 random bytes encoded as unpadded base64url, and persists only SHA-256
+  of those bytes. It accepts no owner/tenant/expiry override. The final device-side
+  input format may carry the console address, depending on W4 decision D19.
+  If the address is included, the plugin must show it and ask the
   user to confirm it before enrolling. A crafted token could otherwise point
   the device's tunnel at an attacker's relay.
-- To return `expires_at`, the web role needs `SELECT` on some
-  `enroll_tokens` columns, which DESIGN §6 does not yet grant (§10).
+- The web role has limited SELECT on the returned status columns; it cannot read
+  token hashes, change expiry, or consume the token. Authz owns atomic consumption.
 - Errors: `429 rate_limited`.
 
 ## 6. Users and invites
@@ -630,6 +652,7 @@ is for visibility only; nothing is blocked.
 | 403 | `invalid_current_password` | The current password given to `POST /me/password` is wrong |
 | 404 | `not_found` | The object does not exist, or the caller may not see it |
 | 404 | `invite_invalid` | The invite token is unknown, used, expired or withdrawn (deliberately generic) |
+| 405 | `method_not_allowed` | The route does not accept this HTTP method; see Allow |
 | 409 | `device_revoked` | The action needs a device that is not revoked |
 | 409 | `last_admin` | The change would leave no active admin |
 | 409 | `last_local_admin` | The change would leave no active admin with a local password |
@@ -643,41 +666,33 @@ is for visibility only; nothing is blocked.
 | 429 | `rate_limited` | Too many attempts; see `Retry-After` |
 | 500 | `internal` | Unexpected error. The response contains no details; the server log has them |
 
-## 10. Open items
+## 10. Decisions and remaining work
 
-These decisions change the API. The design-level ones are tracked in
-DESIGN §14.
+Confirmed on 2026-10-18:
 
-- **Console host.** Is the console at the apex of the device wildcard domain,
-  or on a subdomain? If it is under the wildcard, that label must be reserved
-  so it is never assigned to a device.
-  - Whatever the answer, no device may ever serve the console's hostname on
-    port 8443. Cookies are not scoped by port, so such a device would receive
-    the console's cookies.
-  - frps 0.71.0 itself accepts custom domains that are not below
-    `subDomainHost`. So authz must reject every `NewProxy` request with any
-    custom domain (DESIGN §5).
-- **First admin.** DESIGN decides that `nethub init` creates it (decision #8,
-  §7). What is unresolved is how `init` reaches the database before
-  `docker compose up` and the migrations have run. Either way it is a CLI
-  action, not an API endpoint.
-- **Enroll token format.** Does the token carry the console address, or does
-  the plugin ask for it separately? This affects `POST /enroll-tokens`.
-- **Source-IP gate** (DESIGN Q7): whether `POST /devices/{id}/open` registers
-  the caller's IP, the window length, and whether it extends on use.
-- **Live cut-off** (DESIGN §5): the mechanism behind `cut-now`, who may call
-  it, and where the request is stored.
-- **One-way revocation and the remaining grants** (DESIGN §6): whether
-  un-revoking is impossible, and which tables the web role may write for
-  `cut-now`, the gate, and pending enroll tokens. Listing or withdrawing
-  pending enroll tokens is not in this draft because the web role has no
-  `SELECT`/`DELETE` design for them yet.
-- **Invite details:** the lifetime (72 hours proposed), and whether an invite
-  can be restricted to one provider.
-- **Linking an OIDC identity to an existing user.** DESIGN only binds
-  identities to new users through invites. How a user who already has a
-  local password adds an OIDC sign-in is not designed.
-- **Grants the web role needs for this API.** `SELECT` on the `enroll_tokens`
-  columns returned by `POST /enroll-tokens` (`id`, `created_by_user_id`,
-  `created_at`, `expires_at`, `used_at`). This is to be added to DESIGN §6.
-- **Password policy** for `weak_password`: minimum length and checks.
+- D18 uses a separate configured console hostname and device wildcard. A device
+  may never serve the console hostname on any port; authz must reject every
+  custom domain during NewProxy validation.
+- D15 runs init, Compose/migration, then a one-shot local admin-create command.
+  Web never receives owner credentials; there is no first-admin HTTP endpoint.
+- D7 enables source-IP gating for v1: Open grants 30 minutes; another explicit
+  Open renews it. Reads and background traffic do not renew it.
+- D6 uses 10-second heartbeats and a 30-second timeout, denying Ping/Login/NewProxy
+  together for revocation. Backend failure and hanging-hook limits remain as
+  measured in W0; the API does not promise instantaneous live disconnection.
+- Device revocation is one-way. The database already enforces it, limits web's
+  writes, and provides scoped Open/cutoff functions. Those HTTP routes are W5.
+- Web's enrollment status-column grants are implemented. Hash read/expiry update
+  and token consumption remain unavailable to web.
+- SAML is included in v1 through authcore/saml; its complete HTTP flows, trusted
+  metadata, persistent replay store, invitation binding, and browser request state
+  are W6 alongside OIDC.
+
+Still open for their implementation stages:
+
+- D19: final device enrollment input format and console-address discovery.
+- W5: cutoff endpoint role policy and authz processing of stored cutoff requests.
+- W6: invitation/provider restriction workflows, linking additional identities
+  to an existing account, and the password-policy checks behind weak_password.
+- Browser, init/admin, Compose/Caddy health isolation, backup, and complete
+  deployment acceptance are not proved by the W3 HTTP tests.

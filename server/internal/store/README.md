@@ -36,9 +36,9 @@ are the reference for the actual-role negative tests. A compromised web process
 can still exercise its granted console authority; member isolation is application
 store policy, not a claim that tenant RLS protects against compromised web SQL.
 
-SAML/OIDC HTTP flows, persistent SAML replay storage, password/session handlers,
-Compose product startup, init/doctor, and the browser UI remain unimplemented.
-Passing these database checks does not complete W3 or provide a working login.
+SAML/OIDC HTTP flows, persistent SAML replay storage, Compose product startup,
+init/admin/doctor, and the browser UI remain unimplemented. Passing these database
+checks does not complete W3 or provide a complete console deployment.
 
 The tenant-bound AuthStore now supplies the local password/session service.
 Login rechecks the verified password and active user under a user-row lock.
