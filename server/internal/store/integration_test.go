@@ -1,10 +1,13 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"errors"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +16,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/KazuhaHub/nethub/server/internal/auth"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -269,6 +274,186 @@ func TestPostgresBoundaries(t *testing.T) {
 		var linked bool
 		if err := owner.QueryRowContext(ctx, `SELECT b.prev_hash=a.entry_hash FROM audit_log a JOIN audit_log b ON a.tenant_id=b.tenant_id AND b.sequence=a.sequence+1 WHERE a.tenant_id=$1`, tenantA).Scan(&linked); err != nil || !linked {
 			t.Fatalf("audit chain: linked=%v err=%v", linked, err)
+		}
+	})
+	t.Run("local_authentication_and_session_boundaries", func(t *testing.T) {
+		actor := user(tenantA, "auth-member@example.com", "member")
+		password := "a fixture passphrase used only by isolated tests"
+		hash, err := auth.HashPassword(password)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = owner.ExecContext(ctx, `UPDATE users SET password_hash=$1 WHERE id=$2`, hash, actor); err != nil {
+			t.Fatal(err)
+		}
+		storeA := &AuthStore{DB: web, Tenant: tenantA}
+		service, err := auth.NewService(storeA, auth.Config{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ip := netip.MustParseAddr("192.0.2.1")
+		login, err := service.Login(ctx, " AUTH-MEMBER@example.com ", password, ip, "test browser")
+		if err != nil || login.User.ID != actor || login.User.Role != "member" {
+			t.Fatalf("login: user=%s err=%v", login.User.ID, err)
+		}
+		if _, err = service.Login(ctx, "auth-member@example.com", "wrong", ip, "test"); !errors.Is(err, auth.ErrInvalidCredentials) {
+			t.Fatalf("wrong password: %v", err)
+		}
+		if _, err = service.Login(ctx, "missing@example.com", password, ip, "test"); !errors.Is(err, auth.ErrInvalidCredentials) {
+			t.Fatalf("unknown user: %v", err)
+		}
+		var tokenDigest, csrfDigest []byte
+		if err = owner.QueryRowContext(ctx, `SELECT token_hash,csrf_hash FROM sessions WHERE user_id=$1`, actor).Scan(&tokenDigest, &csrfDigest); err != nil {
+			t.Fatal(err)
+		}
+		rawToken, err := base64.RawURLEncoding.DecodeString(login.Token)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantTokenHash := sha256.Sum256(rawToken)
+		wantCSRFHash := sha256.Sum256([]byte(login.CSRFToken))
+		if !bytes.Equal(tokenDigest, wantTokenHash[:]) || !bytes.Equal(csrfDigest, wantCSRFHash[:]) || bytes.Equal(tokenDigest, rawToken) {
+			t.Fatal("raw session material persisted")
+		}
+		current, err := service.Authenticate(ctx, login.Token)
+		if err != nil || current.CSRFToken != login.CSRFToken || !auth.CheckCSRF(current, login.CSRFToken) || auth.CheckCSRF(current, login.Token) {
+			t.Fatalf("session or CSRF: %v", err)
+		}
+		if _, err = service.Authenticate(ctx, login.CSRFToken); !errors.Is(err, auth.ErrUnauthenticated) {
+			t.Fatal("CSRF value accepted as session bearer")
+		}
+		storeB := &AuthStore{DB: web, Tenant: tenantB}
+		if _, err = storeB.LookupSession(ctx, tokenDigest, 30*time.Minute); !errors.Is(err, auth.ErrUnauthenticated) {
+			t.Fatalf("session crossed tenant: %v", err)
+		}
+		if _, err = owner.ExecContext(ctx, `UPDATE users SET role='admin' WHERE id=$1`, actor); err != nil {
+			t.Fatal(err)
+		}
+		current, err = service.Authenticate(ctx, login.Token)
+		if err != nil || current.User.Role != "admin" {
+			t.Fatal("session retained stale role")
+		}
+		// Return to member before disable so last-admin protection is independent.
+		if _, err = owner.ExecContext(ctx, `UPDATE users SET role='member',disabled_at=now() WHERE id=$1`, actor); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = service.Authenticate(ctx, login.Token); !errors.Is(err, auth.ErrUnauthenticated) {
+			t.Fatal("disabled account retained a live session")
+		}
+		if _, err = service.Login(ctx, "auth-member@example.com", password, ip, "test"); !errors.Is(err, auth.ErrInvalidCredentials) {
+			t.Fatal("disabled account logged in")
+		}
+		if _, err = owner.ExecContext(ctx, `UPDATE users SET disabled_at=NULL WHERE id=$1`, actor); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = owner.ExecContext(ctx, `UPDATE users SET password_hash=NULL WHERE id=$1`, actor); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = service.Login(ctx, "auth-member@example.com", password, ip, "test"); !errors.Is(err, auth.ErrInvalidCredentials) {
+			t.Fatal("SSO-only account logged in with local credentials")
+		}
+		if _, err = owner.ExecContext(ctx, `UPDATE users SET password_hash='malformed-fixture' WHERE id=$1`, actor); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = service.Login(ctx, "auth-member@example.com", password, ip, "test"); !errors.Is(err, auth.ErrInvalidCredentials) {
+			t.Fatal("malformed password hash accepted")
+		}
+		if _, err = owner.ExecContext(ctx, `UPDATE users SET password_hash=$1 WHERE id=$2`, hash, actor); err != nil {
+			t.Fatal(err)
+		}
+		candidate, err := storeA.PasswordCandidate(ctx, "auth-member@example.com")
+		if err != nil {
+			t.Fatal(err)
+		}
+		now := time.Now().UTC()
+		record := auth.SessionRecord{TokenHash: bytes.Repeat([]byte{1}, 32), CSRFHash: bytes.Repeat([]byte{2}, 32), CreatedAt: now, ExpiresAt: now.Add(time.Hour), IP: ip, UserAgent: "fixture"}
+		if _, err = owner.ExecContext(ctx, `UPDATE users SET password_hash='changed-fixture' WHERE id=$1`, actor); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = storeA.CreateSession(ctx, candidate, record); !errors.Is(err, auth.ErrInvalidCredentials) {
+			t.Fatal("stale password check created a session")
+		}
+		if _, err = owner.ExecContext(ctx, `UPDATE users SET password_hash=$1,disabled_at=now() WHERE id=$2`, hash, actor); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = storeA.CreateSession(ctx, candidate, record); !errors.Is(err, auth.ErrInvalidCredentials) {
+			t.Fatal("disabled-during-verification user created a session")
+		}
+		if _, err = owner.ExecContext(ctx, `UPDATE users SET disabled_at=NULL WHERE id=$1`, actor); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = owner.ExecContext(ctx, `UPDATE sessions SET last_seen_at=now()-interval '31 minutes' WHERE user_id=$1`, actor); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = service.Authenticate(ctx, login.Token); !errors.Is(err, auth.ErrUnauthenticated) {
+			t.Fatal("idle-expired session accepted")
+		}
+		if _, err = owner.ExecContext(ctx, `UPDATE sessions SET last_seen_at=now(),expires_at=now()-interval '1 second' WHERE user_id=$1`, actor); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = service.Authenticate(ctx, login.Token); !errors.Is(err, auth.ErrUnauthenticated) {
+			t.Fatal("absolute-expired session accepted")
+		}
+		// Admission must use the clock after either row-lock wait, rather than
+		// the statement start time at which this session was still valid.
+		for _, lockQuery := range []string{`SELECT id FROM users WHERE id=$1 FOR UPDATE`, `SELECT id FROM sessions WHERE user_id=$1 FOR UPDATE`} {
+			if _, err = owner.ExecContext(ctx, `UPDATE sessions SET last_seen_at=clock_timestamp(),expires_at=clock_timestamp()+interval '150 milliseconds' WHERE user_id=$1`, actor); err != nil {
+				t.Fatal(err)
+			}
+			blocker, err := owner.BeginTx(ctx, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer blocker.Rollback()
+			if _, err = blocker.ExecContext(ctx, lockQuery, actor); err != nil {
+				t.Fatal(err)
+			}
+			lookupResult := make(chan error, 1)
+			go func() { _, err := storeA.LookupSession(ctx, tokenDigest, 30*time.Minute); lookupResult <- err }()
+			waiting := false
+			for range 100 {
+				var blocked int
+				if err = owner.QueryRowContext(ctx, `SELECT count(*) FROM pg_locks WHERE locktype='transactionid' AND NOT granted`).Scan(&blocked); err != nil {
+					t.Fatal(err)
+				}
+				if blocked > 0 {
+					waiting = true
+					break
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			if !waiting {
+				t.Fatal("lookup did not reach the row lock")
+			}
+			if _, err = owner.ExecContext(ctx, `SELECT pg_sleep(0.2)`); err != nil {
+				t.Fatal(err)
+			}
+			if err = blocker.Commit(); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case err := <-lookupResult:
+				if !errors.Is(err, auth.ErrUnauthenticated) {
+					t.Fatalf("accepted expiry during lock wait: %v", err)
+				}
+			case <-ctx.Done():
+				t.Fatal("blocked session lookup did not finish")
+			}
+		}
+		if _, err = owner.ExecContext(ctx, `UPDATE sessions SET last_seen_at=clock_timestamp(),expires_at=clock_timestamp()+interval '1 hour' WHERE user_id=$1`, actor); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = service.Authenticate(ctx, login.Token); err != nil {
+			t.Fatal("logout precondition session is not active")
+		}
+		if err = service.Logout(ctx, login.Token); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = service.Authenticate(ctx, login.Token); !errors.Is(err, auth.ErrUnauthenticated) {
+			t.Fatal("logged-out session accepted")
+		}
+		if _, err = (&AuthStore{DB: authz, Tenant: tenantA}).PasswordCandidate(ctx, "auth-member@example.com"); err == nil {
+			t.Fatal("authz could read console credentials")
 		}
 	})
 	t.Run("last_local_admin_survives_concurrent_disable", func(t *testing.T) {

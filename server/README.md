@@ -15,6 +15,11 @@ the reasoning.
 > migrations, and a scoped device store passed isolated PostgreSQL validation. HTTP endpoints,
 > the console, enrollment, and complete SSO login are not implemented yet.
 
+The local [password/session service](internal/auth/README.md) and tenant-bound
+PostgreSQL authentication store are implemented, with actual-role tests for
+expiry, logout, account disable, and password-check races. HTTP wiring, browser
+CSRF/CSP acceptance, first-admin creation, and deployment startup remain W3 work.
+
 ## Technology stack
 
 - **Go 1.26** — the same toolchain line as the organisation's other Go
