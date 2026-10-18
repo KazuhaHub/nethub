@@ -106,13 +106,25 @@ func TestPostgresBoundaries(t *testing.T) {
 		}
 	})
 	t.Run("tenant_and_member_visibility", func(t *testing.T) {
-		tx := txFor(web, tenantA)
+		connection, err := web.Conn(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer connection.Close()
+		tx, err := connection.BeginTx(ctx, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback()
+		if _, err := tx.ExecContext(ctx, `SELECT set_config('app.tenant_id',$1,true)`, tenantA); err != nil {
+			t.Fatal(err)
+		}
 		var count int
 		if err := tx.QueryRowContext(ctx, `SELECT count(id) FROM devices`).Scan(&count); err != nil || count != 2 {
 			t.Fatalf("tenant A visibility: count=%d err=%v", count, err)
 		}
 		tx.Rollback()
-		if err := web.QueryRowContext(ctx, `SELECT count(id) FROM devices`).Scan(&count); err != nil || count != 0 {
+		if err := connection.QueryRowContext(ctx, `SELECT count(id) FROM devices`).Scan(&count); err != nil || count != 0 {
 			t.Fatalf("tenant context leaked from transaction: count=%d err=%v", count, err)
 		}
 		for _, test := range []struct {
