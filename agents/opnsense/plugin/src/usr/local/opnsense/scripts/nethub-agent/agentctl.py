@@ -209,7 +209,7 @@ class Agent:
         from lifecycle import health_request, report_health
         from protocol import ProtocolError
         model = self.lifecycle_model()
-        if not model.findtext('device_id'):
+        if not model.findtext('device_id') or not model.findtext('console_url'):
             return {'success': True, 'action': 'report', 'message': 'No enrollment to report'}
         version = self.command(['/usr/local/sbin/opnsense-version', '-v'], timeout=5)
         self.checked(version, 'Could not read the platform version')

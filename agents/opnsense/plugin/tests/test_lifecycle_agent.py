@@ -91,6 +91,16 @@ def test_authenticated_revocation_report_fences_service_and_watchdog(case):
     assert case.agent.apply('start')['action'] == 'stop' and not case.active
 
 
+def test_legacy_local_settings_without_console_origin_do_not_report(case):
+    tree = ET.parse(case.root / 'conf/config.xml')
+    tree.find('OPNsense/NetHubAgent/console_url').text = ''
+    tree.write(case.root / 'conf/config.xml')
+    with mock.patch('lifecycle.report_health') as network:
+        assert case.agent.apply('report')['success']
+    network.assert_not_called()
+    assert not (case.agent.state / 'health.json').exists() and case.active
+
+
 @pytest.mark.parametrize('action', ['report', 'unenroll', 'forget'])
 def test_lifecycle_obeys_shared_mutation_lock(case, action):
     import fcntl
