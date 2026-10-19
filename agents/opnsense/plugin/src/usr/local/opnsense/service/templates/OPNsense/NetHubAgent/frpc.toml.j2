@@ -14,7 +14,7 @@ transport.tls.trustedCaFile = "/usr/local/etc/nethub-agent/relay-ca.pem"
 transport.tls.serverName = "{{ OPNsense.NetHubAgent.server_addr }}"
 
 [[proxies]]
-name = "nethub-webgui"
+name = "nethub-{{ OPNsense.NetHubAgent.device_id }}-web"
 type = "https"
 localIP = "127.0.0.1"
 localPort = {{ system.webgui.port|default('443', true) }}

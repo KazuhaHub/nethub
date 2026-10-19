@@ -51,7 +51,7 @@ func envelope(operation, encoded string) map[string]any {
 	content := map[string]any{"metas": metas, "privilege_key": "private-frp-authentication-fixture"}
 	if operation == "NewProxy" {
 		content = map[string]any{"user": map[string]any{"metas": metas, "run_id": "private-run-id-fixture"},
-			"proxy_type": "https", "proxy_name": "nethub-webgui", "subdomain": "abcd1234"}
+			"proxy_type": "https", "proxy_name": ProxyName(metas["device_id"].(string)), "subdomain": "abcd1234"}
 	}
 	return map[string]any{"version": "0.1.0", "op": operation, "content": content}
 }
@@ -145,6 +145,10 @@ func TestRejectsBeforeDatabase(t *testing.T) {
 		}},
 		{"user_null", "NewProxy", 200, func(o map[string]any, _ *http.Request) { o["content"].(map[string]any)["user"] = nil }},
 		{"proxy_type", "NewProxy", 200, func(o map[string]any, _ *http.Request) { o["content"].(map[string]any)["proxy_type"] = "tcp" }},
+		{"proxy_name", "NewProxy", 200, func(o map[string]any, _ *http.Request) {
+			o["content"].(map[string]any)["proxy_name"] = ProxyName("33333333-3333-4333-8333-333333333333")
+		}},
+		{"legacy_proxy_name", "NewProxy", 200, func(o map[string]any, _ *http.Request) { o["content"].(map[string]any)["proxy_name"] = "nethub-webgui" }},
 		{"subdomain", "NewProxy", 200, func(o map[string]any, _ *http.Request) { o["content"].(map[string]any)["subdomain"] = "another1" }},
 		{"custom_domain", "NewProxy", 200, func(o map[string]any, _ *http.Request) {
 			o["content"].(map[string]any)["custom_domains"] = []string{"console.example.com"}

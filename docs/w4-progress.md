@@ -96,7 +96,9 @@ appliance enrollment remain incomplete. See [the service boundary and recovery l
 
 The callback handler checks the deployment signature, metadata device ID and
 current tenant/subdomain/issuance timestamp under a device row lock. Revoked or
-missing assignments deny. HTTPS-only routing rejects custom domains and shared
+missing assignments deny. The agent renders `nethub-<device_id>-web` names and
+the callback verifies them, fixing the old multi-device proxy-name collision.
+HTTPS-only routing rejects custom domains and shared
 proxy groups. The private listener requires exact socket peers, ignores forwarding
 headers for authority, and bounds reads, concurrency and database work. The public
 enrollment listener cannot serve callbacks; both listeners stop together.

@@ -159,7 +159,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.respond(w, 200, operation, "invalid_claim")
 		return
 	}
-	if operation == "NewProxy" && !proxyAllowed(content, payload.Subdomain) {
+	if operation == "NewProxy" && !proxyAllowed(content, payload) {
 		s.respond(w, 200, operation, "proxy_policy")
 		return
 	}
@@ -197,10 +197,14 @@ func nested(object map[string]json.RawMessage, key string) (map[string]json.RawM
 	return value, true
 }
 
-func proxyAllowed(content map[string]json.RawMessage, assigned string) bool {
+// ProxyName assigns a single route name to an already-validated device ID.
+func ProxyName(deviceID string) string { return "nethub-" + deviceID + "-web" }
+
+func proxyAllowed(content map[string]json.RawMessage, assigned protocol.ClaimPayload) bool {
+	name, nameOK := text(content, "proxy_name")
 	proxyType, typeOK := text(content, "proxy_type")
 	subdomain, domainOK := text(content, "subdomain")
-	if !typeOK || !domainOK || proxyType != "https" || subdomain != assigned {
+	if !nameOK || name != ProxyName(assigned.DeviceID) || !typeOK || !domainOK || proxyType != "https" || subdomain != assigned.Subdomain {
 		return false
 	}
 	if data, present := content["custom_domains"]; present {

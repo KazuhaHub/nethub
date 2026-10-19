@@ -171,7 +171,7 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 		}
 	}
 	login := map[string]any{"metas": metas}
-	proxy := map[string]any{"user": map[string]any{"metas": metas}, "proxy_name": "nethub-webgui", "proxy_type": "https", "subdomain": result.Subdomain}
+	proxy := map[string]any{"user": map[string]any{"metas": metas}, "proxy_name": relayhook.ProxyName(result.DeviceID), "proxy_type": "https", "subdomain": result.Subdomain}
 	sendHook(hookAddress, "Login", login, false, 200)
 	sendHook(hookAddress, "NewProxy", proxy, false, 200)
 	proxy["custom_domains"] = []string{"console.example.com"}

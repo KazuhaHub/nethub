@@ -23,8 +23,13 @@ tenant, subdomain and microsecond issuance timestamp, with `revoked=false`. A
 row share lock serializes that check with revocation or claim replacement. A
 valid signature alone does not authorize a callback.
 
-NewProxy additionally requires HTTPS, the assigned subdomain and no custom
-domains. Shared proxy groups/group keys are rejected because the current agent
+NewProxy additionally requires HTTPS, the assigned subdomain, the canonical
+`nethub-<device_id>-web` proxy name and no custom domains. frps has a
+[global proxy-name registry](https://github.com/fatedier/frp/blob/v0.71.1/server/proxy/proxy.go),
+so the old constant name prevented a second device from registering. The agent
+now renders the per-device name; the hook prevents another device from claiming
+it. Pre-v1 test clients must update their rendered configuration. Shared proxy
+groups/group keys are rejected because the current agent
 has a single device route. The [upstream message fields](https://github.com/fatedier/frp/blob/v0.71.1/pkg/msg/msg.go)
 are serialized by frps before this check. The response never changes that
 content: allow uses `reject=false, unchange=true`; all failures deny. Invalid
