@@ -37,11 +37,40 @@ lockf exclusion test. The appliance configuration hash stayed unchanged and all
 temporary test-key directories were removed. No dependency or package was
 installed on the appliance. Local cross-platform key tests additionally cover
 ambiguous PEM, pre/post-publication failures, child diagnostic filtering and
-retained key identity; full current-head CI remains a merge gate.
+retained key identity. PR #65 passed all six checks at
+`b320cebef7fdf3bb1d6963b8ff5100514ba45dcb` (run 39292394067),
+including 249 plugin tests and the genuine deployment regressions.
+
+The exact unsigned 0.0.6 development package subsequently passed native build,
+installation, package checksums and the twelve-field OPNsense model checks.
+A fresh private server used all four verified images from that same CI run and
+protocol 1.1 with migration 00006. The real browser enrollment reached online
+inventory in 9.006 seconds. Public console TLS verified normally; the relayed
+router TLS leaf matched the existing appliance leaf observed through pinned SSH.
+
+The appliance validated its private key locally; only its public SPKI and
+fingerprint were compared with the immutable database binding. They matched
+before and after a manual health report and an actual scheduled report. No device
+private key was exported. Native removal took 1.849 seconds, cleared assignment
+fields, stopped frpc and removed the runtime GUI-key directory. Repeated removal
+passed; the revoked native client could not log in with its retained old claim.
+The database showed one removal audit event and the revoked/offline device.
+Token/assignment-secret scans passed in appliance and server logs; browser page
+errors and unexpected external requests were zero. Masked enrollment/removal
+screenshots were reviewed privately.
+
+The 136.56-second public window closed with original listeners restored, test
+control port closed, both authorities unchanged and doctor passing. Native model
+fields, fifteen owned files, stopped intent and system/unrelated configuration
+hashes returned to baseline. The independent watcher exited. Package 0.0.6 is
+retained under the accepted 1 GiB lab exception; root credentials, password SSH,
+Alternate Hostnames and both GUI security checks stayed unchanged.
 
 This is key storage and admission wiring, not full GUI certificate acceptance.
-The 0.0.6 source has not been installed or enrolled against a fresh server yet.
-Account/job persistence, current-assignment issuer authorization, actual ACME
+The public router check pins the existing GUI leaf; it does not prove an
+authenticated GUI session under a newly assigned hostname or a public CA leaf.
+Private account persistence has separate accepted coverage; deployment wiring,
+job persistence, current-assignment issuer authorization, actual ACME
 orders, signed CSR submission, certificate delivery, native import/application,
 rollback and reboot/offline renewal remain required. Until native certificate
 import exists, this key is outside XML configuration backups; loss of an enrolled

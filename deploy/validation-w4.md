@@ -231,6 +231,45 @@ merged as 47bfb9c. Its plugin job passed 220 tests with one native-only skip.
 Both runs passed the genuine HTTP-01 proxy case, four assembled-image security
 checks, deployed browser flows, two official relay clients, renewal/rollback,
 expired candidate replacement and external proxy checks. No public account or
-router GUI certificate was created; native 0.0.4 remains installed. The new native
-key source has separate scoped evidence in the plugin's certificate-key-progress
-record and still needs full package/server acceptance.
+router GUI certificate was created in those runs. Later native key acceptance is
+recorded below and in the plugin's certificate-key-progress record.
+
+## Native protocol 1.1 key admission and durable account identity
+
+PR #67 fixed a real cancellation/final-EOF race found during the main integration
+run. Its final head 33a2171689fc75598e4a728e172520896f5fa3cd passed all six
+checks (39292347621), then merged as cfd5228. The failed earlier integration log
+was retained; an earlier passing head was not substituted for the final gate.
+
+PR #65 passed all six checks on b320cebef7fdf3bb1d6963b8ff5100514ba45dcb
+(39292394067), including 249 plugin tests and one native-only skip, and merged as
+19ee78d. Its exact native 0.0.6 package and four verified CI images passed a fresh
+protocol 1.1 browser enrollment, immutable public-key comparison against PostgreSQL,
+manual and genuine cron reports with unchanged key identity, native removal,
+idempotent retry, single audit event and denial of the old native frpc claim.
+Enrollment reached online inventory in 9.006 seconds; removal took 1.849 seconds.
+The private key stayed on the appliance. Runtime key storage disappeared after
+removal, and checked assignment secrets were absent from appliance/server logs.
+Browser page errors and unexpected external requests were zero; masked native
+screenshots were reviewed privately.
+
+The public window lasted 136.56 seconds. Cleanup restored original listeners,
+closed the test control port, preserved both authorities and passed doctor before
+cancelling its timer. Native cleanup restored model fields, fifteen owned files,
+stopped intent and system/unrelated hashes; its watcher exited. The development
+package remains 0.0.6. Root/SSH, exact Alternate Hostnames and GUI security checks
+were unchanged. The relayed GUI leaf was pinned to the existing local leaf;
+authenticated GUI use under the new hostname and public certificate installation
+were not accepted by this check. The approved 1 GiB resource exception remains.
+
+PR #66 passed all six checks on 73e14b9d22c61472ce892d92b24ab514a23bd29a
+(39292409427) and merged as fb2aac0. Local full Go tests/vet and genuine Linux
+account-store tests passed, including ownership/modes, links, umask, lease
+exclusion, state-loss refusal and ambiguous SDK registration recovery with the
+same key. The fixed transport also passed 100 repeated cancellation cases locally
+and on Linux. Temporary test keys were removed and original services stayed up.
+Account initialization remains explicit and offline; this component has no
+production CLI, mount, order or timer wiring and created no public CA account.
+Actual six-job logs for #65-#67 were read, including genuine Caddy, assembled-image,
+browser, two-client relay, renewal, expired-candidate and external-proxy checks.
+GUI ACME issuance/application and trust acknowledgements/root rotation remain open.
