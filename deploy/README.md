@@ -49,11 +49,19 @@ Successful runs may copy masked screenshots and a nonsecret result summary to
 credentials and must stay private; CI uploads only the selected browser files.
 
 CI also retains the four tested immutable images for one day as
-`deployment-images`, with a SHA256 checksum and image-ID manifest. This lets native
+`deployment-images`, with a SHA256 checksum and image-content manifest. This lets native
 acceptance use the exact tested images without rebuilding on a constrained relay.
 No container snapshots, runtime mounts, configuration bundles or test credentials
 are included. Authenticate the workflow run/head, verify the checksum and each
-loaded image ID before use. This artifact is not a release or a state backup.
+loaded image's configuration digest, ordered rootfs diff IDs and platform before
+use. The exported engine `id` is also retained for diagnostics. Classic and
+containerd image stores can report different ID types for identical content;
+[Moby records this behavior](https://github.com/moby/moby/issues/51934). An ID
+mismatch is a reason to inspect the loaded manifest/configuration chain, not to
+skip verification. The `config_digest` hashes the archive's exact configuration
+bytes; a containerd manifest descriptor must reference that same digest, and the
+loaded configuration and rootfs must agree. This artifact is not a release or a
+state backup.
 
 For a bounded test deployment with a real public certificate, run
 `node server/web/tests/public-browser.mjs /private/public-console.json` from a
