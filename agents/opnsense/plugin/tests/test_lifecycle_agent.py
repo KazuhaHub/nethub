@@ -60,6 +60,7 @@ def test_confirmed_removal_does_not_write_model_or_erase_before_php(case):
 
 def test_forget_requires_cleared_model_and_erases_live_backup_trust(case):
     case.set_enabled(False)
+    case.agent.state.mkdir(parents=True)
     case.agent.backup.write_text('former credential')
     (case.agent.state / 'recovery.json').write_text('{}')
     result = case.agent.apply('forget')
