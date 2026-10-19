@@ -25,6 +25,13 @@ paths/modes/links fail without replacement or permission repair. A failure after
 publication can reuse the committed request; unpublished partial files are not
 adopted.
 
+Newly created cache directories and records receive explicit 0700/0600 modes
+before validation/fsync/publication, independent of a restrictive process umask.
+The native regression first reproduced a successful initial return with mode-000
+storage under umask 0777; the next read could not reuse that cache. Creation now
+establishes and validates the required modes. Existing unsafe storage is still
+rejected without permission repair.
+
 This is an initializer/cache component, not a certificate polling endpoint.
 There is no API/configd/cron integration, CSR upload, issuance authorization,
 certificate installation, cleanup integration or package upgrade in this change.
@@ -33,11 +40,12 @@ submitted cache, recover the original job rather than initialize blindly, and
 remove only the owned cache after confirmed assignment removal. Different live
 assignments require an explicit transition, not automatic cache replacement.
 
-Local tests passed 24 cases with three POSIX-only skips, exercising real OpenSSL
+Local tests passed 24 cases with four POSIX-only skips, exercising real OpenSSL
 signatures/reuse, maximum DNS length, invalid
 identities, changed bindings/assignments, a valid signature for another name,
 corrupt/ambiguous records, key loss, child failures, interruption boundaries and
-POSIX storage refusal. The corrected native FreeBSD run passed all 27 cases and staged source/dependencies privately
+POSIX storage refusal and restrictive-umask creation. The corrected native FreeBSD
+run passed all 28 cases and staged source/dependencies privately
 without installing packages or changing appliance configuration. A generated
 native request also passed the production Go `ValidateBoundCSR` validator; wrong
 host and missing binding were rejected. Native temporary key material was removed.
