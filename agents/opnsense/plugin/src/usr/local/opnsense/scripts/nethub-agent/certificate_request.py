@@ -1,5 +1,6 @@
 """Persist one signed request for an already bound device key and DNS assignment."""
 import base64
+import hashlib
 import ipaddress
 import json
 import os
@@ -47,9 +48,8 @@ class RequestStore:
     """The caller holds reconcile.lock and authorizes the live assignment.
 
     This component does not create a key, change an existing request, contact an
-    issuer or select a GUI certificate. Missing persisted requests after an
-    accepted submission must be recovered by the future job protocol, not by
-    treating this initializer as a polling endpoint.
+    issuer or select a GUI certificate. Missing accepted requests must use restore
+    after authenticated retrieval, not treat the initializer as a polling endpoint.
     """
 
     def __init__(self, directory, key_store):
@@ -120,6 +120,28 @@ class RequestStore:
 
     def ensure(self, host, expected_fingerprint):
         """Initialize once, or return the exact intact cached signed request."""
+        return self._request(host, expected_fingerprint)
+
+    def restore(self, host, expected_fingerprint, csr_der, csr_fingerprint):
+        """Recover the server's original public CSR using the intact local key.
+
+        The caller authenticates the live device assignment and holds the shared
+        lock. This method never creates a key, signs again, or replaces existing
+        storage. The claimed hash is integrity metadata, not an ownership grant.
+        """
+        try:
+            if (not isinstance(csr_der, str) or not 4 <= len(csr_der) <= 5464
+                    or not isinstance(csr_fingerprint, str) or not re.fullmatch('[a-f0-9]{64}', csr_fingerprint)):
+                raise ValueError('Invalid recovery record')
+            der = base64.b64decode(csr_der, validate=True)
+            if (not 1 <= len(der) <= 4096 or base64.b64encode(der).decode('ascii') != csr_der
+                    or hashlib.sha256(der).hexdigest() != csr_fingerprint):
+                raise ValueError('Invalid recovery integrity')
+        except (ValueError, TypeError):
+            raise CertificateRequestError('Device certificate request needs local review') from None
+        return self._request(host, expected_fingerprint, original_csr=csr_der)
+
+    def _request(self, host, expected_fingerprint, original_csr=None):
         temporary = None
         try:
             self._identity(host, expected_fingerprint)
@@ -143,16 +165,21 @@ class RequestStore:
                 value = json.loads(raw)
                 if self._encoded(value) != raw:
                     raise ValueError('Ambiguous request record')
-                return self._validate(value, host, key)
+                pem = self._validate(value, host, key)
+                if original_csr is not None and value['csr'] != original_csr:
+                    raise ValueError('Original signed request differs')
+                return pem
             temporary = Path(tempfile.mkdtemp(prefix='.gui-csr-', dir=self.directory.parent))
             temporary.chmod(0o700)
             self.key_store._protected(temporary, directory=True)
-            information = self._information(host, key['public_key'])
-            signature = self._command(['dgst', '-sha256', '-sign', str(self.key_store.directory / 'key.pem'),
-                                       '-passin', 'pass:'], information)
-            der = _der(0x30, information + bytes.fromhex('300a06082a8648ce3d040302') + _der(3, b'\0' + signature))
+            if original_csr is None:
+                information = self._information(host, key['public_key'])
+                signature = self._command(['dgst', '-sha256', '-sign', str(self.key_store.directory / 'key.pem'),
+                                           '-passin', 'pass:'], information)
+                der = _der(0x30, information + bytes.fromhex('300a06082a8648ce3d040302') + _der(3, b'\0' + signature))
+                original_csr = base64.b64encode(der).decode('ascii')
             value = {'version': 1, 'host': host, 'key_fingerprint': expected_fingerprint,
-                     'csr': base64.b64encode(der).decode('ascii')}
+                     'csr': original_csr}
             pem = self._validate(value, host, key)
             descriptor = os.open(temporary / 'request.json', os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             with os.fdopen(descriptor, 'wb') as output:

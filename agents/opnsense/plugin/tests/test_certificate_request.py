@@ -1,5 +1,6 @@
 """Exercise real signed requests, durable reuse and fail-closed cache recovery."""
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -218,3 +219,123 @@ def test_unsafe_request_storage_is_preserved(store, mutation):
     with pytest.raises(CertificateRequestError):
         ensure(request, identity)
     assert path.read_bytes() == before
+
+
+def recovery_record(request, identity):
+    pem = ensure(request, identity)
+    value = json.loads((request.directory / 'request.json').read_bytes())
+    der = base64.b64decode(value['csr'], validate=True)
+    return pem, value['csr'], hashlib.sha256(der).hexdigest()
+
+
+def remove_request(request):
+    (request.directory / 'request.json').unlink()
+    request.directory.rmdir()
+
+
+def test_missing_cache_recovers_original_signed_bytes_without_signing(store):
+    request, identity = store
+    pem, csr, fingerprint = recovery_record(request, identity)
+    original_record = (request.directory / 'request.json').read_bytes()
+    original_key = (request.key_store.directory / 'key.pem').read_bytes()
+    remove_request(request)
+    original_run = subprocess.run
+    def no_signing(args, **kwargs):
+        assert 'dgst' not in args, 'Recovery must not create another signature'
+        return original_run(args, **kwargs)
+    with mock.patch('certificate_request.subprocess.run', side_effect=no_signing):
+        assert request.restore(HOST, identity['fingerprint'], csr, fingerprint) == pem
+        assert request.restore(HOST, identity['fingerprint'], csr, fingerprint) == pem
+    assert (request.directory / 'request.json').read_bytes() == original_record
+    assert (request.key_store.directory / 'key.pem').read_bytes() == original_key
+    assert ensure(request, identity) == pem
+
+
+@pytest.mark.parametrize('mutation', ['encoding', 'hash', 'signature', 'name', 'key'])
+def test_invalid_original_cannot_publish_recovery(store, mutation):
+    request, identity = store
+    _, csr, fingerprint = recovery_record(request, identity)
+    remove_request(request)
+    key_before = (request.key_store.directory / 'key.pem').read_bytes()
+    if mutation == 'encoding':
+        csr += '\n'
+    elif mutation == 'hash':
+        fingerprint = '0' * 64
+    elif mutation == 'signature':
+        der = bytearray(base64.b64decode(csr)); der[-1] ^= 1
+        csr = base64.b64encode(der).decode('ascii')
+        fingerprint = hashlib.sha256(der).hexdigest()
+    else:
+        if mutation == 'name':
+            other = RequestStore(request.directory.parent / 'other', request.key_store)
+            host = 'ijklmnop.devices.example.test'
+            other_identity = identity
+        else:
+            key = KeyStore(request.directory.parent / 'other-key', request.key_store.openssl)
+            other_identity = key.ensure()
+            other = RequestStore(request.directory.parent / 'other', key)
+            host = HOST
+        other.ensure(host, other_identity['fingerprint'])
+        csr = json.loads((other.directory / 'request.json').read_bytes())['csr']
+        fingerprint = hashlib.sha256(base64.b64decode(csr)).hexdigest()
+    with pytest.raises(CertificateRequestError):
+        request.restore(HOST, identity['fingerprint'], csr, fingerprint)
+    assert not request.directory.exists()
+    assert not list(request.directory.parent.glob('.gui-csr-*'))
+    assert (request.key_store.directory / 'key.pem').read_bytes() == key_before
+
+
+def test_recovery_never_overwrites_another_intact_signed_request(store):
+    request, identity = store
+    _, csr, fingerprint = recovery_record(request, identity)
+    remove_request(request)
+    ensure(request, identity)
+    existing = (request.directory / 'request.json').read_bytes()
+    assert json.loads(existing)['csr'] != csr
+    with pytest.raises(CertificateRequestError):
+        request.restore(HOST, identity['fingerprint'], csr, fingerprint)
+    assert (request.directory / 'request.json').read_bytes() == existing
+
+
+def test_recovery_requires_intact_bound_key_without_regeneration(store):
+    request, identity = store
+    _, csr, fingerprint = recovery_record(request, identity)
+    remove_request(request)
+    key = request.key_store.directory / 'key.pem'
+    key.unlink()
+    with pytest.raises(CertificateRequestError):
+        request.restore(HOST, identity['fingerprint'], csr, fingerprint)
+    assert not key.exists()
+    assert not request.directory.exists()
+    assert (request.key_store.directory / 'state.json').exists()
+
+
+def test_recovery_retries_committed_record_after_parent_sync_failure(store):
+    request, identity = store
+    pem, csr, fingerprint = recovery_record(request, identity)
+    remove_request(request)
+    original_sync = request.key_store._sync
+    def fail_parent(path):
+        if path == request.directory.parent:
+            raise OSError('private diagnostic')
+        return original_sync(path)
+    with mock.patch.object(request.key_store, '_sync', side_effect=fail_parent):
+        with pytest.raises(CertificateRequestError):
+            request.restore(HOST, identity['fingerprint'], csr, fingerprint)
+    committed = (request.directory / 'request.json').read_bytes()
+    assert request.restore(HOST, identity['fingerprint'], csr, fingerprint) == pem
+    assert (request.directory / 'request.json').read_bytes() == committed
+
+
+@pytest.mark.skipif(os.name == 'nt', reason='Recovery publication modes require POSIX')
+def test_recovery_publishes_protected_modes_under_restrictive_umask(store):
+    request, identity = store
+    pem, csr, fingerprint = recovery_record(request, identity)
+    remove_request(request)
+    previous = os.umask(0o777)
+    try:
+        assert request.restore(HOST, identity['fingerprint'], csr, fingerprint) == pem
+    finally:
+        os.umask(previous)
+    assert request.directory.stat().st_mode & 0o777 == 0o700
+    assert (request.directory / 'request.json').stat().st_mode & 0o777 == 0o600
