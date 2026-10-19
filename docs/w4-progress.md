@@ -187,8 +187,8 @@ on 94f998794bad9174d3b098ccb53588d5bee081d4 (run 39230578213), and the native
 deployment log confirms every new relay case and credential absence. The follow-up
 retains the exact tested images for bounded native acceptance and uses the reviewed
 Caddy template with only its test CA/hostname changed; current-head CI must pass
-again before merge. Public source-address proof, the external-proxy path, durable automated
-certificate application/rotation and appliance/GUI lifecycle remain open.
+again before merge. Native public source-address acceptance is recorded below;
+the external-proxy path, durable certificate automation and appliance/GUI lifecycle remain open.
 
 PR #51 merged as d3ce2899e75a0b4f1f80859e8fb35dae67b70002 after all six checks
 passed on 19c29f07bcea97c74180980e72c30ee99a974451 (run 39231661494). The final
@@ -200,8 +200,8 @@ configuration digests, ordered rootfs diff IDs and platform were verified. Fresh
 version-3 initialization/DNS/backup acknowledgement and scoped file doctor passed.
 PostgreSQL, web and authz are running privately; web/authz are healthy, nonroot,
 read-only, have only their intended mounts and publish no host ports. The original
-public services remain active; Caddy/frps and a public test window have not been
-started. This is private-backend preparation, not public source-address proof.
+public services were preserved during preparation. The subsequent bounded public
+acceptance is recorded below.
 
 Native loading exposed classic-versus-containerd image ID semantics. All four
 configuration bytes and ordered layers matched the tested archive; containerd's
@@ -220,3 +220,21 @@ is retained outside Git. configd logs script stderr, so agent errors must never
 dump credentials or raw enrollment responses; its output cache must be disabled
 for the credential-bearing action. Full dispatcher logging/temp-file/crash paths
 still require verification. Preserve the current SSH policy and recovery path.
+
+## Native public acceptance
+
+PR #52 merged as c6ec379 after six checks on d032355c43917a4a5e3b335a1d00fc9c381b9b25
+(run 39234383994). The exact PR #51 images passed public console CA/hostname
+verification and nine browser groups with zero CSP violations, browser errors or
+unexpected external requests. Four screenshots were inspected. Three fresh
+external IPv4 TLS connections through host-network frps matched both independent
+HTTP source requests and established kernel TCP peers. The fixture backend's TLS
+certificate and hostname were verified on each connection.
+
+Two earlier collector failures were corrected and retained as failed evidence;
+no product hook authorization was weakened. Each bounded window independently
+restored original services and closed the test control listener before cancelling
+its restoration timer. Authority, backup and private database were preserved. See
+[the evidence and limits](../deploy/validation-w4.md). This does not complete the
+external-proxy path, certificate automation or native appliance enrollment/GUI
+acceptance.
