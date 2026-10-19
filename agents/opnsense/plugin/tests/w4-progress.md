@@ -98,11 +98,11 @@ and GUI security checks were unchanged. The owner-approved 1 GiB lab exception
 remains; local GUI access used the pinned self-signed lab certificate. This is
 native enrollment acceptance, not formal GUI certificate or full W4 acceptance.
 
-W4-8 unenroll/status,
-authenticated trust distribution, CA rotation, expired-candidate replacement
-and GUI ACME issuance/installation/renewal are not implemented by this increment.
+PR #58 does not implement lifecycle reporting/removal or certificate automation;
+the following increment adds lifecycle behavior. Authenticated trust distribution,
+CA rotation and GUI ACME issuance/installation/renewal remain open.
 
-## Native lifecycle increment under validation
+## Native lifecycle acceptance
 
 Development version 0.0.4 adds periodic/manual health reporting and the native
 removal UI. Shared HTTPS transport still validates system roots and hostname,
@@ -126,6 +126,30 @@ user restriction. Existing root/SSH/GUI security settings are outside this flow.
 Local real TLS/protocol tests pass. Target PHP syntax and ten isolated removal
 contracts pass, including failed/mismatched acknowledgement, concurrent model
 change, validation failure, cleanup failure, readonly/method/lock rejection and
-save/unlock-before-forget ordering. These fixtures do not establish actual model
-clearing or device revocation. Current CI, native package upgrade and real public
-report/removal/browser/restore acceptance are still required before merging.
+save/unlock-before-forget ordering. PR #60 merged as 25c17e8 after six checks on
+b0f544ca69ea63e0e012651c120a718d2f58951f (run 39272484598), with actual logs
+inspected. Plugin CI passed 199 tests and skipped the existing FreeBSD-only lock
+test on Linux. Genuine database boundaries and full deployment regressions passed.
+
+The exact native development package built with SHA256
+c18a55dd865d23860ceafc472b283031ca519cdd7fd76b04e020378e0ea95df4.
+Actual upgrade, pkg checksums, all twelve model fields and browser controls passed.
+A fresh isolated database/authority and all four exact CI images passed real
+public enrollment, manual reporting and a subsequent genuine cron health report.
+Click to online inventory measured 14.102 seconds in this run; removal took
+1.501 seconds. Native assignment fields and runtime live/candidate/last-good/trust
+were absent afterward, the console showed revoked/offline, and the previous route
+closed. Repeat removal succeeded. A separate bounded official frpc with the old
+claim was explicitly denied as not_authorized while verified control TLS remained
+available. The database had exactly one removal audit event.
+
+Browser page errors and external requests were zero. Before and after removal,
+device/service logs contained none of the actual one-use token, device secret,
+frp token or claim. Masked native panel captures were checked for private metadata.
+The public window lasted 109.279 seconds. Independent restoration rehearsals and
+final restoration passed: original public listeners, closed test control port,
+both authorities, doctor, native field values, thirteen owned files, stopped intent
+and system/unrelated configuration hashes. The watcher exited. Existing root/SSH
+policy and GUI security checks were unchanged; 0.0.4 remains installed. The 1 GiB
+lab exception still applies, and public tunnel TLS pinned the existing self-signed
+GUI leaf. This accepts lifecycle behavior, not formal GUI certificates or full W4.

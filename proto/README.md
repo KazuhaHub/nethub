@@ -3,8 +3,9 @@
 The shared device protocol is version **1.0.0**, recorded in `VERSION`.
 `v1/*.schema.json` are JSON Schema draft 2020-12 documents used by Go and Python
 contract tests. Enrollment, signed claims and native OPNsense enrollment are
-implemented. Authenticated status and removal are being added to the server;
-appliance lifecycle integration and credential rotation remain separate work.
+implemented. Authenticated status/removal and native appliance lifecycle behavior
+have passed acceptance. Trust generation acknowledgements, GUI certificates and
+credential rotation remain separate work.
 
 ## Messages
 

@@ -26,6 +26,7 @@ retaining identity/history; authenticated hooks still check device ID and claim.
 Previously issued access grants cannot authorize a revoked identity. Existing
 connections close through heartbeat denial rather than this HTTP response.
 
-This server increment does not implement the native PHP clearing workflow,
-periodic agent reports, authenticated CA generation acknowledgements or GUI
-certificates. Full W4 acceptance still requires those separate components.
+The native PHP clearing workflow and periodic agent reports passed actual public
+acceptance in PR #60; see the plugin W4 report. Authenticated CA generation
+acknowledgements and GUI certificates remain open. Full W4 acceptance still
+requires those separate components.

@@ -1,6 +1,7 @@
 """Exercise the real host renewal command while two official frpc clients run."""
 
 from datetime import datetime, timedelta, timezone
+import fcntl
 import hashlib
 import json
 import os
@@ -54,6 +55,7 @@ new_certs_dir = {work}
 certificate = {authority}/ca.pem
 private_key = {authority}/ca-key.pem
 default_md = sha256
+unique_subject = no
 policy = identity
 x509_extensions = server
 [identity]
@@ -154,6 +156,44 @@ exec {shlex.quote(real_docker)} "$@"
     assert state["phase"] == "idle" and state["last_good"] not in (old, candidate) and not state["assessment"]["due"]
     assert observed() == state["last_good"]
     check_tunnels()
+
+    # Prepare an isolated expired issued job while a different valid generation
+    # is served. This fixture never changes the production clock or authority.
+    command(["openssl", "req", "-new", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-noenc",
+             "-keyout", str(work / "expired-key.pem"), "-out", str(work / "expired.csr"),
+             "-subj", "/CN=console.example.com"], "expired-csr")
+    now = datetime.now(timezone.utc)
+    command(["openssl", "ca", "-batch", "-notext", "-config", str(work / "ca.cnf"),
+             "-in", str(work / "expired.csr"), "-out", str(work / "expired-cert.pem"),
+             "-startdate", (now - timedelta(minutes=3)).strftime("%y%m%d%H%M%SZ"),
+             "-enddate", (now - timedelta(minutes=1)).strftime("%y%m%d%H%M%SZ")], "expired-certificate")
+    der = command(["openssl", "x509", "-in", str(work / "expired-cert.pem"), "-outform", "DER"], "expired-fingerprint").stdout
+    expired_id = hashlib.sha256(der).hexdigest()
+    journal = authority / "maintenance"
+    with (journal / "lease").open("r+b") as lease:
+        fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        assert not (journal / "pending").exists()
+        for directory in (journal / expired_id, journal / "pending"):
+            directory.mkdir(mode=0o700)
+            for source, target in (("expired-cert.pem", "cert.pem"), ("expired-key.pem", "key.pem")):
+                path = directory / target
+                path.write_bytes((work / source).read_bytes())
+                path.chmod(0o600)
+        fixture = {"version": 1, "phase": "issued", "last_good": state["last_good"],
+                   "original": state["last_good"], "candidate": expired_id, "attempts": 0,
+                   "recovery_milliseconds": 0, "recovery_known": False}
+        (journal / "state.json").write_text(json.dumps(fixture, indent=2) + "\n")
+    replacement = json.loads(command(args, "replace-expired-issued-job", timeout=100).stdout)
+    assert replacement["phase"] == "idle" and replacement["superseded"] == expired_id
+    assert replacement["last_good"] not in (expired_id, state["last_good"])
+    assert observed() == replacement["last_good"] and not replacement["assessment"]["expired"]
+    assert not (journal / "pending").exists()
+    assert (journal / expired_id / "cert.pem").read_bytes() == (work / "expired-cert.pem").read_bytes()
+    assert (journal / expired_id / "key.pem").read_bytes() == (work / "expired-key.pem").read_bytes()
+    check_tunnels()
+    replacement_container = container("frps")
+    unchanged_replacement = json.loads(command(args, "unchanged-replacement-scan").stdout)
+    assert unchanged_replacement["last_good"] == replacement["last_good"] and container("frps") == replacement_container
     source_root = Path(__file__).resolve().parents[2]
     service_name = "nethub-relay-maintenance.service"
     service = (source_root / "deploy/systemd" / service_name).read_text()
@@ -170,5 +210,7 @@ exec {shlex.quote(real_docker)} "$@"
     command([str(host_binary), "doctor", "--directory", str(bundle)], "doctor-after-renewal")
     (work / "result.json").write_text(json.dumps({"passed": True, "tunnels_recovered_ms": interruption,
         "rollback_verified": True, "issued_generation_reused": True, "unchanged_scan_suppressed": True,
-        "actual_host_timer_passed": True, "unit_templates_verified": True}))
+        "actual_host_timer_passed": True, "unit_templates_verified": True,
+        "expired_candidate_replaced": True, "superseded_generation_preserved": True}))
     print(f"Relay maintenance passed real due-leaf renewal, injected apply failure/verified rollback, issued-generation reuse, fresh TLS fingerprint and two-client recovery in {interruption} ms; unchanged scan did not restart frps; host timer and unit templates passed")
+    print("Expired issued job replacement passed with the unchanged authority, preserved superseded generation, fresh verified TLS and both official clients")
