@@ -34,6 +34,7 @@ type accountFixture struct {
 	loseCreate               bool
 	malformedDirectory       bool
 	malformedAccount         bool
+	orderHandler             http.HandlerFunc
 }
 
 type counts struct{ creates, lookups, orders, requests int }
@@ -118,9 +119,17 @@ func (f *accountFixture) serve(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"status": f.status, "orders": f.server.URL + "/account/one/orders"})
 	case "/new-order":
 		f.orders++
-		w.WriteHeader(500)
+		if f.orderHandler != nil {
+			f.orderHandler(w, r)
+		} else {
+			w.WriteHeader(500)
+		}
 	default:
-		w.WriteHeader(404)
+		if f.orderHandler != nil {
+			f.orderHandler(w, r)
+		} else {
+			w.WriteHeader(404)
+		}
 	}
 }
 
