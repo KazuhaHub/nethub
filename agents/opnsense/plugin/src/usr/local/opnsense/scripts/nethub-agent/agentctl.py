@@ -114,9 +114,26 @@ class Agent:
             self.atomic(path, content)
         path.chmod(0o600)
 
-    def enroll(self, request_file):
+    def enroll(self, request_file, locked=False):
+        try:
+            for directory in (self.config, self.state):
+                directory.mkdir(parents=True, exist_ok=True)
+                directory.chmod(0o700)
+            os.umask(0o077)
+            with (self.state / 'reconcile.lock').open('a') as lock:
+                try:
+                    if not locked:
+                        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
+                return self.enroll_locked(request_file)
+        except OSError:
+            return {'success': False, 'message': 'Private enrollment storage is unavailable'}
+
+    def enroll_locked(self, request_file):
         from enrollment import consume_request, request_enrollment
         from protocol import ProtocolError
+        from certificate_key import CertificateKeyError, KeyStore
         try:
             request = consume_request(request_file, self.state / 'requests')
             tree = ET.parse(self.root / 'conf/config.xml')
@@ -129,11 +146,13 @@ class Agent:
             host = tree.findtext('system/hostname', 'OPNsense')
             domain = tree.findtext('system/domain', '')
             hostname = host + ('.' + domain if domain else '')
+            key = KeyStore(self.config / 'gui-key').ensure()
             result = request_enrollment(request['origin'], request['token'], version.stdout.strip(),
                                         product['product_version'], hostname,
-                                        cluster_hint=model is not None and model.findtext('cluster_hint') == '1')
+                                        cluster_hint=model is not None and model.findtext('cluster_hint') == '1',
+                                        gui_public_key=key['public_key'])
             return {'success': True, 'assignment': result}
-        except (AgentError, ProtocolError) as error:
+        except (AgentError, ProtocolError, CertificateKeyError) as error:
             return {'success': False, 'message': str(error)}
         except (OSError, ValueError, ET.ParseError, subprocess.SubprocessError):
             return {'success': False, 'message': 'Enrollment failed; no local configuration was changed'}
@@ -245,10 +264,15 @@ class Agent:
         return {'success': True, 'action': 'unenroll', 'device_id': device_id, 'revoked': True}
 
     def forget_locked(self):
+        from certificate_key import CertificateKeyError, KeyStore
         model = self.lifecycle_model()
         if model.findtext('enabled') == '1' or any(model.findtext(key) for key in ('device_id', 'device_secret', 'frp_token', 'domain_claim')):
             raise AgentError('Native configuration must be cleared before removing runtime credentials')
         self.stop_revoked()
+        try:
+            KeyStore(self.config / 'gui-key').forget()
+        except CertificateKeyError as error:
+            raise AgentError(str(error)) from None
         paths = [self.live, self.candidate, self.backup, self.config / 'relay-ca.pem']
         paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
         for path in paths:
@@ -354,7 +378,7 @@ def main():
             previous = signal.signal(signal.SIGALRM, timed_out)
             signal.setitimer(signal.ITIMER_REAL, 25)
             try:
-                result = Agent().enroll(arguments.request_file)
+                result = Agent().enroll(arguments.request_file, locked=arguments.locked)
             finally:
                 signal.setitimer(signal.ITIMER_REAL, 0)
                 signal.signal(signal.SIGALRM, previous)
