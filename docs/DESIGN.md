@@ -330,6 +330,10 @@ src/os-nethub-agent/
   （本该是顶层的键写在了某个表头之后，被解析进那张表）就起不来。v0.2 的 Weekend 0 套件就有这个问题，
   v0.3 已修正，并在启动前加了 `frps verify` / `frpc verify` 一步。
 
+### Certificate lifecycle ownership (Kazuha, 2026-10-18)
+
+Console HTTPS is owned by the reverse proxy: bundled Caddy or an administrator-managed external proxy. NetHub does not maintain a competing certificate manager for that hostname. v1 adds automatic relay certificate renewal/application and authenticated distribution of public relay trust. CA private keys stay outside web/authz/frps runtime containers. Router GUI certificate installation remains v1.1. The [PSP source review and proposed execution design](certificate-automation.md) describe retries, generation acknowledgements, verified application and backup boundaries; these are not implemented features yet.
+
 ### 域名归属校验（决策 #4 的落地）
 
 - `httpPlugins` 做主校验：`Login` + `NewProxy`——**签名声明有效 且 与 DB 记录一致**才放行；

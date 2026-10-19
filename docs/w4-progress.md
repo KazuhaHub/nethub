@@ -6,6 +6,11 @@ environment on 2026-10-18. Enrollment remains under implementation.
 
 ## W4-1: protocol foundation
 
+Merged in PR #40 as e26f6af. All six checks passed on 41ff3c5 (run 39207923123).
+The genuine PostgreSQL log confirms platform_forward_migration and
+bounded_platform_identifiers passed; the new schema is tested on an existing
+OPNsense record as well as the current role/RLS fixture.
+
 The first protocol version is 1.0.0. Ten shared draft-2020-12 schemas cover
 enrollment, strict domain claims, status, rotation and unenrollment. Twenty-three
 valid/invalid examples are consumed by both language suites. Ordinary messages
@@ -48,9 +53,12 @@ Check the current PR's six exact-head jobs before merging.
 - W4-9: the complete console-to-appliance workflow and every PLAN W4 acceptance
   check, with native/public evidence and credential-absence checks.
 
-D22 issuance/expiry/backup/rotation details remain a decision before enrollment
-implementation. A private review draft and the installed configd source review
-are retained outside Git. configd logs script stderr, so agent errors must never
+D22 now requires automatic renewal, distribution and configuration based on the
+PSP review, with reverse-proxy-owned console TLS and router GUI certificates
+remaining v1.1. See [the automation design](certificate-automation.md). Execution,
+expiry and backup details still need implementation/validation; the earlier
+private manual-renewal proposal is superseded. The installed configd source review
+is retained outside Git. configd logs script stderr, so agent errors must never
 dump credentials or raw enrollment responses; its output cache must be disabled
 for the credential-bearing action. Full dispatcher logging/temp-file/crash paths
 still require verification. Preserve the current SSH policy and recovery path.
