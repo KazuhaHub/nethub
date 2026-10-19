@@ -22,8 +22,17 @@ generation and verifies it through a fresh TLS connection. Rollback has an
 independent bounded cleanup context. Three automatic attempts use the same issued
 generation; durable backoff and terminal failure prevent repeated signing or
 unbounded restarts. Explicit root retry bypasses pending backoff or resets an
-exhausted budget, while reusing valid issued material. Expired candidates remain
-terminal instead of being repeatedly applied or silently replaced.
+exhausted budget, while reusing valid issued material.
+
+A valid but expired candidate enters a durable replacing phase before pending
+retirement. Its immutable generation remains available and the superseded
+fingerprint is recorded. A complete replacement pending pair survives interruption
+and is reused instead of signed again. Corrupt, wrong-identity or wrong-key
+material is refused without retirement. Exhausted jobs still require explicit
+retry; an interrupted final attempt first rolls back instead of gaining another
+deployment budget. An expired last-good generation is never restored. These new
+canonical journal fields/phases fail closed in older engines; keep the new host
+command after replacement rather than downgrading it against this journal.
 
 A timer does not start an intentionally stopped service. An interrupted applying
 or rollback transition can finish its already-authorized recovery, and an

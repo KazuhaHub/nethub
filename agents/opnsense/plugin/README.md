@@ -6,8 +6,8 @@ Services → NetHub Agent. Native validation is recorded in
 W4 now adds the HTTPS enrollment/client/model/UI flow and removes
 the temporary debug credential editor. Enrollment passed actual public-console
 and native-device acceptance; see [the W4 report](tests/w4-progress.md).
-The 0.0.4 health/removal increment is under validation and still requires its
-own current-head CI and native end-to-end acceptance.
+The 0.0.4 health/removal increment also passed current-head CI and actual native
+public enrollment, manual/cron reporting, revocation and cleanup acceptance.
 Saved model settings remain in config.xml after uninstall.
 
 Enter the separate console HTTPS address and one-use token in Enrollment.

@@ -138,6 +138,42 @@ P-256 CSR, exact assigned name and independently supplied roots. They reject a
 response-supplied untrusted root, another device key, missing intermediates,
 reordered/duplicate/unrelated certificates, malformed/mixed PEM, altered
 signatures, expanded identities and incorrect usage. Effective chain expiry is
-reported separately from the leaf's own dates. Tests and vet pass locally; CI on
-the current change is required. No live ACME issuance or appliance installation
-is established by these parser/trust tests.
+reported separately from the leaf's own dates. PR #57 merged as 8f3bf2c after six
+checks on 58d429e7faf5951f8668df53617c77380a316e37 (run 39254303439), with race
+and complete deployment logs inspected. No live ACME issuance or appliance
+installation is established by these parser/trust tests.
+
+## Native enrollment and lifecycle
+
+PR #58 merged as a3bc4da after all six d1c8f34 checks (run 39264535841) and actual
+fresh public-console/native-OPNsense enrollment acceptance. The installed 0.0.3
+package's source/build inputs matched that revision. Click to online inventory
+measured 3.642 seconds. Public console TLS and pinned local GUI TLS, native model
+persistence, private CA reconstruction, running frpc, idempotency and checked
+assignment-secret log absence passed. The 103.551-second window closed with
+original public services and the appliance baseline restored.
+
+PR #59 merged as b22c168 after six d68212e checks (run 39270567927). Genuine
+database tests accept authenticated health/removal boundaries, atomic audit and
+revocation, concurrency, routing-name reuse with old-claim denial and stale-hash
+rechecks under the write lock. Health receipt does not update relay online state.
+
+PR #60 merged as 25c17e8 after six b0f544c checks (run 39272484598), actual logs
+inspected and native/public acceptance. Plugin CI passed 199 tests with the
+existing FreeBSD-only lock check skipped on Linux. Exact 0.0.4 package upgrade,
+checksums and the twelve-field native model passed. A fresh isolated authority and
+database with all four exact CI images passed enrollment, manual and genuine cron
+reporting, model/runtime removal, console revocation and closed former route.
+Online inventory measured 14.102 seconds in this run; removal took 1.501 seconds.
+A separate bounded official frpc with retained old credentials was explicitly
+denied while verified control TLS remained available. There was one removal audit
+event. Actual token/secret/frp-token/claim log scans and repeated removal passed.
+
+The 109.279-second window closed with original listeners restored, test control
+port closed, both authorities unchanged and doctor passing. Native field values,
+thirteen owned files, stopped intent and system/unrelated configuration hashes
+were restored and the watcher exited. Root credentials, password SSH and GUI
+security checks stayed unchanged. The 0.0.4 development package remains installed
+under the owner-approved 1 GiB lab exception. Public router TLS pinned the existing
+self-signed GUI leaf; these results do not accept formal GUI ACME certificates,
+trust generation acknowledgements/root rotation or all W4 requirements.

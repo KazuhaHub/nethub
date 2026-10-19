@@ -18,6 +18,7 @@ type State struct {
 	LastGood             string                `json:"last_good,omitempty"`
 	Original             string                `json:"original,omitempty"`
 	Candidate            string                `json:"candidate,omitempty"`
+	Superseded           string                `json:"superseded,omitempty"`
 	Attempts             int                   `json:"attempts"`
 	NextAttempt          time.Time             `json:"next_attempt,omitzero"`
 	ErrorCode            string                `json:"error_code,omitempty"`
@@ -31,7 +32,7 @@ func (s State) validate() error {
 	if s.Version != 1 || s.Attempts < 0 || s.Attempts > 3 || s.RecoveryMilliseconds < 0 {
 		return ErrState
 	}
-	for _, id := range []string{s.LastGood, s.Original, s.Candidate} {
+	for _, id := range []string{s.LastGood, s.Original, s.Candidate, s.Superseded} {
 		if id != "" && !generationName.MatchString(id) {
 			return ErrState
 		}
@@ -41,7 +42,7 @@ func (s State) validate() error {
 		if s.Candidate != "" || s.Attempts != 0 || !s.NextAttempt.IsZero() {
 			return ErrState
 		}
-	case "issued", "applying", "rollback", "waiting", "exhausted", "recovery-failed":
+	case "issued", "applying", "rollback", "waiting", "exhausted", "recovery-failed", "replacing":
 		if s.Candidate == "" || s.Original == "" {
 			return ErrState
 		}
@@ -58,6 +59,9 @@ func (s State) validate() error {
 		return ErrState
 	}
 	if s.Phase == "issued" && s.Attempts == 3 {
+		return ErrState
+	}
+	if s.Phase == "replacing" && (s.Superseded != s.Candidate || s.Attempts != 0) {
 		return ErrState
 	}
 	switch s.ErrorCode {
@@ -282,10 +286,56 @@ func (e Engine) Run(ctx context.Context, retry bool) (State, error) {
 	if err != nil {
 		return state, err
 	}
-	if relaycert.Check(e.CA, cert, key, e.Name, e.now()) != nil {
+	assessment, assessmentErr := relaycert.Assess(e.CA, cert, key, e.Name, e.now())
+	if assessmentErr != nil {
 		state.Phase = "exhausted"
 		state.NextAttempt = time.Time{}
 		return fail("candidate_invalid")
+	}
+	if assessment.AuthorityExpired {
+		return fail("authority_expired")
+	}
+	if assessment.Expired || state.Phase == "replacing" {
+		if state.Attempts >= 3 {
+			state.Phase = "rollback"
+			if s.save(state) != nil {
+				return state, ErrState
+			}
+			return e.rollback(ctx, s, state)
+		}
+		if !assessment.CanExtend {
+			return fail("authority_rotation_required")
+		}
+		if ctx.Err() != nil {
+			return fail("interrupted")
+		}
+		if state.Phase != "replacing" {
+			state.Phase = "replacing"
+			state.Superseded = state.Candidate
+			state.Attempts = 0
+			state.NextAttempt = time.Time{}
+			state.ErrorCode = ""
+			if s.save(state) != nil {
+				return state, ErrState
+			}
+		}
+		cert, key, err = e.replacementCandidate(s, state.Candidate)
+		if err != nil {
+			if errors.Is(err, ErrMaintenance) {
+				return fail("issuance_failed")
+			}
+			return state, err
+		}
+		id, err := s.put(cert, key)
+		if err != nil {
+			return state, err
+		}
+		state.Candidate = id
+		state.Phase = "issued"
+		state.ErrorCode = ""
+		if s.save(state) != nil {
+			return state, ErrState
+		}
 	}
 	if state.Phase == "applying" {
 		current, currentKey, err := e.Service.Current()
@@ -368,6 +418,39 @@ func (e Engine) pendingCandidate(s *store) ([]byte, []byte, error) {
 		return nil, nil, ErrState
 	}
 	return cert, key, nil
+}
+
+// The durable replacing journal fences retirement. A complete fresh pending pair
+// is reused after interruption; immutable generations preserve superseded material.
+func (e Engine) replacementCandidate(s *store, previous string) ([]byte, []byte, error) {
+	if !missing(filepath.Join(s.root, "pending")) {
+		cert, key, err := s.pair("pending")
+		if err != nil {
+			return nil, nil, ErrState
+		}
+		assessment, err := relaycert.Assess(e.CA, cert, key, e.Name, e.now())
+		if err != nil {
+			return nil, nil, ErrState
+		}
+		id, err := s.put(cert, key)
+		if err != nil {
+			return nil, nil, err
+		}
+		if id != previous && !assessment.Expired {
+			return cert, key, nil
+		}
+		if err := removePending(s); err != nil {
+			return nil, nil, err
+		}
+	}
+	issued, err := relaycert.Renew(e.CA, e.CAKey, e.Name, e.now())
+	if err != nil {
+		return nil, nil, ErrMaintenance
+	}
+	if s.putPair("pending", issued.Certificate, issued.Key) != nil {
+		return nil, nil, ErrState
+	}
+	return issued.Certificate, issued.Key, nil
 }
 
 func (e Engine) rollback(ctx context.Context, s *store, state State) (State, error) {
