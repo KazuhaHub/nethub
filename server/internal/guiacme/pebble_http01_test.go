@@ -28,7 +28,13 @@ func TestPebbleCertificateIssuance(t *testing.T) {
 	pebbleHTTP01Flow(t, true)
 }
 
-func pebbleHTTP01Flow(t *testing.T, finalize bool) {
+// RunPebbleIssuerFixture exposes the existing isolated test-only CA/proxy to an
+// external-package coordinator test, avoiding a production dependency cycle.
+func RunPebbleIssuerFixture(t *testing.T, run func(*AccountStore, *http01.Publisher, *x509.CertPool, []byte, string, func() *AccountStore) Order) {
+	pebbleHTTP01Flow(t, true, run)
+}
+
+func pebbleHTTP01Flow(t *testing.T, finalize bool, coordinator ...func(*AccountStore, *http01.Publisher, *x509.CertPool, []byte, string, func() *AccountStore) Order) {
 	t.Helper()
 	if os.Getenv("NETHUB_GUIACME_PEBBLE_IMAGE") == "" {
 		t.Skip("requires the isolated genuine ACME deployment harness")
@@ -173,6 +179,50 @@ func pebbleHTTP01Flow(t *testing.T, finalize bool) {
 		time.Sleep(100 * time.Millisecond)
 	}
 	csr, public := orderRequest(t)
+	if len(coordinator) == 1 {
+		order := coordinator[0](p.store, publisher, issuingRoots, csr, public, func() *AccountStore {
+			reopened, err := NewAccountStore(p.store.directory, p.store.config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return reopened
+		})
+		matched := false
+		for _, line := range strings.Split(string(p.docker("logs", cid)), "\n") {
+			var entry struct {
+				Status  int
+				Request struct {
+					RemoteIP  string `json:"remote_ip"`
+					Host, URI string
+				}
+			}
+			if json.Unmarshal([]byte(line), &entry) != nil || entry.Status != 200 || entry.Request.RemoteIP != p.address.String() || !strings.HasPrefix(entry.Request.URI, "/.well-known/acme-challenge/") {
+				continue
+			}
+			host := entry.Request.Host
+			if value, port, err := net.SplitHostPort(host); err == nil && port == "80" {
+				host = value
+			}
+			if host != orderHost {
+				continue
+			}
+			if status, _, err := fetch(orderHost, entry.Request.URI); err != nil || status != 404 {
+				t.Fatal("coordinator did not retire validated proof")
+			}
+			matched = true
+		}
+		endpoint, err := url.Parse(order.FinalizeURL)
+		if err != nil || endpoint.Path == "" {
+			t.Fatal("coordinator final order identity missing")
+		}
+		prefix := endpoint.Path[:strings.LastIndex(endpoint.Path, "/")+1]
+		log := string(p.docker("logs", p.containerID))
+		if !matched || prefix == "/" || strings.Count(log, "POST "+prefix+" -> calling handler()") != 1 || !strings.Contains(log, "There are now 1 orders in the db") || strings.Contains(log, "There are now 2 orders in the db") {
+			t.Fatal("coordinator did not preserve one real validated order and finalization")
+		}
+		t.Log("Actual coordinator passed genuine CA-source HTTP validation, retired response, reopened-account recovery and one original order/finalize POST; database/native application remain separate acceptance")
+		return
+	}
 	order, err := p.store.CreateOrder(context.Background(), csr, orderHost, public)
 	if err != nil {
 		t.Fatal(err)

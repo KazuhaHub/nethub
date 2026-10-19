@@ -35,6 +35,9 @@ func TestPrivateSQLStoreFencesVersionsAndBoundIdentity(t *testing.T) {
 	if !strings.Contains(input, "SET log_statement=none;") || strings.Index(input, "SET log_min_error_statement=panic;") > strings.Index(input, "SET SESSION AUTHORIZATION") {
 		t.Fatal("private logging settings not set before role reduction")
 	}
+	if !strings.Contains(input, "SET statement_timeout='10s';") || !strings.Contains(input, "SET lock_timeout='5s';") {
+		t.Fatal("database work outlives disconnected runner")
+	}
 	raw.Job.Version++
 	renewed, err := s.Renew(context.Background(), w)
 	if err != nil || renewed.Lease.Version != w.Lease.Version+1 {
