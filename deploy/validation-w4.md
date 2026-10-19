@@ -212,5 +212,25 @@ labels, identity-collision checks and owned-ID cleanup protect test resources.
 The focused native rehearsal also used an independent cleanup timer and verified
 that owned containers/networks were gone and original services remained running
 before cancelling it. It did not stop public services or install any router key,
-certificate, application route or account. Full current-head PR #62 CI still gates
-merge; this is publication/proxy evidence, not ACME issuance or full W4 acceptance.
+certificate, application route or account. PR #62 subsequently passed all six
+checks on 9fc29346f84a0c6fed340a49778b0c9bbc990eef (39286012026), including
+the genuine Caddy/deployment case, and merged as 9ed188c. This is
+publication/proxy evidence, not ACME issuance or full W4 acceptance.
+
+## Account requests and initial device key binding
+
+PR #63 passed all six checks on b132224285059b62c6f90bcdb2dd12f4263b25cb
+(39288971976), including actual SDK TLS/JWS account fixtures under the race
+detector. It merged as 677bb3d. PR #64 passed all six checks on
+95b154dae870d477ca59684dd4775ffcbce3146f (39288895457), including genuine
+PostgreSQL initial-binding/acknowledgement, one-use replay denial, immutable
+owner/authz updates, web column denial, tenant isolation, legacy no-backfill,
+invalid-point rejection before token consumption and readiness-guard tests. It
+merged as 47bfb9c. Its plugin job passed 220 tests with one native-only skip.
+
+Both runs passed the genuine HTTP-01 proxy case, four assembled-image security
+checks, deployed browser flows, two official relay clients, renewal/rollback,
+expired candidate replacement and external proxy checks. No public account or
+router GUI certificate was created; native 0.0.4 remains installed. The new native
+key source has separate scoped evidence in the plugin's certificate-key-progress
+record and still needs full package/server acceptance.
