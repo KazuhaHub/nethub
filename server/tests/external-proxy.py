@@ -73,7 +73,7 @@ try:
     example = (bundle / "external-Caddyfile.example").read_text()
     assert example.count("console.example.com {") == 1
     front = example.replace("console.example.com {", f"https://console.example.com:{public_port} {{\n    bind 127.0.0.1\n    tls /fixture/cert.pem /fixture/key.pem", 1)
-    (work / "Caddyfile").write_text("{\n    admin off\n}\n" + front)
+    (work / "Caddyfile").write_text("{\n    admin off\n    auto_https disable_redirects\n}\n" + front)
     run(["docker", "run", "--detach", "--name", proxy, "--network", "host", "--read-only", "--cap-drop", "ALL",
          "--tmpfs", "/data", "--tmpfs", "/config", "-v", f"{work}:/fixture:ro", caddy,
          "caddy", "run", "--config", "/fixture/Caddyfile", "--adapter", "caddyfile"], "operator-proxy")
@@ -105,6 +105,12 @@ try:
             break
         time.sleep(0.25)
     else:
+        startup = subprocess.run(["docker", "logs", proxy], capture_output=True, timeout=10)
+        # No credential-bearing request has run at this point; retain startup
+        # errors without printing any later authenticated proxy traffic.
+        diagnostic = (startup.stdout + startup.stderr)[-16000:]
+        (work / "proxy-startup-error.log").write_bytes(diagnostic)
+        sys.stderr.buffer.write(diagnostic)
         raise RuntimeError("operator-owned TLS proxy did not become ready")
     for path in ("/healthz", "/api/v1/frp/hooks"):
         assert request(path)[0] == 404
