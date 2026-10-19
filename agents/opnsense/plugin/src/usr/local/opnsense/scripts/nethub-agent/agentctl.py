@@ -185,6 +185,78 @@ class Agent:
             (self.state / 'rollback-attempt').unlink(missing_ok=True)
         return self.record(True, 'Configuration verified', action)
 
+    def lifecycle_model(self):
+        model = ET.parse(self.root / 'conf/config.xml').find('OPNsense/NetHubAgent')
+        if model is None:
+            raise AgentError('Enrollment configuration is unavailable')
+        return model
+
+    def stop_revoked(self):
+        self.atomic(self.state / 'revoked', b'Enrollment inactive\n')
+        self.rc_enable(False)
+        if self.running():
+            self.checked(self.service('onestop'), 'Could not stop the revoked tunnel')
+        if self.running():
+            raise AgentError('The tunnel did not stop; local review is required')
+
+    def lifecycle_result(self, result):
+        public = {key: result[key] for key in ('success', 'message', 'action', 'revoked', 'device_id') if key in result}
+        public['updated_at'] = datetime.now(timezone.utc).isoformat()
+        self.atomic(self.state / 'health.json', json.dumps(public).encode())
+        return result
+
+    def report_locked(self):
+        from lifecycle import health_request, report_health
+        from protocol import ProtocolError
+        model = self.lifecycle_model()
+        if not model.findtext('device_id'):
+            return {'success': True, 'action': 'report', 'message': 'No enrollment to report'}
+        version = self.command(['/usr/local/sbin/opnsense-version', '-v'], timeout=5)
+        self.checked(version, 'Could not read the platform version')
+        product = json.loads((self.root / 'usr/local/opnsense/version/nethub-agent').read_text())
+        local = self.status()
+        inactive = model.findtext('enabled') != '1' or any((self.state / name).exists() for name in ('disabled', 'revoked', 'uninstalling'))
+        service_state = 'disabled' if inactive else local['status']
+        if not inactive and isinstance(local['last_reconcile'], dict) and local['last_reconcile'].get('success') is False:
+            service_state = 'error'
+        try:
+            body = health_request(model.findtext('device_id'), version.stdout.strip(), product['product_version'], service_state, local['last_reconcile'])
+            reply = report_health(model.findtext('console_url'), model.findtext('device_secret'), body)
+        except ProtocolError:
+            raise AgentError('Device health report failed; check enrollment and console connectivity') from None
+        if reply['revoked']:
+            self.stop_revoked()
+        return self.lifecycle_result({'success': True, 'action': 'report', 'revoked': reply['revoked'], 'message': 'Device health acknowledged'})
+
+    def unenroll_locked(self):
+        from lifecycle import request_removal
+        from protocol import ProtocolError
+        model = self.lifecycle_model()
+        device_id = model.findtext('device_id')
+        if not device_id:
+            return {'success': True, 'action': 'unenroll', 'device_id': '', 'revoked': True}
+        # Stop first and retain credentials until the server confirms removal, allowing retry.
+        self.stop_revoked()
+        try:
+            request_removal(model.findtext('console_url'), model.findtext('device_secret'), device_id)
+        except ProtocolError:
+            raise AgentError('Tunnel stopped; server removal is unconfirmed. Retry Remove enrollment') from None
+        self.atomic(self.state / 'unenroll-confirmed.json', json.dumps({'device_id': device_id, 'revoked': True}).encode())
+        return {'success': True, 'action': 'unenroll', 'device_id': device_id, 'revoked': True}
+
+    def forget_locked(self):
+        model = self.lifecycle_model()
+        if model.findtext('enabled') == '1' or any(model.findtext(key) for key in ('device_id', 'device_secret', 'frp_token', 'domain_claim')):
+            raise AgentError('Native configuration must be cleared before removing runtime credentials')
+        self.stop_revoked()
+        paths = [self.live, self.candidate, self.backup, self.config / 'relay-ca.pem']
+        paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
+        for path in paths:
+            if path.is_symlink():
+                raise AgentError('Runtime credential path needs local review')
+            path.unlink(missing_ok=True)
+        return {'success': True, 'action': 'forget', 'message': 'Enrollment removed'}
+
     def apply(self, action, locked=False):
         for directory in [self.config, self.state]:
             directory.mkdir(parents=True, exist_ok=True)
@@ -197,14 +269,24 @@ class Agent:
             except BlockingIOError:
                 return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
             try:
+                if action == 'report':
+                    return self.report_locked()
+                if action == 'unenroll':
+                    return self.unenroll_locked()
+                if action == 'forget':
+                    return self.forget_locked()
                 if action == 'stop':
                     self.atomic(self.state / 'stopped', b'Operator stop\n')
                 elif action in ('start', 'restart'):
                     (self.state / 'stopped').unlink(missing_ok=True)
                 return self.reconcile_locked(force=action == 'restart')
             except AgentError as error:
+                if action in ('report', 'unenroll', 'forget'):
+                    return self.lifecycle_result({'success': False, 'message': str(error), 'action': action})
                 return self.record(False, str(error), 'error')
             except (OSError, ValueError, ET.ParseError, subprocess.SubprocessError):
+                if action in ('report', 'unenroll', 'forget'):
+                    return self.lifecycle_result({'success': False, 'message': 'Device operation failed; local settings were retained', 'action': action})
                 # Child output can include credentials or complete configuration lines.
                 return self.record(False, 'Service operation failed; review local configuration and CA', 'error')
 
@@ -213,11 +295,16 @@ class Agent:
             state = json.loads((self.state / 'state.json').read_text())
         except (OSError, ValueError):
             state = None
+        try:
+            health = json.loads((self.state / 'health.json').read_text())
+            health = {key: value for key, value in health.items() if key in ('success', 'message', 'action', 'revoked', 'updated_at')}
+        except (OSError, ValueError, AttributeError):
+            health = None
         return {'status': 'running' if self.running() else 'stopped', 'last_reconcile': state,
                 'log': self.log_tail(),
                 'disabled': (self.state / 'disabled').exists(),
                 'revoked': (self.state / 'revoked').exists(),
-                'operator_stopped': (self.state / 'stopped').exists()}
+                'operator_stopped': (self.state / 'stopped').exists(), 'last_report': health}
 
     def log_tail(self):
         try:
@@ -254,7 +341,7 @@ def main():
     parser.add_argument('--locked', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--request-file', help=argparse.SUPPRESS)
     parser.add_argument('action', choices=['reconcile', 'status', 'start', 'stop', 'restart',
-                                          'enroll', 'unenroll', 'rotate'])
+                                          'enroll', 'unenroll', 'report', 'forget', 'rotate'])
     arguments = parser.parse_args()
     action = arguments.action
     if action == 'enroll':
@@ -271,7 +358,17 @@ def main():
             finally:
                 signal.setitimer(signal.ITIMER_REAL, 0)
                 signal.signal(signal.SIGALRM, previous)
-    elif action in ('unenroll', 'rotate'):
+    elif action in ('report', 'unenroll'):
+        def timed_out(signum, frame):
+            raise AgentError('Device operation timed out; inspect status before retrying')
+        previous = signal.signal(signal.SIGALRM, timed_out)
+        signal.setitimer(signal.ITIMER_REAL, 25)
+        try:
+            result = Agent().apply(action, locked=arguments.locked)
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, previous)
+    elif action == 'rotate':
         result = {'success': False, 'message': 'Not implemented'}
     else:
         agent = Agent()

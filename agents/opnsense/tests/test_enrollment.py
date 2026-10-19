@@ -207,6 +207,7 @@ def https_console(tmp_path):
         def do_POST(self):
             body = self.rfile.read(int(self.headers['Content-Length']))
             calls.append((self.path, json.loads(body)))
+            state.setdefault('authorizations', []).append(self.headers.get_all('Authorization', []))
             self.send_response(state['status'])
             self.send_header('Content-Type', 'application/json')
             self.send_header('Content-Encoding', state['encoding'])
@@ -237,7 +238,7 @@ def test_real_https_enrollment_ignores_environment_proxy_and_verifies_tls(https_
     assert calls[0][1]['enroll_token'] == 'A' * 43
     assert 'token' not in calls[0][0]
     for origin, roots in [(f'https://localhost:{port}', None), (f'https://127.0.0.1:{port}', context)]:
-        with pytest.raises(ENROLL.ProtocolError, match='^Console HTTPS enrollment failed;'):
+        with pytest.raises(ENROLL.ProtocolError, match='^Console HTTPS request failed;'):
             ENROLL.request_enrollment(origin, 'A' * 43, '26.7.7', '0.0.3', 'router.local', roots)
     assert len(calls) == 1
 
@@ -248,6 +249,22 @@ def test_overlapping_distinct_ca_roots_and_leaf_rejection(https_console):
     assert ENROLL.validate_ca(overlap) == overlap
     with pytest.raises(ENROLL.ProtocolError):
         ENROLL.validate_ca(state['leaf_pem'])
+
+
+def test_real_https_lifecycle_authentication_and_verified_acknowledgement(https_console, monkeypatch):
+    import lifecycle
+    port, context, calls, state = https_console
+    origin = f'https://localhost:{port}'
+    device_id = SAMPLE['device_id']
+    state['status'] = 200
+    state['body'] = json.dumps({'agent_protocol_version': '1.0.0', 'device_id': device_id, 'revoked': True}).encode()
+    monkeypatch.setenv('HTTPS_PROXY', 'http://127.0.0.1:1')
+    assert lifecycle.request_removal(origin, 'A' * 43, device_id, context)['revoked'] is True
+    assert calls == [('/api/v1/devices/unenroll', lifecycle.identity(device_id))]
+    assert state['authorizations'] == [['Bearer ' + 'A' * 43]]
+    with pytest.raises(ENROLL.ProtocolError):
+        lifecycle.request_removal(origin, 'A' * 43, device_id)
+    assert len(calls) == 1
 
 
 @pytest.mark.parametrize('kind', ['redirect', 'oversize', 'duplicate', 'encoding', 'truncated'])

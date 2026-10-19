@@ -41,7 +41,24 @@ $(function () {
     $('#applyNetHub').on('click', function () {
         ajaxCall('/api/nethubagent/service/reconcile', {}, showStatus);
     });
-    $('#refreshNetHub').on('click', showStatus);
+    $('#refreshNetHub').on('click', function () {
+        ajaxCall('/api/nethubagent/service/report', {}, showStatus);
+    });
+    $('#removeNetHub').on('click', function () {
+        if (!window.confirm('{{ lang._("Stop the tunnel and remove this enrollment?") }}')) {
+            return;
+        }
+        const button = $(this);
+        button.prop('disabled', true);
+        ajaxCall('/api/nethubagent/remove/remove', {}, function (result, status) {
+            $('#nethubEnrollmentResult').text(status === 'success' && typeof result.message === 'string' ?
+                result.message : '{{ lang._("Removal response unavailable. Check status before retrying.") }}');
+            button.prop('disabled', false);
+            showEnrollment();
+            showStatus();
+            mapDataToFormUI({[form]: endpoint + 'get'});
+        });
+    });
 });
 </script>
 
@@ -63,5 +80,6 @@ $(function () {
         <input id="nethubEnrollToken" class="form-control" type="password" maxlength="43" autocomplete="off" spellcheck="false">
     </div>
     <button id="enrollNetHub" class="btn btn-primary" type="button">{{ lang._('Enroll') }}</button>
+    <button id="removeNetHub" class="btn btn-danger" type="button">{{ lang._('Remove enrollment') }}</button>
     <p id="nethubEnrollmentResult" role="status"></p>
 </div>

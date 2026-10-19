@@ -101,3 +101,31 @@ native enrollment acceptance, not formal GUI certificate or full W4 acceptance.
 W4-8 unenroll/status,
 authenticated trust distribution, CA rotation, expired-candidate replacement
 and GUI ACME issuance/installation/renewal are not implemented by this increment.
+
+## Native lifecycle increment under validation
+
+Development version 0.0.4 adds periodic/manual health reporting and the native
+removal UI. Shared HTTPS transport still validates system roots and hostname,
+ignores ambient proxies and rejects redirects/ambiguous JSON. A health message
+contains versions, service state and the reconcile outcome/time only. It does not
+send local messages, logs, tunnel settings or credentials in JSON. Authenticated
+revocation marks the tunnel inactive and stops it without rewriting native XML.
+
+Removal takes the enrollment admission lock, stops/fences the service under the
+shared scheduler lock, and requests server revocation. Failed notification keeps
+credentials for explicit retry while preventing restart. Only a matching confirmed
+device acknowledgement permits PHP to clear the native model under its lock.
+Runtime cleanup then removes live/candidate/last-good credentials, initial trust
+and recovery state; it refuses to clear while native credentials remain. Retrying
+after a saved clear can finish cleanup. The model remains owned by PHP.
+
+The package-owned cron adds a delayed minute health report with the shared lock
+and an external deadline. All mutating service actions enforce the native read-only
+user restriction. Existing root/SSH/GUI security settings are outside this flow.
+
+Local real TLS/protocol tests pass. Target PHP syntax and ten isolated removal
+contracts pass, including failed/mismatched acknowledgement, concurrent model
+change, validation failure, cleanup failure, readonly/method/lock rejection and
+save/unlock-before-forget ordering. These fixtures do not establish actual model
+clearing or device revocation. Current CI, native package upgrade and real public
+report/removal/browser/restore acceptance are still required before merging.
