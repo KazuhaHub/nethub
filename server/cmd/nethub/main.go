@@ -24,8 +24,8 @@ Commands:
   admin        Manage the initial administrator
   version      Print the build version
 
-Console, migration, first-admin creation, initialization, and scoped doctor checks
-and device enrollment are implemented. Relay authorization remains unfinished.
+The console, migrations, first-admin setup, deployment initialization, scoped
+doctor checks, and device enrollment are implemented. Relay hooks remain unfinished.
 `
 
 func run(args []string, stdout, stderr io.Writer) int {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -50,6 +51,12 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 	var stdout, stderr bytes.Buffer
 	command.Stdout, command.Stderr = &stdout, &stderr
 	if err := command.Start(); err != nil {
+		if errors.Is(err, os.ErrPermission) {
+			t.Fatal("authz CLI lacks execution permission in the test container")
+		}
+		if errors.Is(err, os.ErrNotExist) {
+			t.Fatal("authz CLI is missing from the test container")
+		}
 		t.Fatal("authz CLI could not start")
 	}
 	completed := make(chan error, 1)
