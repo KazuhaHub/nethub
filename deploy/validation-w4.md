@@ -177,3 +177,19 @@ security checks stayed unchanged. The 0.0.4 development package remains installe
 under the owner-approved 1 GiB lab exception. Public router TLS pinned the existing
 self-signed GUI leaf; these results do not accept formal GUI ACME certificates,
 trust generation acknowledgements/root rotation or all W4 requirements.
+
+## Expired issued relay candidates
+
+PR #61 passed all six checks on 3b64b21e907eb4dfc102a52292d54766552ed243
+(run 39276875654); actual logs were inspected. Crypto-backed tests cover durable
+replacement, interruption boundaries, valid replacement reuse, wrong identity,
+cancelled work, exhausted/stopped intent and expired rollback refusal. An
+interrupted final attempt must roll back before explicit replacement retry.
+
+The genuine Docker regression signed an already expired fixture under its existing
+authority while another valid generation remained served. The actual root host
+command replaced the expired issued job, preserved its immutable generation,
+verified fresh control TLS and recovered both official frpc clients. The next scan
+did not restart frps. Existing image scans/browser/external-proxy/timer regressions
+passed. This is isolated genuine deployment evidence; the retained native
+operator authority/journal was not modified for this change.
