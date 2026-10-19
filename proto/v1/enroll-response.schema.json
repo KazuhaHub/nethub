@@ -3,6 +3,12 @@
   "$id": "https://schemas.example.com/nethub/v1/enroll-response.schema.json",
   "type": "object",
   "properties": {
+    "gui_key_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "minLength": 64,
+      "maxLength": 64
+    },
     "agent_protocol_version": {
       "$ref": "common.schema.json#/$defs/version"
     },

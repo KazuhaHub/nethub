@@ -6,6 +6,12 @@ subject fields and requested certificate extensions, malformed signatures,
 unsupported keys and ambiguous PEM. Public output has defensive copies and no
 ordinary JSON representation. Errors contain no submitted data.
 
+Enrollment may bind a canonical base64url P-256 SubjectPublicKeyInfo through the
+one-use admission transaction. `ValidatePublicKey` validates its encoding and
+public point and computes the SHA256 DER fingerprint. `ValidateBoundCSR` also
+requires the signed request's key to equal that original binding. Neither a
+public-key value nor a valid CSR alone proves current device authorization.
+
 The chain validator revalidates the signed CSR and binds the leaf to its public
 key and exact assigned SAN. It requires independently supplied roots; certificates
 returned by the issuer cannot grant their own trust. Bounded canonical PEM must

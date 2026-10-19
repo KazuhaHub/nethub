@@ -61,6 +61,28 @@ func fixtureRequest(t *testing.T) protocol.EnrollRequest {
 	return request
 }
 
+func TestEnrollmentCarriesInitialCertificateKeyBinding(t *testing.T) {
+	data, err := os.ReadFile("../../../proto/examples/valid/enroll-bound-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, err := protocol.DecodeEnroll(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository := &fakeRepository{}
+	service := fixtureService(t, repository)
+	response, err := service.Enroll(context.Background(), request, netip.MustParseAddr("192.0.2.1"))
+	if err != nil || repository.record.GUIPublicKey != request.GUIPublicKey || len(response.GUIKeyFingerprint) != 64 {
+		t.Fatalf("binding: %v", err)
+	}
+	var expected protocol.EnrollResponse
+	encoded, _ := os.ReadFile("../../../proto/examples/valid/enroll-bound-response.json")
+	if json.Unmarshal(encoded, &expected) != nil || response.GUIKeyFingerprint != expected.GUIKeyFingerprint {
+		t.Fatal("binding acknowledgement")
+	}
+}
+
 func fixtureRelay(t *testing.T) RelayConfig {
 	t.Helper()
 	data, err := os.ReadFile("../../../proto/examples/valid/enroll-response.json")

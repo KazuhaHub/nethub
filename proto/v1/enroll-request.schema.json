@@ -24,6 +24,12 @@
     "hostname": {
       "$ref": "common.schema.json#/$defs/hostname"
     },
+    "gui_public_key": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{121}[AQgw]$",
+      "minLength": 122,
+      "maxLength": 122
+    },
     "cluster_hint": {
       "type": "boolean"
     }

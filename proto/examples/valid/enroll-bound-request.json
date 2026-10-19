@@ -1,0 +1,13 @@
+{
+  "agent_protocol_version": "1.1.0",
+  "enroll_token": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "platform": "opnsense",
+  "platform_version": "26.7.7",
+  "agent_version": "0.0.2",
+  "capabilities": [
+    "remote.web"
+  ],
+  "hostname": "router.example.com",
+  "cluster_hint": false,
+  "gui_public_key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpZP40Li_hp_m47n60p8D54WK84zV2sxXs7LtkBoN79R9Q"
+}

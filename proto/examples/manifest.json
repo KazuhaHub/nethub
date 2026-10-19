@@ -113,5 +113,30 @@
     "path": "invalid/version-text-newline.json",
     "schema": "enroll-request.schema.json",
     "valid": false
+  },
+  {
+    "path": "valid/enroll-bound-request.json",
+    "schema": "enroll-request.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/enroll-bound-response.json",
+    "schema": "enroll-response.schema.json",
+    "valid": true
+  },
+  {
+    "path": "invalid/null-gui-key.json",
+    "schema": "enroll-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/padded-gui-key.json",
+    "schema": "enroll-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/null-gui-fingerprint.json",
+    "schema": "enroll-response.schema.json",
+    "valid": false
   }
 ]

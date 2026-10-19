@@ -1,6 +1,6 @@
 # Device protocol
 
-The shared device protocol is version **1.0.0**, recorded in `VERSION`.
+The shared device protocol is version **1.1.0**, recorded in `VERSION`.
 `v1/*.schema.json` are JSON Schema draft 2020-12 documents used by Go and Python
 contract tests. Enrollment, signed claims and native OPNsense enrollment are
 implemented. Authenticated status/removal and native appliance lifecycle behavior
@@ -41,6 +41,24 @@ Required fields and their meaning remain stable within a major; minor additions
 are optional. Both sides reject an incompatible major with a readable error.
 The server checks compatibility before consuming any token. Current consumers
 support major 1; malformed SemVer is invalid input.
+
+Version 1.1 adds optional `gui_public_key` to enrollment and optional
+`gui_key_fingerprint` to its response. The key is a canonical unpadded base64url
+P-256 SubjectPublicKeyInfo (91 DER bytes / 122 characters); its acknowledgement is
+the lowercase SHA256 hex digest of those DER bytes. JSON Schema checks shape;
+both request consumers also validate the encoding and public point. The initial
+one-use enrollment transaction stores this binding permanently. No update or
+bearer-only backfill endpoint exists; legacy devices remain unbound until
+re-enrollment. A later exact-assignment signed CSR must match the stored key.
+
+Unbound 1.0 requests remain valid and omit both optional values. A caller that
+supplies a key must require its exact fingerprint acknowledgement: a 1.0 server
+may ignore the extension and consume the token, but it cannot confirm a binding.
+Upgrade that server before issuing another one-use token; do not silently accept
+the downgraded enrollment. The OPNsense request/network helpers support this
+optional binding and validation, but the native enrollment UI does not generate
+or supply a key yet. No GUI certificate capability is advertised or installed by
+this protocol change. Future platform adapters use the same public-key contract.
 
 Requests and responses are UTF-8 JSON objects limited to 64 KiB before parsing.
 Known fields have explicit length/type/range limits. Each ordinary message permits
