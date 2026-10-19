@@ -51,7 +51,44 @@ establish another host's firewall/NAT behavior, native OPNsense enrollment or GU
 certificate installation. Raw requests, source addresses, hostnames, passwords,
 generated deployment files, certificate keys and screenshots stay outside Git.
 
-External reverse-proxy deployment, durable relay renewal/application/rollback,
+External reverse-proxy acceptance is recorded below. Durable relay renewal/application/rollback,
 authenticated trust generation acknowledgement, and OPNsense GUI ACME
 issuance/installation/renewal remain required. Initial material generation and a
 successful public relay are not certificate lifecycle acceptance.
+
+## Existing host HTTPS proxy
+
+PR #54 passed six checks on 55daa202665e0c67ff6bc14aeb6153d2140fe8aa
+(run 39239990731), then merged as cd863d9. The genuine Compose log confirms an
+external-mode bundle without bundled Caddy, two loopback-only HTTP origins,
+verified TLS through a separate host proxy, console login/device enrollment,
+secure cookies, ignored forged source headers and non-loopback origin isolation.
+Existing bundled deployment/browser, official frp configuration, two real clients,
+failed-migration and four-image HIGH/CRITICAL vulnerability checks also passed.
+
+The first attempt failed because the fixture proxy tried to create an automatic
+port-80 redirect despite having no low-port capability. A loopback-only native
+reproduction confirmed the cause. Disabling fixture redirects fixed it; production
+certificate ownership and proxy routing were not weakened.
+
+A supplementary native LXC run used the cross-built PR #54 initializer with the
+previously verified PR #51 application images. It passed external-mode creation,
+operator-owned fixture TLS, console/device routing, secure session, spoofed-source
+rejection and origin isolation. It used another private subnet and high loopback
+ports; the original public services were never stopped. All owned test containers,
+network and proxy were removed, and original services/listeners were checked.
+This supplements the assembled-image CI evidence; it is not a public NGINX or
+arbitrary third-party proxy configuration acceptance.
+
+## Device-owned router certificate requests
+
+PR #55 passed six checks on cf9224cdd4d7b5479045183d63281e47c66b73e9
+(run 39240210910), then merged as da3fa29. Linux race tests include signed
+P-256/SHA-256 requests, tampered signatures, wrong-device/wildcard/extra SANs,
+unapproved extensions and subject fields, malformed encodings and key limits.
+An additional five-second malformed-input fuzz run completed 43,986 executions
+without a failure. That bounded run does not establish exhaustive parser coverage.
+
+The validator supports a device-generated GUI key and public CSR/chain exchange.
+It does not authorize a tenant/device, contact an ACME issuer, deliver/install
+certificates or implement renewal. Those components remain open.

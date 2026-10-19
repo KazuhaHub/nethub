@@ -15,9 +15,19 @@ intervals fail with a fixed error. Material has no JSON representation.
 Tests include a verified local TLS handshake, key rotation under the same root,
 the authority's expiry boundary and invalid key/hostname/PEM/time inputs.
 
-No files, jobs or services are changed by this package. Protected persistence,
-backup acknowledgement, scheduled renewal, durable apply/retry/rollback, fresh
-relay handshake verification and trust-generation acknowledgements remain
-deployment work. This is not router GUI ACME issuance or installation. Those are
+Renewal assessment derives its lead from actual certificate dates (at most 30
+days and one third of the lifetime), reports expired leaves and authority expiry,
+and identifies leaves whose expiry cannot be extended under the current root.
+Historical identity/key/chain validation allows an expired leaf to be assessed
+for recovery; it does not enable current TLS trust or expired rollback material.
+A fresh bounded TLS observer verifies hostname/chain and returns the served DER
+fingerprint for comparison with the intended generation. File hashes or process
+running state alone do not establish that application succeeded.
+
+No files, jobs or services are changed by this package. The
+[host maintenance engine](../relaymaint/README.md) implements protected generation
+persistence and durable apply/retry/rollback; deployment acceptance of that new
+command is pending. Authenticated trust-generation acknowledgements remain
+separate work. This is not router GUI ACME issuance or installation. Those are
 also required in v1 by [the certificate design](../../../docs/certificate-automation.md).
 Console HTTPS remains owned by the selected reverse proxy.

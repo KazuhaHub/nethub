@@ -204,7 +204,7 @@ print('Compose first-start, isolated secret mounts, admin login, empty inventory
 PY
 python3 "$root/agents/opnsense/plugin/frp_artifact.py" --platform linux_amd64 --binary frpc --output "$stage/official/frpc"
 docker cp "$(compose ps -q caddy):/data/caddy/pki/authorities/local/root.crt" "$stage/console-ca.pem" >/dev/null
-python3 "$root/server/tests/relay-deployment.py" "$stage" "$port"
+python3 "$root/server/tests/relay-deployment.py" "$stage" "$port" "$project"
 compose logs --no-color > "$stage/relay-runtime.log"
 python3 - "$stage" <<'PY'
 import json,pathlib,sys

@@ -1,0 +1,14 @@
+[Unit]
+Description=Maintain NetHub relay certificates
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+NoNewPrivileges=true
+ExecStart=/usr/local/libexec/nethub certificates maintain-relay --directory /srv/nethub-deployment --project-name nethub
+TimeoutStartSec=180
+TimeoutStopSec=45

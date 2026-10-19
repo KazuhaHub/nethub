@@ -1,0 +1,11 @@
+[Unit]
+Description=Check NetHub relay certificate renewal
+
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+Unit=nethub-relay-maintenance.service
+
+[Install]
+WantedBy=timers.target

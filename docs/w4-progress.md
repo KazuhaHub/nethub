@@ -238,3 +238,45 @@ its restoration timer. Authority, backup and private database were preserved. Se
 [the evidence and limits](../deploy/validation-w4.md). This does not complete the
 external-proxy path, certificate automation or native appliance enrollment/GUI
 acceptance.
+
+## External proxy and device-owned CSR boundary
+
+PR #54 merged as cd863d9 after six checks on
+55daa202665e0c67ff6bc14aeb6153d2140fe8aa (run 39239990731). External mode omits
+bundled Caddy, binds both HTTP origins to host loopback and trusts exactly the
+edge gateway. An independent host TLS proxy passed login, secure cookies, device
+enrollment, source-spoof rejection and non-loopback isolation in genuine Compose.
+A supplementary native LXC run passed these flows without stopping existing
+public services; all owned resources were removed. See [the scope and failed
+fixture attempt](../deploy/validation-w4.md).
+
+PR #55 merged as da3fa29 after six checks on
+cf9224cdd4d7b5479045183d63281e47c66b73e9 (run 39240210910), including the CSR
+package under Linux race testing. Router GUI keys will remain device-generated;
+the server validates the signed P-256 CSR against the exact current assigned
+name. Authorization, ACME, delivery, native installation and renewal remain open.
+
+The local relay maintenance work assesses actual validity dates, avoids a fixed
+lead exceeding a short certificate's lifetime, distinguishes authority expiry
+and non-extendable leaves, and verifies the actual served TLS fingerprint. Local
+tests/vet pass. Draft PR #56 now adds a durable OS lease/journal, complete private
+generations, bounded same-generation retries, verified apply/rollback, a Linux
+root host adapter and systemd service/timer samples. It rejects aliased/hardlinked
+authority backups and checks the exact existing frps mounts/identity before
+recreation. The new genuine Compose scenario exercises a real due leaf, failed
+recreation/verified rollback, persisted-generation reuse, two connected official
+clients, a scheduled host invocation and unchanged-content suppression. Current
+head CI and native evidence remain pending. CA rotation/trust ACK, expired-job
+replacement and the router GUI lifecycle remain required; W4-6 is not complete.
+
+The first complete maintenance deployment run (39245558996, head
+0d587593611b892ad5730ea0971b3ca263221c1a) passed real due-leaf renewal, an
+injected recreation failure with verified rollback, persisted-generation reuse,
+fresh served-fingerprint checks, two official frpc clients, an actual host timer
+and unit-template verification. The measured retry-to-both-tunnels interval was
+698 ms in that isolated run. All four image scans and existing bundled/external
+proxy/browser/migration regressions passed. Its control-plane job stopped at
+module tidy because x/sys needed promotion from indirect to direct; no merge is
+authorized from that run. The corrected dependency metadata and extra runtime
+container/source-independence checks require another exact-head CI run. Native
+public maintenance acceptance and the remaining certificate scope stay open.

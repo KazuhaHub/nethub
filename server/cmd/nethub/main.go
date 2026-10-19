@@ -21,12 +21,13 @@ Commands:
   migrate      Apply database migrations
   init         Prepare deployment configuration and secrets
   doctor       Check deployment readiness
+  certificates Maintain relay certificate generations on the Linux host
   admin        Manage the initial administrator
   version      Print the build version
 
 The console, migrations, first-admin setup, deployment initialization, scoped
 doctor checks, device enrollment and internal relay hooks are implemented.
-Production relay wiring and appliance enrollment remain unfinished.
+Appliance enrollment and the full certificate lifecycle remain unfinished.
 `
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -81,6 +82,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runDoctor(args[1:], stdout, stderr)
 	case "authz":
 		return runAuthz(args[1:], stdout, stderr)
+	case "certificates":
+		return runCertificates(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintln(stderr, "Unknown command. Run nethub help for available commands.")
 		return 2

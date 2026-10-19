@@ -308,6 +308,14 @@ func VerifyBackup(directory, backup string) error {
 	if err != nil {
 		return err
 	}
+	source, err = filepath.EvalSymlinks(source)
+	if err != nil {
+		return errors.New("deployment directory is unavailable")
+	}
+	destination, err = filepath.EvalSymlinks(destination)
+	if err != nil {
+		return errors.New("backup directory is unavailable")
+	}
 	rel, err := filepath.Rel(source, destination)
 	if err != nil || rel == "." || !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return errors.New("backup must be outside deployment directory")
@@ -316,5 +324,27 @@ func VerifyBackup(directory, backup string) error {
 	if err != nil {
 		return err
 	}
-	return verifyFiles(destination, manifest.Files)
+	if err := verifyFiles(destination, manifest.Files); err != nil {
+		return err
+	}
+	sourceFiles := make([]os.FileInfo, 0, len(manifest.Files))
+	for _, file := range manifest.Files {
+		a, err := os.Stat(filepath.Join(source, filepath.FromSlash(file.Path)))
+		if err != nil {
+			return err
+		}
+		sourceFiles = append(sourceFiles, a)
+	}
+	for _, file := range manifest.Files {
+		b, err := os.Stat(filepath.Join(destination, filepath.FromSlash(file.Path)))
+		if err != nil {
+			return err
+		}
+		for _, a := range sourceFiles {
+			if os.SameFile(a, b) {
+				return errors.New("backup must contain independent file copies")
+			}
+		}
+	}
+	return nil
 }

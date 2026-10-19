@@ -57,13 +57,22 @@ func Confirm(directory, backup, phrase string) error {
 	return saveManifest(directory, manifest)
 }
 
-func CheckFiles(directory string) error {
+// CheckAuthority verifies protected issuance state and its independent backup.
+// It deliberately does not require an unexpired or complete runtime leaf pair,
+// so maintenance can recover expiry or an interrupted pair replacement.
+func CheckAuthority(directory string) error {
 	manifest, err := Load(directory)
 	if err != nil {
 		return err
 	}
 	if manifest.ConfirmedAt == nil || manifest.BackupDirectory == "" {
 		return errors.New("secret backup has not been verified and acknowledged")
+	}
+	for path, mode := range map[string]os.FileMode{directory: 0700, filepath.Join(directory, "setup.json"): 0600, filepath.Join(directory, "secrets"): 0700} {
+		info, err := os.Lstat(path)
+		if err != nil || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != mode || ownerUID(path) != 0 {
+			return errors.New("deployment authority requires protected root-owned paths")
+		}
 	}
 	if err = verifyFiles(directory, manifest.Files); err != nil {
 		return err
@@ -76,6 +85,17 @@ func CheckFiles(directory string) error {
 		if ownerUID(path) != file.UID || ownerUID(filepath.Dir(path)) != file.UID {
 			return errors.New("service-specific secret ownership is incorrect")
 		}
+	}
+	return nil
+}
+
+func CheckFiles(directory string) error {
+	if err := CheckAuthority(directory); err != nil {
+		return err
+	}
+	manifest, err := Load(directory)
+	if err != nil {
+		return err
 	}
 	return checkRelayFiles(directory, manifest.Config, true)
 }

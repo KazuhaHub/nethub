@@ -37,7 +37,7 @@ func (c Config) originPorts() (uint16, uint16) {
 
 var dnsLabel = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
 
-func Validate(config Config) error {
+func validateIdentity(config Config) error {
 	if config.ProxyMode != "" && config.ProxyMode != "bundled" && !config.externalProxy() {
 		return errors.New("proxy mode must be bundled or external")
 	}
@@ -74,6 +74,13 @@ func Validate(config Config) error {
 	prefix, err := netip.ParsePrefix(config.NetworkSubnet)
 	if err != nil || !prefix.Addr().Is4() || prefix.Bits() != 24 || prefix.Masked() != prefix || !prefix.Addr().IsPrivate() {
 		return errors.New("the private Compose network must be an aligned RFC1918 IPv4 /24")
+	}
+	return nil
+}
+
+func Validate(config Config) error {
+	if err := validateIdentity(config); err != nil {
+		return err
 	}
 	if !filepath.IsAbs(config.SourceDirectory) {
 		return errors.New("source directory must be absolute")
