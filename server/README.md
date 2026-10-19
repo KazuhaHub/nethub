@@ -8,18 +8,20 @@ services on the device. That boundary is deliberate — see the top-level
 [project README](../README.md) and [`docs/DESIGN.md`](../docs/DESIGN.md) for
 the reasoning.
 
-> **Status:** W3 foundation work has started after native W2 acceptance. The Go
+> **Status:** the W3 console deployment evidence is complete. The Go
 > module directly imports authcore/saml v0.6.2; the SAML adapter delegates protocol
 > processing and enforces console policy. The CLI provides the console API, migrate,
 > init, scoped doctor checks, and help/version. Authz remains unfinished. Database bootstrap,
 > migrations, and actual-role PostgreSQL/HTTPS API tests pass. The React console
-> passes isolated browser flows under strict CSP. Initialization and the console
-> Compose stack are implemented; complete deployment acceptance, device enrollment,
+> passes isolated and real deployed browser flows under strict CSP. Initialization and the console
+> Compose stack pass clean-host public deployment checks. Device enrollment
 > and SSO flows remain unfinished.
 
 The local [first-admin command](cmd/nethub/admin-bootstrap.md) is implemented with
 hidden terminal entry or protected stdin, owner-role isolation, and atomic one-time
-creation. The init wizard and its Compose bootstrap service are now wired; public deployment acceptance remains pending.
+creation. The init wizard and its Compose bootstrap service pass real deployment
+tests, including the combined clean-host public HTTPS/browser run. See
+[deployment validation](../deploy/validation-w3.md) for evidence and scope.
 
 The local [password/session service](internal/auth/README.md) and tenant-bound
 PostgreSQL authentication store are implemented, with actual-role tests for
@@ -27,8 +29,8 @@ expiry, logout, account disable, and password-check races. The
 [console API](internal/web/README.md) wires cookie/CSRF/Origin/proxy checks and
 atomic audit for login, logout, and token issuance. The [React UI](web/README.md)
 uses these routes and embeds its production build in Go. Isolated browser evidence
-is in [UI validation](web/validation.md); one-shot admin deployment and complete
-deployment/browser startup remain W3 work.
+is in [UI validation](web/validation.md); real Compose and public browser evidence
+is in [deployment validation](../deploy/validation-w3.md).
 
 ## Technology stack
 
@@ -446,5 +448,6 @@ adapter is a foundation, not a working SAML login feature.
 Run `GOWORK=off go test ./...`, `go vet ./...`, and `go mod verify` in this directory.
 
 Database development and genuine PostgreSQL boundary tests are documented in
-[the store README](internal/store/README.md). The migrate command is implemented;
-web, authz, init, doctor, and admin remain future work.
+[the store README](internal/store/README.md). Web, migrate, init, scoped doctor,
+and first-admin commands are implemented. Authz/device flows and complete doctor
+coverage remain future work.

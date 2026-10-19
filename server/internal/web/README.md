@@ -1,9 +1,10 @@
 # Console HTTP API
 
 W3 implements health, local login/logout/session, device listing, and enrollment
-token issuance. See the [API contract](../../../docs/console-api.md). React assets,
-first-admin creation, complete Compose/Caddy startup, and browser acceptance are
-the next steps; this API stage does not complete W3.
+token issuance. See the [API contract](../../../docs/console-api.md). Embedded React
+assets, first-admin creation, Compose/Caddy startup, and real deployed browser
+flows pass their checks, including clean-host public deployment acceptance;
+see [deployment validation](../../../deploy/validation-w3.md).
 
 The server binds to one configured origin and a startup-selected tenant. Requests
 cannot choose a tenant or role. It resolves client IP only through explicit

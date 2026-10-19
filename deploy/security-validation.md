@@ -75,5 +75,7 @@ their log success marker requires all three scans to return zero.
 The rebuilt helpers and assembled-image scans resolve this scoped gate. Results
 are a dated snapshot; future database updates can introduce new findings and
 CI will fail closed. No existing relay services were stopped for these scans.
-Public ACME, deployed-browser acceptance, and complete doctor coverage remain
-open. W3 is not complete.
+Public ACME and deployed-browser acceptance subsequently passed on the existing
+LXC and in a combined clean-host public run; see
+[deployment validation](validation-w3.md). Full doctor coverage remains W7 work.
+Device/enrollment and SSO readiness are separate stage gates.

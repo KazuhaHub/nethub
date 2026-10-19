@@ -36,6 +36,8 @@ Go asset tests reject hidden/source-map/directory/traversal paths, test HEAD and
 immutable asset caching, and return 503 for a missing build.
 
 This browser fixture uses in-memory storage; the genuine PostgreSQL API tests are
-recorded in ../internal/store/validation.md. First-admin creation, init/doctor,
-complete Compose/Caddy startup, real deployed browser acceptance, device enrollment,
-and SSO remain future stage work. W3 as a whole is not yet accepted.
+recorded in ../internal/store/validation.md. Separate
+[deployment validation](../../deploy/validation-w3.md) covers first-admin creation,
+initialization, scoped doctor, Compose/Caddy startup, and real deployed browser
+flows, including the combined clean-host public run. Device enrollment and SSO
+remain W4/W6 work; this page records the isolated fixture scope.
