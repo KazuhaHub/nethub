@@ -56,11 +56,18 @@ class RequestStore:
         self.directory = Path(directory)
         self.key_store = key_store
 
-    def _command(self, arguments, content):
+    def _command(self, arguments, content, *, signature_check=False):
         result = subprocess.run([self.key_store.openssl, *arguments], input=content,
                                 capture_output=True, timeout=3)
         if result.returncode or len(result.stdout) > 8192:
             raise CertificateRequestError('Could not validate the device certificate request')
+        # Some supported OpenSSL builds return zero even when req -verify says
+        # the signature failed. Require the exact positive verification result;
+        # unfamiliar diagnostics fail closed rather than weaken verification.
+        if signature_check:
+            success = b'Certificate request self-signature verify OK'
+            if (result.stdout.strip(), result.stderr.strip()) not in ((success, b''), (b'', success)):
+                raise CertificateRequestError('Could not validate the device certificate request')
         return result.stdout
 
     @staticmethod
@@ -105,7 +112,7 @@ class RequestStore:
         signature, tail = _take(body[len(information + algorithm):], 3)
         if tail or not 9 <= len(signature) <= 73 or signature[0] != 0:
             raise ValueError('Invalid request signature')
-        self._command(['req', '-inform', 'DER', '-verify', '-noout'], der)
+        self._command(['req', '-inform', 'DER', '-verify', '-noout'], der, signature_check=True)
         encoded = base64.b64encode(der)
         return (b'-----BEGIN CERTIFICATE REQUEST-----\n'
                 + b''.join(encoded[i:i + 64] + b'\n' for i in range(0, len(encoded), 64))

@@ -9,7 +9,10 @@ The fixed DER profile has an empty subject, the existing public SPKI, one
 noncritical SAN containing only that assigned DNS name, and ECDSA with SHA-256.
 Only public request information enters the signing process; the private key stays
 in its existing file. Base OpenSSL signs with bounded fixed arguments and verifies
-each generated or loaded request. The loader reconstructs the expected canonical
+each generated or loaded request. Verification requires both a successful exit
+and the exact positive verification diagnostic: the first Linux CI run exposed
+OpenSSL returning zero after rejecting a mutated signature. That failure is
+retained and a regression covers the zero-exit failure response. The loader reconstructs the expected canonical
 request information and algorithm before checking the signature, rejecting other
 names, attributes, keys or request profiles. Child diagnostics are not returned.
 
@@ -30,11 +33,11 @@ submitted cache, recover the original job rather than initialize blindly, and
 remove only the owned cache after confirmed assignment removal. Different live
 assignments require an explicit transition, not automatic cache replacement.
 
-Local tests passed 23 cases with three POSIX-only skips, exercising real OpenSSL
+Local tests passed 24 cases with three POSIX-only skips, exercising real OpenSSL
 signatures/reuse, maximum DNS length, invalid
 identities, changed bindings/assignments, a valid signature for another name,
 corrupt/ambiguous records, key loss, child failures, interruption boundaries and
-POSIX storage refusal. The native FreeBSD run passed all 26 cases and staged source/dependencies privately
+POSIX storage refusal. The corrected native FreeBSD run passed all 27 cases and staged source/dependencies privately
 without installing packages or changing appliance configuration. A generated
 native request also passed the production Go `ValidateBoundCSR` validator; wrong
 host and missing binding were rejected. Native temporary key material was removed.

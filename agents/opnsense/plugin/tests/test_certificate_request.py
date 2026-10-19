@@ -148,6 +148,20 @@ def test_signer_failure_hides_output_and_does_not_publish(store):
     assert not list(request.directory.parent.glob('.gui-csr-*'))
 
 
+def test_zero_exit_does_not_turn_a_failed_signature_check_into_success(store):
+    request, identity = store
+    original = subprocess.run
+    def rejected(args, **kwargs):
+        if 'req' in args:
+            return subprocess.CompletedProcess(args, 0, b'', b'Certificate request self-signature verify failure\n')
+        return original(args, **kwargs)
+    with mock.patch('certificate_request.subprocess.run', side_effect=rejected):
+        with pytest.raises(CertificateRequestError):
+            ensure(request, identity)
+    assert not request.directory.exists()
+    assert not list(request.directory.parent.glob('.gui-csr-*'))
+
+
 def test_interrupted_publication_reuses_committed_request(store):
     request, identity = store
     original_sync = request.key_store._sync
