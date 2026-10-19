@@ -90,7 +90,7 @@ func renderRelayConfig(directory string, config Config) ([]byte, error) {
 }
 
 // Current leaves may change without rewriting the immutable authority backup.
-func checkRelayFiles(directory string, config Config, confirmed bool) error {
+func readRelayRuntime(directory string, confirmed bool) ([][]byte, error) {
 	read := func(name string) ([]byte, error) {
 		path := filepath.Join(directory, filepath.FromSlash(name))
 		for parent := filepath.Dir(path); parent != filepath.Clean(directory); parent = filepath.Dir(parent) {
@@ -114,9 +114,17 @@ func checkRelayFiles(directory string, config Config, confirmed bool) error {
 	for _, name := range relayRuntimeFiles {
 		value, err := read(name)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		data = append(data, value)
+	}
+	return data, nil
+}
+
+func checkRelayFiles(directory string, config Config, confirmed bool) error {
+	data, err := readRelayRuntime(directory, confirmed)
+	if err != nil {
+		return err
 	}
 	root, err := os.ReadFile(filepath.Join(directory, "secrets", "issuer", "ca.pem"))
 	if err != nil || !bytes.Equal(root, data[2]) {

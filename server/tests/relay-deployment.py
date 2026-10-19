@@ -9,6 +9,8 @@ import sys
 import threading
 import time
 
+from relay_maintenance import exercise
+
 
 stage, port = Path(sys.argv[1]), int(sys.argv[2])
 work = stage / "relay-test"
@@ -117,19 +119,24 @@ try:
         raise RuntimeError("invalid claim was not rejected promptly") from None
     for index, assignment in enumerate(assignments):
         start_client(assignment, f"client{index}", backend.server_port)
-    for assignment in assignments:
-        host = assignment["subdomain"] + ".router.example.com"
-        for _ in range(60):
-            result = subprocess.run([
-                "curl", "--silent", "--fail", "--noproxy", "*", "--max-time", "2",
-                "--cacert", str(work / "backend-cert.pem"),
-                "--connect-to", f"{host}:443:127.0.0.1:8443", f"https://{host}/",
-            ], capture_output=True, timeout=4)
-            if result.returncode == 0 and result.stdout.decode() == host:
-                break
-            time.sleep(0.2)
-        else:
-            raise RuntimeError("verified TLS passthrough did not become available")
+    def check_tunnels():
+        deadline = time.monotonic() + 30
+        for assignment in assignments:
+            host = assignment["subdomain"] + ".router.example.com"
+            while time.monotonic() < deadline:
+                result = subprocess.run([
+                    "curl", "--silent", "--fail", "--noproxy", "*", "--max-time", "2",
+                    "--cacert", str(work / "backend-cert.pem"),
+                    "--connect-to", f"{host}:443:127.0.0.1:8443", f"https://{host}/",
+                ], capture_output=True, timeout=4)
+                if result.returncode == 0 and result.stdout.decode() == host:
+                    break
+                time.sleep(0.2)
+            else:
+                raise RuntimeError("verified TLS passthrough did not become available")
+        assert all(client.poll() is None for client in clients[1:])
+
+    check_tunnels()
     for _ in range(90):
         devices = curl("/api/v1/console/devices", authenticated=True)["items"]
         observed = {device["id"] for device in devices if device["online"]}
@@ -140,6 +147,7 @@ try:
         raise RuntimeError("actual frps observations did not reach the console")
     assert all(client.poll() is None for client in clients[1:])
     print("Deployed relay passed verified HTTPS enrollment, tampered-claim denial, two simultaneous TLS tunnels and actual frps-to-console observations")
+    exercise(stage, sys.argv[3], assignments, check_tunnels)
 finally:
     for client in clients:
         if client.poll() is None:

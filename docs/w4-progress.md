@@ -259,6 +259,12 @@ name. Authorization, ACME, delivery, native installation and renewal remain open
 The local relay maintenance work assesses actual validity dates, avoids a fixed
 lead exceeding a short certificate's lifetime, distinguishes authority expiry
 and non-extendable leaves, and verifies the actual served TLS fingerprint. Local
-tests/vet pass. No durable journal, operation lease, scheduled issuer, process
-application, rollback or authenticated trust acknowledgement is implemented by
-these helpers. They do not complete W4-6 certificate lifecycle acceptance.
+tests/vet pass. Draft PR #56 now adds a durable OS lease/journal, complete private
+generations, bounded same-generation retries, verified apply/rollback, a Linux
+root host adapter and systemd service/timer samples. It rejects aliased/hardlinked
+authority backups and checks the exact existing frps mounts/identity before
+recreation. The new genuine Compose scenario exercises a real due leaf, failed
+recreation/verified rollback, persisted-generation reuse, two connected official
+clients, a scheduled host invocation and unchanged-content suppression. Current
+head CI and native evidence remain pending. CA rotation/trust ACK, expired-job
+replacement and the router GUI lifecycle remain required; W4-6 is not complete.
