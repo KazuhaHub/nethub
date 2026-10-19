@@ -31,11 +31,26 @@ an expired snapshot: fetch fresh fenced state before every CA mutation/delivery.
 The private snapshot and lease are excluded from ordinary JSON; raw CA metadata,
 request material and lease tokens must not enter command arguments or logs.
 
-This slice stores admission, lease and retry state only. It does not persist CA
-order checkpoints, issued chains or deployment status, configure an account,
-start a scheduler/host adapter, call a CA or change a device. Do not begin CA
-operations until durable order intent/identity and issuance recovery are wired.
-Issued material and verified native application will remain separate states.
+Migration 00009 adds a private progress record with fenced read/save functions.
+Explicit encoding retains order intent, original URI/profile/authorization/
+finalize/download identity and exact HTTP-01 publication generation. The same
+protected account URL policy validates all saved endpoints without opening or
+initializing account key state. Creation intent precedes remote order creation;
+known order metadata precedes publication/acceptance; finalizing intent precedes
+CSR submission. Phase transitions and saved order/download identity are checked
+in PostgreSQL as well as the typed codec. Saving advances the lease version, so
+a lost/stale reply cannot silently overwrite a later checkpoint.
+
+Expired proof metadata remains readable under a valid lease for exact resource
+cleanup, but it is not authority to publish or accept an expired challenge.
+Current assignment/lease checks still precede every external mutation. An
+ambiguous new-order reply without a saved URI is terminal indeterminate work;
+resume must not blindly create another order. Ordinary JSON excludes progress.
+
+These foundations do not persist issued chains or deployment status, configure
+an account, start a scheduler/host adapter, call a CA or change a device. The
+actual CA coordinator and recovery fixture are not connected yet. Issued
+material and verified native application will remain separate states.
 
 Fresh bootstrap creates the reserved no-login role. Migration remains compatible
 with a disabled legacy deployment where that role is absent; enabling an issuer

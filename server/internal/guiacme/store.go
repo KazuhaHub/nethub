@@ -30,6 +30,7 @@ type AccountStore struct {
 	directory string
 	config    Config
 	binding   string
+	origins   map[string]bool
 }
 
 type accountState struct {
@@ -64,7 +65,17 @@ func NewAccountStore(directory string, config Config) (*AccountStore, error) {
 	if config.Roots != nil {
 		config.Roots = config.Roots.Clone()
 	}
-	return &AccountStore{directory: directory, config: config, binding: hex.EncodeToString(digest[:])}, nil
+	return &AccountStore{directory: directory, config: config, binding: hex.EncodeToString(digest[:]), origins: origins}, nil
+}
+
+// AllowsURL checks the store's immutable operator policy without opening account
+// state, creating a key or sending a request. It is suitable for saved job URLs.
+func (s *AccountStore) AllowsURL(value string) bool {
+	if s == nil {
+		return false
+	}
+	u, ok := endpoint(value)
+	return ok && s.origins[u.Scheme+"://"+u.Host]
 }
 
 func (s *AccountStore) path(name string) string { return filepath.Join(s.directory, name) }
