@@ -112,10 +112,21 @@ func Generate(directory string, config Config) (string, error) {
 			return target, err
 		}
 		data = bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
+		if config.externalProxy() && name == "docker-compose.yml" {
+			data, err = externalBase(data)
+			if err != nil {
+				return target, err
+			}
+		}
 		if err = writePrivate(filepath.Join(target, name), data); err != nil {
 			return target, err
 		}
 		if err = os.Chmod(filepath.Join(target, name), 0644); err != nil {
+			return target, err
+		}
+	}
+	if config.externalProxy() {
+		if err = writePrivate(filepath.Join(target, "external-Caddyfile.example"), externalCaddy(config)); err != nil {
 			return target, err
 		}
 	}

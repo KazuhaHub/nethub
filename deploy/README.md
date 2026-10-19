@@ -10,7 +10,8 @@ overwrite; explicit resume preserves an interrupted setup's keys. The generated
 Compose override contains deployment names and network/build configuration, never
 secret values. Host secrets and backup data stay outside Git and build layers.
 
-Only Caddy uses Docker port publishing (80/443). The Linux host-network frps
+In bundled mode, only Caddy publishes ports (80/443). External mode publishes
+only the loopback origins described below. The Linux host-network frps
 listener uses TCP 7000/8443 directly; its authenticated admin API binds only the
 private edge gateway, and callbacks bind only the private authz address.
 PostgreSQL stays on an internal network. Web and authz wait for
@@ -80,3 +81,11 @@ OIDC/SAML flows are W6; scheduled backups and final operational acceptance are W
 The design authority remains [DESIGN](../docs/DESIGN.md), with confirmed deployment
 decisions in [the W3 record](../docs/w3-decisions.md). Existing W3 evidence is in
 [the validation record](validation-w3.md); it does not substitute for W4 acceptance.
+
+## External HTTPS proxy
+
+An existing host reverse proxy can own console HTTPS and its certificates. Use
+[`init --proxy-mode external`](external-proxy.md) for a fresh bundle with only
+loopback HTTP origins and explicit proxy trust. The generated stack then omits
+bundled Caddy entirely. Relay TLS and per-router GUI certificates have separate
+lifecycles.
