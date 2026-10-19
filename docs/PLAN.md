@@ -1493,10 +1493,13 @@ The configuration writer and private temporary-file handoff were confirmed by Ka
 - [ ] 手工改坏声明里的一个字符，frpc 登录被拒（贴 frps 日志）
 - [ ] 把一台设备的 `subdomain` 改成另一台设备的，`NewProxy` 被拒（贴日志）
 - [ ] 协议版本不兼容的 enroll 请求被拒，并返回能看懂的错误
-- [ ] 契约测试（Go 和 Python 两端）在 CI 里跑，绿；故意改坏一个示例时会变红
+- [x] 契约测试（Go 和 Python 两端）在 CI 里跑，绿；故意改坏一个示例时会变红 — PR #40/run 39207923123; both real suites failed on the deliberately broken valid fixture, then passed after restoration.
 - [ ] 日志里搜不到 token、`device_secret`、声明的内容（`docker compose logs | grep` 检查）
 - [ ] web 容器里没有签名密钥、frps 的管理凭证、frps auth token（`docker compose exec nethub-web ls` 对应的密钥目录，贴输出）；`nethub doctor` 的分离检查通过
 - [ ] unenroll 之后，设备在控制台里显示已撤销，它原来的子域名打不开
+- [ ] Relay certificate renewal automatically issues and applies changed material, retries application without reissuing, verifies the served certificate and records recovery time.
+- [ ] Public trust distribution records authenticated applied generations and exercises an offline-device/root-transition recovery path; issuer private keys remain outside application runtime containers.
+- [ ] The external reverse-proxy path owns console TLS, exposes no unprotected origin listener, and rejects spoofed forwarding headers. Router GUI certificate installation remains v1.1.
 
 ### 常见坑
 

@@ -42,6 +42,10 @@ Check the current PR's six exact-head jobs before merging.
 
 ## W4-2: signed domain claims
 
+Merged in PR #42 as ca40ddb after all six final-head checks passed on 5eb474e
+(run 39210455674), including the claim package under go test -race and the genuine
+PostgreSQL/deployment harnesses.
+
 The claim package signs canonical five-field JSON using HMAC-SHA256 over its
 unpadded base64url representation. Verification rejects noncanonical JSON/base64,
 duplicate/unknown fields and invalid timestamps even when correctly signed. Key
@@ -50,8 +54,8 @@ return no input or partial identity. An independent Python known-answer vector,
 field/signature tampering, malformed signed payloads, defensive key copies and
 concurrent use are covered by local tests. A five-second fuzz run completed
 57,796 executions without failure; this is bounded fuzz evidence, not a proof of
-complete security coverage. CI race and integration results must be checked on
-the current claim PR before merging.
+complete security coverage. The final-head CI results above include race and
+integration checks.
 
 NextIssuedAt advances at PostgreSQL microsecond precision across same-second
 rotations and clock rollback. The future handler must hold the device row lock
@@ -59,6 +63,22 @@ and persist that exact value; this helper does not establish database ownership,
 revocation or transaction correctness. Runtime key loading and relay-hook wiring
 remain W4-3/W4-4 work. Certificate automation decisions merged separately in
 PR #41 as da9f84b after six checks passed (run 39209680883).
+
+## W4-3: atomic enrollment admission and storage
+
+The device service validates versions before token consumption, prepares hashed
+credentials, validates public relay trust and bounds per-IP attempts/Argon2 work.
+EnrollmentStore derives tenant/owner from the one-use token and commits device
+creation, signing and audit together. Migration 00004 locks creator then token
+and checks eligibility with the clock after both waits; authz still cannot read
+users directly. Subdomain conflicts use bounded savepoint retries. Boolean
+cluster_hint becomes nullable display text, never an authorization input.
+
+Local service/parser/store unit checks pass. Ordinary Go tests skip native
+database groups; inspect the current enrollment PR's genuine PostgreSQL CI before
+claiming its new rollback/race/schema-output cases passed. HTTP routes, runtime
+key loading, authz listeners and the appliance UI are not implemented by this
+service/storage change. See [the service boundary and recovery limits](../server/internal/device/README.md).
 
 ## Remaining W4 work
 

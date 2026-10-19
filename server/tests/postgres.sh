@@ -54,6 +54,7 @@ else
     (cd "$root/server" && CGO_ENABLED=0 GOOS=linux go test -c -o "$binary" ./internal/store)
 fi
 docker cp "$binary" "$name:/tmp/database.test"
-docker exec -u postgres -e NETHUB_DATABASE_TEST=1 "$name" /tmp/database.test -test.v -test.timeout=120s
+docker cp "$root/proto" "$name:/tmp/nethub-proto"
+docker exec -u postgres -e NETHUB_DATABASE_TEST=1 -e NETHUB_PROTOCOL_FIXTURES=/tmp/nethub-proto "$name" /tmp/database.test -test.v -test.timeout=120s
 # Re-execute the actual bootstrap hook and verify repeat initialization is safe.
 docker exec -u postgres -e POSTGRES_USER=postgres "$name" sh /docker-entrypoint-initdb.d/00-nethub-roles.sh >/dev/null

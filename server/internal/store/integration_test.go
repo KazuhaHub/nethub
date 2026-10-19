@@ -515,4 +515,5 @@ func TestPostgresBoundaries(t *testing.T) {
 		}
 	})
 	t.Run("console_HTTP_with_real_database", func(t *testing.T) { testConsoleHTTP(t, ctx, owner, web, authz, tenantA, tenantB) })
+	t.Run("atomic_device_enrollment", func(t *testing.T) { testAtomicEnrollment(t, ctx, owner, authz, tenantA, tenantB) })
 }
