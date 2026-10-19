@@ -1,8 +1,9 @@
 # Device enrollment service
 
 This is the admission/transaction layer, HTTP adapter and enrollment runtime for
-W4-3. `nethub authz` can serve the handler on a private listener. Relay hooks,
-production Compose exposure and appliance enrollment UI remain unfinished.
+W4-3. `nethub authz` serves the handler on a private listener. Internal relay
+callbacks have a separate listener; production Compose exposure and appliance
+enrollment UI remain unfinished.
 
 Runtime startup reads the deployment's lowercase 64-character hex claim key and
 frp token from private regular files, decoding the claim key into 32 raw bytes.
@@ -75,4 +76,6 @@ HTTP/database cases passed in run 39215217352; ordinary local Go runs skip them.
 The runtime follow-up additionally launches the compiled CLI in the isolated
 PostgreSQL container, checks readiness, enrolls through that process, verifies
 the loaded signing key, checks output for credentials and requests graceful
-termination. Its native result is pending runtime CI.
+termination. These runtime cases passed in run 39216642231. The callback
+follow-up adds native dual-listener and locked-row tests; those results remain
+pending its own CI.

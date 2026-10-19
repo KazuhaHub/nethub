@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
+	"github.com/KazuhaHub/nethub/server/internal/relayhook"
 )
 
 func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
@@ -42,12 +43,20 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 		t.Fatal(err)
 	}
 	address := listener.Addr().String()
+	hookSocket, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		listener.Close()
+		t.Fatal(err)
+	}
+	hookAddress := hookSocket.Addr().String()
 	listener.Close()
+	hookSocket.Close()
 	command := exec.CommandContext(f.ctx, binary, "authz", "--host", "127.0.0.1", "--sslmode", "disable",
 		"--password-file", "/run/secrets/pg_nethub_authz", "--origin", "https://console.example.com",
 		"--listen", address, "--claim-key-id", "integration", "--claim-key-file", filepath.Join(directory, "claim_key"),
 		"--frp-token-file", filepath.Join(directory, "frp_token"), "--relay-ca-file", filepath.Join(directory, "relay_ca.pem"),
-		"--relay-addr", relay.ServerAddr, "--relay-server-name", relay.ServerName)
+		"--relay-addr", relay.ServerAddr, "--relay-server-name", relay.ServerName,
+		"--hook-listen", hookAddress, "--hook-peer", "127.0.0.1")
 	var stdout, stderr bytes.Buffer
 	command.Stdout, command.Stderr = &stdout, &stderr
 	if err := command.Start(); err != nil {
@@ -136,6 +145,63 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 	if err := f.owner.QueryRowContext(f.ctx, `SELECT owner_user_id FROM devices WHERE id=$1 AND tenant_id=$2`, result.DeviceID, tenant).Scan(&storedActor); err != nil || storedActor != actor {
 		t.Fatal("runtime did not register with the token's owner and tenant")
 	}
+	metas := map[string]string{"device_id": result.DeviceID, "domain_claim": result.DomainClaim}
+	sendHook := func(target, operation string, content map[string]any, rejected bool, status int) {
+		t.Helper()
+		data, err := json.Marshal(map[string]any{"version": "0.1.0", "op": operation, "content": content})
+		if err != nil {
+			t.Fatal(err)
+		}
+		request, err := http.NewRequestWithContext(f.ctx, http.MethodPost, "http://"+target+relayhook.Path+"?op="+operation+"&version=0.1.0", bytes.NewReader(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Host = "console.example.com"
+		request.Header.Set("Content-Type", "application/json")
+		response, err := client.Do(request)
+		if err != nil {
+			t.Fatal("runtime callback request failed")
+		}
+		defer response.Body.Close()
+		var decision struct {
+			Reject bool `json:"reject"`
+		}
+		if json.NewDecoder(io.LimitReader(response.Body, 4096)).Decode(&decision) != nil ||
+			response.StatusCode != status || status == 200 && decision.Reject != rejected {
+			t.Fatal("runtime callback returned an incorrect decision or crossed listeners")
+		}
+	}
+	login := map[string]any{"metas": metas}
+	proxy := map[string]any{"user": map[string]any{"metas": metas}, "proxy_name": relayhook.ProxyName(result.DeviceID), "proxy_type": "https", "subdomain": result.Subdomain}
+	sendHook(hookAddress, "Login", login, false, 200)
+	sendHook(hookAddress, "NewProxy", proxy, false, 200)
+	proxy["custom_domains"] = []string{"console.example.com"}
+	sendHook(hookAddress, "NewProxy", proxy, true, 200)
+	delete(proxy, "custom_domains")
+	// The public listener cannot invoke relay callbacks, even with a valid claim.
+	sendHook(address, "Login", login, true, 404)
+	blocker, err := f.owner.BeginTx(f.ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blocker.Rollback()
+	if _, err := blocker.ExecContext(f.ctx, `SELECT id FROM devices WHERE id=$1 FOR UPDATE`, result.DeviceID); err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now()
+	sendHook(hookAddress, "Login", login, true, 200)
+	if elapsed := time.Since(started); elapsed < relayhook.Budget/2 || elapsed > 1500*time.Millisecond {
+		t.Fatal("runtime did not bound a real device-row lock wait")
+	}
+	if err := blocker.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	sendHook(hookAddress, "Login", login, false, 200)
+	if _, err := f.owner.ExecContext(f.ctx, `UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id=$1`, result.DeviceID); err != nil {
+		t.Fatal(err)
+	}
+	sendHook(hookAddress, "Login", login, true, 200)
+	sendHook(hookAddress, "NewProxy", proxy, true, 200)
 	_ = command.Process.Signal(syscall.SIGTERM)
 	select {
 	case err := <-completed:

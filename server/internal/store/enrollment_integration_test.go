@@ -345,6 +345,7 @@ func testAtomicEnrollment(t *testing.T, ctx context.Context, owner, authz *sql.D
 			t.Run(kind, func(t *testing.T) { f.lockRace(t, kind, tenantA) })
 		}
 	})
+	t.Run("relay_identity_and_revocation", func(t *testing.T) { testRelayAuthorization(t, f, tenantA, tenantB) })
 }
 
 func (f *enrollmentFixture) lockRace(t *testing.T, kind, tenant string) {
