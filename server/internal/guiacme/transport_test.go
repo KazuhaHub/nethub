@@ -117,9 +117,11 @@ func TestTransportRejectsRedirectBodyAndEncoding(t *testing.T) {
 }
 
 func TestCancelledTransportClosesSlowBody(t *testing.T) {
+	reading := make(chan struct{})
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.(http.Flusher).Flush()
+		close(reading)
 		<-r.Context().Done()
 	}))
 	defer server.Close()
@@ -127,12 +129,33 @@ func TestCancelledTransportClosesSlowBody(t *testing.T) {
 	roots.AddCert(server.Certificate())
 	transport := newTransport(map[string]bool{server.URL: true}, roots)
 	defer transport.base.CloseIdleConnections()
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	r, _ := http.NewRequestWithContext(ctx, "GET", server.URL, nil)
-	started := time.Now()
-	if _, err := transport.client().Do(r); err == nil || time.Since(started) > 2*time.Second {
-		t.Fatal("slow body ignored deadline")
+	finished := make(chan error, 1)
+	go func() {
+		response, err := transport.client().Do(r)
+		if response != nil {
+			response.Body.Close()
+		}
+		finished <- err
+	}()
+	select {
+	case <-reading:
+	case err := <-finished:
+		t.Fatalf("request ended before reading the slow body: %v", err)
+	case <-time.After(3 * time.Second):
+		cancel()
+		t.Fatal("slow body fixture did not become ready")
+	}
+	cancel()
+	select {
+	case err := <-finished:
+		if err == nil {
+			t.Fatal("cancelled body accepted as a complete response")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("slow body ignored cancellation")
 	}
 }
 
