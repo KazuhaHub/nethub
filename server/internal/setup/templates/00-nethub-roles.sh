@@ -46,13 +46,14 @@ SQL
 psql -X --set ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname nethub <<'SQL'
 DO $issuer_privileges$
 BEGIN
+    -- CASE fences type-specific ACL calls; WHERE predicates can be reordered.
     IF EXISTS (SELECT FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-        WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','f') AND
+        WHERE CASE WHEN n.nspname='public' AND c.relkind IN ('r','p','v','m','f') THEN
         (has_table_privilege('nethub_issuer',c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
-         OR has_any_column_privilege('nethub_issuer',c.oid,'SELECT,INSERT,UPDATE,REFERENCES')))
+         OR has_any_column_privilege('nethub_issuer',c.oid,'SELECT,INSERT,UPDATE,REFERENCES')) ELSE false END)
        OR EXISTS (SELECT FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-        WHERE n.nspname='public' AND c.relkind='S'
-        AND has_sequence_privilege('nethub_issuer',c.oid,'USAGE,SELECT,UPDATE')) THEN
+        WHERE CASE WHEN n.nspname='public' AND c.relkind='S' THEN
+        has_sequence_privilege('nethub_issuer',c.oid,'USAGE,SELECT,UPDATE') ELSE false END) THEN
         RAISE EXCEPTION 'Issuer direct data privileges need operator review';
     END IF;
 END
