@@ -64,14 +64,14 @@ func Generate(directory string, config Config) (string, error) {
 	if err = writePrivate(filepath.Join(target, ".gitignore"), []byte("*\n")); err != nil {
 		return target, err
 	}
-	manifest := Manifest{Version: 1, Config: config, Files: []SecretFile{}}
+	manifest := Manifest{Version: 2, Config: config, Files: []SecretFile{}}
 	type binding struct {
 		path string
 		uid  int
 	}
 	groups := [][]binding{}
 	for _, role := range []string{"bootstrap", "nethub_owner", "nethub_web", "nethub_authz", "nethub_backup"} {
-		files := []binding{{"secrets/postgres/pg_" + role, 999}}
+		files := []binding{{"secrets/postgres/pg_" + role, 70}}
 		switch role {
 		case "nethub_owner":
 			files = append(files, binding{"secrets/migrate/pg_nethub_owner", 65532})
@@ -156,7 +156,7 @@ func Load(directory string) (Manifest, error) {
 	defer file.Close()
 	decoder := json.NewDecoder(io.LimitReader(file, 32768))
 	decoder.DisallowUnknownFields()
-	if err = decoder.Decode(&manifest); err != nil || manifest.Version != 1 || len(manifest.Files) != 17 {
+	if err = decoder.Decode(&manifest); err != nil || manifest.Version != 2 || len(manifest.Files) != 17 {
 		return manifest, errors.New("invalid setup manifest")
 	}
 	var trailing any
@@ -180,7 +180,7 @@ func Load(directory string) (Manifest, error) {
 func expectedOwners() map[string]int {
 	owners := map[string]int{}
 	for _, role := range []string{"bootstrap", "nethub_owner", "nethub_web", "nethub_authz", "nethub_backup"} {
-		owners["secrets/postgres/pg_"+role] = 999
+		owners["secrets/postgres/pg_"+role] = 70
 	}
 	for service, file := range map[string]string{"migrate": "pg_nethub_owner", "web": "pg_nethub_web", "authz": "pg_nethub_authz", "backup": "pg_nethub_backup"} {
 		owners["secrets/"+service+"/"+file] = 65532

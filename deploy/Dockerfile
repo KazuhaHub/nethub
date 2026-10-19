@@ -13,9 +13,11 @@ RUN test "$(go env GOVERSION)" = "go$(cat .go-version)" && go mod download
 COPY server/ ./
 COPY --from=console /src/server/internal/webui/dist ./internal/webui/dist
 RUN go build -p 2 -trimpath -ldflags="-s -w" -o /out/nethub ./cmd/nethub
+RUN cp /usr/local/go/LICENSE /out/GO-LICENSE
 
 FROM gcr.io/distroless/static-debian13:nonroot@sha256:e2e927ec666bae08560abb3c55d0659eceabb657f56b6782ab500a9fc7f555e3
 COPY --from=build /out/nethub /nethub
 COPY LICENSE NOTICE /licenses/
+COPY --from=build /out/GO-LICENSE /licenses/GO-LICENSE
 USER 65532:65532
 ENTRYPOINT ["/nethub"]

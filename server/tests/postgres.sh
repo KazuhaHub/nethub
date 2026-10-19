@@ -4,8 +4,10 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 stage=$(mktemp -d)
 name="nethub-db-test-$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"
+image=${NETHUB_POSTGRES_TEST_IMAGE:-"$name:postgres"}
 cleanup() {
     docker rm -f -v "$name" >/dev/null 2>&1 || true
+    if [ -z "${NETHUB_POSTGRES_TEST_IMAGE:-}" ]; then docker image rm "$image" >/dev/null 2>&1 || true; fi
     case "$stage" in /tmp/*|/var/tmp/*) rm -rf -- "$stage" ;; esac
 }
 trap cleanup EXIT HUP INT TERM
@@ -14,7 +16,9 @@ mkdir "$stage/secrets"
 for role in bootstrap nethub_owner nethub_web nethub_authz nethub_backup; do
     openssl rand -hex 32 > "$stage/secrets/pg_$role"
 done
-image=postgres:16@sha256:5a65324fe84dc41709ff914e90b07f3e2f577073ed27bf917d4873aca0c9ec51
+if [ -z "${NETHUB_POSTGRES_TEST_IMAGE:-}" ]; then
+    docker build -f "$root/deploy/images/postgres/Dockerfile" -t "$image" "$root" > "$stage/build.log" 2>&1
+fi
 docker create --name "$name" --network none --entrypoint /bin/sh \
     -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD_FILE=/run/secrets/pg_bootstrap \
     -e POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 "$image" /tmp/start-postgres.sh >/dev/null

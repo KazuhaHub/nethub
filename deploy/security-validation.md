@@ -24,6 +24,13 @@ GOWORK=off GOTOOLCHAIN=local GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 
 ## Container findings remain open
 
+Remediation is being validated in `deploy/images`: Caddy 2.11.7 with x/net
+0.60.0, and PostgreSQL 16 Alpine with gosu rebuilt from its 1.19 commit. All
+three deployment images build with Go 1.26.9. Compose acceptance can scan each
+assembled image with an exit-code gate before starting services. Until the
+assembled scans and fresh deployment/database checks succeed, the baseline
+findings below remain unresolved acceptance work.
+
 Trivy 0.76.0 was pinned to
 `aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222`.
 Scans used remote image retrieval, vulnerability scanning only, HIGH/CRITICAL

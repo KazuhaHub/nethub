@@ -9,14 +9,18 @@ fi
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 stage=$(mktemp -d)
 project="nethub-stack-test-$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"
-image="nethub-stack-test:$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"
+image=${NETHUB_RUNTIME_TEST_IMAGE:-"nethub-stack-test:$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"}
+postgres_image=${NETHUB_POSTGRES_TEST_IMAGE:-"$image-postgres"}
+caddy_image=${NETHUB_CADDY_TEST_IMAGE:-"$image-caddy"}
 compose() { docker compose -p "$project" -f "$stage/deployment/docker-compose.yml" -f "$stage/deployment/docker-compose.override.yml" -f "$stage/test.yml" "$@"; }
 cleanup() {
     if [ -f "$stage/test.yml" ]; then
         compose logs --no-color > "$stage/runtime-final.log" 2>&1 || true
         compose down -v --remove-orphans >/dev/null 2>&1 || true
     fi
-    docker image rm "$image" >/dev/null 2>&1 || true
+    if [ -z "${NETHUB_RUNTIME_TEST_IMAGE:-}" ]; then docker image rm "$image" >/dev/null 2>&1 || true; fi
+    if [ -z "${NETHUB_POSTGRES_TEST_IMAGE:-}" ]; then docker image rm "$postgres_image" >/dev/null 2>&1 || true; fi
+    if [ -z "${NETHUB_CADDY_TEST_IMAGE:-}" ]; then docker image rm "$caddy_image" >/dev/null 2>&1 || true; fi
     if [ -n "${NETHUB_COMPOSE_EVIDENCE:-}" ]; then
         mkdir -p "$NETHUB_COMPOSE_EVIDENCE"
         tar -czf "$NETHUB_COMPOSE_EVIDENCE/compose-private-evidence.tar.gz" -C "$stage" .
@@ -25,7 +29,41 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
-docker build -f "$root/deploy/Dockerfile" -t "$image" "$root" > "$stage/build.log" 2>&1
+if [ -z "${NETHUB_RUNTIME_TEST_IMAGE:-}" ]; then
+    docker build -f "$root/deploy/Dockerfile" -t "$image" "$root" > "$stage/build.log" 2>&1
+fi
+if [ -z "${NETHUB_POSTGRES_TEST_IMAGE:-}" ]; then
+    docker build -f "$root/deploy/images/postgres/Dockerfile" -t "$postgres_image" "$root" > "$stage/postgres-build.log" 2>&1
+fi
+if [ -z "${NETHUB_CADDY_TEST_IMAGE:-}" ]; then
+    docker build -f "$root/deploy/images/caddy/Dockerfile" -t "$caddy_image" "$root" > "$stage/caddy-build.log" 2>&1
+fi
+if [ "${NETHUB_SCAN_IMAGES:-0}" = 1 ]; then
+    mkdir "$stage/scans"
+    scan_image() {
+        docker image save -o "$stage/scans/image.tar" "$2"
+        if ! docker run --rm -v "$stage/scans:/scan" \
+            aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222 \
+            image --input /scan/image.tar --cache-dir /scan/cache --scanners vuln \
+            --severity HIGH,CRITICAL --exit-code 1 --format json --output "/scan/$1.json" > "$stage/scans/$1.log" 2>&1; then
+            cat "$stage/scans/$1.log" >&2
+            python3 - "$stage/scans/$1.json" <<'PY'
+import json,pathlib,sys
+p=pathlib.Path(sys.argv[1])
+if p.exists():
+    for result in json.loads(p.read_text()).get('Results',[]):
+        for item in result.get('Vulnerabilities',[]):
+            print(item['VulnerabilityID'],item['PkgName'],item['InstalledVersion'],item.get('FixedVersion','unfixed'),item['Severity'],file=sys.stderr)
+PY
+            return 1
+        fi
+        rm "$stage/scans/image.tar"
+    }
+    scan_image runtime "$image"
+    scan_image postgres "$postgres_image"
+    scan_image caddy "$caddy_image"
+    echo 'All three assembled deployment images passed HIGH/CRITICAL vulnerability checks'
+fi
 printf '%s\n' 'I HAVE VERIFIED THE NETHUB SECRET BACKUP' | docker run --rm -i --network none --user 0 \
     -v "$root:$root:ro" -v "$stage:$stage" "$image" init --offline \
     --source-directory "$root" --directory "$stage/deployment" --backup-directory "$stage/backup" \
@@ -50,6 +88,8 @@ CADDY
 chmod 0644 "$stage/Caddyfile"
 cat > "$stage/test.yml" <<YAML
 services:
+  postgres:
+    image: $postgres_image
   migrate:
     image: $image
   nethub-web:
@@ -57,6 +97,7 @@ services:
   admin-bootstrap:
     image: $image
   caddy:
+    image: $caddy_image
     ports: !override ["127.0.0.1:$port:443"]
     volumes:
       - $stage/Caddyfile:/etc/caddy/Caddyfile:ro
@@ -72,6 +113,7 @@ web=services['nethub-web'];assert len(web['volumes'])==1 and web['volumes'][0]['
 assert services['admin-bootstrap']['volumes'][0]['source'].endswith('/secrets/migrate')
 assert services['nethub-web']['networks']['edge']['ipv4_address']!=services['caddy']['networks']['edge']['ipv4_address']
 manifest=json.loads((s/'deployment/setup.json').read_text());assert manifest['confirmed_at']
+assert all(item['uid']==70 for item in manifest['files'] if item['path'].startswith('secrets/postgres/'))
 for item in manifest['files']:
     path=s/'deployment'/item['path'];assert path.stat().st_uid==item['uid'] and path.stat().st_mode&0o777==0o600
 PY

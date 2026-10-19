@@ -10,7 +10,7 @@ Resume requires an intact unconfirmed manifest and reuses the existing values.
 Unit tests cover path/role coverage, random independence and intended sharing,
 domain/subnet validation, non-overwrite, independent backup checks, corrupt copies,
 unconfirmed state, permission rejection, and template parity. Native tests cover
-Linux ownership (999/65532), actual Compose config, interruption/resume without
+Linux ownership (70/65532), actual Compose config, interruption/resume without
 key changes, and complete container startup in the deployment acceptance script.
 
 The manifest is an operational consistency record, not protection against a root

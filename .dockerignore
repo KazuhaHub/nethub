@@ -3,6 +3,8 @@
 !server/**
 !deploy/
 !deploy/Dockerfile
+!deploy/images/
+!deploy/images/**
 !LICENSE
 !NOTICE
 server/**/node_modules/
