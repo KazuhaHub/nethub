@@ -299,3 +299,24 @@ func TestOrderStatusesAndAccountLease(t *testing.T) {
 		t.Fatal("cancelled order performed network work")
 	}
 }
+
+func TestOrderAcceptsOnlyBoundedAdvertisedDefaultProfiles(t *testing.T) {
+	for _, profile := range []string{"default", "bad\nprofile", strings.Repeat("a", 65)} {
+		t.Run(profile, func(t *testing.T) {
+			s, f, b := orderFixture(t)
+			csr, public := orderRequest(t)
+			f.mu.Lock()
+			f.profiles = map[string]string{profile: "https://docs.example.test/profile"}
+			b.mutate = func(response map[string]any) { response["profile"] = profile }
+			f.mu.Unlock()
+			order, err := s.CreateOrder(context.Background(), csr, orderHost, public)
+			if profile == "default" {
+				if err != nil || order.Profile != profile {
+					t.Fatal("advertised CA default profile rejected")
+				}
+			} else if err != ErrOrder {
+				t.Fatal("unsafe profile metadata accepted")
+			}
+		})
+	}
+}

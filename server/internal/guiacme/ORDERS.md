@@ -8,12 +8,17 @@ account. Every operation checks that the CA still returns that exact active
 account, then signs the SDK order request using its persisted account KID/key.
 
 Creation requests only that single DNS identifier, without profile or validity
-overrides. Responses must retain the exact name/type, one approved authorization
+overrides. A CA-selected default profile is accepted only when advertised in the
+fresh authenticated directory and bounded to a short identifier; it remains
+private job metadata and does not replace certificate-chain/profile validation.
+Responses must retain the exact name/type, one approved authorization
 URL, approved order/finalize URLs and a known status. Pending/ready/processing
 orders need a future expiry and cannot contain a certificate or CA error. Valid
 orders need an approved certificate URL; invalid orders expose only their fixed
 status, never the CA's error detail. Observation must return the exact persisted
-order URI. This metadata is excluded from ordinary JSON serialization.
+order URI. This metadata is excluded from ordinary JSON serialization. Durable
+jobs must also retain and compare their selected profile and authorization/finalize
+URLs before advancing a recovered order to challenge acceptance or finalization.
 
 `InspectOrder` makes one signed POST-as-GET observation of the stored URL. It never
 creates another order or loops waiting for progress. The shared bounded verified
