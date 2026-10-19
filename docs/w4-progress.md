@@ -238,3 +238,27 @@ its restoration timer. Authority, backup and private database were preserved. Se
 [the evidence and limits](../deploy/validation-w4.md). This does not complete the
 external-proxy path, certificate automation or native appliance enrollment/GUI
 acceptance.
+
+## External proxy and device-owned CSR boundary
+
+PR #54 merged as cd863d9 after six checks on
+55daa202665e0c67ff6bc14aeb6153d2140fe8aa (run 39239990731). External mode omits
+bundled Caddy, binds both HTTP origins to host loopback and trusts exactly the
+edge gateway. An independent host TLS proxy passed login, secure cookies, device
+enrollment, source-spoof rejection and non-loopback isolation in genuine Compose.
+A supplementary native LXC run passed these flows without stopping existing
+public services; all owned resources were removed. See [the scope and failed
+fixture attempt](../deploy/validation-w4.md).
+
+PR #55 merged as da3fa29 after six checks on
+cf9224cdd4d7b5479045183d63281e47c66b73e9 (run 39240210910), including the CSR
+package under Linux race testing. Router GUI keys will remain device-generated;
+the server validates the signed P-256 CSR against the exact current assigned
+name. Authorization, ACME, delivery, native installation and renewal remain open.
+
+The local relay maintenance work assesses actual validity dates, avoids a fixed
+lead exceeding a short certificate's lifetime, distinguishes authority expiry
+and non-extendable leaves, and verifies the actual served TLS fingerprint. Local
+tests/vet pass. No durable journal, operation lease, scheduled issuer, process
+application, rollback or authenticated trust acknowledgement is implemented by
+these helpers. They do not complete W4-6 certificate lifecycle acceptance.
