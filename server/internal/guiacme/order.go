@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/KazuhaHub/nethub/server/internal/guicert"
 	"golang.org/x/crypto/acme"
 )
 
@@ -46,69 +45,31 @@ func (s *AccountStore) InspectOrder(ctx context.Context, uri string, csr []byte,
 }
 
 func (s *AccountStore) order(ctx context.Context, uri string, csr []byte, host, boundKey string) (Order, error) {
-	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
-	defer cancel()
-	if ctx.Err() != nil {
-		return Order{}, ErrCancelled
-	}
-	request, err := guicert.ValidateBoundCSR(csr, host, boundKey)
-	if err != nil {
-		return Order{}, ErrOrder
-	}
-	lease, err := s.lease(false)
+	session, err := s.openOrder(ctx, uri, csr, host, boundKey)
 	if err != nil {
 		return Order{}, err
 	}
-	defer accountRelease(lease)
-	state, key, err := s.load()
-	if err != nil {
-		return Order{}, err
-	}
-	// Ordinary jobs cannot create an account, adopt another identity after state
-	// loss or agree to terms. Explicit account initialization/registration comes
-	// first and remains a separate operator action.
-	if state.URI == "" {
-		return Order{}, ErrAccount
-	}
-	config := s.config
-	config.Key = key
-	client, err := New(config)
-	if err != nil {
-		return Order{}, ErrState
-	}
-	defer client.Close()
-	if uri != "" && !client.transport.allowed(uri) {
-		return Order{}, ErrOrder
-	}
-	account, err := client.EnsureAccount(ctx, Registration{ExpectedURI: state.URI})
-	if err != nil {
-		return Order{}, err
-	}
-	sdk := client.newSDK()
-	sdk.KID = acme.KeyID(account.URI)
-	directory, err := sdk.Discover(ctx)
-	if err != nil {
-		return Order{}, remoteError(ctx)
-	}
-	if len(directory.Profiles) > 32 {
-		return Order{}, ErrOrder
-	}
+	defer session.close()
 	var result *acme.Order
 	if uri == "" {
-		result, err = sdk.AuthorizeOrder(ctx, []acme.AuthzID{{Type: "dns", Value: host}})
+		result, err = session.sdk.AuthorizeOrder(session.ctx, []acme.AuthzID{{Type: "dns", Value: host}})
 	} else {
-		result, err = sdk.GetOrder(ctx, uri)
+		result, err = session.sdk.GetOrder(session.ctx, uri)
 	}
 	if err != nil {
-		return Order{}, remoteError(ctx)
+		return Order{}, remoteError(session.ctx)
 	}
-	if ctx.Err() != nil {
+	return session.result(result, uri, host)
+}
+
+func (session *orderSession) result(result *acme.Order, uri, host string) (Order, error) {
+	if session.ctx.Err() != nil {
 		return Order{}, ErrCancelled
 	}
-	if !validOrder(client.transport, result, uri, host, directory.Profiles, time.Now()) {
+	if !validOrder(session.client.transport, result, uri, host, session.directory.Profiles, time.Now()) {
 		return Order{}, ErrOrder
 	}
-	return Order{URI: result.URI, Host: host, RequestFingerprint: hex.EncodeToString(request.Fingerprint[:]),
+	return Order{URI: result.URI, Host: host, RequestFingerprint: hex.EncodeToString(session.request.Fingerprint[:]),
 		Status: result.Status, Profile: string(result.Profile), AuthorizationURL: result.AuthzURLs[0], FinalizeURL: result.FinalizeURL,
 		CertificateURL: result.CertURL, Expires: result.Expires}, nil
 }
