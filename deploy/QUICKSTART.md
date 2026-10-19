@@ -37,6 +37,29 @@ is the reference for the explicit read-only mounts and ownership checks.
    wildcard names plus the console against the expected address, generates keys,
    copies and verifies every secret, then requires the exact printed acknowledgement.
    It does not start services, alter firewall rules, or change existing listeners.
+
+   If Node/Go are not installed on the Linux host, build the pinned image first
+   and run the same initializer in it. Use new protected parent directories and
+   preserve identical absolute mount paths so generated Compose paths remain valid:
+
+   ```sh
+   docker build -f deploy/Dockerfile -t nethub-local:dev .
+   sudo mkdir -m 0700 /opt/nethub-state /protected-backups
+   sudo docker run --rm -it --user 0 \
+     -v "$PWD:$PWD:ro" \
+     -v /opt/nethub-state:/opt/nethub-state \
+     -v /protected-backups:/protected-backups \
+     nethub-local:dev init --source-directory "$PWD" \
+     --directory /opt/nethub-state/deployment \
+     --backup-directory /protected-backups/nethub \
+     --console-host console.example.com --device-domain router.example.com \
+     --expected-address YOUR_PUBLIC_RELAY_ADDRESS
+   ```
+
+   The initializer runs as root to assign service UIDs. Only the chosen state and
+   backup parents are writable mounts; source remains read-only. Afterward use
+   `/opt/nethub-state/deployment` for step 4. These local paths are examples;
+   independent off-host backup durability still needs separate verification.
 4. After confirmation, change into the generated deployment directory:
 
    ```sh
