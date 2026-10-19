@@ -2,6 +2,7 @@
 import hashlib
 import json
 from pathlib import Path
+import re
 import sys
 import urllib.request
 
@@ -23,6 +24,12 @@ def verify():
     version = lock['version']
     if (ROOT / 'deploy/frp/FRP_VERSION').read_text().strip() != version:
         raise ValueError('Relay and device versions differ')
+    module = (ROOT / 'deploy/images/frps/go.mod').read_text()
+    rebuilt_versions = re.findall(
+        r'(?m)^\s*(?:require\s+)?github\.com/fatedier/frp\s+v([^\s]+)\s*$', module
+    )
+    if rebuilt_versions != [version]:
+        raise ValueError('Rebuilt relay and device versions differ')
     manifest = read_url(f'https://github.com/fatedier/frp/releases/download/v{version}/frp_sha256_checksums.txt')
     if hashlib.sha256(manifest).hexdigest() != lock['checksums_sha256']:
         raise ValueError('Official checksum manifest changed')

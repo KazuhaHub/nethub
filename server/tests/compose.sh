@@ -12,14 +12,17 @@ project="nethub-stack-test-$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"
 image=${NETHUB_RUNTIME_TEST_IMAGE:-"nethub-stack-test:$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"}
 postgres_image=${NETHUB_POSTGRES_TEST_IMAGE:-"$image-postgres"}
 caddy_image=${NETHUB_CADDY_TEST_IMAGE:-"$image-caddy"}
+frps_image=${NETHUB_FRPS_TEST_IMAGE:-"$image-frps"}
+frps_container="$project-frps-smoke"
 compose() { docker compose -p "$project" -f "$stage/deployment/docker-compose.yml" -f "$stage/deployment/docker-compose.override.yml" -f "$stage/test.yml" "$@"; }
 cleanup() {
     status=$?
     if [ "$status" -ne 0 ]; then
-        for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log"; do
+        for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log" "$stage/frps-build.log"; do
             if [ -f "$log" ]; then tail -n 60 "$log" >&2; fi
         done
     fi
+    docker rm -f "$frps_container" >/dev/null 2>&1 || true
     if [ -f "$stage/test.yml" ]; then
         compose logs --no-color > "$stage/runtime-final.log" 2>&1 || true
         compose down -v --remove-orphans >/dev/null 2>&1 || true
@@ -27,6 +30,7 @@ cleanup() {
     if [ -z "${NETHUB_RUNTIME_TEST_IMAGE:-}" ]; then docker image rm "$image" >/dev/null 2>&1 || true; fi
     if [ -z "${NETHUB_POSTGRES_TEST_IMAGE:-}" ]; then docker image rm "$postgres_image" >/dev/null 2>&1 || true; fi
     if [ -z "${NETHUB_CADDY_TEST_IMAGE:-}" ]; then docker image rm "$caddy_image" >/dev/null 2>&1 || true; fi
+    if [ -z "${NETHUB_FRPS_TEST_IMAGE:-}" ]; then docker image rm "$frps_image" >/dev/null 2>&1 || true; fi
     if [ -n "${NETHUB_COMPOSE_EVIDENCE:-}" ]; then
         mkdir -p "$NETHUB_COMPOSE_EVIDENCE"
         tar -czf "$NETHUB_COMPOSE_EVIDENCE/compose-private-evidence.tar.gz" -C "$stage" .
@@ -43,6 +47,9 @@ if [ -z "${NETHUB_POSTGRES_TEST_IMAGE:-}" ]; then
 fi
 if [ -z "${NETHUB_CADDY_TEST_IMAGE:-}" ]; then
     docker build -f "$root/deploy/images/caddy/Dockerfile" -t "$caddy_image" "$root" > "$stage/caddy-build.log" 2>&1
+fi
+if [ -z "${NETHUB_FRPS_TEST_IMAGE:-}" ]; then
+    docker build -f "$root/deploy/images/frps/Dockerfile" -t "$frps_image" "$root" > "$stage/frps-build.log" 2>&1
 fi
 if [ "${NETHUB_SCAN_IMAGES:-0}" = 1 ]; then
     mkdir "$stage/scans"
@@ -68,8 +75,10 @@ PY
     scan_image runtime "$image"
     scan_image postgres "$postgres_image"
     scan_image caddy "$caddy_image"
-    echo 'All three assembled deployment images passed HIGH/CRITICAL vulnerability checks'
+    scan_image frps "$frps_image"
+    echo 'All four assembled deployment images passed HIGH/CRITICAL vulnerability checks'
 fi
+python3 "$root/server/tests/frps-smoke.py" "$stage" "$frps_image" "$frps_container"
 printf '%s\n' 'I HAVE VERIFIED THE NETHUB SECRET BACKUP' | docker run --rm -i --network none --user 0 \
     -v "$root:$root:ro" -v "$stage:$stage" "$image" init --offline \
     --source-directory "$root" --directory "$stage/deployment" --backup-directory "$stage/backup" \

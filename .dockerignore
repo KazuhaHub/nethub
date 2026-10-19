@@ -14,6 +14,10 @@
 !deploy/images/postgres/Dockerfile
 !deploy/images/postgres/go.mod
 !deploy/images/postgres/go.sum
+!deploy/images/frps/
+!deploy/images/frps/Dockerfile
+!deploy/images/frps/go.mod
+!deploy/images/frps/go.sum
 !LICENSE
 !NOTICE
 server/**/node_modules/
