@@ -41,6 +41,17 @@ def test_configd_mutations_take_the_same_lock():
         assert parser[name]['errors'] == 'no'
 
 
+def test_enrollment_handoff_has_no_credentials_or_cached_output():
+    parser = configparser.ConfigParser(delimiters=(':',), interpolation=None)
+    parser.read(ROOT / 'src/usr/local/opnsense/service/conf/actions.d/actions_nethub-agent.conf')
+    command = shlex.split(parser['enroll']['command'])
+    assert command[:5] == ['/usr/bin/timeout', '-k', '2', '30', '/usr/local/bin/python3.13']
+    assert command[-2:] == ['enroll', '--request-file']
+    assert parser['enroll']['parameters'] == '%s'
+    assert parser['enroll']['cache_ttl'] == '0'
+    assert parser['enroll']['errors'] == 'no'
+
+
 def test_boot_recreates_log_directory_before_output_redirection():
     script = (ROOT / 'src/usr/local/etc/rc.syshook.d/start/20-nethub-agent').read_text()
     directory = script.index('install -d -m 0700 /var/db/nethub-agent /var/log/nethub-agent')

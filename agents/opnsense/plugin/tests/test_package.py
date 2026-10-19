@@ -24,6 +24,7 @@ def test_model_mount_and_safe_defaults():
     assert {item.tag for item in fields} == {
         'enabled', 'server_addr', 'server_port', 'subdomain', 'device_id',
         'device_secret', 'frp_token', 'domain_claim', 'cluster_hint',
+        'console_url', 'server_name', 'relay_ca',
     }
     assert fields.findtext('enabled/Default') == '0'
     assert fields.findtext('cluster_hint/Default') == '0'

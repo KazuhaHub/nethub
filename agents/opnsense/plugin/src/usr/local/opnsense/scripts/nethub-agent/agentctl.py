@@ -1,6 +1,7 @@
 #!/usr/local/bin/python3.13
 """Apply validated NetHub tunnel configuration without modifying config.xml."""
 import argparse
+import base64
 from datetime import datetime, timezone
 import fcntl
 import hashlib
@@ -8,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import re
+import signal
 import subprocess
 import sys
 import syslog
@@ -90,6 +92,52 @@ class Agent:
         self.checked(self.command([self.binary, 'verify', '--strict_config=true', '-c', self.candidate]),
                      'frpc rejected the candidate configuration; live configuration was retained')
 
+    def provision_enrollment_trust(self):
+        model = ET.parse(self.root / 'conf/config.xml').find('OPNsense/NetHubAgent')
+        encoded = model.findtext('relay_ca') if model is not None else None
+        if not encoded:
+            return
+        from enrollment import validate_ca
+        from protocol import ProtocolError
+        try:
+            content = base64.b64decode(encoded, validate=True)
+            validate_ca(content.decode('ascii'))
+        except (ValueError, UnicodeError, ProtocolError):
+            raise AgentError('Stored relay trust is invalid') from None
+        path = self.config / 'relay-ca.pem'
+        if path.is_symlink():
+            raise AgentError('Relay trust path is invalid')
+        if path.exists() and path.read_bytes() != content:
+            # Initial enrollment is supported here; CA replacement needs its authenticated transition.
+            raise AgentError('Stored relay trust differs; review local trust before applying')
+        if not path.exists():
+            self.atomic(path, content)
+        path.chmod(0o600)
+
+    def enroll(self, request_file):
+        from enrollment import consume_request, request_enrollment
+        from protocol import ProtocolError
+        try:
+            request = consume_request(request_file, self.state / 'requests')
+            tree = ET.parse(self.root / 'conf/config.xml')
+            model = tree.find('OPNsense/NetHubAgent')
+            if model is not None and model.findtext('device_id'):
+                return {'success': True, 'enrolled': True}
+            version = self.command(['/usr/local/sbin/opnsense-version', '-v'], timeout=5)
+            self.checked(version, 'Could not read the platform version')
+            product = json.loads((self.root / 'usr/local/opnsense/version/nethub-agent').read_text())
+            host = tree.findtext('system/hostname', 'OPNsense')
+            domain = tree.findtext('system/domain', '')
+            hostname = host + ('.' + domain if domain else '')
+            result = request_enrollment(request['origin'], request['token'], version.stdout.strip(),
+                                        product['product_version'], hostname,
+                                        cluster_hint=model is not None and model.findtext('cluster_hint') == '1')
+            return {'success': True, 'assignment': result}
+        except (AgentError, ProtocolError) as error:
+            return {'success': False, 'message': str(error)}
+        except (OSError, ValueError, ET.ParseError, subprocess.SubprocessError):
+            return {'success': False, 'message': 'Enrollment failed; no local configuration was changed'}
+
     def reconcile_locked(self, force=False):
         if (any((self.state / marker).exists() for marker in ['disabled', 'stopped', 'revoked', 'uninstalling'])
                 or not self.enabled()):
@@ -98,6 +146,7 @@ class Agent:
                 self.checked(self.service('onestop'), 'Could not stop the tunnel')
             return self.record(True, 'Tunnel is disabled', 'stop')
         self.candidate.unlink(missing_ok=True)
+        self.provision_enrollment_trust()
         self.checked(self.command(['/usr/local/sbin/configctl', 'template', 'reload', 'OPNsense/NetHubAgent']),
                      'Template rendering failed; live configuration was retained')
         self.candidate.chmod(0o600)
@@ -203,11 +252,26 @@ class Agent:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--locked', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--request-file', help=argparse.SUPPRESS)
     parser.add_argument('action', choices=['reconcile', 'status', 'start', 'stop', 'restart',
                                           'enroll', 'unenroll', 'rotate'])
     arguments = parser.parse_args()
     action = arguments.action
-    if action in ('enroll', 'unenroll', 'rotate'):
+    if action == 'enroll':
+        if not arguments.request_file:
+            result = {'success': False, 'message': 'Private enrollment request is required'}
+        else:
+            def timed_out(signum, frame):
+                from protocol import ProtocolError
+                raise ProtocolError('Console enrollment timed out')
+            previous = signal.signal(signal.SIGALRM, timed_out)
+            signal.setitimer(signal.ITIMER_REAL, 25)
+            try:
+                result = Agent().enroll(arguments.request_file)
+            finally:
+                signal.setitimer(signal.ITIMER_REAL, 0)
+                signal.signal(signal.SIGALRM, previous)
+    elif action in ('unenroll', 'rotate'):
         result = {'success': False, 'message': 'Not implemented'}
     else:
         agent = Agent()

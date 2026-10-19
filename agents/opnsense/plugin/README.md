@@ -2,13 +2,26 @@
 
 The W2 integration adds an independently managed frpc service to
 Services → NetHub Agent. Native validation is recorded in
-[the integration report](tests/w2-progress.md). It does not
-enroll devices; temporary debug settings will be removed or made read-only in W4.
+[the integration report](tests/w2-progress.md).
+W4 now adds the HTTPS enrollment/client/model/UI flow and removes
+the temporary debug credential editor. Current-head CI and native end-to-end
+acceptance are required before treating this change as validated.
 Saved model settings remain in config.xml after uninstall.
 
-The service requires a locally provisioned deployment CA at
-`/usr/local/etc/nethub-agent/relay-ca.pem`. The relay hostname must match the
-server certificate. Save the settings, then Apply; candidates are verified before
+Enter the separate console HTTPS address and one-use token in Enrollment.
+The client uses system trust, refuses redirects and environment proxies, validates
+the bounded response, and passes known fields back to PHP through configd.
+PHP revalidates and saves through the native model/configuration lock, then starts
+the tunnel. Only a mode-0600 request-file path crosses the command interface;
+the token is consumed/unlinked, returned credentials never reach browser JSON,
+and configd output caching is disabled. A separate process deadline bounds the
+worker even during a stalled resolver or TLS peer.
+
+Initial relay trust is retained in the model and restored into
+`/usr/local/etc/nethub-agent/relay-ca.pem` on reconcile. Changing an existing,
+different CA remains blocked pending the authenticated trust-transition flow;
+this is not CA rotation/ACK implementation. The explicit TLS server name is
+independent of the connection address. Candidates are verified before
 replacing the live configuration. A failed candidate keeps the previous file and
 running process. Stop sets a persistent local stop marker; Start clears that
 marker but never clears the separate kill switch. No newwanip hook is registered.
@@ -24,6 +37,14 @@ records a rejected configuration hash and one-attempt recovery budget in
 or restart an abandoned service until a different desired configuration validates.
 The local `revoked` marker blocks both jobs and explicit Start; authenticated
 remote revocation receipt remains W5 work. pkg owns and removes the cron file.
+
+An existing device ID makes enrollment idempotent without requesting another
+server token. A failed tunnel start retains the saved enrollment for Apply/retry.
+If the response or local save is lost after the console consumed a token, inspect
+the console inventory and revoke the orphan before creating another token; token
+replay does not recover its returned credentials. Unenroll/status reporting and
+native certificate installation remain later W4 work. Keep the exact assigned
+Alternate Hostnames entry and both GUI security checks as required by D17.
 
 On the isolated OPNsense test guest, run `sh build.sh`, then install
 `dist/os-nethub-agent.pkg` with `pkg add`. Build requirements are FreeBSD, pkg,

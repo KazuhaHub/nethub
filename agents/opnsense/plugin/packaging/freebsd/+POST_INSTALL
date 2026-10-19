@@ -3,6 +3,7 @@ set -eu
 /usr/local/opnsense/scripts/firmware/register.php install os-nethub-agent
 /usr/local/opnsense/mvc/script/run_migrations.php
 install -d -m 0700 /usr/local/etc/nethub-agent /var/db/nethub-agent /var/log/nethub-agent
+install -d -m 0700 /var/db/nethub-agent/requests
 rm -f /var/db/nethub-agent/uninstalling
 touch /var/log/nethub-agent/scheduler.log
 chmod 0600 /var/log/nethub-agent/scheduler.log

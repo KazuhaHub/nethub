@@ -133,6 +133,21 @@ try {
   await tokenField.waitFor();
   const token = await tokenField.inputValue();
   assert.equal(token.length, 43);
+  const consoleField = page.getByLabel("Console HTTPS address", {
+    exact: true,
+  });
+  assert.equal(await consoleField.inputValue(), origin);
+  assert.equal(await consoleField.getAttribute("readonly"), "");
+  await page
+    .getByRole("button", { name: "Copy console address", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Copied address", exact: true })
+    .waitFor();
+  assert.equal(
+    await page.evaluate(() => navigator.clipboard.readText()),
+    origin,
+  );
   await page.getByRole("button", { name: "Copy token", exact: true }).click();
   await page.getByRole("button", { name: "Copied", exact: true }).waitFor();
   for (let step = 0; step < 12; step++) {
