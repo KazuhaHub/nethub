@@ -268,3 +268,15 @@ recreation/verified rollback, persisted-generation reuse, two connected official
 clients, a scheduled host invocation and unchanged-content suppression. Current
 head CI and native evidence remain pending. CA rotation/trust ACK, expired-job
 replacement and the router GUI lifecycle remain required; W4-6 is not complete.
+
+The first complete maintenance deployment run (39245558996, head
+0d587593611b892ad5730ea0971b3ca263221c1a) passed real due-leaf renewal, an
+injected recreation failure with verified rollback, persisted-generation reuse,
+fresh served-fingerprint checks, two official frpc clients, an actual host timer
+and unit-template verification. The measured retry-to-both-tunnels interval was
+698 ms in that isolated run. All four image scans and existing bundled/external
+proxy/browser/migration regressions passed. Its control-plane job stopped at
+module tidy because x/sys needed promotion from indirect to direct; no merge is
+authorized from that run. The corrected dependency metadata and extra runtime
+container/source-independence checks require another exact-head CI run. Native
+public maintenance acceptance and the remaining certificate scope stay open.

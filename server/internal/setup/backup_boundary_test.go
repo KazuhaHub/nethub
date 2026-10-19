@@ -56,3 +56,11 @@ func TestBackupCannotAliasSourceFiles(t *testing.T) {
 		t.Fatal("backup inside deployment hidden through a parent alias")
 	}
 }
+
+func TestMaintenanceIdentityDoesNotRequireBuildSource(t *testing.T) {
+	config := fixtureConfig(t)
+	config.SourceDirectory = filepath.Join(t.TempDir(), "removed-build-source")
+	if validateIdentity(config) != nil || Validate(config) == nil {
+		t.Fatal("runtime identity validation depends on build source or initialization accepts missing sources")
+	}
+}

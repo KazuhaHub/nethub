@@ -40,7 +40,7 @@ func MaintainRelay(ctx context.Context, options MaintenanceOptions) (relaymaint.
 		return relaymaint.State{}, relaymaint.ErrState
 	}
 	manifest, err := Load(directory)
-	if err != nil || Validate(manifest.Config) != nil {
+	if err != nil || validateIdentity(manifest.Config) != nil {
 		return relaymaint.State{}, relaymaint.ErrState
 	}
 	ca, err := os.ReadFile(filepath.Join(directory, "secrets/issuer/ca.pem"))
@@ -248,6 +248,10 @@ func (h *relayHost) Restart(ctx context.Context) error {
 }
 
 func (h *relayHost) Observe(ctx context.Context) (string, error) {
+	running, err := h.Running(ctx)
+	if err != nil || !running {
+		return "", relaymaint.ErrMaintenance
+	}
 	id, err := relaycert.Observe(ctx, netip.MustParseAddrPort("127.0.0.1:7000"), h.name, h.ca)
 	if err != nil {
 		return "", err
