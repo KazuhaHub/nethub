@@ -9,7 +9,7 @@
   "scripts": {
     "format:check": "prettier --check src tests tools vite.config.ts tsconfig.json package.json index.html",
     "build": "tsc --noEmit && vite build && node tools/licenses.mjs",
-    "test": "node --test tests/api.test.mjs",
+    "test": "node --test tests/api.test.mjs tests/public-tls.test.mjs",
     "verify": "node tests/browser.mjs"
   },
   "dependencies": {

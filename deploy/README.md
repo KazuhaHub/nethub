@@ -38,6 +38,18 @@ Successful runs may copy masked screenshots and a nonsecret result summary to
 `NETHUB_BROWSER_EVIDENCE`. The full Compose evidence archive contains disposable
 credentials and must stay private; CI uploads only the selected browser files.
 
+For a bounded test deployment with a real public certificate, run
+`node server/web/tests/public-browser.mjs /private/public-console.json` from a
+separate client with Node 24 and `server/web` dependencies/Playwright installed.
+The private JSON config supplies `origin`, `email`, `passwordFile`, and
+`evidenceDirectory`; keep it, credentials, and output outside the checkout. Use a
+disposable test account. The script validates the public CA/hostname with Node's
+bundled roots and Chromium with certificate checking enabled. It checks public
+health denial, login/reload, inventory, token masking/clearing, mobile layout,
+and logout. Private failure diagnostics and token/session hashes remain beside
+the config; neither belongs in published evidence. Public reachability and
+clean-host provenance are separate claims; this script proves the former flows.
+
 Device/authz/frps integration is W4; Open/revocation UI is W5; invitation and full
 OIDC/SAML flows are W6; scheduled backups and final operational acceptance are W7.
 The design authority remains [DESIGN](../docs/DESIGN.md), with confirmed deployment

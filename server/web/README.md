@@ -7,7 +7,9 @@ The dialog keeps keyboard focus within its controls, supports Escape, and return
 focus to its opener. CSS and scripts are local files; no inline styles, remote
 fonts, analytics, or external requests are required.
 
-Run from this directory with Node 24.14.0 and Go 1.26.0:
+Run from this directory with Node 24.14.0 and Go 1.26.9. The OpenSSL CLI is
+required for disposable certificate-rejection tests; NETHUB_OPENSSL_BINARY can
+select its path on Windows.
 
 ```sh
 npm ci --ignore-scripts
@@ -38,8 +40,12 @@ Browser verification compiles a separate loopback TLS fixture using production
 authentication and HTTP handlers, with isolated accounts and in-memory storage.
 Its test-control routes are confined to that fixture and are not linked into the
 product CLI. Real PostgreSQL actor/tenant, audit rollback, and token-consumption
-boundaries are covered separately by server/tests/postgres.sh. Complete deployment
-and public browser acceptance still require init/admin and Compose/Caddy work.
+boundaries are covered separately by server/tests/postgres.sh. The deployment CI
+also drives Chromium through the actual Caddy/web/PostgreSQL Compose project.
+Public HTTPS acceptance uses tests/public-browser.mjs with a private configuration
+outside the checkout; its TLS probe verifies the bundled public CA set and the
+browser keeps certificate checking enabled. npm test verifies that an untrusted
+self-signed server is rejected before an HTTP request can reach it.
 
 NETHUB_UI_EVIDENCE selects a private screenshot/results directory; otherwise the
 script retains evidence under its temporary stage. PLAYWRIGHT_CHANNEL=chrome can
