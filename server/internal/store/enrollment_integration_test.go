@@ -180,6 +180,15 @@ func (f *enrollmentFixture) post(t *testing.T, input protocol.EnrollRequest) (in
 
 func testAtomicEnrollment(t *testing.T, ctx context.Context, owner, authz *sql.DB, tenantA, tenantB string) {
 	f := newEnrollmentFixture(t, ctx, owner, authz)
+	t.Run("readiness_requires_authz_role", func(t *testing.T) {
+		if err := f.service.Health(ctx); err != nil {
+			t.Fatal("migrated authz role did not pass readiness")
+		}
+		if err := (&EnrollmentStore{DB: owner}).Health(ctx); err == nil {
+			t.Fatal("owner role accepted as authorization runtime")
+		}
+	})
+	t.Run("compiled_authz_process", func(t *testing.T) { testAuthzRuntime(t, f, tenantA) })
 	t.Run("http_result_matches_schema_and_database_identity", func(t *testing.T) {
 		_, token, actor := f.fresh(t, tenantB)
 		request := f.input

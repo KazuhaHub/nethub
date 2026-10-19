@@ -27,6 +27,8 @@ type fakeRepository struct {
 	beforeIssue func()
 }
 
+func (r *fakeRepository) Health(context.Context) error { return r.failure }
+
 func (r *fakeRepository) Register(_ context.Context, record Registration, issue func(Assignment) (string, error)) (Assignment, error) {
 	r.calls.Add(1)
 	if r.failure != nil {

@@ -81,10 +81,16 @@ disable/expiry cases. Ordinary local Go tests skip these native database groups.
 key loading, authz listeners and the appliance UI were not implemented by that
 service/storage change. The follow-up adds the enrollment HTTP handler with
 host/origin, media/body and trusted-proxy boundaries, fixed diagnostics and 429
-retry advice. Local Go tests/vet pass; its genuine PostgreSQL harness now validates
-raw TCP HTTP output against the shared schema and committed identity, with HTTP
-replay/version checks. Native follow-up CI remains pending. Runtime startup and
-deployment exposure still need implementation. See [the service boundary and recovery limits](../server/internal/device/README.md).
+retry advice. PR #45 merged as 8bffd8b after six checks passed on 67a8adc (run 39215217352).
+Its genuine PostgreSQL harness validated raw TCP HTTP output against the shared
+schema and committed identity, with HTTP replay/version checks. Production
+deployment exposure still needs implementation. The next runtime change adds
+file-based claim/frp credential loading, an authz-role database connection,
+bounded readiness and a private enrollment listener with graceful shutdown.
+Its genuine harness launches the compiled CLI and verifies enrollment/key loading,
+credential-free output and SIGTERM exit. Local Go tests/vet pass; native runtime
+CI is still pending. Production frps/authz wiring, trust-generation reload and
+appliance enrollment remain incomplete. See [the service boundary and recovery limits](../server/internal/device/README.md).
 
 ## Remaining W4 work
 

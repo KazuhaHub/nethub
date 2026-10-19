@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
 )
@@ -201,4 +202,26 @@ func TestHTTPConfigurationAndBodyBoundary(t *testing.T) {
 	if w.Code != 401 {
 		t.Fatal("a valid JSON request at the exact body limit was rejected by transport validation")
 	}
+}
+
+func TestHTTPReadinessChecksTrustAndRepository(t *testing.T) {
+	repository := &fakeRepository{}
+	service := fixtureService(t, repository)
+	handler := testHTTP(t, service, io.Discard)
+	check := func(method string, status int, body string) {
+		t.Helper()
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, httptest.NewRequest(method, "http://127.0.0.1/healthz", nil))
+		if w.Code != status || body != "" && w.Body.String() != body || method == "HEAD" && w.Body.Len() != 0 {
+			t.Fatal("health endpoint returned an incorrect readiness result")
+		}
+	}
+	check("GET", 200, "ok")
+	check("HEAD", 200, "")
+	check("POST", 405, "")
+	repository.failure = errors.New("private-database-diagnostic")
+	check("GET", 503, "")
+	repository.failure = nil
+	service.now = func() time.Time { return service.certs[0].NotAfter.Add(time.Second) }
+	check("GET", 503, "")
 }
