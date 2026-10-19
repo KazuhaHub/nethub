@@ -25,6 +25,10 @@ func (s *EnrollmentStore) Health(ctx context.Context) error {
 	err := s.DB.QueryRowContext(ctx, `SELECT current_user='nethub_authz' AND NOT rolsuper AND NOT rolbypassrls
  AND has_function_privilege(current_user,'public.consume_enroll_token(bytea)','EXECUTE')
  AND has_function_privilege(current_user,'public.lookup_device_credential(uuid)','EXECUTE')
+ AND has_column_privilege(current_user,'public.devices','gui_public_key','INSERT')
+ AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.devices'::regclass
+  AND tgname='devices_gui_key_binding' AND NOT tgisinternal AND tgenabled IN ('O','A')
+  AND tgfoid='public.guard_gui_key_binding()'::regprocedure)
  FROM pg_roles WHERE rolname=current_user`).Scan(&ready)
 	if err != nil || !ready {
 		return device.ErrUnavailable
@@ -71,12 +75,12 @@ func (s *EnrollmentStore) Register(ctx context.Context, record device.Registrati
 		}
 		err = tx.QueryRowContext(ctx, `INSERT INTO devices
  (tenant_id,owner_user_id,hostname,platform,capabilities,device_secret_hash,subdomain,
-  domain_claim_issued_at,cluster_hint,agent_protocol_version,platform_version,agent_version)
+  domain_claim_issued_at,cluster_hint,agent_protocol_version,platform_version,agent_version,gui_public_key)
  VALUES($1,$2,$3,$4,ARRAY(SELECT jsonb_array_elements_text($5::jsonb)),$6,$7,$8,
-        CASE WHEN $9::boolean THEN 'cluster member' ELSE NULL END,$10,$11,$12)
+        CASE WHEN $9::boolean THEN 'cluster member' ELSE NULL END,$10,$11,$12,NULLIF($13,''))
  RETURNING id,subdomain`, result.TenantID, result.OwnerID, record.Hostname,
 			record.Platform, string(capabilities), record.SecretHash, name, result.IssuedAt,
-			record.ClusterHint, record.ProtocolVersion, record.PlatformVersion, record.AgentVersion).Scan(&result.ID, &result.Subdomain)
+			record.ClusterHint, record.ProtocolVersion, record.PlatformVersion, record.AgentVersion, record.GUIPublicKey).Scan(&result.ID, &result.Subdomain)
 		if err == nil {
 			if _, err = tx.ExecContext(ctx, `RELEASE SAVEPOINT device_candidate`); err != nil {
 				return device.Assignment{}, device.ErrUnavailable

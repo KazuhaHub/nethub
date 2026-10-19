@@ -48,7 +48,8 @@ func testPlatformForwardMigration(t *testing.T, ctx context.Context, owner *sql.
 		t.Fatal(err)
 	}
 	var platform string
-	if err := owner.QueryRowContext(ctx, `SELECT platform FROM devices WHERE id=$1`, device).Scan(&platform); err != nil || platform != "opnsense" {
+	var guiKey sql.NullString
+	if err := owner.QueryRowContext(ctx, `SELECT platform,gui_public_key FROM devices WHERE id=$1`, device).Scan(&platform, &guiKey); err != nil || platform != "opnsense" || guiKey.Valid {
 		t.Fatalf("migration changed the existing device: %v", err)
 	}
 	if _, err := owner.ExecContext(ctx, `UPDATE devices SET platform='openwrt' WHERE id=$1`, device); err != nil {

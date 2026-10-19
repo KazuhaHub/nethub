@@ -67,7 +67,7 @@ func TestHTTPRejectsBeforeEnrollment(t *testing.T) {
 			r.Body = io.NopCloser(strings.NewReader(`{"platform":"opnsense","platform":"openwrt"}`))
 		}},
 		{"version", 400, func(r *http.Request) {
-			r.Body = io.NopCloser(strings.NewReader(strings.ReplaceAll(string(valid), `"1.0.0"`, `"2.0.0"`)))
+			r.Body = io.NopCloser(strings.NewReader(strings.ReplaceAll(string(valid), `"`+protocol.Version+`"`, `"2.0.0"`)))
 		}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
