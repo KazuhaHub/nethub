@@ -78,8 +78,13 @@ PR #43 merged as fea5cdc after all six checks passed on 1af30c3 (run
 39213468715). Genuine PostgreSQL tests passed schema/identity matching,
 concurrent single-use admission, signing/audit rollback and all three post-lock
 disable/expiry cases. Ordinary local Go tests skip these native database groups. HTTP routes, runtime
-key loading, authz listeners and the appliance UI are not implemented by this
-service/storage change. See [the service boundary and recovery limits](../server/internal/device/README.md).
+key loading, authz listeners and the appliance UI were not implemented by that
+service/storage change. The follow-up adds the enrollment HTTP handler with
+host/origin, media/body and trusted-proxy boundaries, fixed diagnostics and 429
+retry advice. Local Go tests/vet pass; its genuine PostgreSQL harness now validates
+raw TCP HTTP output against the shared schema and committed identity, with HTTP
+replay/version checks. Native follow-up CI remains pending. Runtime startup and
+deployment exposure still need implementation. See [the service boundary and recovery limits](../server/internal/device/README.md).
 
 ## Remaining W4 work
 

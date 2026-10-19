@@ -1,8 +1,18 @@
 # Device enrollment service
 
-This is the admission/transaction layer for W4-3. HTTP routes, the authz runtime,
-frp hooks and appliance enrollment UI remain unfinished. It is not a reachable
-device API yet.
+This is the admission/transaction layer and HTTP adapter for W4-3. The authz
+runtime, frp hooks and appliance enrollment UI remain unfinished. The handler is
+tested through HTTP but is not yet exposed by the deployment.
+
+`NewHTTP` serves only `POST /api/v1/devices/enroll`. It checks the configured host,
+optional exact Origin, JSON media/encoding, canonical path and a 64 KiB body
+limit before admission. Query parameters are rejected; cookies do not establish
+device authority. Client addresses come from the socket or an explicitly trusted
+forwarding chain. Untrusted forwarding headers cannot change the rate-limit key.
+Responses prohibit caching and expose fixed errors without logging request or
+dependency values. Successful creation returns 201; invalid/replayed credentials
+return the same 401, capacity limits return 429 with Retry-After, and internal
+failures return 503 without a partial credential response.
 
 The service validates the shared request and protocol major before hashing or
 calling storage. It validates a bounded relay configuration/public root bundle,
@@ -43,4 +53,7 @@ bounded entropy and trust expiry during registration. The genuine PostgreSQL
 harness additionally checks service output against the shared schema, exact
 database/claim identity, one-winner replay behavior, cross-tenant allocation
 conflicts, signing/audit rollback, and eligibility changes during user/token locks.
-Check the current PR's CI logs before claiming those native checks passed.
+The admission/storage tests passed in run 39213468715. The HTTP follow-up changes
+the genuine harness to use a TCP HTTP server and validate its raw response against
+the shared schema, then compare it with committed identity and audit state. Its
+new native results require the HTTP PR's CI; ordinary local Go runs skip them.

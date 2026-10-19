@@ -10,6 +10,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -116,7 +120,7 @@ func (f *enrollmentFixture) noDevice(t *testing.T, name string) {
 	}
 }
 
-func (f *enrollmentFixture) validateResponse(t *testing.T, response protocol.EnrollResponse) {
+func (f *enrollmentFixture) validateResponse(t *testing.T, encoded []byte) {
 	t.Helper()
 	compiler := jsonschema.NewCompiler()
 	compiler.AssertFormat()
@@ -137,22 +141,53 @@ func (f *enrollmentFixture) validateResponse(t *testing.T, response protocol.Enr
 	if err != nil {
 		t.Fatal(err)
 	}
-	encoded, _ := json.Marshal(response)
 	instance, err := jsonschema.UnmarshalJSON(bytes.NewReader(encoded))
 	if err != nil || schema.Validate(instance) != nil {
 		t.Fatal("genuine service output violates the shared schema")
 	}
 }
 
+func (f *enrollmentFixture) post(t *testing.T, input protocol.EnrollRequest) (int, []byte) {
+	t.Helper()
+	handler, err := device.NewHTTP(device.HTTPConfig{Origin: "https://console.example.com",
+		Logger: slog.New(slog.NewJSONHandler(io.Discard, nil))}, f.service)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	data, err := json.Marshal(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, err := http.NewRequestWithContext(f.ctx, http.MethodPost, server.URL+"/api/v1/devices/enroll", bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Host = "console.example.com"
+	request.Header.Set("Content-Type", "application/json")
+	response, err := server.Client().Do(request)
+	if err != nil {
+		t.Fatal("enrollment HTTP request failed")
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, protocol.MaxBodyBytes+1))
+	if err != nil || len(body) > protocol.MaxBodyBytes || response.Header.Get("Cache-Control") != "no-store" {
+		t.Fatal("enrollment HTTP response is unreadable, oversized or cacheable")
+	}
+	return response.StatusCode, body
+}
+
 func testAtomicEnrollment(t *testing.T, ctx context.Context, owner, authz *sql.DB, tenantA, tenantB string) {
 	f := newEnrollmentFixture(t, ctx, owner, authz)
-	t.Run("service_result_matches_schema_and_database_identity", func(t *testing.T) {
+	t.Run("http_result_matches_schema_and_database_identity", func(t *testing.T) {
 		_, token, actor := f.fresh(t, tenantB)
 		request := f.input
 		request.EnrollToken, request.Platform, request.ClusterHint = token, "openwrt", true
-		response, err := f.service.Enroll(ctx, request, netip.MustParseAddr("192.0.2.1"))
-		if err != nil {
-			t.Fatal(err)
+		status, body := f.post(t, request)
+		var response protocol.EnrollResponse
+		if status != http.StatusCreated || json.Unmarshal(body, &response) != nil {
+			t.Fatal("HTTP enrollment did not return a successful protocol response")
 		}
 		var tenant, storedActor, hash, platform, cluster string
 		var issued time.Time
@@ -170,21 +205,21 @@ func testAtomicEnrollment(t *testing.T, ctx context.Context, owner, authz *sql.D
 		if err != nil || payload.TenantID != tenant || payload.DeviceID != response.DeviceID || payload.Subdomain != response.Subdomain || payload.IssuedAt != issued.UTC().Format("2006-01-02T15:04:05.000000Z") {
 			t.Fatal("signed identity does not exactly match the committed row")
 		}
-		f.validateResponse(t, response)
+		f.validateResponse(t, body)
 		var count int
 		if err := owner.QueryRowContext(ctx, `SELECT count(*) FROM audit_log WHERE tenant_id=$1 AND actor_id=$2 AND action='device.enrolled' AND target_device_id=$3 AND NOT (payload ? 'domain_claim')`, tenantB, actor, response.DeviceID).Scan(&count); err != nil || count != 1 {
 			t.Fatalf("success audit is missing or contains credential fields: %v", err)
 		}
-		if repeated, err := f.service.Enroll(ctx, request, netip.MustParseAddr("192.0.2.1")); !errors.Is(err, device.ErrDenied) || repeated.DeviceSecret != "" {
-			t.Fatal("replayed token returned credentials")
+		if status, body := f.post(t, request); status != 401 || bytes.Contains(body, []byte("device_secret")) || !bytes.Contains(body, []byte("enrollment_failed")) {
+			t.Fatal("replayed token did not return the generic HTTP denial")
 		}
 	})
 	t.Run("version_rejected_before_consumption", func(t *testing.T) {
 		record, token, _ := f.fresh(t, tenantA)
 		request := f.input
 		request.EnrollToken, request.AgentProtocolVersion = token, "2.0.0"
-		if _, err := f.service.Enroll(ctx, request, netip.MustParseAddr("192.0.2.1")); !errors.Is(err, protocol.ErrIncompatibleVersion) {
-			t.Fatal("incompatible protocol was not rejected")
+		if status, body := f.post(t, request); status != 400 || !bytes.Contains(body, []byte("incompatible_protocol")) {
+			t.Fatal("incompatible protocol was not rejected at the HTTP boundary")
 		}
 		f.unused(t, record)
 	})
