@@ -4,7 +4,16 @@
 !deploy/
 !deploy/Dockerfile
 !deploy/images/
-!deploy/images/**
+!deploy/images/licenses.go
+!deploy/images/caddy/
+!deploy/images/caddy/Dockerfile
+!deploy/images/caddy/go.mod
+!deploy/images/caddy/go.sum
+!deploy/images/caddy/main.go
+!deploy/images/postgres/
+!deploy/images/postgres/Dockerfile
+!deploy/images/postgres/go.mod
+!deploy/images/postgres/go.sum
 !LICENSE
 !NOTICE
 server/**/node_modules/
