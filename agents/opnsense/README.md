@@ -11,11 +11,13 @@ agents/opnsense/
   tests/           contract tests against ../../proto/
 ```
 
-> **Status: pre-alpha, W1 skeleton validated.** The plugin directory now contains
-> the settings model, menu, ACL, page, lifecycle hooks, and unsigned development
-> package tooling. Native install/save/uninstall/reinstall passed on OPNsense 26.7.7;
-> see [the evidence](plugin/tests/native-validation.md). Enrollment, frpc integration,
-> and protocol contracts remain planned. W0 was accepted with recorded limits.
+> **Status: pre-alpha, native W2 tunnel integration validated.** The plugin includes
+> the model, menu, ACL, service/recovery scheduler and unsigned package tooling.
+> W4 adds verified HTTPS enrollment, private token handoff, model persistence and
+> the enrollment UI; current CI/native end-to-end acceptance remains required.
+> See [W2 evidence](plugin/tests/w2-progress.md) and
+> [W4 progress and limits](plugin/tests/w4-progress.md). Wire contract tests run in
+> both languages. W0 was accepted with recorded limits; no release is published.
 
 ## Why the source lives here and not in the packaging repository
 

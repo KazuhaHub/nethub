@@ -39,3 +39,14 @@ def test_disabled_template_requires_no_credentials():
     text = jinja2.Environment(undefined=jinja2.StrictUndefined).from_string(TEMPLATE.read_text()).render(
         OPNsense={'NetHubAgent': {'enabled': '0'}})
     assert tomllib.loads(text) == {}
+
+
+def test_tls_name_is_independent_of_connection_address():
+    settings = {'enabled': '1', 'server_addr': 'relay-address.example.com', 'server_name': 'relay-tls.example.com',
+                'server_port': '7000', 'frp_token': 'test-only', 'device_id': 'test-device',
+                'domain_claim': 'test.claim', 'subdomain': 'test-device'}
+    rendered = jinja2.Environment(undefined=jinja2.StrictUndefined).from_string(TEMPLATE.read_text()).render(
+        OPNsense={'NetHubAgent': settings}, system={'webgui': {'port': '443'}})
+    config = tomllib.loads(rendered)
+    assert config['serverAddr'] == settings['server_addr']
+    assert config['transport']['tls']['serverName'] == settings['server_name']

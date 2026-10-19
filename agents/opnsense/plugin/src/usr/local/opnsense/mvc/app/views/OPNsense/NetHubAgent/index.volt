@@ -3,18 +3,40 @@ $(function () {
     const form = 'nethubSettings';
     const endpoint = '/api/nethubagent/settings/';
     mapDataToFormUI({[form]: endpoint + 'get'});
-    mapDataToFormUI({'nethubDebug': endpoint + 'debugGet'});
+    function showEnrollment() {
+        ajaxCall('/api/nethubagent/enroll/get', {}, function (result) {
+            $('#enrollNetHub').prop('disabled', result.enrolled === true);
+            $('#nethubEnrollmentInfo').text(result.enrolled ?
+                '{{ lang._("Enrolled device") }}: ' + result.device_id + ' | ' + result.console_url :
+                '{{ lang._("Not enrolled") }}');
+        });
+    }
     function showStatus() {
         ajaxCall('/api/nethubagent/service/status', {}, function (result) {
             $('#nethubStatus').text(JSON.stringify(result, null, 2));
         });
     }
     showStatus();
+    showEnrollment();
     $('#saveNetHub').on('click', function () {
         saveFormToEndpoint(endpoint + 'set', form);
     });
-    $('#saveNetHubDebug').on('click', function () {
-        saveFormToEndpoint(endpoint + 'debugSet', 'nethubDebug');
+    $('#enrollNetHub').on('click', function () {
+        const button = $(this);
+        const request = {origin: $('#nethubConsoleUrl').val(), token: $('#nethubEnrollToken').val()};
+        button.prop('disabled', true);
+        $('#nethubEnrollToken').val('');
+        $('#nethubEnrollmentResult').text('{{ lang._("Requesting enrollment…") }}');
+        ajaxCall('/api/nethubagent/enroll/enroll', request, function (result, status) {
+            $('#nethubEnrollmentResult').text(status === 'success' && typeof result.message === 'string' ?
+                result.message : '{{ lang._("Enrollment response unavailable. Check the console inventory before using another token.") }}');
+            button.prop('disabled', result.enrolled === true);
+            if (result.enrolled === true) {
+                mapDataToFormUI({[form]: endpoint + 'get'});
+                showEnrollment();
+                showStatus();
+            }
+        });
     });
     $('#applyNetHub').on('click', function () {
         ajaxCall('/api/nethubagent/service/reconcile', {}, showStatus);
@@ -29,10 +51,17 @@ $(function () {
     <button id="applyNetHub" class="btn btn-default" type="button">{{ lang._('Apply') }}</button>
     <button id="refreshNetHub" class="btn btn-default" type="button">{{ lang._('Refresh status') }}</button>
     <pre id="nethubStatus"></pre>
-    <details>
-        <summary>{{ lang._('Advanced (W2 debug only)') }}</summary>
-        <p>{{ lang._('The relay CA must be provisioned locally before starting. This debug section will be removed or made read-only when enrollment is implemented.') }}</p>
-        {{ partial('layout_partials/base_form', ['fields': debugForm, 'id': 'nethubDebug']) }}
-        <button id="saveNetHubDebug" class="btn btn-default" type="button">{{ lang._('Save debug settings') }}</button>
-    </details>
+    <h2>{{ lang._('Enrollment') }}</h2>
+    <p id="nethubEnrollmentInfo"></p>
+    <p>{{ lang._('Enter the HTTPS address of your NetHub console and its one-use token. Enrollment enables the tunnel. The router keeps its current GUI login and security checks.') }}</p>
+    <div class="form-group">
+        <label for="nethubConsoleUrl">{{ lang._('Console HTTPS address') }}</label>
+        <input id="nethubConsoleUrl" class="form-control" type="url" maxlength="512" autocomplete="off" placeholder="https://console.example.com">
+    </div>
+    <div class="form-group">
+        <label for="nethubEnrollToken">{{ lang._('Enrollment token') }}</label>
+        <input id="nethubEnrollToken" class="form-control" type="password" maxlength="43" autocomplete="off" spellcheck="false">
+    </div>
+    <button id="enrollNetHub" class="btn btn-primary" type="button">{{ lang._('Enroll') }}</button>
+    <p id="nethubEnrollmentResult" role="status"></p>
 </div>

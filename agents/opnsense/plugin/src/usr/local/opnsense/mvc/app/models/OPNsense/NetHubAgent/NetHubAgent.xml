@@ -1,6 +1,6 @@
 <model>
     <mount>//OPNsense/NetHubAgent</mount>
-    <version>0.0.2</version>
+    <version>0.0.3</version>
     <description>NetHub Agent settings</description>
     <items>
         <enabled type="BooleanField">
@@ -18,6 +18,18 @@
             <MaximumValue>65535</MaximumValue>
             <Required>Y</Required>
         </server_port>
+        <console_url type="TextField">
+            <Required>N</Required>
+            <mask>/^https:\/\/[!-~]{1,504}$/D</mask>
+        </console_url>
+        <server_name type="TextField">
+            <Required>N</Required>
+            <mask>/^[A-Za-z0-9][A-Za-z0-9.-]{0,252}$/D</mask>
+        </server_name>
+        <relay_ca type="TextField">
+            <Required>N</Required>
+            <mask>/^[A-Za-z0-9+\/=]{1,45000}$/D</mask>
+        </relay_ca>
         <subdomain type="TextField">
             <Required>N</Required>
             <mask>/^[a-z0-9-]{1,63}$/D</mask>

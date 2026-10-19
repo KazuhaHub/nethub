@@ -1,16 +1,20 @@
 """Exercise reconcile against controlled service and template commands."""
 import importlib.util
+import base64
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / 'src/usr/local/opnsense/scripts/nethub-agent/agentctl.py'
 SPEC = importlib.util.spec_from_file_location('agentctl', SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+sys.path.insert(0, str(SCRIPT.parent))
 
 VALID = '''serverAddr = "relay.example.com"
 auth.token = "test-only"
@@ -139,6 +143,51 @@ class ReconcileTests(unittest.TestCase):
         self.assertEqual(result['message'], 'Install the relay CA before enabling the tunnel')
         self.assertEqual(self.agent.live.read_text(), VALID)
         self.assertEqual(self.mutations(), [])
+
+    def test_enrollment_ca_is_restored_from_model_without_changing_config_xml(self):
+        sample = json.loads((ROOT.parents[2] / 'proto/examples/valid/enroll-response.json').read_text())
+        ca = sample['relay_ca_pem'].encode()
+        configuration = ('<opnsense><OPNsense><NetHubAgent><enabled>1</enabled><relay_ca>' +
+                         base64.b64encode(ca).decode() + '</relay_ca></NetHubAgent></OPNsense></opnsense>').encode()
+        (self.root / 'conf/config.xml').write_bytes(configuration)
+        path = self.agent.config / 'relay-ca.pem'
+        path.unlink()
+        self.assertTrue(self.agent.apply('reconcile')['success'])
+        self.assertEqual(path.read_bytes(), ca)
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        self.assertEqual((self.root / 'conf/config.xml').read_bytes(), configuration)
+        self.assertEqual(self.mutations(), [])
+        path.unlink()
+        self.assertTrue(self.agent.apply('reconcile')['success'])
+        self.assertEqual(path.read_bytes(), ca)
+
+    def test_unreviewed_trust_change_keeps_existing_live_material(self):
+        sample = json.loads((ROOT.parents[2] / 'proto/examples/valid/enroll-response.json').read_text())
+        (self.root / 'conf/config.xml').write_text(
+            '<opnsense><OPNsense><NetHubAgent><enabled>1</enabled><relay_ca>' +
+            base64.b64encode(sample['relay_ca_pem'].encode()).decode() +
+            '</relay_ca></NetHubAgent></OPNsense></opnsense>')
+        result = self.agent.apply('reconcile')
+        self.assertFalse(result['success'])
+        self.assertEqual((self.agent.config / 'relay-ca.pem').read_text(), 'test CA')
+        self.assertEqual(self.agent.live.read_text(), VALID)
+        self.assertEqual(self.mutations(), [])
+
+    def test_existing_device_does_not_consume_another_server_token(self):
+        self.agent.state.mkdir(parents=True)
+        requests = self.agent.state / 'requests'
+        requests.mkdir(mode=0o700)
+        path = requests / ('enroll-' + 'a' * 32 + '.json')
+        path.write_text(json.dumps({'origin': 'https://console.example.com', 'token': 'A' * 43}))
+        path.chmod(0o600)
+        (self.root / 'conf/config.xml').write_text(
+            '<opnsense><OPNsense><NetHubAgent><device_id>existing</device_id></NetHubAgent></OPNsense></opnsense>')
+        original = (self.root / 'conf/config.xml').read_bytes()
+        with mock.patch('enrollment.request_enrollment') as network:
+            self.assertEqual(self.agent.enroll(path), {'success': True, 'enrolled': True})
+            network.assert_not_called()
+        self.assertFalse(path.exists())
+        self.assertEqual((self.root / 'conf/config.xml').read_bytes(), original)
 
 
 if __name__ == '__main__':

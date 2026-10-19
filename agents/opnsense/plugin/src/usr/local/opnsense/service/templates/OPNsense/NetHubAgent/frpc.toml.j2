@@ -11,7 +11,7 @@ transport.heartbeatInterval = 10
 transport.heartbeatTimeout = 30
 transport.tls.enable = true
 transport.tls.trustedCaFile = "/usr/local/etc/nethub-agent/relay-ca.pem"
-transport.tls.serverName = "{{ OPNsense.NetHubAgent.server_addr }}"
+transport.tls.serverName = "{{ OPNsense.NetHubAgent.server_name|default(OPNsense.NetHubAgent.server_addr, true) }}"
 
 [[proxies]]
 name = "nethub-{{ OPNsense.NetHubAgent.device_id }}-web"
