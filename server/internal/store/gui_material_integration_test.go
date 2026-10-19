@@ -8,10 +8,8 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"math/big"
 	"path/filepath"
 	"strings"
@@ -49,24 +47,24 @@ func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, tenant string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := issuerSQL(f.ctx, `SELECT coalesce(public.claim_gui_certificate_job(),'null'::jsonb)`)
-	if err != nil {
-		t.Fatal("issued fixture claim failed")
-	}
-	work, err := guiissuer.DecodeSnapshot(bytes.TrimSpace(data), "devices.example.com", nil, time.Now())
-	if err != nil || work.Lease.ID != id {
-		t.Fatal("issued fixture work mismatch", err)
-	}
-	work = *testGUIProgress(t, f, &work)
-	data, err = issuerSQL(f.ctx, fmt.Sprintf(`SELECT public.read_gui_certificate_progress('%s','%s',%d)`, work.Lease.ID, work.Lease.Token, work.Lease.Version))
-	if err != nil {
-		t.Fatal("issued fixture progress read failed")
-	}
 	account, err := guiacme.NewAccountStore(filepath.Join(t.TempDir(), "account"), guiacme.Config{DirectoryURL: "https://acme.example.test/directory", ContactEmail: "issuer@example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	progress, err := guiissuer.DecodeProgress(bytes.TrimSpace(data), work, account.AllowsURL)
+	adapter := &guiissuer.SQLStore{Run: issuerSQLInput, Domain: "devices.example.com", AllowsURL: account.AllowsURL}
+	claimed, err := adapter.Claim(f.ctx)
+	if err != nil {
+		t.Fatal("issued fixture claim failed")
+	}
+	if claimed == nil || claimed.Lease.ID != id {
+		t.Fatal("issued fixture work mismatch", err)
+	}
+	work, err := adapter.Renew(f.ctx, *claimed)
+	if err != nil {
+		t.Fatal("issued fixture renewal failed", err)
+	}
+	work = *testGUIProgress(t, f, &work)
+	progress, err := adapter.Read(f.ctx, work)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,14 +96,14 @@ func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, tenant string) {
 	}
 	finish := func(w guiissuer.Snapshot, m guiissuer.Material) string {
 		t.Helper()
-		l := w.Lease
-		statement := fmt.Sprintf(`SELECT coalesce(public.finish_gui_certificate_job('%s','%s',%d,decode('%s','hex'),'%s','%s','%s','%s','%s')::text,'null')`, l.ID, l.Token, l.Version, hex.EncodeToString(m.PEM), m.Fingerprint,
-			m.NotBefore.UTC().Format(time.RFC3339Nano), m.NotAfter.UTC().Format(time.RFC3339Nano), m.ValidUntil.UTC().Format(time.RFC3339Nano), m.RenewAfter.UTC().Format(time.RFC3339Nano))
-		result, err := issuerSQL(f.ctx, statement)
+		result, err := adapter.Finish(f.ctx, w, m)
+		if errors.Is(err, guiissuer.ErrDatabase) {
+			return "null"
+		}
 		if err != nil {
 			t.Fatal("issued material commit failed")
 		}
-		return string(bytes.TrimSpace(result))
+		return result
 	}
 	stale := work
 	stale.Lease.Version--
@@ -158,4 +156,5 @@ func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, tenant string) {
 		t.Fatal("device key entered installation material")
 	}
 	t.Log("Independently validated original-key issued chain, lease CAS, exact lost-reply completion, immutable generation/audit, private grants and revoked retention passed; native application not claimed")
+	t.Log("Private SQL adapter claim/renew/read/save/finish, lost-reply and stale-version recovery passed against the real issuer identity")
 }
