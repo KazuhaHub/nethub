@@ -101,16 +101,12 @@ with socket.socket() as listener:
     print(listener.getsockname()[1])
 PY
 )
-cat > "$stage/Caddyfile" <<'CADDY'
-https://console.example.com {
-    tls internal
-    @internal path /healthz /healthz/*
-    respond @internal 404
-    @device path /api/v1/devices/*
-    reverse_proxy @device nethub-authz:8081
-    reverse_proxy nethub-web:8080
-}
-CADDY
+python3 - "$root/deploy/Caddyfile" "$stage/Caddyfile" <<'PY'
+import pathlib,sys
+source=pathlib.Path(sys.argv[1]).read_text()
+assert source.count('{$NETHUB_CONSOLE_HOST} {')==1
+pathlib.Path(sys.argv[2]).write_text(source.replace('{$NETHUB_CONSOLE_HOST} {','https://console.example.com {\n    tls internal',1))
+PY
 chmod 0644 "$stage/Caddyfile"
 cat > "$stage/test.yml" <<YAML
 services:
@@ -184,6 +180,8 @@ request -b "$stage/cookies" https://console.example.com/api/v1/console/devices >
 request -b "$stage/cookies" -H "@$stage/csrf-header" -H 'Content-Type: application/json' -H 'Origin: https://console.example.com' --data '{}' https://console.example.com/api/v1/console/enroll-tokens > "$stage/token.json"
 code=$(curl -sS --insecure --noproxy '*' --connect-to "console.example.com:443:127.0.0.1:$port" -o /dev/null -w '%{http_code}' https://console.example.com/healthz)
 [ "$code" = 404 ]
+code=$(curl -sS --insecure --noproxy '*' --connect-to "console.example.com:443:127.0.0.1:$port" -o /dev/null -w '%{http_code}' -X POST https://console.example.com/api/v1/frp/hooks)
+[ "$code" = 404 ]
 if [ "${NETHUB_BROWSER_TEST:-0}" = 1 ]; then
     "${NETHUB_NODE_BINARY:-node}" "$root/server/web/tests/deployment.mjs" \
         "$port" "$stage/admin-password" "$stage/browser" "$(compose ps -q postgres)" "$(compose ps -q nethub-web)"
@@ -236,3 +234,19 @@ running=$(compose ps --status running --services)
 if printf '%s\n' "$running" | grep -qx nethub-web; then echo 'Web started after failed migration' >&2; exit 1; fi
 if printf '%s\n' "$running" | grep -Eq '^(nethub-authz|frps)$'; then echo 'Relay started after failed migration' >&2; exit 1; fi
 echo 'Failed migration prevented console startup'
+if [ -n "${NETHUB_IMAGE_EVIDENCE:-}" ]; then
+    mkdir -p "$NETHUB_IMAGE_EVIDENCE"
+    docker image save -o "$NETHUB_IMAGE_EVIDENCE/images.tar" "$image" "$postgres_image" "$caddy_image" "$frps_image"
+    gzip -1 "$NETHUB_IMAGE_EVIDENCE/images.tar"
+    (cd "$NETHUB_IMAGE_EVIDENCE" && sha256sum images.tar.gz > SHA256SUMS)
+    python3 - "$NETHUB_IMAGE_EVIDENCE" "$image" "$postgres_image" "$caddy_image" "$frps_image" <<'PY'
+import json,pathlib,subprocess,sys
+output=pathlib.Path(sys.argv[1]);images={}
+for service,tag in zip(('runtime','postgres','caddy','frps'),sys.argv[2:]):
+    images[service]={'tag':tag,'id':subprocess.check_output(['docker','image','inspect','--format','{{.Id}}',tag],text=True).strip()}
+(output/'images.json').write_text(json.dumps(images,indent=2))
+PY
+    chown "${SUDO_UID:-0}:${SUDO_GID:-0}" "$NETHUB_IMAGE_EVIDENCE" \
+        "$NETHUB_IMAGE_EVIDENCE/images.tar.gz" "$NETHUB_IMAGE_EVIDENCE/SHA256SUMS" "$NETHUB_IMAGE_EVIDENCE/images.json"
+    echo 'Saved only tested immutable images and checksums; runtime credentials are excluded'
+fi

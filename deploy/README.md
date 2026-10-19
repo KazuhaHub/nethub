@@ -48,6 +48,13 @@ Successful runs may copy masked screenshots and a nonsecret result summary to
 `NETHUB_BROWSER_EVIDENCE`. The full Compose evidence archive contains disposable
 credentials and must stay private; CI uploads only the selected browser files.
 
+CI also retains the four tested immutable images for one day as
+`deployment-images`, with a SHA256 checksum and image-ID manifest. This lets native
+acceptance use the exact tested images without rebuilding on a constrained relay.
+No container snapshots, runtime mounts, configuration bundles or test credentials
+are included. Authenticate the workflow run/head, verify the checksum and each
+loaded image ID before use. This artifact is not a release or a state backup.
+
 For a bounded test deployment with a real public certificate, run
 `node server/web/tests/public-browser.mjs /private/public-console.json` from a
 separate client with Node 24 and `server/web` dependencies/Playwright installed.

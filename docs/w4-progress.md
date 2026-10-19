@@ -182,8 +182,12 @@ Local setup/CLI tests pass, including runtime leaf rotation preserving backup an
 rejection of mixed leaf/key generations or changed unbacked trust. Native CI adds
 official-checksum frps verification of the generated configuration, HTTPS device
 enrollment, two actual frpc clients, tampered-claim rejection, verified TLS
-passthrough and real frps observations reaching the console. These checks are
-pending; public source-address proof, the external-proxy path, durable automated
+passthrough and real frps observations reaching the console. All six checks passed
+on 94f998794bad9174d3b098ccb53588d5bee081d4 (run 39230578213), and the native
+deployment log confirms every new relay case and credential absence. The follow-up
+retains the exact tested images for bounded native acceptance and uses the reviewed
+Caddy template with only its test CA/hostname changed; current-head CI must pass
+again before merge. Public source-address proof, the external-proxy path, durable automated
 certificate application/rotation and appliance/GUI lifecycle remain open.
 
 D22 now requires automatic renewal, distribution and configuration based on the
