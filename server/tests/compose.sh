@@ -23,15 +23,19 @@ postgres_image=${NETHUB_POSTGRES_TEST_IMAGE:-"$image-postgres"}
 caddy_image=${NETHUB_CADDY_TEST_IMAGE:-"$image-caddy"}
 frps_image=${NETHUB_FRPS_TEST_IMAGE:-"$image-frps"}
 frps_container="$project-frps-smoke"
+http01_test_image="$project-http01-test:local"
+http01_binary_holder="$project-http01-binary"
 compose() { docker compose -p "$project" -f "$stage/deployment/docker-compose.yml" -f "$stage/deployment/docker-compose.override.yml" -f "$stage/test.yml" "$@"; }
 cleanup() {
     status=$?
     if [ "$status" -ne 0 ]; then
-        for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log" "$stage/frps-build.log"; do
+        for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log" "$stage/frps-build.log" "$stage/http01-build.log"; do
             if [ -f "$log" ]; then tail -n 60 "$log" >&2; fi
         done
     fi
     docker rm -f "$frps_container" >/dev/null 2>&1 || true
+    docker rm -f "$http01_binary_holder" >/dev/null 2>&1 || true
+    docker image rm "$http01_test_image" >/dev/null 2>&1 || true
     if [ -f "$stage/test.yml" ]; then
         compose logs --no-color > "$stage/runtime-final.log" 2>&1 || true
         compose down -v --remove-orphans >/dev/null 2>&1 || true
@@ -60,6 +64,12 @@ fi
 if [ -z "${NETHUB_FRPS_TEST_IMAGE:-}" ]; then
     docker build -f "$root/deploy/images/frps/Dockerfile" -t "$frps_image" "$root" > "$stage/frps-build.log" 2>&1
 fi
+docker build --target http01-acceptance -f "$root/deploy/Dockerfile" -t "$http01_test_image" "$root" > "$stage/http01-build.log" 2>&1
+docker create --name "$http01_binary_holder" --network none "$http01_test_image" /http01.test >/dev/null
+docker cp "$http01_binary_holder:/http01.test" "$stage/http01.test"
+docker rm "$http01_binary_holder" >/dev/null
+chmod 0700 "$stage/http01.test"
+NETHUB_HTTP01_CADDY_IMAGE="$caddy_image" "$stage/http01.test" -test.v -test.run '^TestCaddyPublicHTTP01Route$' -test.timeout=90s
 if [ "${NETHUB_SCAN_IMAGES:-0}" = 1 ]; then
     mkdir "$stage/scans"
     scan_image() {
