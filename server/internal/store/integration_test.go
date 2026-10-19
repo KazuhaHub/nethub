@@ -38,7 +38,14 @@ func TestPostgresBoundaries(t *testing.T) {
 		return db
 	}
 	owner, web, authz, backup := connect("nethub_owner"), connect("nethub_web"), connect("nethub_authz"), connect("nethub_backup")
-	t.Run("platform_forward_migration", func(t *testing.T) { testPlatformForwardMigration(t, ctx, owner) })
+	t.Run("platform_forward_migration", func(t *testing.T) {
+		restore := legacyIssuerRoleFixture(t, ctx, owner)
+		defer restore()
+		testPlatformForwardMigration(t, ctx, owner)
+		if err := (&EnrollmentStore{DB: authz}).Health(ctx); err != nil {
+			t.Fatal("disabled legacy device APIs require issuer role", err)
+		}
+	})
 	for range 2 {
 		if err := Migrate(ctx, owner); err != nil {
 			var failure *pgconn.PgError
