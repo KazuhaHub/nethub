@@ -31,7 +31,15 @@ import (
 // revision b1e1ca4f3c30abb64111adaca4544bc5374cc306. It is test-only.
 const pebbleOrderImage = "ghcr.io/letsencrypt/pebble@sha256:5080492187bea12909c053d7a2b90a9e95104ef1c82381828e7823db71ce7e54"
 
-func TestPebbleOrderAdmission(t *testing.T) {
+type pebbleHarness struct {
+	store                                    *AccountStore
+	docker                                   func(...string) []byte
+	network, name, nonce, stage, containerID string
+	address                                  netip.Addr
+}
+
+func newPebbleHarness(t *testing.T) *pebbleHarness {
+	t.Helper()
 	image := os.Getenv("NETHUB_GUIACME_PEBBLE_IMAGE")
 	if image == "" {
 		t.Skip("requires the isolated genuine ACME deployment harness")
@@ -175,7 +183,7 @@ func TestPebbleOrderAdmission(t *testing.T) {
 	roots := pebbleAPIFixtureTLS(t, stage, net.ParseIP(address.String()))
 	configuration := map[string]any{"pebble": map[string]any{
 		"listenAddress": "0.0.0.0:14000", "managementListenAddress": "", "certificate": "/fixture/cert.pem", "privateKey": "/fixture/key.pem",
-		"httpPort": 5002, "tlsPort": 5001, "externalAccountBindingRequired": false,
+		"httpPort": 80, "tlsPort": 5001, "externalAccountBindingRequired": false,
 		"profiles": map[string]any{"standard": map[string]any{"description": "isolated order test", "validityPeriod": 7776000}},
 	}}
 	raw, _ := json.Marshal(configuration)
@@ -184,6 +192,7 @@ func TestPebbleOrderAdmission(t *testing.T) {
 	}
 	containerID = strings.TrimSpace(string(docker("create", "--name", name, "--label", label, "--network", network,
 		"--ip", address.String(), "--read-only", "--user", "0:0", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "64", "--memory", "128m",
+		"--add-host", orderHost+":"+address.Next().String(), "--env", "PEBBLE_VA_NOSLEEP=1",
 		"--env", "PEBBLE_WFE_NONCEREJECT=0", "--env", "PEBBLE_AUTHZREUSE=0",
 		"--mount", "type=bind,src="+filepath.Join(stage, "cert.pem")+",dst=/fixture/cert.pem,readonly",
 		"--mount", "type=bind,src="+filepath.Join(stage, "key.pem")+",dst=/fixture/key.pem,readonly",
@@ -259,6 +268,12 @@ func TestPebbleOrderAdmission(t *testing.T) {
 	if _, err := store.EnsureAccount(context.Background(), true, terms); err != nil {
 		t.Fatalf("explicit isolated CA account registration: %v", err)
 	}
+	return &pebbleHarness{store: store, docker: docker, network: network, name: name, nonce: nonce, stage: stage, containerID: containerID, address: address}
+}
+
+func TestPebbleOrderAdmission(t *testing.T) {
+	harness := newPebbleHarness(t)
+	store, docker, containerID := harness.store, harness.docker, harness.containerID
 	before, _ := os.ReadFile(store.path("account.json"))
 	csr, public := orderRequest(t)
 	order, err := store.CreateOrder(context.Background(), csr, orderHost, public)

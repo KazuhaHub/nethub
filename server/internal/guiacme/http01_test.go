@@ -60,7 +60,7 @@ func TestHTTP01PreparationAndIdempotentAcceptance(t *testing.T) {
 }
 
 func TestHTTP01RejectsChangedPublicationProof(t *testing.T) {
-	for _, mutation := range []string{"uri", "token", "key-authorization", "expired", "complete", "fingerprint"} {
+	for _, mutation := range []string{"uri", "token", "key-authorization", "expired", "extended-expiry", "complete", "fingerprint"} {
 		t.Run(mutation, func(t *testing.T) {
 			s, f, b, order, csr, public := http01Fixture(t)
 			proof, err := s.PrepareHTTP01(context.Background(), order, csr, public)
@@ -77,6 +77,8 @@ func TestHTTP01RejectsChangedPublicationProof(t *testing.T) {
 				proof.KeyAuthorization += "changed"
 			case "expired":
 				proof.ExpiresAt = time.Now().Add(-time.Hour)
+			case "extended-expiry":
+				proof.ExpiresAt = proof.ExpiresAt.Add(time.Hour)
 			case "complete":
 				proof.Complete = true
 			case "fingerprint":

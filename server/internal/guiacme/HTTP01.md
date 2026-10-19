@@ -30,3 +30,20 @@ correlation, changed order/authorization/challenge rejection, duplicate or missi
 HTTP challenges, invalid tokens/origins/errors, already valid authorization and
 lost/changed acceptance responses. Finalization, certificate fetching, queue/API
 wiring and native installation remain separate work.
+
+The focused genuine Pebble/Caddy fixture passed in 4.71 seconds: an unpublished
+response returned 404, the exact durable response was served only for its host,
+the real CA fetched it and the same order reached ready. The proxy access log
+independently matched the CA container's source address and exact host/path.
+After validated-authorization recovery, retiring the publication returned 404.
+The source check normalizes only an explicit HTTP port 80 in the Host authority;
+the first fixture run rejected that equivalent authority and was retained.
+
+Both containers used a nonoverlapping internal bridge and no published host ports.
+The nonroot read-only proxy mounted only public responses, its route and separate
+scratch directories; private publisher/account state was not mounted. Independent
+cleanup removed both containers, network and complete temporary-key namespace
+before cancelling its guard. Original public services stayed running. No
+certificate was finalized or installed. Current-head CI remains required;
+GitHub-hosted jobs are presently stopped before execution by account billing/
+spending restrictions, so this local/native proof does not authorize a merge.

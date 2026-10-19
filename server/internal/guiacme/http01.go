@@ -49,7 +49,7 @@ func (s *AccountStore) AcceptHTTP01(ctx context.Context, saved HTTP01, csr []byt
 		return current, err
 	}
 	if current.URI != saved.URI || current.Token != saved.Token || current.KeyAuthorization != saved.KeyAuthorization ||
-		saved.Complete || !saved.ExpiresAt.After(time.Now()) {
+		saved.Complete || !saved.ExpiresAt.After(time.Now()) || saved.ExpiresAt.After(current.ExpiresAt) {
 		return HTTP01{}, ErrOrder
 	}
 	if current.Status != acme.StatusPending {
