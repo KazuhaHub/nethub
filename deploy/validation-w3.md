@@ -55,3 +55,14 @@ PostgreSQL, and Caddy without exclusions, then repeated all fresh Compose and
 failed-migration checks. The original UID 999 evidence above remains historical;
 old bundles/volumes are not silently migrated. Public ACME and deployed-browser
 acceptance remain outstanding.
+
+## Deployed browser acceptance in progress
+
+The new deployment script drives Chromium through the real Compose stack and
+production assets, using the one-shot-created administrator. It checks session
+cookies/reload, empty inventory, independent token generation/copy, native-dialog
+focus/Escape, secret storage/log exclusion, mobile layout, real database session
+expiry, reauthentication, and logout. No production test routes are added.
+Screenshots mask the token field; raw credentials/session state/traces are not
+uploaded. CI must pass this script before these flows are called accepted.
+The loopback test accepts Caddy's internal CA and does not prove public ACME.
