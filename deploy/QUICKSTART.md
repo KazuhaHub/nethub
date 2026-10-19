@@ -1,7 +1,7 @@
-# W3 deployment workflow
+# Deployment workflow
 
-This is the console stack: PostgreSQL, migration, web, Caddy, and an opt-in initial
-administrator service. Device/authz/frps integration belongs to W4. Public TLS,
+This stack contains PostgreSQL, migration, web, authz, frps, Caddy, and an opt-in
+initial administrator service. Appliance and public relay acceptance remain W4. Public TLS,
 external reachability, and complete deployed browser acceptance must be verified
 before calling the deployment ready. The isolated acceptance script uses an
 internal test CA, not a public certificate.
@@ -30,9 +30,10 @@ other distributions. The Docker-only path below needs no host Go, Node, or npm.
 Keep the source checkout and protected state/backup parents available.
 
 1. Arrange the console DNS hostname outside the device wildcard, wildcard DNS,
-   and inbound TCP 80/443 for Caddy's certificate issuance. W4 adds 7000/8443.
-   Select an unused RFC1918 /24 for the edge network. Caddy uses its .2 address
-   and web its .3 address, both explicit; the web trust list contains only Caddy.
+   and inbound TCP 80/443 for Caddy's certificate issuance, plus 7000/8443 for frps.
+   Select an unused RFC1918 /24 for the edge network. The gateway uses .1, Caddy .2,
+   web .3 and authz .4. Web/authz trust only Caddy's address for forwarded clients.
+   Host-network frps binds its authenticated admin API only to the private gateway.
 2. Choose a new deployment directory and a separate protected backup directory.
    Their parents must already exist. A local checksum-verified copy does not prove
    off-host durability; use protected external storage and retain a separate copy.
@@ -77,14 +78,15 @@ Keep the source checkout and protected state/backup parents available.
 4. After confirmation, change into the generated deployment directory:
 
    ```sh
-   docker compose build migrate postgres caddy
+   docker compose build migrate postgres caddy frps
    docker compose up -d
    docker compose run --rm admin-bootstrap --email YOUR_EMAIL
    nethub doctor --directory . --expected-address YOUR_PUBLIC_RELAY_ADDRESS
    ```
 
    Enter the administrator password in the hidden prompt. Migrate must exit zero
-   before web starts; Caddy waits for web health. Admin-bootstrap is a separate
+   before web/authz start; Caddy waits for their health. frps waits for authz health.
+   Admin-bootstrap is a separate
    opt-in one-shot service with owner credentials, and cannot reset an existing
    account. Web never gets owner, claim-signing, or relay credentials.
 5. Check the public certificate and sign in through the configured HTTPS origin.
@@ -104,10 +106,19 @@ are mode 0600 in private directories; do not force-add them to Git or change mod
 to make a container start. Files are duplicated only for services explicitly
 sharing a value. PostgreSQL bootstrap alone receives all database role passwords;
 it receives no signing, relay, or OIDC encryption keys. Web gets pg_nethub_web and
-secrets_key, migrate/admin get pg_nethub_owner, and future authz/backup/frps copies
-are prepared separately. Session synchronizer derivation needs no global key.
-Deployment CA/certificate generation and rotation details are W4 work; those keys
-must be included in the backup when implemented.
+secrets_key, migrate/admin get pg_nethub_owner, and authz/frps receive only their
+respective directories. Session synchronizer derivation needs no global key.
+The version-3 backup includes the deployment CA/key, initial relay leaf/key and
+private rendered frps config. Runtime leaf/key and public trust live in separate
+read-only mounts. No application runtime mounts the issuer state. Runtime leaf
+renewal can preserve backup coverage under the same authority; durable automatic
+renewal/application, trust rotation and router GUI ACME remain pending.
+
+Version-1/2 bundles are rejected rather than silently regenerated or migrated.
+Preserve the original checkout, authority/secret backups and database state; use
+a separate fresh bundle/volume for this pre-alpha topology. Do not attach existing
+data or delete old bundles as an implicit upgrade. An in-place migration/restore
+procedure needs separate review and validation.
 
 The source tree includes reviewed base Compose/Caddy/bootstrap templates. The
 initializer embeds identical copies; unit tests fail if they drift. The generated
@@ -115,9 +126,10 @@ override holds nonsecret DNS/build/network configuration only. The Docker contex
 allowlist excludes host secrets, local dependencies, and generated assets.
 
 `doctor --directory` checks exact secret coverage/checksums, private file modes,
-UIDs, acknowledgement, and the independent backup copy. Optional expected-address
+UIDs, acknowledgement, the independent backup copy, and current relay certificate
+identity/key/validity against the backed-up authority. Optional expected-address
 checking probes DNS. `doctor --health-url` accepts only an exact loopback HTTP
-/healthz endpoint and is used inside the web container. The command explicitly
+/healthz endpoint and is used inside web/authz containers. The command explicitly
 lists checks it has not performed: it does not claim public connectivity, runtime
 mount/grant correctness, relay/authz health, or scheduled database backup.
 

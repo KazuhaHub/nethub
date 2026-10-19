@@ -52,6 +52,40 @@ services:
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+  nethub-authz:
+    image: nethub-local:dev
+    volumes:
+      - ./secrets/authz:/run/secrets:ro
+      - ./runtime/trust:/run/trust:ro
+    networks: [database, edge]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, /nethub, doctor, --health-url, "http://127.0.0.1:8081/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  frps:
+    image: nethub-frps-local:dev
+    build:
+      context: ..
+      dockerfile: deploy/images/frps/Dockerfile
+    command: [-c, /run/secrets/frps.toml]
+    network_mode: host
+    volumes:
+      - ./secrets/frps:/run/secrets:ro
+      - ./runtime/relay:/run/relay:ro
+    depends_on:
+      nethub-authz: {condition: service_healthy}
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
   admin-bootstrap:
     image: nethub-local:dev
     profiles: [bootstrap]
@@ -78,6 +112,7 @@ services:
     networks: [edge]
     depends_on:
       nethub-web: {condition: service_healthy}
+      nethub-authz: {condition: service_healthy}
     restart: unless-stopped
     cap_drop: [ALL]
     cap_add: [NET_BIND_SERVICE]

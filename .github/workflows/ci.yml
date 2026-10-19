@@ -148,10 +148,22 @@ jobs:
           NETHUB_SCAN_IMAGES: "1"
           NETHUB_BROWSER_TEST: "1"
           NETHUB_BROWSER_EVIDENCE: ${{ runner.temp }}/nethub-deployed-browser-evidence
+          NETHUB_IMAGE_EVIDENCE: ${{ runner.temp }}/nethub-image-evidence
         run: |
           NETHUB_NODE_BINARY="$(command -v node)"
           export NETHUB_NODE_BINARY
-          sudo --preserve-env=NETHUB_SCAN_IMAGES,NETHUB_BROWSER_TEST,NETHUB_BROWSER_EVIDENCE,NETHUB_NODE_BINARY,PLAYWRIGHT_BROWSERS_PATH sh server/tests/compose.sh
+          sudo --preserve-env=NETHUB_SCAN_IMAGES,NETHUB_BROWSER_TEST,NETHUB_BROWSER_EVIDENCE,NETHUB_IMAGE_EVIDENCE,NETHUB_NODE_BINARY,PLAYWRIGHT_BROWSERS_PATH sh server/tests/compose.sh
+      - name: Save tested images for bounded native acceptance
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: deployment-images
+          path: |
+            ${{ runner.temp }}/nethub-image-evidence/images.tar.gz
+            ${{ runner.temp }}/nethub-image-evidence/SHA256SUMS
+            ${{ runner.temp }}/nethub-image-evidence/images.json
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
       - name: Save only masked browser evidence
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

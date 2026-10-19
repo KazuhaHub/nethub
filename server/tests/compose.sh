@@ -6,6 +6,15 @@ if [ "$(id -u)" != 0 ]; then
     echo 'Run this isolated Compose acceptance test as root for secret UID checks' >&2
     exit 2
 fi
+python3 - <<'PY'
+import socket
+for port in (7000,8443):
+    with socket.socket() as listener:
+        try:
+            listener.bind(('0.0.0.0',port))
+        except OSError:
+            raise SystemExit('Relay acceptance requires unused TCP 7000 and 8443; no existing service was changed')
+PY
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 stage=$(mktemp -d)
 project="nethub-stack-test-$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"
@@ -92,14 +101,12 @@ with socket.socket() as listener:
     print(listener.getsockname()[1])
 PY
 )
-cat > "$stage/Caddyfile" <<'CADDY'
-https://console.example.com {
-    tls internal
-    @internal path /healthz /healthz/*
-    respond @internal 404
-    reverse_proxy nethub-web:8080
-}
-CADDY
+python3 - "$root/deploy/Caddyfile" "$stage/Caddyfile" <<'PY'
+import pathlib,sys
+source=pathlib.Path(sys.argv[1]).read_text()
+assert source.count('{$NETHUB_CONSOLE_HOST} {')==1
+pathlib.Path(sys.argv[2]).write_text(source.replace('{$NETHUB_CONSOLE_HOST} {','https://console.example.com {\n    tls internal',1))
+PY
 chmod 0644 "$stage/Caddyfile"
 cat > "$stage/test.yml" <<YAML
 services:
@@ -109,6 +116,10 @@ services:
     image: $image
   nethub-web:
     image: $image
+  nethub-authz:
+    image: $image
+  frps:
+    image: $frps_image
   admin-bootstrap:
     image: $image
   caddy:
@@ -121,17 +132,32 @@ compose --profile bootstrap config --format json > "$stage/compose.json"
 python3 - "$stage" <<'PY'
 import json,pathlib,sys
 s=pathlib.Path(sys.argv[1]);cfg=json.loads((s/'compose.json').read_text());services=cfg['services']
-assert set(services)=={'postgres','migrate','nethub-web','caddy','admin-bootstrap'}
+assert set(services)=={'postgres','migrate','nethub-web','nethub-authz','frps','caddy','admin-bootstrap'}
 assert [name for name,service in services.items() if service.get('ports')]==['caddy']
 assert services['nethub-web']['depends_on']['migrate']['condition']=='service_completed_successfully'
+assert services['nethub-authz']['depends_on']['migrate']['condition']=='service_completed_successfully'
+assert services['frps']['network_mode']=='host' and not services['frps'].get('ports')
+assert services['frps']['depends_on']['nethub-authz']['condition']=='service_healthy'
 web=services['nethub-web'];assert len(web['volumes'])==1 and web['volumes'][0]['source'].endswith('/secrets/web')
 assert services['admin-bootstrap']['volumes'][0]['source'].endswith('/secrets/migrate')
 assert services['nethub-web']['networks']['edge']['ipv4_address']!=services['caddy']['networks']['edge']['ipv4_address']
 manifest=json.loads((s/'deployment/setup.json').read_text());assert manifest['confirmed_at']
+assert manifest['version']==3 and len(manifest['files'])==22
 assert all(item['uid']==70 for item in manifest['files'] if item['path'].startswith('secrets/postgres/'))
 for item in manifest['files']:
     path=s/'deployment'/item['path'];assert path.stat().st_uid==item['uid'] and path.stat().st_mode&0o777==0o600
+for service in ('nethub-web','nethub-authz','frps'):
+    assert all('/issuer' not in volume['source'] and not volume['source'].endswith('/secrets') for volume in services[service]['volumes'])
+for name in ('runtime/relay/relay-cert.pem','runtime/relay/relay-key.pem','runtime/trust/relay-ca.pem'):
+    path=s/'deployment'/name;assert path.stat().st_uid==65532 and path.stat().st_mode&0o777==0o600
 PY
+python3 "$root/deploy/frp/fetch.py" "$stage/official/frps"
+docker run --rm --network none --entrypoint /frps-official \
+    -v "$stage/official/frps:/frps-official:ro" \
+    -v "$stage/deployment/secrets/frps:/run/secrets:ro" \
+    -v "$stage/deployment/runtime/relay:/run/relay:ro" \
+    "$frps_image" verify -c /run/secrets/frps.toml > "$stage/frps-official-verify.log" 2>&1
+echo 'Official checksum-verified frps accepted the generated production configuration'
 compose up -d --wait --wait-timeout 150 > "$stage/start.log" 2>&1
 openssl rand -hex 24 > "$stage/admin-password"
 compose run --rm -T admin-bootstrap --email compose-admin@example.com --password-stdin < "$stage/admin-password" > "$stage/admin.log" 2>&1
@@ -154,6 +180,8 @@ request -b "$stage/cookies" https://console.example.com/api/v1/console/devices >
 request -b "$stage/cookies" -H "@$stage/csrf-header" -H 'Content-Type: application/json' -H 'Origin: https://console.example.com' --data '{}' https://console.example.com/api/v1/console/enroll-tokens > "$stage/token.json"
 code=$(curl -sS --insecure --noproxy '*' --connect-to "console.example.com:443:127.0.0.1:$port" -o /dev/null -w '%{http_code}' https://console.example.com/healthz)
 [ "$code" = 404 ]
+code=$(curl -sS --insecure --noproxy '*' --connect-to "console.example.com:443:127.0.0.1:$port" -o /dev/null -w '%{http_code}' -X POST https://console.example.com/api/v1/frp/hooks)
+[ "$code" = 404 ]
 if [ "${NETHUB_BROWSER_TEST:-0}" = 1 ]; then
     "${NETHUB_NODE_BINARY:-node}" "$root/server/web/tests/deployment.mjs" \
         "$port" "$stage/admin-password" "$stage/browser" "$(compose ps -q postgres)" "$(compose ps -q nethub-web)"
@@ -174,6 +202,21 @@ log=(s/'runtime.log').read_text();assert token['token'] not in log and (s/'admin
 assert '<script' in (s/'index.html').read_text()
 print('Compose first-start, isolated secret mounts, admin login, empty inventory, token issuance, health isolation, and log checks passed')
 PY
+python3 "$root/agents/opnsense/plugin/frp_artifact.py" --platform linux_amd64 --binary frpc --output "$stage/official/frpc"
+docker cp "$(compose ps -q caddy):/data/caddy/pki/authorities/local/root.crt" "$stage/console-ca.pem" >/dev/null
+python3 "$root/server/tests/relay-deployment.py" "$stage" "$port"
+compose logs --no-color > "$stage/relay-runtime.log"
+python3 - "$stage" <<'PY'
+import json,pathlib,sys
+s=pathlib.Path(sys.argv[1]);log=(s/'relay-runtime.log').read_text()
+for path in (s/'relay-test').glob('*.json'):
+    value=json.loads(path.read_text())
+    for key in ('device_secret','frp_token','domain_claim','enroll_token'):
+        if key in value:assert value[key] not in log
+for path in (s/'deployment/secrets').rglob('*'):
+    if path.is_file() and path.stat().st_size==65:assert path.read_text().strip() not in log
+print('Enrolled credentials, claims and deployment secrets are absent from runtime logs')
+PY
 compose down -v --remove-orphans > "$stage/down.log" 2>&1
 cat > "$stage/failure.yml" <<'YAML'
 services:
@@ -189,4 +232,21 @@ migration=$(compose ps -aq migrate)
 [ "$(docker inspect --format '{{.State.ExitCode}}' "$migration")" = 2 ]
 running=$(compose ps --status running --services)
 if printf '%s\n' "$running" | grep -qx nethub-web; then echo 'Web started after failed migration' >&2; exit 1; fi
+if printf '%s\n' "$running" | grep -Eq '^(nethub-authz|frps)$'; then echo 'Relay started after failed migration' >&2; exit 1; fi
 echo 'Failed migration prevented console startup'
+if [ -n "${NETHUB_IMAGE_EVIDENCE:-}" ]; then
+    mkdir -p "$NETHUB_IMAGE_EVIDENCE"
+    docker image save -o "$NETHUB_IMAGE_EVIDENCE/images.tar" "$image" "$postgres_image" "$caddy_image" "$frps_image"
+    gzip -1 "$NETHUB_IMAGE_EVIDENCE/images.tar"
+    (cd "$NETHUB_IMAGE_EVIDENCE" && sha256sum images.tar.gz > SHA256SUMS)
+    python3 - "$NETHUB_IMAGE_EVIDENCE" "$image" "$postgres_image" "$caddy_image" "$frps_image" <<'PY'
+import json,pathlib,subprocess,sys
+output=pathlib.Path(sys.argv[1]);images={}
+for service,tag in zip(('runtime','postgres','caddy','frps'),sys.argv[2:]):
+    images[service]={'tag':tag,'id':subprocess.check_output(['docker','image','inspect','--format','{{.Id}}',tag],text=True).strip()}
+(output/'images.json').write_text(json.dumps(images,indent=2))
+PY
+    chown "${SUDO_UID:-0}:${SUDO_GID:-0}" "$NETHUB_IMAGE_EVIDENCE" \
+        "$NETHUB_IMAGE_EVIDENCE/images.tar.gz" "$NETHUB_IMAGE_EVIDENCE/SHA256SUMS" "$NETHUB_IMAGE_EVIDENCE/images.json"
+    echo 'Saved only tested immutable images and checksums; runtime credentials are excluded'
+fi
