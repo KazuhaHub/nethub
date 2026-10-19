@@ -13,18 +13,20 @@ and the full router GUI lifecycle remain open. The earlier private
 manual-renewal proposal is superseded; it is not an accepted operational design.
 
 The HTTP-01 publication foundation now has an issuer-owned public file store and
-an optional HTTP-only Caddy route under validation. It does not enable routing in
-existing deployments or place ACME orders. Device/CSR authorization, the account
-client, issuance jobs, authenticated delivery and native GUI installation remain
+an optional HTTP-only Caddy route accepted by genuine proxy tests. It does not
+enable routing in existing deployments or place ACME orders. Current-assignment
+issuer authorization, issuance jobs, authenticated delivery and native GUI installation remain
 required. See the http01 package contract and genuine proxy test.
 
 The account client foundation directly reuses `golang.org/x/crypto/acme` and
 constrains every request to operator-approved HTTPS origins, verified TLS and
 bounded responses. It looks up the caller's previously persisted key before
 considering explicit registration with current terms consent. TLS protocol
-fixtures cover actual JWS signing and ambiguous-response recovery; durable account
-storage, genuine CA issuance and deployment integration remain outstanding. See
-server/internal/guiacme/README.md. No public account has been created.
+fixtures cover actual JWS signing and ambiguous-response recovery. The separate
+AccountStore now persists the private key before network use, binds immutable CA
+policy and recovers account identity without replacing the key. Local and focused
+Linux filesystem tests passed; current-head CI and deployment wiring remain gates.
+See server/internal/guiacme/README.md and STORE.md. No public account has been created.
 
 ## PSP findings
 
