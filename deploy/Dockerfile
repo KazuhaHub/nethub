@@ -5,11 +5,11 @@ RUN npm ci --ignore-scripts
 COPY server/web/ ./
 RUN npm run build
 
-FROM golang:1.26.0-bookworm@sha256:2a0ba12e116687098780d3ce700f9ce3cb340783779646aafbabed748fa6677c AS build
+FROM golang:1.26.9-bookworm@sha256:d9c68c2c51161e12fd77e4c6320687c9cd86e1af1e3ad6e6cd63ff970641453c AS build
 WORKDIR /src/server
 ENV GOWORK=off CGO_ENABLED=0 GOTOOLCHAIN=local
-COPY server/go.mod server/go.sum ./
-RUN go mod download
+COPY server/go.mod server/go.sum server/.go-version ./
+RUN test "$(go env GOVERSION)" = "go$(cat .go-version)" && go mod download
 COPY server/ ./
 COPY --from=console /src/server/internal/webui/dist ./internal/webui/dist
 RUN go build -p 2 -trimpath -ldflags="-s -w" -o /out/nethub ./cmd/nethub
