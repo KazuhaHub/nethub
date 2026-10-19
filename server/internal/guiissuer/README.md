@@ -73,6 +73,17 @@ token/version/material for recovery. The runner contract requires bounded output
 discarded stderr and a trusted local administrator socket; the privileged host
 and administrator logging policy remain trusted.
 
+`NewDockerSQLRunner` supplies the Linux root adapter for an independently
+verified full container/image/project binding. It fixes the local Docker Unix
+socket and executable, scrubs inherited daemon/database/proxy environment,
+rechecks the exact running private PostgreSQL identity before each invocation,
+and rejects privileged, published-port, host/shared or unrelated network
+configurations. SQL travels only on stdin to passwordless local-socket psql;
+stdout is bounded and stderr is discarded. This runner never starts a container,
+changes its configuration or reads an application database password. The root
+host, daemon and independently selected immutable deployment identity remain
+trusted. Selecting a container from its labels alone is insufficient.
+
 The real PostgreSQL acceptance uses this adapter for claim/renew/read/save,
 failure/poll release and immutable completion/recovery, including the existing
 revocation, stale-version and retry-budget checks. No mocked database response
