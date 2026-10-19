@@ -1,6 +1,12 @@
 version: 2
 updates:
   - package-ecosystem: gomod
+    directory: /deploy/images/frps
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps"
+  - package-ecosystem: gomod
     directory: /deploy/images/caddy
     schedule:
       interval: weekly

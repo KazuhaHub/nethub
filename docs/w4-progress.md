@@ -129,13 +129,16 @@ Local Go tests/vet pass. New genuine PostgreSQL cases check tenant/route/revocat
 matching, unchanged identity fields, owner-scoped console online/expiry results,
 lock skipping and denied web-role writes. The compiled CLI test polls a local
 HTTP admin fixture at the actual 15-second cadence and checks persistence and
-shutdown. Native follow-up CI remains pending. Real frps response interoperability
+shutdown. All six checks passed on 0f06612388e9d610de7f056217a799324510ebfd
+(run 39224267267); PR #48 merged as 59cb1c6. The compiled process observed the
+real 15-second interval in 15.03 seconds, and genuine PostgreSQL cases passed.
+Real frps response interoperability
 and multi-client traffic still need W4 deployment acceptance. See [the observer
 boundary and source references](../server/internal/relaystate/README.md).
 
 ## Remaining W4 work
 
-- Verify W4-5 native periodic observation/storage CI, then complete device status,
+- Complete device status,
   rotation and unenrollment handlers as the corresponding W4/W7 tasks require.
 - W4-6: production frps/authz Compose wiring, real relay observation and source-IP
   verification in the actual container topology.
@@ -143,6 +146,22 @@ boundary and source references](../server/internal/relaystate/README.md).
   request-file handling, local idempotence, status and unenrollment.
 - W4-9: the complete console-to-appliance workflow and every PLAN W4 acceptance
   check, with native/public evidence and credential-absence checks.
+
+## W4-6 foundation in progress
+
+A checksummed upstream frps 0.71.1 build uses the pinned Go 1.26.9 compiler and
+patched network/crypto dependencies. It retains symbols and omits dashboard
+assets with the upstream noweb tag. Source analysis found no affected imported
+packages or reachable symbols; the unused OpenPGP module advisory is reported
+separately. CI now builds/scans the assembled image and tests real nonroot startup,
+admin authentication and the empty HTTPS-route response. These native image checks
+still need to pass before merge. The generated production stack is unchanged.
+
+The relaycert package creates a constrained deployment authority and renews a
+matching leaf with a fresh key. Local tests include an actual verified TLS
+handshake, renewal near authority expiry and invalid identity/key/PEM/time inputs.
+It does not write files, schedule renewal, apply certificates or implement router
+GUI issuance. Those lifecycle requirements remain open.
 
 D22 now requires automatic renewal, distribution and configuration based on the
 PSP review, with reverse-proxy-owned console TLS. The owner selected option 2,
