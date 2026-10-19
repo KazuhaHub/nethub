@@ -25,7 +25,8 @@ Commands:
   version      Print the build version
 
 The console, migrations, first-admin setup, deployment initialization, scoped
-doctor checks, and device enrollment are implemented. Relay hooks remain unfinished.
+doctor checks, device enrollment and internal relay hooks are implemented.
+Production relay wiring and appliance enrollment remain unfinished.
 `
 
 func run(args []string, stdout, stderr io.Writer) int {

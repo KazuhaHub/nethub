@@ -20,6 +20,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/auth"
 	"github.com/KazuhaHub/nethub/server/internal/claim"
 	"github.com/KazuhaHub/nethub/server/internal/device"
+	"github.com/KazuhaHub/nethub/server/internal/relayhook"
 	"github.com/KazuhaHub/nethub/server/internal/store"
 )
 
@@ -75,6 +76,9 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 	relayAddr := flags.String("relay-addr", "", "Relay control-channel hostname or IP")
 	relayName := flags.String("relay-server-name", "", "Verified relay TLS server name")
 	relayPort := flags.Uint("relay-port", 7000, "Relay control-channel port")
+	hookListen := flags.String("hook-listen", "", "Internal relay callback IP:port; enable with hook-peer")
+	var peers hookPeers
+	flags.Var(&peers, "hook-peer", "Exact relay socket IP; repeat for multiple relays")
 	var proxies proxyFlags
 	flags.Var(&proxies, "trusted-proxy", "Trusted proxy CIDR; repeat for multiple proxies")
 	if err := flags.Parse(args); err != nil {
@@ -94,6 +98,10 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 	}
 	if _, _, err := net.SplitHostPort(*listen); err != nil {
 		fmt.Fprintln(stderr, "Authz requires a valid private listen address")
+		return 2
+	}
+	if !validHookListener(*hookListen, peers) {
+		fmt.Fprintln(stderr, "Relay hooks require a private or loopback listen IP and exact relay peer addresses")
 		return 2
 	}
 	key, keyError := readAuthzHex(*claimFile)
@@ -133,11 +141,34 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Authz listener could not be opened")
 		return 1
 	}
+	defer listener.Close()
+	var hooks *http.Server
+	var hookListener net.Listener
+	if *hookListen != "" {
+		hookHandler, err := relayhook.New(relayhook.Config{Peers: peers, Logger: logger}, &store.RelayStore{DB: db}, signer)
+		if err != nil {
+			fmt.Fprintln(stderr, "Relay callback configuration is invalid")
+			return 1
+		}
+		hookListener, err = net.Listen("tcp", *hookListen)
+		if err != nil {
+			fmt.Fprintln(stderr, "Relay callback listener could not be opened")
+			return 1
+		}
+		defer hookListener.Close()
+		hooks = &http.Server{Handler: hookHandler, ReadHeaderTimeout: time.Second, ReadTimeout: time.Second,
+			WriteTimeout: 2 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16 * 1024,
+			ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError)}
+	}
 	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second,
 		WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024,
 		ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError)}
-	fmt.Fprintln(stdout, "Device enrollment API started; relay hooks are not implemented")
-	if err := serveHTTP(ctx, server, listener); err != nil {
+	if hooks == nil {
+		fmt.Fprintln(stdout, "Device enrollment API started; relay hooks disabled")
+	} else {
+		fmt.Fprintln(stdout, "Device enrollment API and internal relay hooks started")
+	}
+	if err := serveAuthz(ctx, server, listener, hooks, hookListener); err != nil {
 		fmt.Fprintln(stderr, "Authz HTTP service stopped unexpectedly")
 		return 1
 	}

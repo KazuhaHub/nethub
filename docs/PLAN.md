@@ -1436,6 +1436,14 @@ Evidence: source e27e908, main CI run 39192294899, and the combined clean-host p
 - 记录每次放行或拒绝的原因，**不记 token 和声明的内容**。
 - `NewUserConn`、`Ping` 本阶段先不订阅。W5 按【D6】【D7】的结论再加。
 
+W4-4 implementation note (2026-10-19): the internal callback handler and separate
+runtime listener now exist, with exact socket-peer restrictions, bounded parsing,
+500 ms database contexts, current signed assignment checks and HTTPS route policy.
+Local Go tests/vet pass. Genuine PostgreSQL callback/revocation/lock-race tests and
+compiled dual-listener checks are added but still need CI. Real frps traffic and
+production network isolation remain W4 deployment acceptance; Ping/NewUserConn
+remain W5. See [the callback boundary](../server/internal/relayhook/README.md).
+
 **W4-5 只读轮询和在线状态。**
 `nethub authz` 每 15 秒调一次 frps 的 admin API（只在内部网络），列出在线代理，更新 `devices.last_seen_at`。
 本阶段只读、只更新状态，不做任何断线动作（DESIGN §5：admin API 断不了在线连接）。

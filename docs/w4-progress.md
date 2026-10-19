@@ -87,15 +87,30 @@ schema and committed identity, with HTTP replay/version checks. Production
 deployment exposure still needs implementation. The next runtime change adds
 file-based claim/frp credential loading, an authz-role database connection,
 bounded readiness and a private enrollment listener with graceful shutdown.
-Its genuine harness launches the compiled CLI and verifies enrollment/key loading,
-credential-free output and SIGTERM exit. Local Go tests/vet pass; native runtime
-CI is still pending. Production frps/authz wiring, trust-generation reload and
+PR #46 merged as 0cab3df after all six checks passed on 910efc2 (run
+39216642231). Genuine tests launched the compiled CLI and verified enrollment/key
+loading, credential-free output and SIGTERM exit. Production frps/authz wiring, trust-generation reload and
 appliance enrollment remain incomplete. See [the service boundary and recovery limits](../server/internal/device/README.md).
+
+## W4-4: internal relay authorization
+
+The callback handler checks the deployment signature, metadata device ID and
+current tenant/subdomain/issuance timestamp under a device row lock. Revoked or
+missing assignments deny. HTTPS-only routing rejects custom domains and shared
+proxy groups. The private listener requires exact socket peers, ignores forwarding
+headers for authority, and bounds reads, concurrency and database work. The public
+enrollment listener cannot serve callbacks; both listeners stop together.
+
+Local Go tests/vet pass. The genuine PostgreSQL follow-up covers wrong/stale
+signed assignments, revocation and claim replacement during observed row locks,
+and the compiled runtime's actual callback requests, lock timeout, recovery and
+listener separation. Native callback CI is pending. Real frps registration/tunnel
+traffic remains deployment acceptance. See [the boundary and sources](../server/internal/relayhook/README.md).
 
 ## Remaining W4 work
 
-- W4-3/W4-4: device handlers and bounded internal frp hooks with transactional
-  token consumption, device authorization and safe error handling.
+- Verify W4-4 native callback/race CI, then complete remaining device status,
+  rotation and unenrollment handlers as the corresponding W4/W7 tasks require.
 - W4-5/W4-6: relay observation, production frps/authz Compose wiring and source-IP
   verification in the actual container topology.
 - W4-7/W4-8: verified HTTPS enrollment, PHP model save/configuration lock, private

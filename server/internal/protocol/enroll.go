@@ -9,11 +9,12 @@ import (
 	"io"
 	"regexp"
 	"strings"
-	"unicode/utf8"
+
+	"github.com/KazuhaHub/nethub/server/internal/boundedjson"
 )
 
 const Version = "1.0.0"
-const MaxBodyBytes = 65536
+const MaxBodyBytes = boundedjson.MaxBytes
 
 var ErrInvalidRequest = errors.New("invalid device request")
 var ErrIncompatibleVersion = errors.New("unsupported device protocol; supported major is 1")
@@ -101,64 +102,11 @@ func (r EnrollRequest) ValidateMetadata() error {
 	return nil
 }
 
-// checkJSON rejects duplicate keys even in extensions, with a bounded nesting depth.
-func checkJSON(decoder *json.Decoder, depth int) error {
-	if depth > 16 {
-		return ErrInvalidRequest
-	}
-	token, err := decoder.Token()
-	if err != nil {
-		return ErrInvalidRequest
-	}
-	delimiter, ok := token.(json.Delim)
-	if !ok {
-		return nil
-	}
-	switch delimiter {
-	case '{':
-		seen := map[string]bool{}
-		for decoder.More() {
-			key, err := decoder.Token()
-			name, ok := key.(string)
-			if err != nil || !ok || seen[name] || len(seen) >= 64 {
-				return ErrInvalidRequest
-			}
-			seen[name] = true
-			if err := checkJSON(decoder, depth+1); err != nil {
-				return err
-			}
-		}
-	case '[':
-		for count := 0; decoder.More(); count++ {
-			if count >= 256 {
-				return ErrInvalidRequest
-			}
-			if err := checkJSON(decoder, depth+1); err != nil {
-				return err
-			}
-		}
-	default:
-		return ErrInvalidRequest
-	}
-	if _, err := decoder.Token(); err != nil {
-		return ErrInvalidRequest
-	}
-	return nil
-}
-
 // DecodeEnroll retains only known fields; optional extensions never become settings.
 func DecodeEnroll(reader io.Reader) (EnrollRequest, error) {
 	var request EnrollRequest
-	data, err := io.ReadAll(io.LimitReader(reader, MaxBodyBytes+1))
-	if err != nil || len(data) > MaxBodyBytes || !utf8.Valid(data) || !json.Valid(data) {
-		return request, ErrInvalidRequest
-	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	if err := checkJSON(decoder, 0); err != nil {
-		return request, err
-	}
-	var fields map[string]json.RawMessage
-	if json.Unmarshal(data, &fields) != nil || len(fields) > 24 {
+	fields, err := boundedjson.Object(reader)
+	if err != nil || len(fields) > 24 {
 		return request, ErrInvalidRequest
 	}
 	known := make(map[string]json.RawMessage, 8)
