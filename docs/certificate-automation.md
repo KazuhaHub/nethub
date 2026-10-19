@@ -153,8 +153,13 @@ Separate issuer, distribution and installation interfaces. The shared protocol
 describes certificate generations and verified installation status; only the
 OPNsense adapter writes the OPNsense certificate store and selects the GUI
 certificate under the native configuration lock. Future router systems provide
-their own adapters. Define and validate the private-key custody and authenticated
-delivery contract before adding those fields; never send keys through command
+their own adapters. Use a device-generated P-256 key and signed CSR for the
+assigned name. The issuer returns the public chain; the GUI private key stays on
+that device. The CSR validator checks proof of key possession, exact DNS identity
+and a restricted request profile; it does not establish tenant/device
+authorization. The API must authorize the current assignment before submitting a
+job. Authenticated CSR/chain transport, device key persistence and installation
+remain pending; never send keys through command
 arguments, logs, ordinary console status or audit payloads.
 
 Persist issued material separately from deployment state, retry deployment
