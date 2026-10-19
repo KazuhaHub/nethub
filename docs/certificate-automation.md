@@ -12,6 +12,12 @@ renewal/application is implemented and tested; authenticated trust transitions
 and the full router GUI lifecycle remain open. The earlier private
 manual-renewal proposal is superseded; it is not an accepted operational design.
 
+The HTTP-01 publication foundation now has an issuer-owned public file store and
+an optional HTTP-only Caddy route under validation. It does not enable routing in
+existing deployments or place ACME orders. Device/CSR authorization, the account
+client, issuance jobs, authenticated delivery and native GUI installation remain
+required. See the http01 package contract and genuine proxy test.
+
 ## PSP findings
 
 Inspected Passwall-Sub-Panel main at

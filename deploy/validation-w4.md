@@ -177,3 +177,40 @@ security checks stayed unchanged. The 0.0.4 development package remains installe
 under the owner-approved 1 GiB lab exception. Public router TLS pinned the existing
 self-signed GUI leaf; these results do not accept formal GUI ACME certificates,
 trust generation acknowledgements/root rotation or all W4 requirements.
+
+## Expired issued relay candidates
+
+PR #61 passed all six checks on 3b64b21e907eb4dfc102a52292d54766552ed243
+(run 39276875654); actual logs were inspected. Crypto-backed tests cover durable
+replacement, interruption boundaries, valid replacement reuse, wrong identity,
+cancelled work, exhausted/stopped intent and expired rollback refusal. An
+interrupted final attempt must roll back before explicit replacement retry.
+
+The genuine Docker regression signed an already expired fixture under its existing
+authority while another valid generation remained served. The actual root host
+command replaced the expired issued job, preserved its immutable generation,
+verified fresh control TLS and recovered both official frpc clients. The next scan
+did not restart frps. Existing image scans/browser/external-proxy/timer regressions
+passed. This is isolated genuine deployment evidence; the retained native
+operator authority/journal was not modified for this change.
+
+## Isolated HTTP-01 proxy fixture
+
+The focused genuine Caddy fixture passed on a private internal bridge using the
+previously tested Caddy image with identical current Caddy build inputs. Its
+nonroot/read-only proxy had no published host ports and no private issuer-state
+mount. Actual requests passed response/header, cross-host, original-URI/query,
+method and metadata rejection; HEAD, expiration cleanup, read-only storage and
+independent console redirect/TLS ownership also passed. The proxy did not obtain
+a GUI TLS identity. The final fixture run took 2.15 seconds.
+
+The first deployment run exposed a fixture assumption: the tested engine retained
+requested internal-network port bindings but did not effectively publish them.
+The corrected test verifies internal bridge identity/container membership and
+probes its private address directly, with no host port requests. Exact operation
+labels, identity-collision checks and owned-ID cleanup protect test resources.
+The focused native rehearsal also used an independent cleanup timer and verified
+that owned containers/networks were gone and original services remained running
+before cancelling it. It did not stop public services or install any router key,
+certificate, application route or account. Full current-head PR #62 CI still gates
+merge; this is publication/proxy evidence, not ACME issuance or full W4 acceptance.
