@@ -15,6 +15,20 @@ preserve host ownership. The PostgreSQL 16 Alpine image uses UID 70; runtime sec
 Docker's [file-based service secret model](https://docs.docker.com/compose/how-tos/use-secrets/)
 is the reference for the explicit read-only mounts and ownership checks.
 
+The clean Debian 13 test installed the host prerequisites as root:
+
+```sh
+apt-get update
+apt-get install -y docker.io docker-compose docker-buildx ca-certificates curl
+systemctl enable --now docker
+docker version
+docker compose version
+```
+
+It used Docker 26.1.5 and Compose 2.26.1. Check the required Compose version on
+other distributions. The Docker-only path below needs no host Go, Node, or npm.
+Keep the source checkout and protected state/backup parents available.
+
 1. Arrange the console DNS hostname outside the device wildcard, wildcard DNS,
    and inbound TCP 80/443 for Caddy's certificate issuance. W4 adds 7000/8443.
    Select an unused RFC1918 /24 for the edge network. Caddy uses its .2 address

@@ -189,10 +189,10 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 | D13 | 插件的正式包（签名后发布到软件源）由谁构建和发布 | 第一次给别人装插件之前 | W4 以后 | Kazuha 做；你只做未签名的开发包（本计划建议） | 待定 |
 | D14 | DESIGN §14 的 Q1、Q3、Q4、Q5（mTLS、审计链锚定、离线签名机、CARP） | W7 之前 | W7 | 按 DESIGN 里的推荐 | 待定 |
 | D15 | 首个管理员账号的创建顺序：`nethub init` 在 `docker compose up` 之前运行，那时数据库还没起来，管理员在哪一步创建；如果按 W3-8 的建议，就要新增一个 `nethub admin create` 子命令 | W3-8 之前 | W3 | 见 W3-8（本计划建议） | Confirmed 2026-10-18: init, Compose/migrate, then one-shot admin create; never grant owner credentials to web. |
-| D16 | 技术选型：数据库迁移工具、协议版本号规则、命令行写法、运行镜像等（W3、W4 里会逐个提出） | 对应任务开始前 | W3、W4 | 各任务里给出推荐（本计划建议） | Confirmed for W3 on 2026-10-18: standard net/http, flag, slog, pgx/v5, goose/v3, nonroot static runtime; reuse matching authcore packages. W4 protocol rules remain pending. |
+| D16 | 技术选型：数据库迁移工具、协议版本号规则、命令行写法、运行镜像等（W3、W4 里会逐个提出） | 对应任务开始前 | W3、W4 | 各任务里给出推荐（本计划建议） | Confirmed for W3 on 2026-10-18: standard net/http, flag, slog, pgx/v5, goose/v3, nonroot static runtime; reuse matching authcore packages. W4 protocol SemVer and incompatible-major rejection confirmed 2026-10-18; see w4-decisions.md. |
 | D17 | OPNsense 自己的 DNS 重绑定 / HTTP_REFERER 检查会不会拦下经中继的访问；会拦的话怎么处理（DESIGN §14 Q9） | W0 第 ① 项结果出来后、W4 之前 | W4、W5 | 先实测；会拦就让用户手动加 Alternate Hostnames，并在 enroll 页面提示（DESIGN） | Confirmed 2026-10-18: manually add the exact Alternate Hostnames entry; preserve both security checks and explain the step during enrollment. |
 | D18 | 控制台用哪个域名：泛域名的根（例如 `router.example.com`）还是它下面的某个子域名。如果在泛域名下面，这个前缀必须保留、永远不分给设备 | W3-8 之前 | W3、W4 | 无，Kazuha 定 | Confirmed 2026-10-18: separate console hostname and device wildcard, configured by the deployer. |
-| D19 | 路由器上的插件怎么知道控制台地址：enroll 页面多一个"控制台地址"输入框，还是把地址编进 enroll token 里 | W4-1 之前（协议里要写清楚） | W4 | 无，Kazuha 定 | 待定 |
+| D19 | 路由器上的插件怎么知道控制台地址：enroll 页面多一个"控制台地址"输入框，还是把地址编进 enroll token 里 | W4-1 之前（协议里要写清楚） | W4 | 无，Kazuha 定 | Confirmed 2026-10-18: separate HTTPS console address input; keep the opaque enrollment token. See w4-decisions.md. |
 | D20 | 打包仓库里的现有插件文件能不能直接复制进 NetHub。打包仓库的根许可证是 MIT，而且有其他版权人；NetHub 要保持单一版权的 Apache-2.0（DESIGN §2） | W1 开始前 | W1、W2 | 只当结构参考、自己重写；确实要复制某个文件前，先问 Kazuha 那个文件是谁写的（本计划建议） | Confirmed 2026-10-18: independently write NetHub files; reference structure only, no third-party copying. Omit kazuha.sh mirror. |
 | D21 | 要不要注册 `newwanip` 钩子：DESIGN 决策 #17 要求注册（带防抖），但打包仓库的 `os-frp` 故意不注册，理由是 frpc 自己会重连，WAN 地址变化时重启反而会断掉正常的隧道 | W2-6 之前 | W2 | 无，Kazuha 定（看 `os-frp` 的 `frp.inc` 里那段注释） | Confirmed 2026-10-18: do not register newwanip; use frpc reconnect and periodic reconcile. W2 must measure recovery after a real WAN address change; if automatic recovery fails, switch to the debounced hook in DESIGN #17. |
 | D22 | 设备到中继 7000 端口的控制通道怎么做服务端认证（DESIGN §14 Q10）：frpc 不配 CA 时根本不校验 frps 的证书，路径上的中间人能截下 domain claim | W2-3 写模板之前定方向，W4 enroll 之前定细节 | W2、W4 | `nethub init` 生成部署 CA、给 frps 签长期证书 + enroll 响应下发 CA 证书（PEM）+ 模板写 `transport.tls.trustedCaFile`（DESIGN Q10） | Confirmed direction 2026-10-18: deployment CA, relay server certificate, device trustedCaFile and serverName; keep the CA private key outside runtime containers. Enrollment and rotation details remain W4 work. |
@@ -1260,7 +1260,7 @@ DESIGN §6 还建议做"一次性撤销"（web 只能把 `revoked` 设成 true�
      选了组件库之后检查一遍，需要的话加例外。
 
 **W3-8 `nethub init` 雏形【D15】【D18】。**
-推荐的顺序（需要 Kazuha 确认）：
+Confirmed D15/D18 order (2026-10-18):
 
 1. `nethub init`：
    - 问两个域名：设备用的泛域名（例如 `router.example.com`）、控制台用的域名（【D18】）；
@@ -1269,7 +1269,7 @@ DESIGN §6 还建议做"一次性撤销"（web 只能把 `revoked` 设成 true�
    - **强制备份提示**（要求输入一句确认的话才能继续）。
 2. `docker compose up -d`。
 3. Confirmed D15: use `docker compose run --rm admin-bootstrap --email ...` after migration. This separate one-shot service has owner credentials; web does not. Init prints the command.
-   这是一个新的子命令，DESIGN 里只列了 `web`、`authz`、`migrate`、`init`、`doctor` 五个，所以要在【D15】里确认。
+   The separate owner-only bootstrap command is implemented; see D15 and w3-decisions.md.
 
 密钥清单以 DESIGN 决策 #21 和 §7 为准。随机数一律用 `crypto/rand`。
 
@@ -1318,11 +1318,13 @@ DESIGN §6 还建议做"一次性撤销"（web 只能把 `revoked` 设成 true�
 
 ### 验收（对应 DESIGN §10 W3）
 
-- [ ] 能用首个管理员登录、生成 enroll token、看到空设备列表（截图）
-- [ ] RLS 双租户测试、同租户按用户隔离测试、列级授权测试（不能改身份列、不能插入 `devices`）、特权函数测试、未设租户测试，都在 CI 里跑，绿
+- [x] 能用首个管理员登录、生成 enroll token、看到空设备列表（截图）
+- [x] RLS 双租户测试、同租户按用户隔离测试、列级授权测试（不能改身份列、不能插入 `devices`）、特权函数测试、未设租户测试，都在 CI 里跑，绿
 - [ ] 在干净 VPS 上 `docker compose up -d` 一次成功（贴命令输出），`migrate` 服务正常退出，控制台有有效的 HTTPS 证书
-- [ ] 页面在严格 CSP 下没有被拦截的资源（浏览器开发者工具的 Console 里没有 CSP 报错）
-- [ ] CI 全绿；`govulncheck` 没有报告漏洞
+- [x] 页面在严格 CSP 下没有被拦截的资源（浏览器开发者工具的 Console 里没有 CSP 报错）
+- [x] CI 全绿；`govulncheck` 没有报告漏洞
+
+Evidence: source e27e908, main CI run 39192294899, and the combined clean-host public run in [deployment validation](../deploy/validation-w3.md). Go advisory scope is recorded separately. The isolated clean-VM/public run passed; owner acceptance of this environment in place of a new VPS is pending. The closing record PR must pass the normal exact-head CI gate before W4 implementation.
 
 ### 常见坑
 
@@ -1364,7 +1366,7 @@ DESIGN §6 还建议做"一次性撤销"（web 只能把 `revoked` 设成 true�
 - rotate 请求和响应、unenroll 请求和响应；
 - domain claim。
 
-**版本规则（推荐，待确认）：**
+**Version policy (confirmed 2026-10-18; see w4-decisions.md):**
 
 - `proto/VERSION` 放一个整体的语义化版本号；
 - agent 在 enroll 请求里上报的 `agent_protocol_version` 就是这个值；
@@ -1453,8 +1455,8 @@ DESIGN §6 还建议做"一次性撤销"（web 只能把 `revoked` 设成 true�
   W0 是直接在 VPS 上跑的 frps，测出的结论不一定适用。W5 的门禁要用这个地址，所以这里就要确认：要么让 frps 用宿主机网络（`network_mode: host`），
   要么在 compose 环境里按 RUNBOOK ⑤ 的方法重测一次 `remote_addr`。结果写进 PR。
 
-**W4-7 插件的 enroll【停】。**
-这里有两个设计细节，**先和 Kazuha 定下来再写**：
+**W4-7 插件的 enroll。**
+The configuration writer and private temporary-file handoff were confirmed by Kazuha on 2026-10-18; see [the decision record](w4-decisions.md). Implement the following split:
 
 1. **谁写 `config.xml`。** 推荐的做法：
    - `agentctl.py enroll` 只负责发 HTTPS 请求、严格校验响应，然后把结果输出成 JSON；

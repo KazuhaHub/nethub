@@ -193,7 +193,7 @@ KKazuhaK/OPNsense-repo            ← 只有打包配方，不含 NetHub 源码
 | 5 | 控制面技术栈 | **Go 单二进制 `nethub`**（Go 1.26，与组织内其它 Go 仓库同一条线；源码在 `server/`，模块路径 `github.com/KazuhaHub/nethub/server`），两个运行角色 `nethub web` / `nethub authz`；控制台 React + TypeScript + Vite SPA，构建产物 `go:embed` 进二进制（与组织内 Report-Portal 同构）；Postgres 16 + Caddy，单机 docker compose。**设备侧不变**：Python 3.13 `agentctl.py` + PHP/Phalcon MVC（由 OPNsense 决定） | Python/FastAPI 单体（v0.2 的选择）；Go 微服务 | **更正 v0.2 的理由**：v0.2 以"团队'用 Go'的全部经验是打包上游预编译二进制，仓库里没有一行自己写的 `.go`"否决 Go——这在 2026-09-17 就不成立：owner 维护着约 18 万行自写 Go（Passwall-Sub-Panel、Report-Portal、Passwall-Node、AlertHub）。v0.2 的另一半理由"自建项目的部署简单度直接决定采用率"仍然成立，而且更支持 Go：单个静态二进制；与 frp 同语言同工具链；能直接用 `authcore`。微服务仍然否决——一个二进制两个角色就够了。用户 2026-09-17 拍板 | 低 |
 | 6 | 设备侧是否需要常驻 daemon | **不需要**，唯一常驻进程是 vendored `frpc` | 自写 Go/Python `agentd` | 在线状态 = frpc 控制连接是否存活，frp 自己已经在维护 | 低 |
 | 7 | 租户模型 | **v1 就上 `owner_user_id` + Postgres `FORCE ROW LEVEL SECURITY`**，但不做递归 org 树 | 完全不做 RLS；第一天上完整 org 树 | 自建 = 一个组织一个实例，**递归 org 树/计费**确实可以推迟；但 RLS 是防御纵深，防的是代码 bug。企业实例里天然有多个管理员、多个部门，任何一条查询忘了加过滤就是越权。几十行迁移脚本换"哪怕 handler 漏了 WHERE，DB 也返回空集"。**v0.3 注**：v1 每个实例恰好一个租户，所以租户级 RLS 在 v1 防的是"`app.tenant_id` 设错/漏设"一类 bug，并让 v3 多租户不用补课；租户**内**按用户的隔离（`member` 只看自己的设备）是应用层的 `owner_user_id` 过滤，不是 RLS 提供的（§6） | 低 |
-| 8 | 首个账号与准入 | **`nethub init` 创建首个管理员**（本地密码，argon2id，作为 break-glass 账号长期保留）；其他人只能经管理员**邀请**加入（一次性链接、只存哈希、会过期），接受邀请时设置密码或用 OIDC 登录完成绑定；设备侧用一次性 enroll token 带外交付 | 公开自助注册（不适用于自建）；OIDC JIT 自动开户（v1 不做，按域名白名单的 JIT 可作为以后的选项） | 自建项目的边界天然就是实例本身。v0.2 曾以"v1 无意义"否决邀请制，前提是 v1 只有安装者一个账号；v1 改为多用户后（用户 2026-09-17），邀请就是最窄的准入方式 | 低 |
+| 8 | 首个账号与准入 | **Run `nethub init`, start PostgreSQL/migrate, then create the first administrator with `nethub admin create`**（本地密码，argon2id，作为 break-glass 账号长期保留）；其他人只能经管理员**邀请**加入（一次性链接、只存哈希、会过期），接受邀请时设置密码或用 OIDC 登录完成绑定；设备侧用一次性 enroll token 带外交付 | 公开自助注册（不适用于自建）；OIDC JIT 自动开户（v1 不做，按域名白名单的 JIT 可作为以后的选项） | 自建项目的边界天然就是实例本身。v0.2 曾以"v1 无意义"否决邀请制，前提是 v1 只有安装者一个账号；v1 改为多用户后（用户 2026-09-17），邀请就是最窄的准入方式 | 低 |
 | 9 | 远程 UI 的 TLS 信任模型 | v1 **接受**自签名证书 + 浏览器警告；v1.1 用 DNS-01 给每台设备独立签发 Let's Encrypt 证书 | v1 就上通配符证书、控制面终止 TLS 再转发 | 自签名警告确实会训练用户"看到警告就点过去"，这条批评成立——但它指向的修复点是**决策 #4（域名归属）**而不是证书类型：域名归属校验若是坏的，攻击者照样能给钓鱼后端签出同一子域名的"真"证书。另注意 v1.1 的每设备证书会进入 Certificate Transparency 日志，主机名从此可枚举（见 Q7） | 中 |
 | 10 | 本地熔断开关 | 独立 flat file `/var/db/nethub-agent/disabled`，reconcile 每次运行前先查 | 只用 config.xml 里的 `Enabled` 字段 | 提前建立"本地永远优先、控制面只能优雅降级" | 低 |
 | 11 | 是否复用 `common/config_backup.py` | **v1 完全不用** | 把凭证或渲染出的 `frpc.toml` 镜像进 config_backup | `config_backup` 是给"daemon 在 config.xml 之外维护状态"的场景用的；本插件的凭证是普通 MVC 标量字段，`frpc.toml` 是它们的确定性渲染产物，恢复后重渲染一次即可 | 低 |
@@ -208,7 +208,7 @@ KKazuhaK/OPNsense-repo            ← 只有打包配方，不含 NetHub 源码
 | 20 | 签名私钥主机的部署边界 | Kazuha permits building, signing, and NetHub use on the designated packaging test machine (revised 2026-10-17). Removing its signing keys or build/signing scratch, or relocating signing, is no longer required. Other signing hosts remain outside deployment scope; production routers remain excluded | 在日常路由器上装新插件做验收 | 一旦决策 #4 的劫持路径成立而受害机恰好是私钥主机，攻击者拿到管理员凭证登入 shell 就能拿到签名私钥，把"控制面被攻破"升级成"能对仓库里的全部插件（截至 2026-10-16 共 13 个）重新签名推给所有用户"。这是产品自己给现有生态制造的新攻击面 | 低（纯运维纪律） |
 | 21 | 每部署独立密钥 | **所有密钥由 `nethub init` 在部署者机器上生成，按服务分文件存放，每个容器只拿到自己需要的那几份**：domain-claim 签名密钥（只给 authz）；frps auth token（每部署一份、所有设备共用；frps 与 authz 持有，authz 在 enroll 响应里把它交给设备。它只是进入 frps 的第一道门，每台设备的身份靠签名声明 + `device_secret`，见 §6）；frps admin 用户名/密码（frps + authz）；`nethub_owner` / `nethub_web` / `nethub_authz` / `nethub_backup` 四个 Postgres 角色的密码（各归对应服务：`nethub_owner` 只给 `nethub migrate`，`nethub_backup` 只给 `backup`）；Postgres 引导超级用户的密码（官方镜像的 `POSTGRES_PASSWORD`，只给 postgres 容器首次初始化用，运行时没有服务使用）；`NETHUB_SECRETS_KEY`（只给 web，用于加密 OIDC client secret）；session key（如果需要的话，只给 web）。上游不持有任何全局密钥 | 任何形式的内置默认密钥 / 上游签发；所有密钥写进一个共享 `.env` | 全开源自建的结构性红利：不存在"一把钥匙开所有实例"的东西。按服务分文件让决策 #4 的进程拆分在密钥层面也成立。同时也意味着**没有任何人能替部署者找回密钥**，`init` 必须强制提示备份，`doctor` 检查备份是否存在 | 低 |
 | 22 | 控制台登录与外部身份绑定 | 本地密码（argon2id）+ **OIDC**（Authorization Code + PKCE、state + nonce，`coreos/go-oidc/v3` 做 issuer discovery 与 ID token 校验，支持多个 IdP）；外部身份**只按 `(issuer, subject)` 绑定**；新绑定只发生在从邀请链接发起的 OIDC 流程里，邀请 token 有效（未过期、未使用）、`email_verified=true`、email 与这条邀请一致三者同时成立；SAML in v1 via authcore/saml (Kazuha, 2026-10-18) | 按 email 绑定；只凭 email 认领任意一条待处理邀请；自助注册 / JIT 开户；Duplicate SAML implementation | email 在不同 IdP 之间不能证明是同一个人，按 email 绑定就是 §13 场景 #13 的账号接管。`email_verified` 本身也不能跨 IdP 信任——自建 Dex / Keycloak 的管理员可以把任意 email 标成已验证，也有 IdP 会发出未验证或可变的 email 声明——所以认领邀请的凭据是一次性的邀请 token，email 只是附加校验。SAML deferral from 2026-09-17 was superseded by v1 inclusion on 2026-10-18 | 低 |
-| 23 | 共享认证模块 `authcore` 的用法 | **遵循 authcore 自己的准入逻辑**：只在某个包能替 NetHub 省掉一件"必须自己做对"的事时才引入，并钉到核实过的 tag（如 `@v0.6.1`）。v1 directly uses `saml`; matching shared capabilities must be reused;可选 `captcha`（N 次登录失败后）与 `geoip`（审计视图里显示登录地点）；以后 `passkey` 作为控制台登录方式 | 为了"复用"而整体引入 | 依赖越少，自建者要信任的东西越少；authcore 为 Apache-2.0，许可证兼容 | 低 |
+| 23 | 共享认证模块 `authcore` 的用法 | **遵循 authcore 自己的准入逻辑**：只在某个包能替 NetHub 省掉一件"必须自己做对"的事时才引入，并钉到核实过的 tag（当前 `@v0.6.2`）。v1 directly uses `saml`; matching shared capabilities must be reused;可选 `captcha`（N 次登录失败后）与 `geoip`（审计视图里显示登录地点）；以后 `passkey` 作为控制台登录方式 | 为了"复用"而整体引入 | 依赖越少，自建者要信任的东西越少；authcore 为 Apache-2.0，许可证兼容 | 低 |
 
 ---
 
@@ -252,7 +252,7 @@ src/os-nethub-agent/
 
 | 命令 | 行为 |
 |---|---|
-| `enroll <token>` | POST 控制面 `/api/v1/devices/enroll`（经 Caddy 443 转给 `nethub authz`），请求里上报 `platform`、`platform_version`、`agent_version`、`agent_protocol_version` 与 `capabilities`（v1 只有 `remote.web`）；把返回的 `device_id / device_secret / frp_token / server_addr / server_port（7000）/ subdomain（authz 随机分配）/ domain_claim` 写入 Settings 模型。写入前逐字段白名单校验；已有非空 `DeviceId` 直接返回成功 |
+| `enroll` with a private request-file path | The plugin form takes a separate HTTPS console origin and opaque token. agentctl reads and unlinks the checked 0600 request file, sends HTTPS to `/api/v1/devices/enroll`, validates bounded known response fields, and returns JSON. PHP validates the result again and saves through the OPNsense model/configuration lock before reconcile; Python never writes config.xml. Tokens and returned secrets never enter command arguments or logs. An existing DeviceId returns success without another enrollment request. Wire schemas are W4 work; see [confirmed choices](w4-decisions.md). |
 | `reconcile` | 先查 kill switch 文件（决策 #10）→ 渲染 `frpc.toml` 到临时文件 → `frpc verify` 通过才 `mv` + 按需 restart（决策 #13）；不通过则保留旧文件、写本地状态、**不重启**。WAN changes rely on reconnect and periodic reconcile; only the measured fallback uses a debounced hook (decision #17) |
 | `status` | rc.d 状态 + 本插件 frpc 日志的尾部 + 上次 reconcile 的结果/失败原因 + 证书剩余天数（v1.1），拼 JSON 给 GUI。**不启用 frpc 的 `[webServer]`**（原因见下方共存规则）；设备在不在线由控制面另行通过 `last_seen_at` 掌握 |
 | `unenroll` | 停服务、清空凭证字段、通知控制面注销 |
@@ -610,12 +610,12 @@ member 的设备查询额外按 `owner_user_id` 过滤；RLS 仍然只按租户�
 
 ### authcore 的使用
 
-`KazuhaHub/authcore`（用户 2026-10-16 确认模块拆分已完成）当前为 v0.6.1，包含 `captcha`、`geoip`、`passkey`、`saml`
+`KazuhaHub/authcore`（用户 2026-10-16 确认模块拆分已完成）当前为 v0.6.2，包含 `captcha`、`geoip`、`passkey`、`saml`
 四个包；没有 `oidc` 包；`audit` 已移除（authcore ADR 0002）；`ratelimit` 已移除、`clientip` 已回退（authcore ADR 0003）。
 
 NetHub 遵循 authcore 自己的准入逻辑（决策 #23）：
 
-- 某个包能替 NetHub 省掉一件"必须自己做对"的事，才引入；钉到核实过的 tag（如 `@v0.6.1`）。
+- 某个包能替 NetHub 省掉一件"必须自己做对"的事，才引入；钉到核实过的 tag（当前 `@v0.6.2`）。
 - v1: directly import `authcore/saml`; reuse other matching shared capabilities. 可选 `captcha`（N 次登录失败后）、`geoip`（审计视图里显示登录地点）。
 - Shared capability gaps may be improved in authcore with tests and a separate PR.
 - 以后：`passkey`，作为控制台登录方式之一。

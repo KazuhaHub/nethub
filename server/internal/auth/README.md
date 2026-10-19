@@ -1,8 +1,9 @@
 # Local console authentication
 
 This package implements the W3 password/session service and HTTP policy helpers.
-The console API now wires these helpers; React/browser and complete deployment
-acceptance remain open. These checks alone do not complete the console.
+The console API wires these helpers, and real deployed browser flows pass.
+Clean-host public deployment acceptance also passed; see
+[deployment validation](../../../deploy/validation-w3.md).
 
 Passwords use Argon2id (19 MiB, two iterations, one lane), a random 16-byte salt,
 and a 32-byte digest in PHC format. The parameters follow the
@@ -53,4 +54,5 @@ cookies, token separation, duplicate cookies, exact origins, spoofed chains,
 both limiter budgets, capacity/concurrency, repository errors, and worker limits.
 The isolated PostgreSQL suite covers actual web/authz roles, tenant separation,
 password-check races, live role/disable changes, idle/absolute expiry, expiry
-during user/session lock waits, and logout. Browser acceptance remains open.
+during user/session lock waits, and logout. Deployed browser tests also check
+actual database expiry, reauthentication, and logout.

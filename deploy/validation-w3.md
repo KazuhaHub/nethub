@@ -1,5 +1,16 @@
 # W3 initialization and Compose validation (2026-10-18)
 
+Current checkpoint: the W3 console functional evidence is available. Acceptance
+of the isolated VM in place of PLAN W3-12's new VPS is awaiting the owner.
+Main CI run 39192294899 passed all six jobs on e27e908. The same source passed a
+fresh Linux guest deployment with real public HTTPS and browser verification.
+The closing documentation PR must retain the exact-head CI merge gate. Device
+protocol/enrollment and SSO remain W4/W6 work; full operational doctor coverage
+remains W7. Current secret manifests are v2 and PostgreSQL uses UID 70.
+
+The dated sections below retain earlier observations, including the superseded
+UID 999 setup. The final clean-host section records the combined acceptance run.
+
 Native Linux checks used the designated development LXC without stopping its
 existing services or publishing test listeners on public interfaces. The pinned
 three-stage image built successfully with Node, static Go, and distroless nonroot.
@@ -116,3 +127,67 @@ an existing LXC, not a freshly installed OS. Clean-host CI currently proves the
 internal-CA stack; a clean-host public deployment run remains required. W3 is
 not complete. Real endpoints, credentials, certificate identifiers, and raw
 private evidence are deliberately excluded from this repository.
+
+## Clean-host public deployment acceptance
+
+A new isolated Hyper-V guest used the official Debian 13 generic image
+[20261017-2634](https://cloud.debian.org/images/cloud/trixie/20261017-2634/).
+Its immutable image matched the official SHA512SUMS over verified HTTPS; no image
+signature verification is claimed. The converted/expanded disk was compared with
+the original before boot. The guest had two vCPUs, 1 GiB fixed RAM, 2 GiB swap,
+and a 24 GiB virtual disk. This constrained test is not a sizing or performance
+recommendation. The existing OPNsense guest was saved temporarily for memory.
+
+Cloud-init installed distribution Docker 26.1.5 and Compose 2.26.1. Before the
+first build, the new OS had zero Docker containers, images, or volumes. A verified
+archive of source e27e908 supplied the checkout. The host had no Go, Node, or npm;
+the pinned Dockerfiles built all three images. A temporary serialized BuildKit
+builder bounded resource use. The actual Compose build command returned zero,
+then its builder/cache was removed. Minimum free disk stayed above 13 GiB.
+
+The Docker-only initializer ran with read-only source and separate writable
+state/backup parents. Real DNS, independent backup checksums, exact acknowledgement,
+and service ownership checks passed. The generated production configuration ran
+without a test override. One docker compose up -d returned zero on new volumes;
+migrate exited zero, web became healthy, the one-shot administrator was created,
+and scoped doctor returned zero. Raw command output and Compose state are in the
+private, checksum-verified evidence archive.
+
+Public ingress used the existing LXC as a bounded TCP forwarder over a pinned SSH
+connection to this NAT guest. Caddy ran in the fresh guest and obtained its own
+public certificate. This topology verifies the complete new-OS/public-HTTPS flow;
+it does not establish original client-IP preservation through that temporary
+forwarder. The W4/W5 frps source-IP check remains separate.
+
+A separate Windows client passed all nine public browser groups with Node's
+bundled public roots and Chromium certificate checks enabled: health-path denial,
+first-admin login, session cookie/reload, empty inventory, enrollment token and
+clearing, storage exclusion, mobile layout, and logout/protected 401. CSP
+violations, script errors, and external requests were all zero. All four PNGs
+were visually reviewed; the enrollment value is fully masked and layouts are
+intact. Actual database expiry and the wider eleven-group deployed-browser suite
+also passed in CI; the public script does not claim to replace those checks.
+
+Runtime logs contained none of the tested password, session, or enrollment
+plaintext. The public window lasted 86.718 seconds. OpenResty/x-ui and the original
+80/443/8443 listeners were restored; the bridge, SSH forward, and restoration timer
+were inactive. The fresh guest had zero containers, volumes, or custom networks
+after cleanup. Password files were removed. Private archives were retained and
+the downloaded guest archive checksum matched. The Linux guest is retained off;
+the original OPNsense guest is running, with pinned-host-key password SSH verified.
+No device credential or SSH policy was changed.
+
+## W3 acceptance map
+
+| PLAN requirement | Evidence |
+|---|---|
+| First administrator, token, empty inventory, screenshots | Fresh public browser receipt and four reviewed masked/nonsecret PNGs; one-shot admin/Compose output |
+| Tenant/member isolation, column grants, privileged functions, missing tenant | TestPostgresBoundaries in the real PostgreSQL CI script; all thirteen groups pass |
+| Fresh host, successful Compose startup/migrate, valid public HTTPS | The single clean-host run above; recorded up/migrate exit zero, Node public-root/hostname verification, and Chromium verification |
+| Strict CSP | Zero violations in isolated, deployed, and public browser reports |
+| CI and vulnerability gates | All six jobs on e27e908; zero affected Go symbols/imported packages and zero HIGH/CRITICAL findings in the three assembled images; module-only advisory scope remains in security-validation.md |
+
+These records complete the functional W3 console evidence. Environment acceptance
+is awaiting the owner because PLAN W3-12 specifies a new VPS. The closing PR uses
+the normal exact-head six-check merge gate. They do not claim device enrollment,
+SSO, relay source-IP behavior, complete doctor coverage, or W7 readiness.
