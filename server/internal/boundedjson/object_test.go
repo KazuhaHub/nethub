@@ -29,3 +29,25 @@ func TestObjectRejectsAmbiguousOrUnboundedDocuments(t *testing.T) {
 		t.Fatal("rejected exactly 256 elements")
 	}
 }
+
+func TestExplicitResponseLimitsPreserveDefaultRequestBounds(t *testing.T) {
+	var items []string
+	for range 1025 {
+		items = append(items, "0")
+	}
+	data := `{"items":[` + strings.Join(items[:1024], ",") + `],"unknown_number":1e309}`
+	if _, err := ObjectWithLimits(strings.NewReader(data), 1024*1024, 1024); err != nil {
+		t.Fatal("valid larger response or unknown numeric extension rejected")
+	}
+	if _, err := Object(strings.NewReader(data)); err == nil {
+		t.Fatal("larger response weakened the default request array limit")
+	}
+	if _, err := ObjectWithLimits(strings.NewReader(`{"items":[`+strings.Join(items, ",")+`]}`), 1024*1024, 1024); err == nil {
+		t.Fatal("explicit array budget was not enforced")
+	}
+	for _, limit := range []struct{ bytes, items int }{{0, 1}, {1, 0}, {4*1024*1024 + 1, 1}, {1, 4097}} {
+		if _, err := ObjectWithLimits(strings.NewReader(`{}`), limit.bytes, limit.items); err == nil {
+			t.Fatal("invalid explicit parser limits accepted")
+		}
+	}
+}

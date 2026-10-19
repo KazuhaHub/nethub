@@ -8,10 +8,12 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -32,8 +34,29 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 		t.Fatal("relay fixture is unavailable")
 	}
 	key := hex.EncodeToString(bytes.Repeat([]byte{17}, 32))
+	const adminUser = "test-admin"
+	const adminPassword = "public-test-only-admin-observation-password"
+	var adminData atomic.Value
+	adminData.Store([]byte(`{"proxies":[]}`))
+	adminRequests := make(chan time.Time, 8)
+	admin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, password, ok := r.BasicAuth()
+		if !ok || user != adminUser || password != adminPassword || r.Method != http.MethodGet || r.URL.RequestURI() != "/api/proxy/https" {
+			t.Error("runtime observation sent an invalid admin request")
+			w.WriteHeader(401)
+			return
+		}
+		select {
+		case adminRequests <- time.Now():
+		default:
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(adminData.Load().([]byte))
+	}))
+	defer admin.Close()
 	directory := t.TempDir()
-	for name, value := range map[string]string{"claim_key": key, "frp_token": relay.FRPToken, "relay_ca.pem": relay.RelayCAPEM} {
+	for name, value := range map[string]string{"claim_key": key, "frp_token": relay.FRPToken, "relay_ca.pem": relay.RelayCAPEM,
+		"frps_admin_user": adminUser, "frps_admin_password": adminPassword} {
 		if err := os.WriteFile(filepath.Join(directory, name), []byte(value), 0600); err != nil {
 			t.Fatal(err)
 		}
@@ -56,7 +79,9 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 		"--listen", address, "--claim-key-id", "integration", "--claim-key-file", filepath.Join(directory, "claim_key"),
 		"--frp-token-file", filepath.Join(directory, "frp_token"), "--relay-ca-file", filepath.Join(directory, "relay_ca.pem"),
 		"--relay-addr", relay.ServerAddr, "--relay-server-name", relay.ServerName,
-		"--hook-listen", hookAddress, "--hook-peer", "127.0.0.1")
+		"--hook-listen", hookAddress, "--hook-peer", "127.0.0.1",
+		"--frps-admin-origin", admin.URL, "--frps-admin-user-file", filepath.Join(directory, "frps_admin_user"),
+		"--frps-admin-password-file", filepath.Join(directory, "frps_admin_password"))
 	var stdout, stderr bytes.Buffer
 	command.Stdout, command.Stderr = &stdout, &stderr
 	if err := command.Start(); err != nil {
@@ -145,6 +170,12 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 	if err := f.owner.QueryRowContext(f.ctx, `SELECT owner_user_id FROM devices WHERE id=$1 AND tenant_id=$2`, result.DeviceID, tenant).Scan(&storedActor); err != nil || storedActor != actor {
 		t.Fatal("runtime did not register with the token's owner and tenant")
 	}
+	observation, err := json.Marshal(map[string]any{"proxies": []map[string]any{{"name": relayhook.ProxyName(result.DeviceID), "status": "online",
+		"conf": map[string]string{"name": relayhook.ProxyName(result.DeviceID), "type": "https", "subdomain": result.Subdomain}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminData.Store(observation)
 	metas := map[string]string{"device_id": result.DeviceID, "domain_claim": result.DomainClaim}
 	sendHook := func(target, operation string, content map[string]any, rejected bool, status int) {
 		t.Helper()
@@ -197,6 +228,30 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 		t.Fatal(err)
 	}
 	sendHook(hookAddress, "Login", login, false, 200)
+	var firstPoll, secondPoll time.Time
+	for _, observed := range []*time.Time{&firstPoll, &secondPoll} {
+		select {
+		case *observed = <-adminRequests:
+		case <-time.After(25 * time.Second):
+			t.Fatal("runtime did not poll the admin API at its production cadence")
+		}
+	}
+	if secondPoll.Sub(firstPoll) < 14*time.Second {
+		t.Fatal("runtime used a faster observation cadence than the configured 15 seconds")
+	}
+	seen := false
+	for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); {
+		if err := f.owner.QueryRowContext(f.ctx, `SELECT coalesce(last_seen_at BETWEEN statement_timestamp()-interval '5 seconds' AND statement_timestamp(),false) FROM devices WHERE id=$1`, result.DeviceID).Scan(&seen); err != nil {
+			t.Fatal(err)
+		}
+		if seen {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !seen {
+		t.Fatal("compiled runtime did not persist a matching periodic relay observation")
+	}
 	if _, err := f.owner.ExecContext(f.ctx, `UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id=$1`, result.DeviceID); err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +267,7 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("authz process shutdown timed out")
 	}
-	for _, secret := range []string{key, relay.FRPToken, token, result.DeviceSecret, result.DomainClaim} {
+	for _, secret := range []string{key, relay.FRPToken, token, result.DeviceSecret, result.DomainClaim, adminPassword} {
 		if strings.Contains(stdout.String()+stderr.String(), secret) {
 			t.Fatal("authz process exposed credential material in its output")
 		}

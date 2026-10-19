@@ -15,11 +15,22 @@ var ErrInvalid = errors.New("invalid bounded JSON object")
 
 // Object bounds the document, nesting, object fields and array elements.
 func Object(reader io.Reader) (map[string]json.RawMessage, error) {
-	data, err := io.ReadAll(io.LimitReader(reader, MaxBytes+1))
-	if err != nil || len(data) > MaxBytes || !utf8.Valid(data) || !json.Valid(data) {
+	return ObjectWithLimits(reader, MaxBytes, 256)
+}
+
+// ObjectWithLimits permits bounded larger server responses without relaxing
+// the default device request limits.
+func ObjectWithLimits(reader io.Reader, maxBytes, maxItems int) (map[string]json.RawMessage, error) {
+	if maxBytes < 1 || maxBytes > 4*1024*1024 || maxItems < 1 || maxItems > 4096 {
 		return nil, ErrInvalid
 	}
-	if err := check(json.NewDecoder(bytes.NewReader(data)), 0); err != nil {
+	data, err := io.ReadAll(io.LimitReader(reader, int64(maxBytes)+1))
+	if err != nil || len(data) > maxBytes || !utf8.Valid(data) || !json.Valid(data) {
+		return nil, ErrInvalid
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if err := check(decoder, 0, maxItems); err != nil {
 		return nil, err
 	}
 	var object map[string]json.RawMessage
@@ -29,7 +40,7 @@ func Object(reader io.Reader) (map[string]json.RawMessage, error) {
 	return object, nil
 }
 
-func check(decoder *json.Decoder, depth int) error {
+func check(decoder *json.Decoder, depth, maxItems int) error {
 	if depth > 16 {
 		return ErrInvalid
 	}
@@ -51,16 +62,16 @@ func check(decoder *json.Decoder, depth int) error {
 				return ErrInvalid
 			}
 			seen[name] = true
-			if err := check(decoder, depth+1); err != nil {
+			if err := check(decoder, depth+1, maxItems); err != nil {
 				return err
 			}
 		}
 	case '[':
 		for count := 0; decoder.More(); count++ {
-			if count >= 256 {
+			if count >= maxItems {
 				return ErrInvalid
 			}
-			if err := check(decoder, depth+1); err != nil {
+			if err := check(decoder, depth+1, maxItems); err != nil {
 				return err
 			}
 		}

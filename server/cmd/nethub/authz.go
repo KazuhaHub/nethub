@@ -21,6 +21,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/claim"
 	"github.com/KazuhaHub/nethub/server/internal/device"
 	"github.com/KazuhaHub/nethub/server/internal/relayhook"
+	"github.com/KazuhaHub/nethub/server/internal/relaystate"
 	"github.com/KazuhaHub/nethub/server/internal/store"
 )
 
@@ -77,6 +78,9 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 	relayName := flags.String("relay-server-name", "", "Verified relay TLS server name")
 	relayPort := flags.Uint("relay-port", 7000, "Relay control-channel port")
 	hookListen := flags.String("hook-listen", "", "Internal relay callback IP:port; enable with hook-peer")
+	adminOrigin := flags.String("frps-admin-origin", "", "Private frps admin origin with an explicit port")
+	adminUserFile := flags.String("frps-admin-user-file", "", "Private frps admin username file")
+	adminPasswordFile := flags.String("frps-admin-password-file", "", "Private frps admin password file")
 	var peers hookPeers
 	flags.Var(&peers, "hook-peer", "Exact relay socket IP; repeat for multiple relays")
 	var proxies proxyFlags
@@ -102,6 +106,10 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 	}
 	if !validHookListener(*hookListen, peers) {
 		fmt.Fprintln(stderr, "Relay hooks require a private or loopback listen IP and exact relay peer addresses")
+		return 2
+	}
+	if !validObservationFlags(*adminOrigin, *adminUserFile, *adminPasswordFile) {
+		fmt.Fprintln(stderr, "Relay observation requires an admin origin and both credential file paths")
 		return 2
 	}
 	key, keyError := readAuthzHex(*claimFile)
@@ -136,6 +144,14 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Authz origin, proxy configuration or database authorization is invalid")
 		return 1
 	}
+	var observer *relaystate.Poller
+	if *adminOrigin != "" {
+		observer, err = newObserver(*adminOrigin, *adminUserFile, *adminPasswordFile, db, logger)
+		if err != nil {
+			fmt.Fprintln(stderr, "Relay observation origin or credential configuration is invalid")
+			return 1
+		}
+	}
 	listener, err := net.Listen("tcp", *listen)
 	if err != nil {
 		fmt.Fprintln(stderr, "Authz listener could not be opened")
@@ -163,6 +179,13 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second,
 		WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024,
 		ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError)}
+	if observer != nil {
+		observationContext, stopObservation := context.WithCancel(ctx)
+		done := make(chan struct{})
+		go func() { observer.Run(observationContext); close(done) }()
+		defer func() { stopObservation(); <-done }()
+		fmt.Fprintln(stdout, "Read-only relay observation enabled")
+	}
 	if hooks == nil {
 		fmt.Fprintln(stdout, "Device enrollment API started; relay hooks disabled")
 	} else {

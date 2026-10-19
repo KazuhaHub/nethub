@@ -178,7 +178,7 @@ func (f *enrollmentFixture) post(t *testing.T, input protocol.EnrollRequest) (in
 	return response.StatusCode, body
 }
 
-func testAtomicEnrollment(t *testing.T, ctx context.Context, owner, authz *sql.DB, tenantA, tenantB string) {
+func testAtomicEnrollment(t *testing.T, ctx context.Context, owner, authz, webRole *sql.DB, tenantA, tenantB string) {
 	f := newEnrollmentFixture(t, ctx, owner, authz)
 	t.Run("readiness_requires_authz_role", func(t *testing.T) {
 		if err := f.service.Health(ctx); err != nil {
@@ -346,6 +346,7 @@ func testAtomicEnrollment(t *testing.T, ctx context.Context, owner, authz *sql.D
 		}
 	})
 	t.Run("relay_identity_and_revocation", func(t *testing.T) { testRelayAuthorization(t, f, tenantA, tenantB) })
+	t.Run("relay_observation", func(t *testing.T) { testRelayObservation(t, f, webRole, tenantA, tenantB) })
 }
 
 func (f *enrollmentFixture) lockRace(t *testing.T, kind, tenant string) {
