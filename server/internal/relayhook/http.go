@@ -49,10 +49,11 @@ func New(config Config, repository Repository, signer *claim.Keyring) (*Server, 
 	}
 	peers := make(map[netip.Addr]bool, len(config.Peers))
 	for _, peer := range config.Peers {
-		if !peer.IsValid() || peer.IsUnspecified() || peer.IsMulticast() || peer.Zone() != "" {
+		normalized := peer.Unmap()
+		if !peer.IsValid() || normalized.IsUnspecified() || normalized.IsMulticast() || peer.Zone() != "" {
 			return nil, errors.New("relay callback peers must be exact IP addresses")
 		}
-		peers[peer.Unmap()] = true
+		peers[normalized] = true
 	}
 	return &Server{peers: peers, repository: repository, signer: signer,
 		logger: config.Logger, workers: make(chan struct{}, 64)}, nil

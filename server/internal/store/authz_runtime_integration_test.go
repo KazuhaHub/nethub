@@ -43,12 +43,13 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 		t.Fatal(err)
 	}
 	address := listener.Addr().String()
-	listener.Close()
 	hookSocket, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
+		listener.Close()
 		t.Fatal(err)
 	}
 	hookAddress := hookSocket.Addr().String()
+	listener.Close()
 	hookSocket.Close()
 	command := exec.CommandContext(f.ctx, binary, "authz", "--host", "127.0.0.1", "--sslmode", "disable",
 		"--password-file", "/run/secrets/pg_nethub_authz", "--origin", "https://console.example.com",

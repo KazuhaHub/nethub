@@ -22,10 +22,11 @@ func (p *hookPeers) String() string {
 
 func (p *hookPeers) Set(value string) error {
 	address, err := netip.ParseAddr(value)
-	if err != nil || address.Zone() != "" || address.IsUnspecified() || address.IsMulticast() || len(*p) >= 16 {
+	normalized := address.Unmap()
+	if err != nil || address.Zone() != "" || normalized.IsUnspecified() || normalized.IsMulticast() || len(*p) >= 16 {
 		return errors.New("hook-peer requires an exact relay IP, with at most 16 peers")
 	}
-	*p = append(*p, address.Unmap())
+	*p = append(*p, normalized)
 	return nil
 }
 

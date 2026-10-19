@@ -243,7 +243,8 @@ func TestSlowBodyCannotHoldTheCallback(t *testing.T) {
 func TestPeerConfigurationIsRequiredAndSnapshotted(t *testing.T) {
 	server, encoded := fixture(t, repositoryFunc(func(context.Context, protocol.ClaimPayload) error { return nil }), io.Discard)
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	for _, peers := range [][]netip.Addr{nil, {netip.Addr{}}, {netip.IPv4Unspecified()}, {netip.MustParseAddr("fe80::1%zone")}} {
+	for _, peers := range [][]netip.Addr{nil, {netip.Addr{}}, {netip.IPv4Unspecified()},
+		{netip.MustParseAddr("::ffff:" + netip.IPv4Unspecified().String())}, {netip.MustParseAddr("fe80::1%zone")}} {
 		if _, err := New(Config{Peers: peers, Logger: logger}, server.repository, server.signer); err == nil {
 			t.Fatal("missing or invalid peer restriction accepted")
 		}
