@@ -114,10 +114,22 @@ and issued-order replies using file-backed test checkpoints; it checks actual
 CA-source HTTP fetches, retired responses and one original order/finalize POST.
 Its file-backed store does not claim combined PostgreSQL/CA acceptance.
 
-These components do not configure an account, start a scheduler/host adapter,
-deliver a chain or change a device. Combined host/PostgreSQL/CA recovery, verified
-native application and retrying deployment of the same issued generation remain
-separate integration work.
+A separate combined fixture uses the actual local Docker SQL runner, PostgreSQL
+queue/progress/completion functions and genuine Pebble/Caddy. Explicit fixture
+ownership, immutable container/image/project identities and the private network
+are checked before administrative seeding or clock-fault injection. Two saved
+checkpoint replies are lost; only that job's lease is expired, old workers are
+refused and a new lease/account/coordinator recovers the same CSR/order. The
+persisted chain is independently checked, with one job, issued generation,
+issuance audit and finalize POST. Retry/lease clocks are deliberately advanced
+in this test; it does not measure production recovery latency or replace device
+enrollment acceptance. Its separate tenant is created after ordinary deployment
+bootstrap/browser/relay checks, and all fixture state is destroyed at teardown.
+
+These components do not configure an account, start a scheduler/host command,
+deliver a chain or change a device. Protected host configuration/scheduling,
+independent proof expiry cleanup, verified native application and retrying
+deployment of the same issued generation remain separate integration work.
 
 Fresh bootstrap creates the reserved no-login role. Migration remains compatible
 with a disabled legacy deployment where that role is absent; enabling an issuer
