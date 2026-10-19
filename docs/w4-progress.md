@@ -163,6 +163,29 @@ handshake, renewal near authority expiry and invalid identity/key/PEM/time input
 It does not write files, schedule renewal, apply certificates or implement router
 GUI issuance. Those lifecycle requirements remain open.
 
+## W4-6 deployment bundle in progress
+
+The generated bundle now separates immutable version-3 authority/configuration
+backup from mutable relay leaf/trust files. Backup covers CA signing material
+and the initial leaf snapshot; current leaves are validated against that authority
+without forcing backup hashes to change on every renewal. Legacy bundles fail
+explicitly and are preserved. No silent authority generation or in-place data
+migration is implemented.
+
+Compose adds nonroot authz and host-network frps. The latter binds its admin API
+only to the private edge gateway; authz callbacks bind the explicit private
+container address and accept only that gateway peer. Web/authz trust only Caddy's
+forwarded-client address. Caddy sends device API requests to authz and denies
+public health/hook paths. Issuer state has no application-runtime mount.
+
+Local setup/CLI tests pass, including runtime leaf rotation preserving backup and
+rejection of mixed leaf/key generations or changed unbacked trust. Native CI adds
+official-checksum frps verification of the generated configuration, HTTPS device
+enrollment, two actual frpc clients, tampered-claim rejection, verified TLS
+passthrough and real frps observations reaching the console. These checks are
+pending; public source-address proof, the external-proxy path, durable automated
+certificate application/rotation and appliance/GUI lifecycle remain open.
+
 D22 now requires automatic renewal, distribution and configuration based on the
 PSP review, with reverse-proxy-owned console TLS. The owner selected option 2,
 including router GUI certificate issuance, automatic installation and renewal in

@@ -1,5 +1,7 @@
 {$NETHUB_CONSOLE_HOST} {
-    @internal path /healthz /healthz/*
+    @internal path /healthz /healthz/* /api/v1/frp /api/v1/frp/*
     respond @internal 404
+    @device path /api/v1/devices/*
+    reverse_proxy @device nethub-authz:8081
     reverse_proxy nethub-web:8080
 }

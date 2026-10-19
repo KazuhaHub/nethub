@@ -45,7 +45,7 @@ func Validate(config Config) error {
 	if !filepath.IsAbs(config.SourceDirectory) {
 		return errors.New("source directory must be absolute")
 	}
-	for _, path := range []string{"deploy/Dockerfile", "deploy/images/caddy/Dockerfile", "deploy/images/postgres/Dockerfile"} {
+	for _, path := range []string{"deploy/Dockerfile", "deploy/images/caddy/Dockerfile", "deploy/images/postgres/Dockerfile", "deploy/images/frps/Dockerfile"} {
 		info, err := os.Stat(filepath.Join(config.SourceDirectory, filepath.FromSlash(path)))
 		if err != nil || !info.Mode().IsRegular() {
 			return errors.New("source directory must contain all deployment Dockerfiles")

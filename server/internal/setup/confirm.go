@@ -30,6 +30,9 @@ func Confirm(directory, backup, phrase string) error {
 	if err = VerifyBackup(directory, backup); err != nil {
 		return errors.New("backup is incomplete or differs from the generated secrets")
 	}
+	if err = checkRelayFiles(directory, manifest.Config, false); err != nil {
+		return err
+	}
 	for _, file := range manifest.Files {
 		path := filepath.Join(directory, filepath.FromSlash(file.Path))
 		if err = os.Chown(filepath.Dir(path), file.UID, file.UID); err != nil {
@@ -37,6 +40,12 @@ func Confirm(directory, backup, phrase string) error {
 		}
 		if err = os.Chown(path, file.UID, file.UID); err != nil {
 			return errors.New("cannot assign secret file owner")
+		}
+	}
+	for _, name := range relayRuntimeFiles {
+		path := filepath.Join(directory, filepath.FromSlash(name))
+		if os.Chown(filepath.Dir(path), 65532, 65532) != nil || os.Chown(path, 65532, 65532) != nil {
+			return errors.New("cannot assign relay runtime owner")
 		}
 	}
 	manifest.BackupDirectory, err = filepath.Abs(backup)
@@ -68,5 +77,5 @@ func CheckFiles(directory string) error {
 			return errors.New("service-specific secret ownership is incorrect")
 		}
 	}
-	return nil
+	return checkRelayFiles(directory, manifest.Config, true)
 }

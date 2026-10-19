@@ -1,0 +1,21 @@
+bindPort = 7000
+vhostHTTPSPort = 8443
+subDomainHost = {{printf "%q" .Domain}}
+auth.method = "token"
+auth.tokenSource.type = "file"
+auth.tokenSource.file.path = "/run/secrets/frp_token"
+transport.heartbeatTimeout = 30
+transport.tls.force = true
+transport.tls.certFile = "/run/relay/relay-cert.pem"
+transport.tls.keyFile = "/run/relay/relay-key.pem"
+webServer.addr = {{printf "%q" .Gateway}}
+webServer.port = 7500
+webServer.user = {{printf "%q" .User}}
+webServer.password = {{printf "%q" .Password}}
+log.to = "console"
+log.level = "warn"
+[[httpPlugins]]
+name = "nethub"
+addr = {{printf "%q" .Hook}}
+path = "/api/v1/frp/hooks"
+ops = ["Login", "NewProxy"]

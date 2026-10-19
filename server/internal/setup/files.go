@@ -24,6 +24,7 @@ type SecretFile struct {
 	Path   string `json:"path"`
 	SHA256 string `json:"sha256"`
 	UID    int    `json:"uid"`
+	Size   int64  `json:"size"`
 }
 type Manifest struct {
 	Version         int          `json:"version"`
@@ -64,7 +65,7 @@ func Generate(directory string, config Config) (string, error) {
 	if err = writePrivate(filepath.Join(target, ".gitignore"), []byte("*\n")); err != nil {
 		return target, err
 	}
-	manifest := Manifest{Version: 2, Config: config, Files: []SecretFile{}}
+	manifest := Manifest{Version: 3, Config: config, Files: []SecretFile{}}
 	type binding struct {
 		path string
 		uid  int
@@ -99,8 +100,11 @@ func Generate(directory string, config Config) (string, error) {
 			if err = writePrivate(filepath.Join(target, filepath.FromSlash(file.path)), data); err != nil {
 				return target, errors.New("secret file creation failed; existing partial bundle was preserved")
 			}
-			manifest.Files = append(manifest.Files, SecretFile{file.path, hex.EncodeToString(digest[:]), file.uid})
+			manifest.Files = append(manifest.Files, SecretFile{Path: file.path, SHA256: hex.EncodeToString(digest[:]), UID: file.uid, Size: int64(len(data))})
 		}
+	}
+	if err = generateRelay(target, &manifest); err != nil {
+		return target, err
 	}
 	for _, name := range []string{"docker-compose.yml", "Caddyfile", "00-nethub-roles.sh"} {
 		data, err := templates.ReadFile("templates/" + name)
@@ -156,7 +160,7 @@ func Load(directory string) (Manifest, error) {
 	defer file.Close()
 	decoder := json.NewDecoder(io.LimitReader(file, 32768))
 	decoder.DisallowUnknownFields()
-	if err = decoder.Decode(&manifest); err != nil || manifest.Version != 2 || len(manifest.Files) != 17 {
+	if err = decoder.Decode(&manifest); err != nil || manifest.Version != 3 || len(manifest.Files) != 22 {
 		return manifest, errors.New("invalid setup manifest")
 	}
 	var trailing any
@@ -166,7 +170,7 @@ func Load(directory string) (Manifest, error) {
 	expected := expectedOwners()
 	for _, file := range manifest.Files {
 		uid, ok := expected[file.Path]
-		if !ok || uid != file.UID {
+		if !ok || uid != file.UID || !validSecretSize(file.Path, file.Size) {
 			return manifest, errors.New("invalid secret owner/path binding")
 		}
 		delete(expected, file.Path)
@@ -188,7 +192,18 @@ func expectedOwners() map[string]int {
 	for _, name := range []string{"secrets/authz/claim_key", "secrets/web/secrets_key", "secrets/authz/frp_token", "secrets/frps/frp_token", "secrets/authz/frps_admin_user", "secrets/frps/frps_admin_user", "secrets/authz/frps_admin_password", "secrets/frps/frps_admin_password"} {
 		owners[name] = 65532
 	}
+	for _, name := range []string{"ca.pem", "ca-key.pem", "initial/relay-cert.pem", "initial/relay-key.pem"} {
+		owners["secrets/issuer/"+name] = 0
+	}
+	owners["secrets/frps/frps.toml"] = 65532
 	return owners
+}
+
+func validSecretSize(path string, size int64) bool {
+	if strings.HasPrefix(path, "secrets/issuer/") || path == "secrets/frps/frps.toml" {
+		return size > 0 && size <= 32768
+	}
+	return size == 65
 }
 
 func verifyFiles(directory string, files []SecretFile) error {
@@ -212,7 +227,7 @@ func verifyFiles(directory string, files []SecretFile) error {
 			}
 		}
 		info, err := os.Lstat(path)
-		if err != nil || !info.Mode().IsRegular() || info.Size() != 65 {
+		if err != nil || !info.Mode().IsRegular() || !validSecretSize(file.Path, file.Size) || info.Size() != file.Size {
 			return errors.New("secret file is missing, linked, or has unexpected size")
 		}
 		if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {

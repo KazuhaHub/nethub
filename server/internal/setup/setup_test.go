@@ -8,6 +8,9 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/KazuhaHub/nethub/server/internal/relaycert"
 )
 
 func fixtureConfig(t *testing.T) Config {
@@ -26,7 +29,7 @@ func TestGenerateBackupAndNonOverwrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	manifest, err := Load(bundle)
-	if err != nil || manifest.Version != 2 || manifest.ConfirmedAt != nil || len(manifest.Files) != 17 {
+	if err != nil || manifest.Version != 3 || manifest.ConfirmedAt != nil || len(manifest.Files) != 22 {
 		t.Fatal("unexpected generated state")
 	}
 	if err = verifyFiles(bundle, manifest.Files); err != nil {
@@ -37,7 +40,9 @@ func TestGenerateBackupAndNonOverwrite(t *testing.T) {
 		if strings.HasPrefix(file.Path, "secrets/postgres/") && file.UID != 70 {
 			t.Fatal("PostgreSQL secret owner does not match Alpine image")
 		}
-		unique[file.SHA256] = true
+		if !strings.HasPrefix(file.Path, "secrets/issuer/") && file.Path != "secrets/frps/frps.toml" {
+			unique[file.SHA256] = true
+		}
 	}
 	if len(unique) != 10 {
 		t.Fatalf("logical secret count=%d", len(unique))
@@ -130,15 +135,17 @@ func TestConfigAndManifestBoundaries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	manifest.Version = 1
-	legacy, _ := json.Marshal(manifest)
-	if err = os.WriteFile(filepath.Join(bundle, "setup.json"), legacy, 0600); err != nil {
-		t.Fatal(err)
+	for _, version := range []int{1, 2} {
+		manifest.Version = version
+		legacy, _ := json.Marshal(manifest)
+		if err = os.WriteFile(filepath.Join(bundle, "setup.json"), legacy, 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = Load(bundle); err == nil {
+			t.Fatal("legacy bundle accepted without explicit migration")
+		}
 	}
-	if _, err = Load(bundle); err == nil {
-		t.Fatal("legacy UID scheme accepted without explicit migration")
-	}
-	manifest.Version = 2
+	manifest.Version = 3
 	manifest.Files[0].Path = "../outside"
 	data, _ := json.Marshal(manifest)
 	if err = os.WriteFile(filepath.Join(bundle, "setup.json"), data, 0600); err != nil {
@@ -150,7 +157,7 @@ func TestConfigAndManifestBoundaries(t *testing.T) {
 }
 
 func TestEmbeddedTemplatesMatchReviewedDeploymentFiles(t *testing.T) {
-	for name, path := range map[string]string{"docker-compose.yml": "../../../deploy/docker-compose.yml", "Caddyfile": "../../../deploy/Caddyfile", "00-nethub-roles.sh": "../../../deploy/postgres/00-nethub-roles.sh"} {
+	for name, path := range map[string]string{"docker-compose.yml": "../../../deploy/docker-compose.yml", "Caddyfile": "../../../deploy/Caddyfile", "00-nethub-roles.sh": "../../../deploy/postgres/00-nethub-roles.sh", "frps.toml.tmpl": "../../../deploy/frps/frps.toml.tmpl"} {
 		expected, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)
@@ -163,5 +170,79 @@ func TestEmbeddedTemplatesMatchReviewedDeploymentFiles(t *testing.T) {
 		if !bytes.Equal(normalize(expected), normalize(actual)) {
 			t.Fatalf("embedded %s differs from reviewed deployment template", name)
 		}
+	}
+}
+
+func TestRelayRuntimeRotationPreservesAuthorityBackup(t *testing.T) {
+	parent := t.TempDir()
+	config := fixtureConfig(t)
+	bundle, err := Generate(filepath.Join(parent, "deployment"), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	backup, err := Backup(bundle, filepath.Join(parent, "backup"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func(name string) []byte {
+		t.Helper()
+		data, err := os.ReadFile(filepath.Join(bundle, filepath.FromSlash(name)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return data
+	}
+	root, key := read("secrets/issuer/ca.pem"), read("secrets/issuer/ca-key.pem")
+	next, err := relaycert.Renew(root, key, config.ConsoleHost, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, data := range map[string][]byte{relayRuntimeFiles[0]: next.Certificate, relayRuntimeFiles[1]: next.Key} {
+		if err := os.WriteFile(filepath.Join(bundle, filepath.FromSlash(name)), data, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := checkRelayFiles(bundle, config, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyBackup(bundle, backup); err != nil {
+		t.Fatal("runtime renewal invalidated authority backup")
+	}
+	manifest, err := Load(bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyFiles(bundle, manifest.Files); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"runtime/relay", "runtime/trust", "secrets/web", "secrets/authz", "secrets/frps"} {
+		entries, err := os.ReadDir(filepath.Join(bundle, filepath.FromSlash(name)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range entries {
+			if bytes.Equal(read(name+"/"+entry.Name()), key) {
+				t.Fatal("signing key exposed outside issuer state")
+			}
+		}
+	}
+	if err := os.WriteFile(filepath.Join(bundle, filepath.FromSlash(relayRuntimeFiles[1])), read("secrets/issuer/initial/relay-key.pem"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkRelayFiles(bundle, config, false); err == nil {
+		t.Fatal("mixed generation accepted")
+	}
+	if err := os.WriteFile(filepath.Join(bundle, filepath.FromSlash(relayRuntimeFiles[1])), next.Key, 0600); err != nil {
+		t.Fatal(err)
+	}
+	other, err := relaycert.Create("other.example.com", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bundle, filepath.FromSlash(relayRuntimeFiles[2])), other.CA, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkRelayFiles(bundle, config, false); err == nil {
+		t.Fatal("unbacked runtime authority accepted")
 	}
 }
