@@ -7,7 +7,9 @@ Caddy in the bundled deployment, or the administrator's external reverse proxy.
 NetHub must not create a competing ACME manager for that same hostname.
 
 This records the confirmed product scope and a proposed implementation. Certificate
-automation is not implemented by the protocol foundation. The earlier private
+automation is not established by the protocol foundation. Same-root relay
+renewal/application is implemented and tested; authenticated trust transitions
+and the full router GUI lifecycle remain open. The earlier private
 manual-renewal proposal is superseded; it is not an accepted operational design.
 
 ## PSP findings
@@ -141,10 +143,27 @@ The owner's answer includes router GUI certificates in v1. Implementation and
 native acceptance remain pending; the existing self-signed test certificate is
 not evidence of this feature.
 
-Use DNS-01 for each assigned device hostname: public HTTP cannot reach a router
-behind NAT, and the relay must continue forwarding the router's own TLS without
-terminating it. Keep DNS-provider credentials at the issuance boundary. The
-control plane must authorize the current device, tenant and hostname assignment
+Prefer central HTTP-01 when the assigned device DNS reaches the relay and its
+public port 80 can serve validation requests. The router can remain behind NAT:
+the relay serves the validation resource while the device retains its private
+key and terminates its own GUI TLS through frps. HTTP-01 validates a resource on
+the requested domain's port 80; it does not require that resource to live on the
+router. This follows [RFC 8555 section 8.3](https://www.rfc-editor.org/rfc/rfc8555.html#section-8.3)
+and corrects the earlier DNS-01-only assumption. DNS-01 remains an optional
+provider-specific fallback; keep provider credentials at the issuance boundary.
+
+Publish only bounded, exact host/token/key-authorization records from the isolated
+issuer into a public-only directory outside the private deployment tree. Mount
+it read-only in the selected proxy; do not give web/authz write access or serve
+arbitrary application-provided validation responses. Keep account keys, PEM and
+private metadata outside that directory. Explicit HTTP routing must return 404
+for unmatched hosts/paths, prevent traversal and remove expired records, without
+causing the proxy to request device GUI certificates itself. Existing host
+proxies need an equivalent reviewed port-80 route. This routing and a local
+ACME integration are still unimplemented; protocol inspection is not issuance
+evidence.
+
+The control plane must authorize the current device, tenant and hostname assignment
 before issuance or deployment; neither a pasted hostname nor a signed claim
 alone grants that authority. Public certificate issuance exposes names in
 Certificate Transparency logs, so the accepted source-IP gate remains required.
@@ -158,7 +177,12 @@ assigned name. The issuer returns the public chain; the GUI private key stays on
 that device. The CSR validator checks proof of key possession, exact DNS identity
 and a restricted request profile; it does not establish tenant/device
 authorization. The API must authorize the current assignment before submitting a
-job. Authenticated CSR/chain transport, device key persistence and installation
+job and bind the accepted public key to that enrolled device. Ordinary web/authz
+writes cannot replace this binding; rotations need proof from the previous key.
+CSR validation alone does not establish that binding. The chain validator now
+checks the returned leaf against the exact signed CSR and independently supplied
+roots, including identity, server usage, ordered chain and current validity.
+Authenticated CSR/chain transport, device key persistence and installation
 remain pending; never send keys through command
 arguments, logs, ordinary console status or audit payloads.
 

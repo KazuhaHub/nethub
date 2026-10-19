@@ -280,3 +280,24 @@ module tidy because x/sys needed promotion from indirect to direct; no merge is
 authorized from that run. The corrected dependency metadata and extra runtime
 container/source-independence checks require another exact-head CI run. Native
 public maintenance acceptance and the remaining certificate scope stay open.
+
+## Same-root maintenance acceptance and GUI chain follow-up
+
+PR #56 merged as 689e8e9 after six checks on d099ee803df258c5948b57aef0848169578ff473
+(run 39248588114). Genuine deployment logs confirm verified rollback, persisted
+generation reuse, two real clients, actual timer execution and 690 ms recovery
+in the isolated CI test. Native public acceptance passed with that exact CI host
+binary and earlier PR #51 application images: external verified control TLS saw
+the new leaf and both fixture routes recovered. Trigger-to-confirmation measured
+4.0 seconds with 17 failed and 62 successful fresh control/HTTP probes after the
+trigger. Original listeners were restored and 7000 closed before the independent
+timer was cancelled; the valid renewed generation and original CA were retained.
+See the detailed evidence and limits in deploy/validation-w4.md.
+
+The GUI follow-up validates returned chains against signed device CSRs and
+independent roots. Local tests/vet pass; current-head CI is still required.
+The proposed ACME flow now prefers central HTTP-01 where the relay can serve
+port 80, with optional DNS-01 fallback. NAT does not require DNS-01 when the relay
+can answer validation for the assigned name. No challenge publisher, ACME job,
+authenticated key binding or appliance installer is implemented by this change.
+Trust/ACK, CA rotation, expired-candidate replacement and W4-7/8/9 remain open.
