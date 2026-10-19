@@ -93,17 +93,20 @@ type window struct {
 }
 
 type Service struct {
-	repository Repository
-	signer     *claim.Keyring
-	relay      RelayConfig
-	certs      []*x509.Certificate
-	workers    chan struct{}
-	entropy    io.Reader
-	hash       func(string) (string, error)
-	now        func() time.Time
-	mu         sync.Mutex
-	windows    map[netip.Addr]window
-	sweepAfter time.Time
+	repository       Repository
+	signer           *claim.Keyring
+	relay            RelayConfig
+	certs            []*x509.Certificate
+	workers          chan struct{}
+	entropy          io.Reader
+	hash             func(string) (string, error)
+	now              func() time.Time
+	mu               sync.Mutex
+	windows          map[netip.Addr]window
+	sweepAfter       time.Time
+	deviceDummyHash  string
+	lifecycleWindows map[netip.Addr]window
+	lifecycleSweep   time.Time
 }
 
 func (s *Service) Health(ctx context.Context) error {
@@ -163,9 +166,13 @@ func New(repository Repository, signer *claim.Keyring, relay RelayConfig) (*Serv
 		return nil, ErrUnavailable
 	}
 	relay.CAPEM = canonicalPEM.String()
+	dummy, err := auth.HashPassword("device-authentication-timing-probe")
+	if err != nil {
+		return nil, ErrUnavailable
+	}
 	service := &Service{repository: repository, signer: signer, relay: relay, certs: certs,
 		workers: make(chan struct{}, 2), entropy: rand.Reader, hash: auth.HashPassword,
-		now: time.Now, windows: make(map[netip.Addr]window)}
+		now: time.Now, windows: make(map[netip.Addr]window), deviceDummyHash: dummy, lifecycleWindows: make(map[netip.Addr]window)}
 	if !service.trustValid(service.now()) {
 		return nil, ErrUnavailable
 	}

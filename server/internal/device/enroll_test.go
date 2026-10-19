@@ -72,7 +72,7 @@ func fixtureRelay(t *testing.T) RelayConfig {
 		Port: response.ServerPort, FRPToken: response.FRPToken, CAPEM: response.RelayCAPEM}
 }
 
-func fixtureService(t *testing.T, repository *fakeRepository) *Service {
+func fixtureService(t *testing.T, repository Repository) *Service {
 	t.Helper()
 	signer, err := claim.New("initial", map[string][]byte{"initial": bytes.Repeat([]byte{1}, 32)})
 	if err != nil {

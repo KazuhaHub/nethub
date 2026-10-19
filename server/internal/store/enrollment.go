@@ -22,7 +22,10 @@ func (s *EnrollmentStore) Health(ctx context.Context) error {
 		return device.ErrUnavailable
 	}
 	var ready bool
-	err := s.DB.QueryRowContext(ctx, `SELECT current_user='nethub_authz' AND NOT rolsuper AND NOT rolbypassrls AND has_function_privilege(current_user,'public.consume_enroll_token(bytea)','EXECUTE') FROM pg_roles WHERE rolname=current_user`).Scan(&ready)
+	err := s.DB.QueryRowContext(ctx, `SELECT current_user='nethub_authz' AND NOT rolsuper AND NOT rolbypassrls
+ AND has_function_privilege(current_user,'public.consume_enroll_token(bytea)','EXECUTE')
+ AND has_function_privilege(current_user,'public.lookup_device_credential(uuid)','EXECUTE')
+ FROM pg_roles WHERE rolname=current_user`).Scan(&ready)
 	if err != nil || !ready {
 		return device.ErrUnavailable
 	}

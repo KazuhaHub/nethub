@@ -64,7 +64,8 @@ func (s *ConsoleStore) Devices(ctx context.Context, actor string, query web.Devi
 	rows, err := tx.QueryContext(ctx, `SELECT d.id,d.label,d.hostname,d.subdomain,d.platform,d.platform_version,d.agent_version,
  to_json(d.capabilities),d.cluster_hint,
  coalesce(d.last_seen_at>statement_timestamp()-interval '45 seconds' AND d.last_seen_at<=statement_timestamp(),false),
- d.last_seen_at,d.enrolled_at,d.revoked,d.revoked_at,owner.id,owner.email
+ d.last_seen_at,d.enrolled_at,d.revoked,d.revoked_at,owner.id,owner.email,
+ d.service_state,d.last_report_at,d.last_reconcile_success,d.last_reconcile_at
  FROM devices d JOIN users actor ON actor.tenant_id=d.tenant_id
  JOIN users owner ON owner.tenant_id=d.tenant_id AND owner.id=d.owner_user_id
  WHERE actor.id=$1 AND actor.disabled_at IS NULL AND (actor.role='admin' OR d.owner_user_id=actor.id)
@@ -80,7 +81,8 @@ func (s *ConsoleStore) Devices(ctx context.Context, actor string, query web.Devi
 		var device web.Device
 		var capabilities []byte
 		if err = rows.Scan(&device.ID, &device.Label, &device.Hostname, &device.Subdomain, &device.Platform, &device.PlatformVersion, &device.AgentVersion,
-			&capabilities, &device.ClusterHint, &device.Online, &device.LastSeenAt, &device.EnrolledAt, &device.Revoked, &device.RevokedAt, &device.Owner.ID, &device.Owner.Email); err != nil {
+			&capabilities, &device.ClusterHint, &device.Online, &device.LastSeenAt, &device.EnrolledAt, &device.Revoked, &device.RevokedAt, &device.Owner.ID, &device.Owner.Email,
+			&device.ServiceState, &device.LastReportAt, &device.LastReconcileSuccess, &device.LastReconcileAt); err != nil {
 			rows.Close()
 			return web.DevicePage{}, err
 		}
