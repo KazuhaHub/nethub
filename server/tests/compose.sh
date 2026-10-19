@@ -152,7 +152,9 @@ if [ "${NETHUB_BROWSER_TEST:-0}" = 1 ]; then
         mkdir -p "$NETHUB_BROWSER_EVIDENCE"
         for name in login.png empty-inventory.png enrollment-masked.png mobile.png results.json; do
             cp "$stage/browser/$name" "$NETHUB_BROWSER_EVIDENCE/$name"
+            chown "${SUDO_UID:-0}:${SUDO_GID:-0}" "$NETHUB_BROWSER_EVIDENCE/$name"
         done
+        chown "${SUDO_UID:-0}:${SUDO_GID:-0}" "$NETHUB_BROWSER_EVIDENCE"
     fi
 fi
 compose logs --no-color > "$stage/runtime.log"

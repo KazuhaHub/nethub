@@ -66,3 +66,11 @@ expiry, reauthentication, and logout. No production test routes are added.
 Screenshots mask the token field; raw credentials/session state/traces are not
 uploaded. CI must pass this script before these flows are called accepted.
 The loopback test accepts Caddy's internal CA and does not prove public ACME.
+
+The first deployed run completed the UI flow but its blanket network assertion
+counted one cancellation. A local instrumented run reproduced Chromium reporting
+`net::ERR_ABORTED` after receiving logout HTTP 204. The test now distinguishes
+only that exact path/status/error combination, permits at most one, and separately
+verifies cookie removal plus a protected endpoint returning 401. All other failed
+requests remain fatal and receive sanitized path/status diagnostics. The expected
+logout cancellation count is included in the summary; it is not hidden as zero.

@@ -80,7 +80,8 @@ try {
   let cspViolations = 0;
   let browserErrors = 0;
   let externalRequests = 0;
-  let failedRequests = 0;
+  const failedRequests = [];
+  const responseStatuses = new WeakMap();
   await context.exposeBinding("recordDeploymentCSP", () => cspViolations++);
   await context.addInitScript(() => {
     document.addEventListener("securitypolicyviolation", () =>
@@ -88,7 +89,17 @@ try {
     );
   });
   page.on("pageerror", () => browserErrors++);
-  page.on("requestfailed", () => failedRequests++);
+  page.on("response", (response) =>
+    responseStatuses.set(response.request(), response.status()),
+  );
+  page.on("requestfailed", (request) => {
+    const reason = request.failure()?.errorText || "unknown";
+    failedRequests.push({
+      path: new URL(request.url()).pathname,
+      reason: /^net::ERR_[A-Z_]+$/.test(reason) ? reason : "unknown",
+      status: responseStatuses.get(request) ?? null,
+    });
+  });
   page.on("request", (request) => {
     if (!request.url().startsWith(origin + "/")) externalRequests++;
   });
@@ -226,10 +237,36 @@ try {
   );
   await page.reload();
   await page.getByRole("heading", { name: "Sign in to NetHub" }).waitFor();
+  assert.equal(
+    await page.evaluate(async () => {
+      const response = await fetch("/api/v1/console/devices", {
+        credentials: "same-origin",
+      });
+      await response.text();
+      return response.status;
+    }),
+    401,
+  );
   assert.equal(cspViolations, 0, "CSP violations occurred");
   assert.equal(browserErrors, 0, "Browser script errors occurred");
   assert.equal(externalRequests, 0, "Unexpected external requests occurred");
-  assert.equal(failedRequests, 0, "Network requests failed");
+  // Chromium may report ERR_ABORTED after receiving logout's empty 204.
+  // Cookie removal and the protected 401 above independently prove logout.
+  const expectedCancellations = failedRequests.filter(
+    (request) =>
+      request.path === "/api/v1/console/logout" &&
+      request.status === 204 &&
+      request.reason === "net::ERR_ABORTED",
+  );
+  const unexpectedFailures = failedRequests.filter(
+    (request) => !expectedCancellations.includes(request),
+  );
+  assert.ok(expectedCancellations.length <= 1);
+  assert.equal(
+    unexpectedFailures.length,
+    0,
+    "Unexpected network failures: " + JSON.stringify(unexpectedFailures),
+  );
   assert.equal(refusedConnections, 0, "Unexpected proxy destinations occurred");
   const runtimeLog = docker(["logs", webContainer]);
   for (const secret of [...tokens, session.value, renewed.value, password]) {
@@ -249,7 +286,8 @@ try {
         cspViolations,
         browserErrors,
         externalRequests,
-        failedRequests,
+        unexpectedNetworkFailures: unexpectedFailures.length,
+        expectedLogoutCancellations: expectedCancellations.length,
         checked: [
           "initial administrator login",
           "session cookie",
@@ -269,7 +307,7 @@ try {
     ),
   );
   console.log(
-    "Deployed browser flows passed against Caddy/PostgreSQL: zero CSP violations, browser errors, external requests, or network failures.",
+    "Deployed browser flows passed against Caddy/PostgreSQL: zero CSP violations, browser errors, external requests, or unexpected network failures.",
   );
 } finally {
   await browser?.close();
