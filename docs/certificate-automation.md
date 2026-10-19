@@ -1,8 +1,8 @@
 # Certificate automation scope and design
 
 Kazuha requested automatic renewal, distribution and configuration on 2026-10-18,
-with PSP as a reference. He then selected console/relay scope for v1 and kept
-router Web UI certificates in v1.1. Console HTTPS belongs to the reverse proxy:
+with PSP as a reference. His selection of option 2 brings router Web UI
+certificate issuance, installation and renewal into v1 as well. Console HTTPS belongs to the reverse proxy:
 Caddy in the bundled deployment, or the administrator's external reverse proxy.
 NetHub must not create a competing ACME manager for that same hostname.
 
@@ -41,7 +41,7 @@ independently licensed library if needed, rather than copying the service.
 | Deployment CA private key | Protected issuance state, outside web/authz/frps runtime containers and ordinary API responses |
 | Relay leaf certificate/key | Automated isolated issuance job renews it; frps receives only its leaf/key and applies a changed generation |
 | Public relay trust bundle | Authz distributes it over verified console HTTPS; agents validate, apply and acknowledge a generation |
-| Router GUI certificate/key | v1.1; no new GUI certificate installation/configuration authority is granted in v1 |
+| Router GUI certificate/key | v1 automatically obtains, renews and installs a certificate for the device's assigned remote hostname through a platform-specific adapter |
 
 Renewing a relay leaf under the existing CA needs no device trust replacement.
 CA rotation is a separate staged operation. The server-authentication design
@@ -125,5 +125,42 @@ ordinary overlap would retain trust in the compromised key.
   transition without silently stranding it.
 - Invalid/expired material is rejected. Root private keys remain outside runtime
   mounts, browser responses and logs; restore issuance state from private backup.
-- Console TLS renewal remains owned by the selected reverse proxy. No v1 action
-  modifies the router GUI certificate or its configuration.
+- Console TLS renewal remains owned by the selected reverse proxy.
+- Router certificate issuance, renewal and installation succeed on OPNsense,
+  including a fresh browser connection through the TLS passthrough relay.
+  Reject a wrong hostname, mismatched key, expired material and another device's
+  assignment. Failed installation preserves or restores the prior working GUI.
+- Exercise renewal retries, unchanged-content suppression, device offline/rejoin,
+  and configuration persistence across reboot. Record the GUI interruption and
+  verify that local management and both GUI security checks remain available.
+
+## Router GUI certificates in v1
+
+This corrects the earlier scope record, which read option 2 as console/relay-only.
+The owner's answer includes router GUI certificates in v1. Implementation and
+native acceptance remain pending; the existing self-signed test certificate is
+not evidence of this feature.
+
+Use DNS-01 for each assigned device hostname: public HTTP cannot reach a router
+behind NAT, and the relay must continue forwarding the router's own TLS without
+terminating it. Keep DNS-provider credentials at the issuance boundary. The
+control plane must authorize the current device, tenant and hostname assignment
+before issuance or deployment; neither a pasted hostname nor a signed claim
+alone grants that authority. Public certificate issuance exposes names in
+Certificate Transparency logs, so the accepted source-IP gate remains required.
+
+Separate issuer, distribution and installation interfaces. The shared protocol
+describes certificate generations and verified installation status; only the
+OPNsense adapter writes the OPNsense certificate store and selects the GUI
+certificate under the native configuration lock. Future router systems provide
+their own adapters. Define and validate the private-key custody and authenticated
+delivery contract before adding those fields; never send keys through command
+arguments, logs, ordinary console status or audit payloads.
+
+Persist issued material separately from deployment state, retry deployment
+without reissuing, and require a verified applied generation. Validate SAN,
+chain, validity and key agreement before changing GUI configuration. Retain
+last-good state and use a bounded service-specific apply/rollback operation.
+Spread renewal schedules and retain actionable expiry/failure status for offline
+devices. Provider support and key custody details are still design work, not
+implemented or owner-approved defaults.

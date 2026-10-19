@@ -194,7 +194,7 @@ KKazuhaK/OPNsense-repo            ← 只有打包配方，不含 NetHub 源码
 | 6 | 设备侧是否需要常驻 daemon | **不需要**，唯一常驻进程是 vendored `frpc` | 自写 Go/Python `agentd` | 在线状态 = frpc 控制连接是否存活，frp 自己已经在维护 | 低 |
 | 7 | 租户模型 | **v1 就上 `owner_user_id` + Postgres `FORCE ROW LEVEL SECURITY`**，但不做递归 org 树 | 完全不做 RLS；第一天上完整 org 树 | 自建 = 一个组织一个实例，**递归 org 树/计费**确实可以推迟；但 RLS 是防御纵深，防的是代码 bug。企业实例里天然有多个管理员、多个部门，任何一条查询忘了加过滤就是越权。几十行迁移脚本换"哪怕 handler 漏了 WHERE，DB 也返回空集"。**v0.3 注**：v1 每个实例恰好一个租户，所以租户级 RLS 在 v1 防的是"`app.tenant_id` 设错/漏设"一类 bug，并让 v3 多租户不用补课；租户**内**按用户的隔离（`member` 只看自己的设备）是应用层的 `owner_user_id` 过滤，不是 RLS 提供的（§6） | 低 |
 | 8 | 首个账号与准入 | **Run `nethub init`, start PostgreSQL/migrate, then create the first administrator with `nethub admin create`**（本地密码，argon2id，作为 break-glass 账号长期保留）；其他人只能经管理员**邀请**加入（一次性链接、只存哈希、会过期），接受邀请时设置密码或用 OIDC 登录完成绑定；设备侧用一次性 enroll token 带外交付 | 公开自助注册（不适用于自建）；OIDC JIT 自动开户（v1 不做，按域名白名单的 JIT 可作为以后的选项） | 自建项目的边界天然就是实例本身。v0.2 曾以"v1 无意义"否决邀请制，前提是 v1 只有安装者一个账号；v1 改为多用户后（用户 2026-09-17），邀请就是最窄的准入方式 | 低 |
-| 9 | 远程 UI 的 TLS 信任模型 | v1 **接受**自签名证书 + 浏览器警告；v1.1 用 DNS-01 给每台设备独立签发 Let's Encrypt 证书 | v1 就上通配符证书、控制面终止 TLS 再转发 | 自签名警告确实会训练用户"看到警告就点过去"，这条批评成立——但它指向的修复点是**决策 #4（域名归属）**而不是证书类型：域名归属校验若是坏的，攻击者照样能给钓鱼后端签出同一子域名的"真"证书。另注意 v1.1 的每设备证书会进入 Certificate Transparency 日志，主机名从此可枚举（见 Q7） | 中 |
+| 9 | Remote UI TLS trust | v1 includes per-device DNS-01 certificates, automatic installation and renewal (owner option 2; corrected 2026-10-19) | Shared wildcard private keys or terminating router TLS at the control plane | Certificates do not replace domain-assignment authorization. Public certificates expose hostnames through CT; enforce the source-IP gate. See certificate-automation.md for pending implementation and acceptance. | Medium |
 | 10 | 本地熔断开关 | 独立 flat file `/var/db/nethub-agent/disabled`，reconcile 每次运行前先查 | 只用 config.xml 里的 `Enabled` 字段 | 提前建立"本地永远优先、控制面只能优雅降级" | 低 |
 | 11 | 是否复用 `common/config_backup.py` | **v1 完全不用** | 把凭证或渲染出的 `frpc.toml` 镜像进 config_backup | `config_backup` 是给"daemon 在 config.xml 之外维护状态"的场景用的；本插件的凭证是普通 MVC 标量字段，`frpc.toml` 是它们的确定性渲染产物，恢复后重渲染一次即可 | 低 |
 | 12 | 打包管线 | 复用仓库统一 native 管线：`packaging/plugins.json` 加一条 entry（`staging: tree`、`abi: target`、`deps: {"python313": "lang/python313"}`），与 os-staticarp / os-easytier / os-ddns-go / os-lucky / os-sing-box 写法一致（截至 2026-10-16，`plugins.json` 的 13 个 entry 里有 6 个声明 `python313` 依赖，其中这 5 个同时是 `tree` + `target`） | 官方 `Mk/plugins.mk` | 和现有 13 个插件（截至 2026-10-16）走同一条已跑通的构建/签名/发布流程 | 低 |
@@ -254,7 +254,7 @@ src/os-nethub-agent/
 |---|---|
 | `enroll` with a private request-file path | The plugin form takes a separate HTTPS console origin and opaque token. agentctl reads and unlinks the checked 0600 request file, sends HTTPS to `/api/v1/devices/enroll`, validates bounded known response fields, and returns JSON. PHP validates the result again and saves through the OPNsense model/configuration lock before reconcile; Python never writes config.xml. Tokens and returned secrets never enter command arguments or logs. An existing DeviceId returns success without another enrollment request. Wire schemas are W4 work; see [confirmed choices](w4-decisions.md). |
 | `reconcile` | 先查 kill switch 文件（决策 #10）→ 渲染 `frpc.toml` 到临时文件 → `frpc verify` 通过才 `mv` + 按需 restart（决策 #13）；不通过则保留旧文件、写本地状态、**不重启**。WAN changes rely on reconnect and periodic reconcile; only the measured fallback uses a debounced hook (decision #17) |
-| `status` | rc.d 状态 + 本插件 frpc 日志的尾部 + 上次 reconcile 的结果/失败原因 + 证书剩余天数（v1.1），拼 JSON 给 GUI。**不启用 frpc 的 `[webServer]`**（原因见下方共存规则）；设备在不在线由控制面另行通过 `last_seen_at` 掌握 |
+| `status` | rc.d 状态 + 本插件 frpc 日志的尾部 + 上次 reconcile 的结果/失败原因 + certificate expiry and verified deployment state (v1)，拼 JSON 给 GUI。**不启用 frpc 的 `[webServer]`**（原因见下方共存规则）；设备在不在线由控制面另行通过 `last_seen_at` 掌握 |
 | `unenroll` | 停服务、清空凭证字段、通知控制面注销 |
 | `rotate` | 拉一套新凭证/新中继地址，原地更新并 reconcile 一次，不需要重走带外流程（决策 #18） |
 
@@ -332,7 +332,7 @@ src/os-nethub-agent/
 
 ### Certificate lifecycle ownership (Kazuha, 2026-10-18)
 
-Console HTTPS is owned by the reverse proxy: bundled Caddy or an administrator-managed external proxy. NetHub does not maintain a competing certificate manager for that hostname. v1 adds automatic relay certificate renewal/application and authenticated distribution of public relay trust. CA private keys stay outside web/authz/frps runtime containers. Router GUI certificate installation remains v1.1. The [PSP source review and proposed execution design](certificate-automation.md) describe retries, generation acknowledgements, verified application and backup boundaries; these are not implemented features yet.
+Console HTTPS is owned by the reverse proxy: bundled Caddy or an administrator-managed external proxy. NetHub does not maintain a competing certificate manager for that hostname. v1 adds automatic relay certificate renewal/application and authenticated distribution of public relay trust. CA private keys stay outside web/authz/frps runtime containers. The owner selected option 2: router GUI certificate issuance, automatic installation and renewal are also required in v1. This corrects the earlier scope record on 2026-10-19. The [PSP source review and proposed execution design](certificate-automation.md) describe retries, generation acknowledgements, verified application and backup boundaries; these are not implemented features yet.
 
 ### 域名归属校验（决策 #4 的落地）
 
@@ -750,7 +750,7 @@ v0.3 的"只追加"授权让误操作更难，但不改变这个结论。
 2. 一条**通配符 A/AAAA 记录** `*.router.example.com` → 中继服务器 IP（subdomain-per-device 的硬前提）；
 3. 服务器的 **443**（控制台 + 设备 enroll API）、**7000**（frps `bindPort`，设备控制通道，TLS）与
    **8443**（vhost-https，浏览器 → 设备）可从公网访问；
-4. v1.1 起：DNS-01 所需的 DNS 服务商 API token（用于每设备独立证书）。
+4. v1: protected DNS-provider API credentials for per-device DNS-01 issuance; keep these outside device agents and ordinary application responses.
 
 ### `nethub init` 交互式向导（`nethub` 二进制的子命令，Weekend 3 就要有雏形）
 
@@ -823,7 +823,7 @@ OIDC 提供方不在 init 里配：init 完成后由管理员在控制台里添�
 | config.xml 写入安全 | 幂等 + 字段白名单 + 复用全局配置锁（决策 #16） |
 | 灰度与回滚 | canary 发布（#15）+ 验证后才应用（#13）+ 独立看门狗回滚一次（#14） |
 | CARP/HA | frpc reconnect + periodic reconcile; debounced hook only if W2 recovery fails; console labels and alert-only anomaly handling (#17) |
-| 证书批量到期 | v1.1 存量迁移**打散签发时间**（按 device_id 哈希分桶）；到期前 30 天开始重试；`status` 上报剩余天数，<14 天标红 |
+| 证书批量到期 | v1 certificate rollout**打散签发时间**（按 device_id 哈希分桶）；到期前 30 天开始重试；`status` 上报剩余天数，<14 天标红 |
 | 供应链 | frps/frpc 锁同版本 + CI 一致性检查（#19，两个包各带 `FRP_VERSION`）；signing hosts excluded except the owner-approved packaging test host (#20)；`authcore` 钉到核实过的 tag（#23） |
 | 可观测性 | 部署文档提供 uptime 监控接入示例（自建者自己接）；`doctor` 可定期跑 |
 
@@ -968,7 +968,8 @@ enroll 流程里提示"确认拥有独立于本产品之外的带外访问手段
 
 | 版本 | 内容 | 粗估 |
 |---|---|---|
-| **v1.1** | DNS-01 broker + 每设备独立 Let's Encrypt 证书（存量**打散签发时间**，避免到期扎堆撞限速）——注意证书会进入 CT 日志，主机名从此可枚举，Q7 的门禁因此更重要；续期失败告警；arm64 打包；评估 mTLS（Q1） | 2–4 周（v0.2 的估算，未含 SAML 与 mTLS 评估） |
+| **v1 certificate scope addition** | Per-device DNS-01 public certificates, automatic installation and renewal, staggered issuance, expiry/failure alerts and verified platform-specific application. CT exposes hostnames; retain the source-IP gate. | Re-estimate after issuer and key-custody design; not implemented yet |
+| **v1.1** | arm64 packaging; evaluate mTLS (Q1) | Previous estimate predates the certificate scope change |
 | **v1.2 遥测** | 已装 `os-telegraf` 的设备，agent 读本地 `127.0.0.1:9273` 转发摘要指标；控制面加一张 `device_metrics` 表 + 折线图 | 2–3 周 |
 | **v2 配置备份** | agent 定期用**设备自身派生的** AES-256-GCM key 本地加密 `/conf/config.xml` 后上传；控制面只存密文、**不持有解密能力**。仿 pfSense AutoConfigBackup 做滚动保留，不做 diff | 2 周 |
 | **v2.5 配置下发** | 最难的一步。Postgres "intent" + Jinja2 全量渲染子树 + 3-way diff（仅展示漂移）+ **独立于 agent 进程之外的本地 commit-confirm 看门狗**（`rc.syshook config` + `bectl` 命名快照）+ interface 名漂移解析 + CARP master 探测。开工前必须单独跑一轮 CARP/接口漂移真机验证。（v0.3 注：控制面已改为 Go，渲染放在设备侧还是服务端随 v2.5 设计再定） | 3–5 周 |
@@ -987,7 +988,7 @@ enroll 流程里提示"确认拥有独立于本产品之外的带外访问手段
 ### 明确接受的风险
 
 - 设备侧凭证明文落盘（与 OPNsense 自身存 API key 的方式同级）。
-- v1 自签名证书浏览器警告（v1.1 有明确修复路径；根因层面的域名劫持已在决策 #4 修复）。
+- Pending or failed device certificate deployment can still produce browser warnings; v1 acceptance requires automatic public certificate installation and renewal. Domain ownership remains independently enforced by decision #4.
 - **Measured fail-closed behavior:** Login/NewProxy denial and HTTP 500 block
   registration. Hanging hooks block control progress; internal deadlines are required.
 - **D6 availability cost:** Ping-based revocation makes authz availability a
@@ -1010,7 +1011,7 @@ enroll 流程里提示"确认拥有独立于本产品之外的带外访问手段
   **无技术防线**，runbook 写清"重启后失联第一排查项：检查默认路由与 gateway monitoring"。
 - `rotate` 依赖设备在线：强制轮换窗口内恰好离线的设备需要手动重走 enroll。
 - The designated packaging test host may also run NetHub under the owner's revised decision #20. Signing material present on that host shares its compromise boundary. Other signing hosts remain excluded; offline signing remains Q4.
-- **设备 GUI 公网暴露（Q7）**：知道或猜到主机名就能打到 OPNsense 登录页；v1.1 证书进 CT 日志后主机名可枚举。
+- **设备 GUI 公网暴露（Q7）**：知道或猜到主机名就能打到 OPNsense 登录页；v1 public certificates enter CT, so 主机名可枚举。
   D7 gates new connections by source IP, but shared CGNAT peers can share authorization and existing connections can outlive expiry. OPNsense login and two-step verification remain necessary.
 - **IdP 或 IdP 账号被攻破**：等于拿到所有与之绑定的用户的控制台访问（若绑定的是 admin，就是管理员权限：
   发邀请、撤销全部设备、看审计）。边界由决策 #4 限定：照样拿不到已有子域名的有效声明、改不了归属、读不了 config.xml；
@@ -1043,14 +1044,14 @@ W0 confirmed D6/D7 mechanisms on the stock client. Backend hangs can leave admin
 | 4 | 批量升级把一片设备变砖 | 新版模板有 bug → 渲染坏配置 → `verify` 失败 → restart 失败 → 停机且无人重试（`daemon(8)` 故意不带 `-r`） | #13 验证后应用 + #14 独立看门狗回滚一次 + #15 canary |
 | 5 | Agent bug 写坏 config.xml | enroll/reconcile/unenroll 高频脚本化写路径 | #16 幂等 + 白名单 + 全局配置锁 |
 | 6 | CARP 双机惊群式重连 | failover → 两台几乎同时 `newwanip` → 撞上轮询判定 | #17 reconnect + periodic reconcile, conditional debounced fallback + HA labels + alert-only handling |
-| 7 | 证书批量到期集中失效 | v1.1 存量同批迁移，90 天窗口高度集中 | 打散签发时间 + 提前 30 天重试 + 剩余天数上报 |
+| 7 | 证书批量到期集中失效 | v1 simultaneous certificate issuance，90 天窗口高度集中 | 打散签发时间 + 提前 30 天重试 + 剩余天数上报 |
 | 8 | **签名私钥被当跳板：控制面渗透升级为全生态沦陷** | 场景 1 成立 + 受害机恰好持有仓库全部插件（截至 2026-10-16 共 13 个）的签名私钥 | Default exclusion under #20; the owner-approved packaging test host is an explicit exception and retains this risk. Offline signing remains Q4 |
 | 9 | 设备失联却没法远程修 | 重启后默认路由未装载（26.7 的 core#10597 已在 26.7.1_1 修复，同类故障仍可能由别的原因引起） | 要求 26.7.1_1 或更新；此类故障**无技术防线**，runbook 兜底 |
 | 10 | 8443 在受限网络不可达 | 非标准端口被运营商/公司网络封锁，恰在最需要的"手机 4G 打开 GUI"场景失效 | Weekend 0 实测数据（443 基线与 8443 同一循环交替采样）→ Q2 决策规则 |
 | 11 | 中继地址/token 需轮换但设备离线 | 迁移或泄露触发强制轮换 | #18 `rotate`（在线设备原地轮换）；离线设备仍需手动，已接受 |
 | 12 | **部署者丢失密钥** | 决策 #21 的代价：没有任何人能替他找回 | `init` 强制备份提示 + `doctor` 检查备份是否存在 |
 | 13 | **OIDC 账号接管：按 email 绑定** | 攻击者在某个已配置的 IdP 上拿到一个 email 与受害者相同的账号（例如该 IdP 不验证邮箱、发出可变的 email 声明，或者是一个管理员能把任意 email 标成已验证的自建 IdP）→ 如果控制面按 email 认人，就直接登成受害者；如果只凭 email 认领待处理邀请，就领走发给别人的邀请（可能是 admin 角色） | 只按 `(iss, sub)` 绑定（决策 #22）；新绑定必须从邀请链接发起，邀请 token 有效、`email_verified=true`、email 与邀请一致同时成立，不把 `email_verified` 当作跨 IdP 可信的证据；可选把邀请限定到一个提供方；不做 JIT；W6 验收"只凭 email 的绑定被拒绝""没有邀请链接、经另一个 IdP 认领邀请被拒绝" |
-| 14 | **经中继爆破或利用设备 GUI** | 主机名被猜到（v1.1 起可从 CT 日志枚举）→ 直接访问 `https://<subdomain>.<domain>:8443` → 对 OPNsense 登录页爆破，或利用 GUI 漏洞 | Q7 的 `NewUserConn` 源 IP 门禁(D7 confirmed, 2026-10-18)+ OPNsense 自带 TOTP 两步验证；子域名随机生成提高 v1 的猜测成本 |
+| 14 | **经中继爆破或利用设备 GUI** | 主机名被猜到（v1 public certificates make names enumerable through CT）→ 直接访问 `https://<subdomain>.<domain>:8443` → 对 OPNsense 登录页爆破，或利用 GUI 漏洞 | Q7 的 `NewUserConn` 源 IP 门禁(D7 confirmed, 2026-10-18)+ OPNsense 自带 TOTP 两步验证；子域名随机生成提高 v1 的猜测成本 |
 
 ---
 
@@ -1072,7 +1073,7 @@ AGPL 能替你保住的东西不多。**唯一该选 AGPL 的情况**：你觉�
 **Q1：域名归属完整性，用轻量的「签名声明」还是红队建议的「设备级 mTLS + 提前到 v1」？**
 推荐 **v1 用签名声明，v1.1 再评估 mTLS**。签名声明已经解决了核心问题——DB 单点被篡改不再等于域名可劫持；
 mTLS 需要一整套设备端 PKI（签发/分发/吊销/CA 维护），对 W0–W7 的 MVP 不成比例。
-而 v1.1 本来就要为 UX 上每设备独立证书，到时顺带评估复用同一套基础设施做 mTLS 是否更合算。
+Per-device GUI certificates are now included in v1. They authenticate the GUI server, not the device to the control plane; mTLS evaluation remains v1.1 and needs its own authorization and lifecycle design.
 
 **Q2 / D5 (confirmed 2026-10-18): retain 8443 for v1.**
 Two mobile networks each returned 20/20 TCP successes per port. Neither Q2 condition triggered. Company/campus sampling was explicitly waived and remains untested. Retain the following rule for future evidence.
@@ -1109,7 +1110,7 @@ v0.2 列过的其它候选（`sallyport` / `gatehouse` / `beacon`）不再考虑
 - SNI 透传下，`https://<subdomain>.<domain>:8443` 对任何知道或猜到主机名的人，都直接是这台设备的 OPNsense 登录页；
 - 控制台的登录和 SSO 不挡在它前面；
 - v0.2 一字未提，README 甚至建议"不要把 OPNsense Web UI 暴露到公网"——而 NetHub 做的恰恰是把它挂到公网上；
-- v1.1 起每设备公开证书会进入 Certificate Transparency 日志，主机名从此可枚举。
+- v1 per-device public certificates会进入 Certificate Transparency 日志，主机名从此可枚举。
 
 *与透传兼容的候选缓解：* 用 frps 的 server plugin op `NewUserConn`——frp 对每条进来的用户连接调用它，带 `remote_addr` 与代理名。
 

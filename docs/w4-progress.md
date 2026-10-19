@@ -74,9 +74,10 @@ and checks eligibility with the clock after both waits; authz still cannot read
 users directly. Subdomain conflicts use bounded savepoint retries. Boolean
 cluster_hint becomes nullable display text, never an authorization input.
 
-Local service/parser/store unit checks pass. Ordinary Go tests skip native
-database groups; inspect the current enrollment PR's genuine PostgreSQL CI before
-claiming its new rollback/race/schema-output cases passed. HTTP routes, runtime
+PR #43 merged as fea5cdc after all six checks passed on 1af30c3 (run
+39213468715). Genuine PostgreSQL tests passed schema/identity matching,
+concurrent single-use admission, signing/audit rollback and all three post-lock
+disable/expiry cases. Ordinary local Go tests skip these native database groups. HTTP routes, runtime
 key loading, authz listeners and the appliance UI are not implemented by this
 service/storage change. See [the service boundary and recovery limits](../server/internal/device/README.md).
 
@@ -92,8 +93,9 @@ service/storage change. See [the service boundary and recovery limits](../server
   check, with native/public evidence and credential-absence checks.
 
 D22 now requires automatic renewal, distribution and configuration based on the
-PSP review, with reverse-proxy-owned console TLS and router GUI certificates
-remaining v1.1. See [the automation design](certificate-automation.md). Execution,
+PSP review, with reverse-proxy-owned console TLS. The owner selected option 2,
+including router GUI certificate issuance, automatic installation and renewal in
+v1; the earlier v1.1 scope record was incorrect (corrected 2026-10-19). See [the automation design](certificate-automation.md). Execution,
 expiry and backup details still need implementation/validation; the earlier
 private manual-renewal proposal is superseded. The installed configd source review
 is retained outside Git. configd logs script stderr, so agent errors must never
