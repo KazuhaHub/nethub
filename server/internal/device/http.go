@@ -59,6 +59,26 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
 	w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+	if r.URL.Path == "/healthz" && r.URL.EscapedPath() == "/healthz" {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.Header().Set("Allow", "GET, HEAD")
+			deviceError(w, r, 405, "method_not_allowed", "Method not allowed")
+			return
+		}
+		if r.ContentLength != 0 || len(r.TransferEncoding) != 0 || r.URL.RawQuery != "" || r.URL.ForceQuery {
+			deviceError(w, r, 400, "invalid_request", "Invalid health request")
+			return
+		}
+		if err := s.service.Health(r.Context()); err != nil {
+			deviceError(w, r, 503, "unavailable", "Device service unavailable")
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		if r.Method != http.MethodHead {
+			_, _ = io.WriteString(w, "ok")
+		}
+		return
+	}
 	if strings.TrimSuffix(strings.ToLower(r.Host), ":443") != s.host {
 		deviceError(w, r, 400, "invalid_request", "Unrecognized console host")
 		return

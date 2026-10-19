@@ -17,6 +17,18 @@ type EnrollmentStore struct{ DB *sql.DB }
 
 var _ device.Repository = (*EnrollmentStore)(nil)
 
+func (s *EnrollmentStore) Health(ctx context.Context) error {
+	if s == nil || s.DB == nil {
+		return device.ErrUnavailable
+	}
+	var ready bool
+	err := s.DB.QueryRowContext(ctx, `SELECT current_user='nethub_authz' AND NOT rolsuper AND NOT rolbypassrls AND has_function_privilege(current_user,'public.consume_enroll_token(bytea)','EXECUTE') FROM pg_roles WHERE rolname=current_user`).Scan(&ready)
+	if err != nil || !ready {
+		return device.ErrUnavailable
+	}
+	return nil
+}
+
 func (s *EnrollmentStore) Register(ctx context.Context, record device.Registration, issue func(device.Assignment) (string, error)) (device.Assignment, error) {
 	if err := record.Validate(); err != nil {
 		return device.Assignment{}, err

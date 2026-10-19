@@ -62,6 +62,7 @@ type Assignment struct {
 
 // Register must consume, insert, sign and append audit in one transaction.
 type Repository interface {
+	Health(context.Context) error
 	Register(context.Context, Registration, func(Assignment) (string, error)) (Assignment, error)
 }
 
@@ -103,6 +104,15 @@ type Service struct {
 	mu         sync.Mutex
 	windows    map[netip.Addr]window
 	sweepAfter time.Time
+}
+
+func (s *Service) Health(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	if !s.trustValid(s.now()) || s.repository.Health(ctx) != nil {
+		return ErrUnavailable
+	}
+	return nil
 }
 
 func New(repository Repository, signer *claim.Keyring, relay RelayConfig) (*Service, error) {

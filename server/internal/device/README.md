@@ -1,8 +1,23 @@
 # Device enrollment service
 
-This is the admission/transaction layer and HTTP adapter for W4-3. The authz
-runtime, frp hooks and appliance enrollment UI remain unfinished. The handler is
-tested through HTTP but is not yet exposed by the deployment.
+This is the admission/transaction layer, HTTP adapter and enrollment runtime for
+W4-3. `nethub authz` can serve the handler on a private listener. Relay hooks,
+production Compose exposure and appliance enrollment UI remain unfinished.
+
+Runtime startup reads the deployment's lowercase 64-character hex claim key and
+frp token from private regular files, decoding the claim key into 32 raw bytes.
+Unix group/world-readable secrets and symlink files are refused. Relay CA input
+is public PEM and is bounded separately. No secret value is accepted through a
+command argument. Start after applying migrations and provide only the authz-role
+database password, never owner credentials. Keep this HTTP listener behind the
+verified HTTPS reverse proxy with explicitly configured trusted proxy CIDRs.
+
+`GET /healthz` (also HEAD) checks the authz database role/function access and the
+configured public trust validity with a two-second context bound. It does not
+prove that a relay is reachable or that the served relay leaf is current. The
+runtime bounds headers/read/write/idle times and drains requests on SIGTERM.
+Trust and keys are startup snapshots; automatic generation reload is still
+certificate-maintenance work.
 
 `NewHTTP` serves only `POST /api/v1/devices/enroll`. It checks the configured host,
 optional exact Origin, JSON media/encoding, canonical path and a 64 KiB body
@@ -56,4 +71,8 @@ conflicts, signing/audit rollback, and eligibility changes during user/token loc
 The admission/storage tests passed in run 39213468715. The HTTP follow-up changes
 the genuine harness to use a TCP HTTP server and validate its raw response against
 the shared schema, then compare it with committed identity and audit state. Its
-new native results require the HTTP PR's CI; ordinary local Go runs skip them.
+HTTP/database cases passed in run 39215217352; ordinary local Go runs skip them.
+The runtime follow-up additionally launches the compiled CLI in the isolated
+PostgreSQL container, checks readiness, enrolls through that process, verifies
+the loaded signing key, checks output for credentials and requests graceful
+termination. Its native result is pending runtime CI.

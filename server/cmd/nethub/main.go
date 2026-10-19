@@ -24,8 +24,8 @@ Commands:
   admin        Manage the initial administrator
   version      Print the build version
 
-Console, migration, first-admin creation, initialization, and scoped doctor checks
-are implemented. Device authorization remains unfinished.
+The console, migrations, first-admin setup, deployment initialization, scoped
+doctor checks, and device enrollment are implemented. Relay hooks remain unfinished.
 `
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -79,8 +79,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "doctor":
 		return runDoctor(args[1:], stdout, stderr)
 	case "authz":
-		fmt.Fprintf(stderr, "%s is not implemented in this foundation build\n", args[0])
-		return 1
+		return runAuthz(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintln(stderr, "Unknown command. Run nethub help for available commands.")
 		return 2

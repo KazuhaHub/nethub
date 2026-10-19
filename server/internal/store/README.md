@@ -19,11 +19,16 @@ the real initialization hook, migrations twice, and the Go integration test;
 then re-executes bootstrap and removes its own container/anonymous volume.
 A precompiled Linux test binary can be supplied with
 `NETHUB_DATABASE_TEST_BINARY=/absolute/path/database.test`.
+The harness also builds the Linux CLI for a real authz startup/enrollment/shutdown
+test. A precompiled invocation must additionally supply
+`NETHUB_AUTHZ_TEST_BINARY=/absolute/path/nethub`. Both executables and the shared
+protocol fixtures are copied into the isolated test container; no host ports
+are published.
 
 The Compose development file publishes PostgreSQL only on workstation loopback.
 It expects pre-generated service-specific files under the ignored
 `deploy/secrets/postgres` directory, owned by the image's postgres UID with mode
-0600. The init wizard that prepares deployment secrets is still future work.
+0600. The init wizard prepares service-separated deployment secrets.
 Do not use the disposable harness credentials for deployment. Existing database
 volumes do not rerun image entrypoint scripts; migration and credential rotation
 are explicit operations.
@@ -36,9 +41,10 @@ are the reference for the actual-role negative tests. A compromised web process
 can still exercise its granted console authority; member isolation is application
 store policy, not a claim that tenant RLS protects against compromised web SQL.
 
-SAML/OIDC HTTP flows, persistent SAML replay storage, Compose product startup,
-init/admin/doctor, and the browser UI remain unimplemented. Passing these database
-checks does not complete W3 or provide a complete console deployment.
+SAML/OIDC HTTP flows and persistent SAML replay storage remain W6 work. W3 console,
+initialization, first-admin and scoped doctor deployment evidence is recorded in
+deploy/validation-w3.md. Enrollment runtime coverage does not prove complete relay
+authorization, production authz Compose wiring or appliance enrollment acceptance.
 
 The tenant-bound AuthStore now supplies the local password/session service.
 Login rechecks the verified password and active user under a user-row lock.

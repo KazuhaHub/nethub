@@ -54,7 +54,17 @@ else
     (cd "$root/server" && CGO_ENABLED=0 GOOS=linux go test -c -o "$binary" ./internal/store)
 fi
 docker cp "$binary" "$name:/tmp/database.test"
+if [ -n "${NETHUB_AUTHZ_TEST_BINARY:-}" ]; then
+    authz_binary=$NETHUB_AUTHZ_TEST_BINARY
+else
+    authz_binary="$stage/nethub"
+    (cd "$root/server" && CGO_ENABLED=0 GOOS=linux go build -o "$authz_binary" ./cmd/nethub)
+fi
+docker cp "$authz_binary" "$name:/tmp/nethub"
+# The private host staging umask can produce owner-only executable permissions.
+# Only these disposable test executables need to run as the container's postgres.
+docker exec -u 0 "$name" chmod 0555 /tmp/database.test /tmp/nethub
 docker cp "$root/proto" "$name:/tmp/nethub-proto"
-docker exec -u postgres -e NETHUB_DATABASE_TEST=1 -e NETHUB_PROTOCOL_FIXTURES=/tmp/nethub-proto "$name" /tmp/database.test -test.v -test.timeout=120s
+docker exec -u postgres -e NETHUB_DATABASE_TEST=1 -e NETHUB_PROTOCOL_FIXTURES=/tmp/nethub-proto -e NETHUB_AUTHZ_TEST_BINARY=/tmp/nethub "$name" /tmp/database.test -test.v -test.timeout=120s
 # Re-execute the actual bootstrap hook and verify repeat initialization is safe.
 docker exec -u postgres -e POSTGRES_USER=postgres "$name" sh /docker-entrypoint-initdb.d/00-nethub-roles.sh >/dev/null
