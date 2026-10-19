@@ -46,13 +46,14 @@ compose = ["docker", "compose", "--project-name", project,
 try:
     engine = run(["docker", "version", "--format", "{{.Server.Version}}"], "engine").decode().strip()
     assert int(engine.split(".")[0]) >= 28, "Loopback origin isolation requires Docker Engine 28 or newer"
-    run(["docker", "run", "--rm", "-i", "--network", "none", "--user", "0",
+    initialized = run(["docker", "run", "--rm", "-i", "--network", "none", "--user", "0",
          "-v", f"{root}:{root}:ro", "-v", f"{stage}:{stage}", runtime,
          "init", "--offline", "--proxy-mode", "external", "--web-port", str(web_port),
          "--device-port", str(device_port), "--source-directory", str(root),
          "--directory", str(bundle), "--backup-directory", str(work / "backup"),
          "--console-host", "console.example.com", "--device-domain", "router.example.com"],
         "init", b"I HAVE VERIFIED THE NETHUB SECRET BACKUP\n")
+    assert b"docker compose build migrate postgres frps\n" in initialized and b"postgres frps caddy" not in initialized
     (work / "images.json").write_text(json.dumps({"services": {
         name: {"image": image} for name, image in {
             "postgres": postgres, "migrate": runtime, "admin-bootstrap": runtime,

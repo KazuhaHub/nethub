@@ -146,13 +146,20 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	fmt.Fprintln(stdout, "Deployment files prepared. Change into the requested deployment directory, then run:")
-	fmt.Fprintln(stdout, "  docker compose build migrate postgres caddy")
+	build := "  docker compose build migrate postgres frps"
+	if config.ProxyMode != "external" {
+		build += " caddy"
+	}
+	fmt.Fprintln(stdout, build)
 	fmt.Fprintln(stdout, "  docker compose up -d")
 	fmt.Fprintln(stdout, "  docker compose run --rm admin-bootstrap --email YOUR_EMAIL")
 	fmt.Fprintln(stdout, "  nethub doctor --directory .")
 	if *skipDNS {
 		fmt.Fprintln(stdout, "Offline preparation only: verify DNS, public TLS, and external reachability before claiming deployment readiness.")
 	}
-	fmt.Fprintln(stdout, "W3 console stack only; device enrollment and relay services are added in W4.")
+	if config.ProxyMode == "external" {
+		fmt.Fprintln(stdout, "Install external-Caddyfile.example or equivalent routing in the existing host HTTPS proxy; it owns console certificates. Origins bind only to loopback and require Docker Engine 28 or newer.")
+	}
+	fmt.Fprintln(stdout, "Appliance enrollment and automated certificate lifecycle acceptance remain unfinished.")
 	return 0
 }
