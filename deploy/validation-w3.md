@@ -80,3 +80,39 @@ only that exact path/status/error combination, permits at most one, and separate
 verifies cookie removal plus a protected endpoint returning 401. All other failed
 requests remain fatal and receive sanitized path/status diagnostics. The expected
 logout cancellation count is included in the summary; it is not hidden as zero.
+
+## Public certificate and browser acceptance
+
+A new Compose project, new database/certificate volumes, and new independent
+secret backups were prepared on the designated existing LXC. Runtime and helper
+images were built from pinned sources with separate temporary builders to bound
+disk use. The initializer's real DNS/backup/UID checks passed, migration exited
+successfully, and the one-shot administrator was created before public exposure.
+The Docker-only initializer was also tested with source mounted read-only and
+only the selected state/backup parents writable; scoped doctor checks passed.
+
+A ten-minute independent restoration timer was armed before releasing the
+original occupied ports. Caddy obtained a public certificate. A separate Windows
+client completed nine public flow groups: public CA/hostname validation with
+Node's bundled roots and Chromium certificate checking enabled, health-path
+404, administrator login, session cookie/reload, empty inventory, enrollment
+and clearing, storage exclusion, mobile layout, and logout/protected 401. There
+were zero CSP violations, script errors, or external resource requests. All four
+screenshots were visually reviewed; the complete enrollment value is masked.
+No internal CA exception or insecure request option was used for this run.
+
+Private runtime-log checks found no tested password/session/enrollment plaintext.
+The public window lasted 86.726 seconds. Original OpenResty/x-ui services and
+80/443/8443 listeners were independently verified restored; owned containers,
+networks, and volumes were all absent, and the restoration timer was inactive.
+Evidence and disposable key backups were archived privately; local test password
+material and temporary server stages were removed. Built images are retained for
+follow-up development, with identities recorded outside Git.
+
+CI run 39188227924 on 54a53bc passed all six jobs, including the self-signed
+certificate rejection test and the existing deployed-browser/image gates.
+The final PR head must retain passing checks before merge. This public run used
+an existing LXC, not a freshly installed OS. Clean-host CI currently proves the
+internal-CA stack; a clean-host public deployment run remains required. W3 is
+not complete. Real endpoints, credentials, certificate identifiers, and raw
+private evidence are deliberately excluded from this repository.
