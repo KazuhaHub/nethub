@@ -169,7 +169,7 @@ stack and no agent plugin yet. This section therefore has two parts:
 | Tool | Version | Used for | Check |
 |---|---|---|---|
 | Git and the GitHub CLI | any recent | everything | `git --version`, `gh --version` |
-| Go | 1.26.x (the `go` line in `server/go.mod`, once it exists) | the control plane in `server/` | `go version` |
+| Go | 1.26.9 (the build pin in `server/.go-version`; `go.mod` declares the compatibility floor) | the control plane in `server/` | `go version` |
 | Node.js | the current LTS release, not "Current" | the console source in `server/web/` | `node -v` |
 | Docker and Docker Compose | any recent | the local stack (Postgres 16, Caddy, `frps`, `nethub web`, `nethub authz`) | `docker version`, `docker compose version` |
 | Python | 3.13.x (the version OPNsense 26.7 ships); any Python 3.11 or newer is enough for today's two checks below | the OPNsense agent (`agentctl.py`) and its tests, and `weekend0/probe.py`. Python is used nowhere else | `python3.13 --version` |

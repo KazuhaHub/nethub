@@ -32,7 +32,9 @@ deployment/browser startup remain W3 work.
 
 ## Technology stack
 
-- **Go 1.26** — the same toolchain line as the organisation's other Go
+- **Go 1.26.9** — pinned in `.go-version`, CI, and the Docker builder. The
+  module's `go 1.26.0` line remains its language compatibility floor, not a
+  deployment compiler recommendation. This uses the same toolchain line as the organisation's other Go
   repositories. The control plane is a **single binary, `nethub`**, with
   subcommands. Planned module path: `github.com/KazuhaHub/nethub/server`.
 - **React + TypeScript + Vite** — the console is a single-page app whose
