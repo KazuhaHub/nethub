@@ -202,8 +202,17 @@ def consume_request(path, directory=Path('/var/db/nethub-agent/requests')):
 
 
 def request_enrollment(origin, token, platform_version, agent_version, hostname, context=None, cluster_hint=False):
-    origin = validate_origin(origin)
     request = build_enroll_request(token, platform_version, agent_version, hostname, cluster_hint)
+    return validate_response(request_json(origin, '/api/v1/devices/enroll', request, 201, context=context))
+
+
+def request_json(origin, path, request, expected_status=200, secret=None, context=None):
+    origin = validate_origin(origin)
+    if path not in ('/api/v1/devices/enroll', '/api/v1/devices/status', '/api/v1/devices/unenroll'):
+        raise ProtocolError('Invalid device endpoint')
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json', 'Connection': 'close'}
+    if secret is not None:
+        headers['Authorization'] = 'Bearer ' + _secret(secret)
     endpoint = urlsplit(origin)
     connection = http.client.HTTPSConnection(endpoint.hostname, endpoint.port or 443, timeout=10,
                                             context=context or ssl.create_default_context())
@@ -211,11 +220,10 @@ def request_enrollment(origin, token, platform_version, agent_version, hostname,
     try:
         connection.connect()
         transport = connection.sock
-        connection.request('POST', '/api/v1/devices/enroll', body=json.dumps(request).encode(),
-                           headers={'Content-Type': 'application/json', 'Accept': 'application/json', 'Connection': 'close'})
+        connection.request('POST', path, body=json.dumps(request).encode(), headers=headers)
         response = connection.getresponse()
-        if response.status != 201 or response.getheader('Content-Encoding', 'identity') != 'identity':
-            raise ProtocolError('Console rejected enrollment; check the address, token and protocol version')
+        if response.status != expected_status or response.getheader('Content-Encoding', 'identity') != 'identity':
+            raise ProtocolError('Console rejected the device request; check enrollment and connectivity')
         if response.getheader('Content-Type', '').split(';')[0].strip().lower() != 'application/json':
             _invalid()
         chunks = bytearray()
@@ -234,10 +242,10 @@ def request_enrollment(origin, token, platform_version, agent_version, hostname,
                 if response.length not in (None, 0):
                     _invalid()
                 break
-        return validate_response(decode_json(bytes(chunks)))
+        return decode_json(bytes(chunks))
     except ProtocolError:
         raise
     except (OSError, http.client.HTTPException, ValueError):
-        raise ProtocolError('Console HTTPS enrollment failed; verify connectivity and certificate trust') from None
+        raise ProtocolError('Console HTTPS request failed; verify connectivity and certificate trust') from None
     finally:
         connection.close()

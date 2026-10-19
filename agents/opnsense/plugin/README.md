@@ -4,8 +4,10 @@ The W2 integration adds an independently managed frpc service to
 Services → NetHub Agent. Native validation is recorded in
 [the integration report](tests/w2-progress.md).
 W4 now adds the HTTPS enrollment/client/model/UI flow and removes
-the temporary debug credential editor. Current-head CI and native end-to-end
-acceptance are required before treating this change as validated.
+the temporary debug credential editor. Enrollment passed actual public-console
+and native-device acceptance; see [the W4 report](tests/w4-progress.md).
+The 0.0.4 health/removal increment is under validation and still requires its
+own current-head CI and native end-to-end acceptance.
 Saved model settings remain in config.xml after uninstall.
 
 Enter the separate console HTTPS address and one-use token in Enrollment.
@@ -25,8 +27,9 @@ independent of the connection address. Candidates are verified before
 replacing the live configuration. A failed candidate keeps the previous file and
 running process. Stop sets a persistent local stop marker; Start clears that
 marker but never clears the separate kill switch. No newwanip hook is registered.
-Package-owned system cron entries run reconcile each minute and an independent
-watchdog every five minutes. Both use the same persistent `lockf -t 0` lock and
+Package-owned system cron entries run reconcile and a delayed health report each
+minute, plus an independent watchdog every five minutes. All use the same
+persistent `lockf -t 0` lock and
 skip contention; logs go to `/var/log/nethub-agent/scheduler.log`. The watchdog
 starts ten seconds after the minute boundary to avoid recurring contention with
 ordinary reconcile runs. Failed configd actions preserve their structured JSON

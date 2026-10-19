@@ -6,6 +6,9 @@ class ServiceController extends \OPNsense\Base\ApiControllerBase
 {
     private function invoke($action)
     {
+        if ($action !== 'status') {
+            $this->throwReadOnly();
+        }
         $backend = new \OPNsense\Core\Backend();
         $result = json_decode($backend->configdRun('nethub-agent ' . $action), true);
         return is_array($result) ? $result : ['success' => false, 'message' => gettext('Service response unavailable.')];
@@ -19,6 +22,11 @@ class ServiceController extends \OPNsense\Base\ApiControllerBase
     public function reconcileAction()
     {
         return $this->request->isPost() ? $this->invoke('reconcile') : ['success' => false];
+    }
+
+    public function reportAction()
+    {
+        return $this->request->isPost() ? $this->invoke('report') : ['success' => false];
     }
 
     public function startAction()
