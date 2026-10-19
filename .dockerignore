@@ -1,0 +1,16 @@
+**
+!server/
+!server/**
+!deploy/
+!deploy/Dockerfile
+!LICENSE
+!NOTICE
+server/**/node_modules/
+server/internal/webui/dist/
+server/**/secrets/
+server/**/*.pem
+server/**/*.key
+server/**/.env*
+server/**/*.test
+server/**/*.exe
+server/**/*.log

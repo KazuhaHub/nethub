@@ -10,6 +10,7 @@
 *.key
 *.pem
 deploy/secrets/
+nethub-deployment/
 docker-compose.override.yml
 
 # ---------------------------------------------------------------------------
