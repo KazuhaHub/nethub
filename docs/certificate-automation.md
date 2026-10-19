@@ -18,6 +18,14 @@ existing deployments or place ACME orders. Device/CSR authorization, the account
 client, issuance jobs, authenticated delivery and native GUI installation remain
 required. See the http01 package contract and genuine proxy test.
 
+The account client foundation directly reuses `golang.org/x/crypto/acme` and
+constrains every request to operator-approved HTTPS origins, verified TLS and
+bounded responses. It looks up the caller's previously persisted key before
+considering explicit registration with current terms consent. TLS protocol
+fixtures cover actual JWS signing and ambiguous-response recovery; durable account
+storage, genuine CA issuance and deployment integration remain outstanding. See
+server/internal/guiacme/README.md. No public account has been created.
+
 ## PSP findings
 
 Inspected Passwall-Sub-Panel main at
