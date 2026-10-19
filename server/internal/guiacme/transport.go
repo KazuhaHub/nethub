@@ -83,7 +83,7 @@ func (t *transport) RoundTrip(request *http.Request) (*http.Response, error) {
 		return nil, ErrRemote
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxResponse+1))
-	if err != nil || len(body) > maxResponse {
+	if err != nil || ctx.Err() != nil || len(body) > maxResponse {
 		return nil, ErrRemote
 	}
 	response.Body = io.NopCloser(bytes.NewReader(body))
