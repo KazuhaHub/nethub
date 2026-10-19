@@ -13,7 +13,7 @@ func edgeAddresses(config Config) (gateway, caddy, web, authz string) {
 
 func composeOverride(config Config) ([]byte, error) {
 	gateway, caddyIP, webIP, authzIP := edgeAddresses(config)
-	return json.MarshalIndent(map[string]any{
+	result := map[string]any{
 		"services": map[string]any{
 			"postgres":     map[string]any{"build": map[string]any{"context": config.SourceDirectory, "dockerfile": "deploy/images/postgres/Dockerfile"}},
 			"migrate":      map[string]any{"build": map[string]any{"context": config.SourceDirectory, "dockerfile": "deploy/Dockerfile"}},
@@ -23,5 +23,25 @@ func composeOverride(config Config) ([]byte, error) {
 			"caddy":        map[string]any{"build": map[string]any{"context": config.SourceDirectory, "dockerfile": "deploy/images/caddy/Dockerfile"}, "environment": map[string]string{"NETHUB_CONSOLE_HOST": config.ConsoleHost}, "networks": map[string]any{"edge": map[string]string{"ipv4_address": caddyIP}}},
 		},
 		"networks": map[string]any{"edge": map[string]any{"ipam": map[string]any{"config": []map[string]string{{"subnet": config.NetworkSubnet, "gateway": gateway}}}}},
-	}, "", "  ")
+	}
+	if config.externalProxy() {
+		services := result["services"].(map[string]any)
+		delete(services, "caddy")
+		webPort, devicePort := config.originPorts()
+		for name, port := range map[string]uint16{"nethub-web": webPort, "nethub-authz": devicePort} {
+			service := services[name].(map[string]any)
+			args := service["command"].([]string)
+			for i := range args {
+				if args[i] == "--trusted-proxy" {
+					args[i+1] = gateway + "/32"
+				}
+			}
+			target := 8080
+			if name == "nethub-authz" {
+				target = 8081
+			}
+			service["ports"] = []map[string]any{{"host_ip": "127.0.0.1", "published": port, "target": target, "protocol": "tcp"}}
+		}
+	}
+	return json.MarshalIndent(result, "", "  ")
 }

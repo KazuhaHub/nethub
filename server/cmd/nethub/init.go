@@ -26,6 +26,9 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 	console := flags.String("console-host", "", "Console DNS hostname outside the device wildcard")
 	device := flags.String("device-domain", "", "Device DNS base without wildcard")
 	subnet := flags.String("network-subnet", "172.30.87.0/24", "Unused private IPv4 /24 for Caddy and the web network")
+	proxyMode := flags.String("proxy-mode", "bundled", "bundled Caddy or external host reverse proxy")
+	webPort := flags.Uint("web-port", 0, "External proxy loopback web port (default 18080)")
+	devicePort := flags.Uint("device-port", 0, "External proxy loopback device API port (default 18081)")
 	expected := flags.String("expected-address", "", "Expected public relay address for DNS preflight")
 	skipDNS := flags.Bool("offline", false, "Prepare an offline test bundle; DNS and public readiness remain unverified")
 	resume := flags.Bool("resume", false, "Resume only an existing unconfirmed bundle without regenerating secrets")
@@ -37,6 +40,10 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 	}
 	if flags.NArg() != 0 {
 		fmt.Fprintln(stderr, "init does not accept positional arguments")
+		return 2
+	}
+	if *webPort > 65535 || *devicePort > 65535 {
+		fmt.Fprintln(stderr, "External proxy origin ports must be valid TCP ports")
 		return 2
 	}
 	if runtime.GOOS != "linux" || os.Geteuid() != 0 {
@@ -80,7 +87,8 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Invalid source directory")
 		return 2
 	}
-	config := setup.Config{ConsoleHost: *console, DeviceDomain: *device, SourceDirectory: absSource, NetworkSubnet: *subnet}
+	config := setup.Config{ConsoleHost: *console, DeviceDomain: *device, SourceDirectory: absSource, NetworkSubnet: *subnet,
+		ProxyMode: *proxyMode, WebPort: uint16(*webPort), DevicePort: uint16(*devicePort)}
 	if *resume {
 		config = previous.Config
 	}

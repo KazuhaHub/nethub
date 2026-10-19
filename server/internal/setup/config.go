@@ -17,11 +17,44 @@ type Config struct {
 	DeviceDomain    string `json:"device_domain"`
 	SourceDirectory string `json:"source_directory"`
 	NetworkSubnet   string `json:"network_subnet"`
+	ProxyMode       string `json:"proxy_mode,omitempty"`
+	WebPort         uint16 `json:"web_port,omitempty"`
+	DevicePort      uint16 `json:"device_port,omitempty"`
+}
+
+func (c Config) externalProxy() bool { return c.ProxyMode == "external" }
+
+func (c Config) originPorts() (uint16, uint16) {
+	w, d := c.WebPort, c.DevicePort
+	if w == 0 {
+		w = 18080
+	}
+	if d == 0 {
+		d = 18081
+	}
+	return w, d
 }
 
 var dnsLabel = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
 
 func Validate(config Config) error {
+	if config.ProxyMode != "" && config.ProxyMode != "bundled" && !config.externalProxy() {
+		return errors.New("proxy mode must be bundled or external")
+	}
+	if !config.externalProxy() && (config.WebPort != 0 || config.DevicePort != 0) {
+		return errors.New("origin ports require external proxy mode")
+	}
+	if config.externalProxy() {
+		w, d := config.originPorts()
+		if w == d {
+			return errors.New("external proxy origin ports must differ")
+		}
+		for _, port := range []uint16{w, d} {
+			if port < 1024 || port == 7000 || port == 7500 || port == 8443 || port == 9000 {
+				return errors.New("external proxy origin port conflicts with a reserved service")
+			}
+		}
+	}
 	for _, host := range []string{config.ConsoleHost, config.DeviceDomain} {
 		if host != strings.ToLower(host) || len(host) > 240 || !strings.Contains(host, ".") {
 			return errors.New("use lowercase DNS names without ports, paths, or wildcards")

@@ -218,6 +218,7 @@ for path in (s/'deployment/secrets').rglob('*'):
 print('Enrolled credentials, claims and deployment secrets are absent from runtime logs')
 PY
 compose down -v --remove-orphans > "$stage/down.log" 2>&1
+python3 "$root/server/tests/external-proxy.py" "$stage" "$root" "$image" "$postgres_image" "$caddy_image" "$frps_image"
 cat > "$stage/failure.yml" <<'YAML'
 services:
   migrate:
