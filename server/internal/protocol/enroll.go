@@ -71,12 +71,22 @@ func shortText(value string) bool {
 }
 
 func (r EnrollRequest) Validate() error {
-	if err := CompatibleVersion(r.AgentProtocolVersion); err != nil {
+	if err := r.ValidateMetadata(); err != nil {
 		return err
 	}
 	token, err := base64.RawURLEncoding.Strict().DecodeString(r.EnrollToken)
-	if err != nil || len(token) != 32 || len(r.EnrollToken) != 43 ||
-		!platformPattern.MatchString(r.Platform) || len(r.Hostname) > 253 ||
+	if err != nil || len(token) != 32 || len(r.EnrollToken) != 43 {
+		return ErrInvalidRequest
+	}
+	return nil
+}
+
+// ValidateMetadata also serves the token-free registration record after admission.
+func (r EnrollRequest) ValidateMetadata() error {
+	if err := CompatibleVersion(r.AgentProtocolVersion); err != nil {
+		return err
+	}
+	if !platformPattern.MatchString(r.Platform) || len(r.Hostname) > 253 ||
 		!hostnamePattern.MatchString(r.Hostname) || !shortText(r.PlatformVersion) ||
 		!shortText(r.AgentVersion) || len(r.Capabilities) < 1 || len(r.Capabilities) > 16 {
 		return ErrInvalidRequest
