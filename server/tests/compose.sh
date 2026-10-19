@@ -145,6 +145,18 @@ request -b "$stage/cookies" https://console.example.com/api/v1/console/devices >
 request -b "$stage/cookies" -H "@$stage/csrf-header" -H 'Content-Type: application/json' -H 'Origin: https://console.example.com' --data '{}' https://console.example.com/api/v1/console/enroll-tokens > "$stage/token.json"
 code=$(curl -sS --insecure --noproxy '*' --connect-to "console.example.com:443:127.0.0.1:$port" -o /dev/null -w '%{http_code}' https://console.example.com/healthz)
 [ "$code" = 404 ]
+if [ "${NETHUB_BROWSER_TEST:-0}" = 1 ]; then
+    "${NETHUB_NODE_BINARY:-node}" "$root/server/web/tests/deployment.mjs" \
+        "$port" "$stage/admin-password" "$stage/browser" "$(compose ps -q postgres)" "$(compose ps -q nethub-web)"
+    if [ -n "${NETHUB_BROWSER_EVIDENCE:-}" ]; then
+        mkdir -p "$NETHUB_BROWSER_EVIDENCE"
+        for name in login.png empty-inventory.png enrollment-masked.png mobile.png results.json; do
+            cp "$stage/browser/$name" "$NETHUB_BROWSER_EVIDENCE/$name"
+            chown "${SUDO_UID:-0}:${SUDO_GID:-0}" "$NETHUB_BROWSER_EVIDENCE/$name"
+        done
+        chown "${SUDO_UID:-0}:${SUDO_GID:-0}" "$NETHUB_BROWSER_EVIDENCE"
+    fi
+fi
 compose logs --no-color > "$stage/runtime.log"
 python3 - "$stage" <<'PY'
 import json,pathlib,sys

@@ -55,3 +55,28 @@ PostgreSQL, and Caddy without exclusions, then repeated all fresh Compose and
 failed-migration checks. The original UID 999 evidence above remains historical;
 old bundles/volumes are not silently migrated. Public ACME and deployed-browser
 acceptance remain outstanding.
+
+## Deployed browser acceptance
+
+The new deployment script drives Chromium through the real Compose stack and
+production assets, using the one-shot-created administrator. It checks session
+cookies/reload, empty inventory, independent token generation/copy, native-dialog
+focus/Escape, secret storage/log exclusion, mobile layout, real database session
+expiry, reauthentication, and logout. No production test routes are added.
+Screenshots mask the token field; raw credentials/session state/traces are not
+uploaded. CI run 39185680803 on 646a1f2 passed all six jobs. The deployed
+browser report records eleven checked flow groups, zero CSP violations, browser
+errors, external requests, or unexpected network failures, and one expected
+logout cancellation. All four exported screenshots were downloaded and visually
+reviewed: desktop/mobile layout is intact and the entire token value is masked.
+The artifact contains exactly those PNGs and results.json, with no raw credentials.
+The final PR head must retain passing checks before merge.
+The loopback test accepts Caddy's internal CA and does not prove public ACME.
+
+The first deployed run completed the UI flow but its blanket network assertion
+counted one cancellation. A local instrumented run reproduced Chromium reporting
+`net::ERR_ABORTED` after receiving logout HTTP 204. The test now distinguishes
+only that exact path/status/error combination, permits at most one, and separately
+verifies cookie removal plus a protected endpoint returning 401. All other failed
+requests remain fatal and receive sanitized path/status diagnostics. The expected
+logout cancellation count is included in the summary; it is not hidden as zero.

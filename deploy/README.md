@@ -28,6 +28,16 @@ log exclusion, and failed-migration startup gating. This does not prove public
 ACME issuance or complete deployed browser acceptance. See the stage-specific
 validation records before treating any feature as accepted.
 
+The deployment CI job additionally runs Chromium against the actual Caddy/web/
+PostgreSQL project with `NETHUB_BROWSER_TEST=1`. Install `server/web` dependencies
+and Playwright Chromium first; `NETHUB_NODE_BINARY` can select an absolute Node
+path when invoking the harness through sudo. The test uses a destination-limited
+loopback CONNECT proxy to preserve the configured HTTPS origin. It accepts only
+the isolated internal test CA; public certificate verification remains separate.
+Successful runs may copy masked screenshots and a nonsecret result summary to
+`NETHUB_BROWSER_EVIDENCE`. The full Compose evidence archive contains disposable
+credentials and must stay private; CI uploads only the selected browser files.
+
 Device/authz/frps integration is W4; Open/revocation UI is W5; invitation and full
 OIDC/SAML flows are W6; scheduled backups and final operational acceptance are W7.
 The design authority remains [DESIGN](../docs/DESIGN.md), with confirmed deployment
