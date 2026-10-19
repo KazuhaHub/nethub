@@ -40,10 +40,28 @@ The PostgreSQL upgrade test is exercised by the existing genuine-database CI
 harness; ordinary local Go tests skip that integration group without its flag.
 Check the current PR's six exact-head jobs before merging.
 
+## W4-2: signed domain claims
+
+The claim package signs canonical five-field JSON using HMAC-SHA256 over its
+unpadded base64url representation. Verification rejects noncanonical JSON/base64,
+duplicate/unknown fields and invalid timestamps even when correctly signed. Key
+selection is explicit and retained verification keys support rotation. Errors
+return no input or partial identity. An independent Python known-answer vector,
+field/signature tampering, malformed signed payloads, defensive key copies and
+concurrent use are covered by local tests. A five-second fuzz run completed
+57,796 executions without failure; this is bounded fuzz evidence, not a proof of
+complete security coverage. CI race and integration results must be checked on
+the current claim PR before merging.
+
+NextIssuedAt advances at PostgreSQL microsecond precision across same-second
+rotations and clock rollback. The future handler must hold the device row lock
+and persist that exact value; this helper does not establish database ownership,
+revocation or transaction correctness. Runtime key loading and relay-hook wiring
+remain W4-3/W4-4 work. Certificate automation decisions merged separately in
+PR #41 as da9f84b after six checks passed (run 39209680883).
+
 ## Remaining W4 work
 
-- W4-2: canonical HMAC claims, strict verification and monotonic microsecond
-  issued_at under the device lock.
 - W4-3/W4-4: device handlers and bounded internal frp hooks with transactional
   token consumption, device authorization and safe error handling.
 - W4-5/W4-6: relay observation, production frps/authz Compose wiring and source-IP
