@@ -25,17 +25,22 @@ frps_image=${NETHUB_FRPS_TEST_IMAGE:-"$image-frps"}
 frps_container="$project-frps-smoke"
 http01_test_image="$project-http01-test:local"
 http01_binary_holder="$project-http01-binary"
+guiacme_test_image="$project-guiacme-test:local"
+guiacme_binary_holder="$project-guiacme-binary"
+pebble_image='ghcr.io/letsencrypt/pebble@sha256:5080492187bea12909c053d7a2b90a9e95104ef1c82381828e7823db71ce7e54'
 compose() { docker compose -p "$project" -f "$stage/deployment/docker-compose.yml" -f "$stage/deployment/docker-compose.override.yml" -f "$stage/test.yml" "$@"; }
 cleanup() {
     status=$?
     if [ "$status" -ne 0 ]; then
-        for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log" "$stage/frps-build.log" "$stage/http01-build.log"; do
+        for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log" "$stage/frps-build.log" "$stage/http01-build.log" "$stage/guiacme-build.log"; do
             if [ -f "$log" ]; then tail -n 60 "$log" >&2; fi
         done
     fi
     docker rm -f "$frps_container" >/dev/null 2>&1 || true
     docker rm -f "$http01_binary_holder" >/dev/null 2>&1 || true
     docker image rm "$http01_test_image" >/dev/null 2>&1 || true
+    docker rm -f "$guiacme_binary_holder" >/dev/null 2>&1 || true
+    docker image rm "$guiacme_test_image" >/dev/null 2>&1 || true
     if [ -f "$stage/test.yml" ]; then
         compose logs --no-color > "$stage/runtime-final.log" 2>&1 || true
         compose down -v --remove-orphans >/dev/null 2>&1 || true
@@ -70,6 +75,13 @@ docker cp "$http01_binary_holder:/http01.test" "$stage/http01.test"
 docker rm "$http01_binary_holder" >/dev/null
 chmod 0700 "$stage/http01.test"
 NETHUB_HTTP01_CADDY_IMAGE="$caddy_image" "$stage/http01.test" -test.v -test.run '^TestCaddyPublicHTTP01Route$' -test.timeout=90s
+docker pull --platform linux/amd64 "$pebble_image" > "$stage/pebble-pull.log" 2>&1
+docker build --target guiacme-acceptance -f "$root/deploy/Dockerfile" -t "$guiacme_test_image" "$root" > "$stage/guiacme-build.log" 2>&1
+docker create --name "$guiacme_binary_holder" --network none "$guiacme_test_image" /guiacme.test >/dev/null
+docker cp "$guiacme_binary_holder:/guiacme.test" "$stage/guiacme.test"
+docker rm "$guiacme_binary_holder" >/dev/null
+chmod 0700 "$stage/guiacme.test"
+NETHUB_GUIACME_PEBBLE_IMAGE="$pebble_image" "$stage/guiacme.test" -test.v -test.run '^TestPebbleOrderAdmission$' -test.timeout=90s
 if [ "${NETHUB_SCAN_IMAGES:-0}" = 1 ]; then
     mkdir "$stage/scans"
     scan_image() {
