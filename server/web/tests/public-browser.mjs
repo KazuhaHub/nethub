@@ -101,9 +101,13 @@ try {
   await tokenField.waitFor();
   const token = await tokenField.inputValue();
   assert.equal(token.length, 43);
+  const consoleField = page.getByLabel("Console HTTPS address", {
+    exact: true,
+  });
+  assert.equal(await consoleField.inputValue(), origin);
   await page.screenshot({
     path: join(evidence, "public-enrollment-masked.png"),
-    mask: [tokenField],
+    mask: [tokenField, consoleField],
     fullPage: true,
   });
   await page.keyboard.press("Escape");

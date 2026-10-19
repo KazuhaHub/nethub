@@ -152,6 +152,20 @@ try {
       "Enrollment tokens must be freshly generated",
     );
     tokens.push(token);
+    const consoleField = page.getByLabel("Console HTTPS address", {
+      exact: true,
+    });
+    assert.equal(await consoleField.inputValue(), origin);
+    await page
+      .getByRole("button", { name: "Copy console address", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Copied address", exact: true })
+      .waitFor();
+    assert.equal(
+      await page.evaluate(() => navigator.clipboard.readText()),
+      origin,
+    );
     await page.getByRole("button", { name: "Copy token", exact: true }).click();
     await page.getByRole("button", { name: "Copied", exact: true }).waitFor();
     assert.ok(
@@ -161,7 +175,7 @@ try {
     if (attempt === 0) {
       await page.screenshot({
         path: join(evidence, "enrollment-masked.png"),
-        mask: [tokenField],
+        mask: [tokenField, consoleField],
         fullPage: true,
       });
     }

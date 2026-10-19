@@ -209,6 +209,7 @@ function EnrollmentDialog({
   const [expired, setExpired] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [originCopied, setOriginCopied] = useState(false);
   const pending = useRef<AbortController | null>(null);
   function reset() {
     pending.current?.abort();
@@ -218,6 +219,7 @@ function EnrollmentDialog({
     setError("");
     setExpired(false);
     setCopied(false);
+    setOriginCopied(false);
   }
   function dismiss() {
     reset();
@@ -241,6 +243,7 @@ function EnrollmentDialog({
         setIssued(null);
         setExpired(true);
         setCopied(false);
+        setOriginCopied(false);
       }
     }
     tick();
@@ -259,6 +262,7 @@ function EnrollmentDialog({
       if (!controller.signal.aborted) {
         setIssued(result);
         setCopied(false);
+        setOriginCopied(false);
       }
     } catch (error) {
       if (!controller.signal.aborted) setError(message(error));
@@ -266,14 +270,17 @@ function EnrollmentDialog({
       if (!controller.signal.aborted) setBusy(false);
     }
   }
-  async function copy() {
+  async function copy(kind: "token" | "origin") {
     if (!issued) return;
     try {
-      await navigator.clipboard.writeText(issued.token);
-      setCopied(true);
+      await navigator.clipboard.writeText(
+        kind === "token" ? issued.token : window.location.origin,
+      );
+      if (kind === "token") setCopied(true);
+      else setOriginCopied(true);
     } catch {
       setError(
-        "Clipboard access is unavailable. Select the token and copy it manually.",
+        "Clipboard access is unavailable. Select the value and copy it manually.",
       );
     }
   }
@@ -290,6 +297,22 @@ function EnrollmentDialog({
       )}
       {issued ? (
         <>
+          <div className="token-heading">
+            <Label htmlFor="enrollment-console-url">
+              Console HTTPS address
+            </Label>
+            <Button variant="outline" size="sm" onClick={() => copy("origin")}>
+              {originCopied ? <Check /> : <Copy />}
+              {originCopied ? "Copied address" : "Copy console address"}
+            </Button>
+          </div>
+          <Input
+            id="enrollment-console-url"
+            type="url"
+            readOnly
+            value={window.location.origin}
+            onFocus={(event) => event.target.select()}
+          />
           <div className="token-heading">
             <Label htmlFor="enrollment-token">Enrollment token</Label>
             <span className="expiry" aria-label="Time remaining">
@@ -310,7 +333,7 @@ function EnrollmentDialog({
             Shown only once. Closing this dialog clears it.
           </p>
           <div className="dialog-actions">
-            <Button variant="outline" onClick={copy}>
+            <Button variant="outline" onClick={() => copy("token")}>
               {copied ? <Check /> : <Copy />}
               {copied ? "Copied" : "Copy token"}
             </Button>

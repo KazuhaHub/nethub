@@ -42,7 +42,33 @@ model persistence or native browser enrollment. The base timeout probe killed
 a bounded sleep with exit 124 after 1.069 seconds; no appliance configuration
 or login policy was changed by these checks.
 
-Current-head CI, package upgrade and actual public-console → native plugin →
-relay → online-device/browser acceptance remain pending. W4-8 unenroll/status,
+## Native upgrade and recovery
+
+All six checks passed on 4c8361e1a46f2e016920c656a7c2b8a0ae9b513b
+(run 39259650675). Plugin CI ran 170 checks; only the existing native FreeBSD
+lockf check was skipped on Linux. New HTTPS/POSIX/PHP tests ran. Deployment logs
+confirm all four image scans and bundled/external/browser/relay regressions.
+
+An initial Windows subtree export inherited CRLF and failed before building or
+installing a package. The native exporter and platform LF attributes were fixed.
+The exact 4c8361e development package built and installed on OPNsense 26.7.7:
+SHA256 8fe6a5f15175927e3033bcc10c441682b1f4f804544965767555d6fc96bde9f9.
+Installed checksums, all twelve real model fields and native validation passed.
+The new browser page has enrollment controls, filtered public APIs and no debug
+editor; the old debug getter returns 404. Local browser TLS was a pinned,
+self-signed appliance fixture; this does not waive console HTTPS verification.
+
+Before changing the device, an independent nonce-bound restore watcher was
+rehearsed on the actual machine. Both the timed rehearsal and post-upgrade
+restoration passed: native model field values, eleven owned runtime files,
+original stopped service intent and absence of request tokens. Canonical hashes
+of the system and unrelated configuration matched. Original credentials and SSH
+policy stayed unchanged; the tested 0.0.3 package remains installed. The upgrade
+window is closed and its watcher has exited. Private backups and logs are retained.
+
+The console now also displays/copies its origin beside the opaque token; browser
+tests check both values and screenshots mask both fields. Its current-head CI
+and actual fresh public-console → native plugin → relay → online-device/browser
+acceptance remain pending. W4-8 unenroll/status,
 authenticated trust distribution, CA rotation, expired-candidate replacement
 and GUI ACME issuance/installation/renewal are not implemented by this increment.
