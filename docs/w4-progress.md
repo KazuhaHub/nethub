@@ -190,6 +190,26 @@ Caddy template with only its test CA/hostname changed; current-head CI must pass
 again before merge. Public source-address proof, the external-proxy path, durable automated
 certificate application/rotation and appliance/GUI lifecycle remain open.
 
+PR #51 merged as d3ce2899e75a0b4f1f80859e8fb35dae67b70002 after all six checks
+passed on 19c29f07bcea97c74180980e72c30ee99a974451 (run 39231661494). The final
+native log reconfirmed official frps verification, both real clients and relay
+observations, credential absence, browser regressions and all four image scans.
+
+The same tested image archive was transferred to the Linux LXC and its checksum,
+configuration digests, ordered rootfs diff IDs and platform were verified. Fresh
+version-3 initialization/DNS/backup acknowledgement and scoped file doctor passed.
+PostgreSQL, web and authz are running privately; web/authz are healthy, nonroot,
+read-only, have only their intended mounts and publish no host ports. The original
+public services remain active; Caddy/frps and a public test window have not been
+started. This is private-backend preparation, not public source-address proof.
+
+Native loading exposed classic-versus-containerd image ID semantics. All four
+configuration bytes and ordered layers matched the tested archive; containerd's
+manifest descriptors referenced those exact configuration digests. The follow-up
+image-content manifest records portable configuration/layer/platform identity
+alongside the engine-specific ID. Raw evidence and all generated authority,
+administrator and backup material remain outside Git.
+
 D22 now requires automatic renewal, distribution and configuration based on the
 PSP review, with reverse-proxy-owned console TLS. The owner selected option 2,
 including router GUI certificate issuance, automatic installation and renewal in

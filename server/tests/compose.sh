@@ -240,10 +240,19 @@ if [ -n "${NETHUB_IMAGE_EVIDENCE:-}" ]; then
     gzip -1 "$NETHUB_IMAGE_EVIDENCE/images.tar"
     (cd "$NETHUB_IMAGE_EVIDENCE" && sha256sum images.tar.gz > SHA256SUMS)
     python3 - "$NETHUB_IMAGE_EVIDENCE" "$image" "$postgres_image" "$caddy_image" "$frps_image" <<'PY'
-import json,pathlib,subprocess,sys
+import hashlib,json,pathlib,subprocess,sys,tarfile
 output=pathlib.Path(sys.argv[1]);images={}
-for service,tag in zip(('runtime','postgres','caddy','frps'),sys.argv[2:]):
-    images[service]={'tag':tag,'id':subprocess.check_output(['docker','image','inspect','--format','{{.Id}}',tag],text=True).strip()}
+with tarfile.open(output/'images.tar.gz') as archive:
+    manifest=json.load(archive.extractfile('manifest.json'))
+    for service,tag in zip(('runtime','postgres','caddy','frps'),sys.argv[2:]):
+        entry=next(item for item in manifest if tag in item['RepoTags'])
+        config_file=archive.getmember(entry['Config']);assert config_file.isfile() and config_file.size<=1048576
+        raw=archive.extractfile(config_file).read();config=json.loads(raw)
+        info=json.loads(subprocess.check_output(['docker','image','inspect',tag],text=True))[0]
+        assert info['RootFS']['Layers']==config['rootfs']['diff_ids']
+        assert info['Os']==config['os'] and info['Architecture']==config['architecture']
+        images[service]={'tag':tag,'id':info['Id'],'config_digest':'sha256:'+hashlib.sha256(raw).hexdigest(),
+                         'platform':config['os']+'/'+config['architecture'],'diff_ids':config['rootfs']['diff_ids']}
 (output/'images.json').write_text(json.dumps(images,indent=2))
 PY
     chown "${SUDO_UID:-0}:${SUDO_GID:-0}" "$NETHUB_IMAGE_EVIDENCE" \
