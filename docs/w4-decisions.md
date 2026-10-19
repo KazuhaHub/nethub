@@ -2,7 +2,7 @@
 
 Status: D16, D19, and W4-7 confirmed by Kazuha on 2026-10-18. W3 evidence is
 complete, and Kazuha accepted the fresh Debian VM/public-ingress environment
-on 2026-10-18. Implementation follows the closing PR merge. This document records the approved choices before schemas or handlers exist. D22 lifecycle details below remain specification work.
+on 2026-10-18. W3 PR #39 merged as 45b79ac. W4-1 adds the initial shared schemas and request adapters; device handlers remain unfinished. D22 lifecycle details below remain specification work.
 
 ## D16: protocol versions
 
@@ -66,12 +66,11 @@ lifecycle details. Formal package signing/publication remains D13.
 ## Platform extension boundary
 
 The device model already stores platform and capabilities, and agents live in
-separate platform directories. The current v1 database constraint accepts only
-opnsense; it is an explicit current support limit, not a completed generic agent
-interface. When W4 defines the shared wire contract, preserve platform-neutral
-messages and capability-based behavior. Replace this historical constraint with
-bounded platform-identifier validation through a forward migration and test other
-platform identifiers without claiming their agents are implemented or supported.
+separate platform directories. Migration 00003 replaces the original opnsense-only
+constraint with bounded platform identifiers. Contract examples and actual-role
+migration tests cover other identifiers without claiming their agents are
+implemented or supported. The shared wire contract uses platform-neutral messages
+and capability-based behavior.
 
 Future OpenWrt/VyOS agents must implement the same enrollment and tunnel contract
 plus their own installation, configuration, and service integration. OPNsense is

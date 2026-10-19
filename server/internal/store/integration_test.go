@@ -38,6 +38,7 @@ func TestPostgresBoundaries(t *testing.T) {
 		return db
 	}
 	owner, web, authz, backup := connect("nethub_owner"), connect("nethub_web"), connect("nethub_authz"), connect("nethub_backup")
+	t.Run("platform_forward_migration", func(t *testing.T) { testPlatformForwardMigration(t, ctx, owner) })
 	for range 2 {
 		if err := Migrate(ctx, owner); err != nil {
 			var failure *pgconn.PgError
@@ -150,6 +151,20 @@ func TestPostgresBoundaries(t *testing.T) {
 				t.Fatalf("actor device visibility: count=%d want=%d err=%v", len(devices), test.count, err)
 			}
 		}
+	})
+	t.Run("bounded_platform_identifiers", func(t *testing.T) {
+		for _, platform := range []string{"opnsense", "openwrt", "vyos", "future-router", "a" + strings.Repeat("0", 31)} {
+			tx := txFor(authz, tenantA)
+			var got string
+			if err := tx.QueryRowContext(ctx, `UPDATE devices SET platform=$1 WHERE id=$2 RETURNING platform`, platform, deviceA).Scan(&got); err != nil || got != platform {
+				t.Fatalf("valid platform identifier: %v", err)
+			}
+			tx.Rollback()
+		}
+		for _, platform := range []string{"", "OpenWrt", "open_wrt", "1router", "a" + strings.Repeat("0", 32), "router\n", "routér"} {
+			expectError(authz, tenantA, "23514", `UPDATE devices SET platform=$1 WHERE id=$2`, platform, deviceA)
+		}
+		expectError(web, tenantA, "42501", `UPDATE devices SET platform='vyos' WHERE id=$1`, deviceA)
 	})
 	t.Run("forbidden_identity_and_cross_process_access", func(t *testing.T) {
 		for _, query := range []string{`SELECT device_secret_hash FROM devices`, `UPDATE devices SET subdomain='taken'`, `UPDATE devices SET owner_user_id=gen_random_uuid()`, `DELETE FROM devices`, `INSERT INTO devices DEFAULT VALUES`, `SELECT consume_enroll_token(decode(repeat('00',32),'hex'))`, `INSERT INTO device_access_grants DEFAULT VALUES`, `UPDATE device_disconnect_requests SET processed_at=now()`} {

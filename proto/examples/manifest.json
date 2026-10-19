@@ -1,0 +1,117 @@
+[
+  {
+    "path": "valid/enroll-request.json",
+    "schema": "enroll-request.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/enroll-response.json",
+    "schema": "enroll-response.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/rotate-request.json",
+    "schema": "rotate-request.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/rotate-response.json",
+    "schema": "rotate-response.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/unenroll-request.json",
+    "schema": "unenroll-request.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/unenroll-response.json",
+    "schema": "unenroll-response.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/status-request.json",
+    "schema": "status-request.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/status-response.json",
+    "schema": "status-response.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/domain-claim.json",
+    "schema": "domain-claim.schema.json",
+    "valid": true
+  },
+  {
+    "path": "invalid/missing-token.json",
+    "schema": "enroll-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/invalid-platform.json",
+    "schema": "enroll-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/duplicate-capability.json",
+    "schema": "enroll-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/invalid-version.json",
+    "schema": "enroll-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/missing-trust.json",
+    "schema": "enroll-response.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/invalid-port.json",
+    "schema": "enroll-response.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/injected-address.json",
+    "schema": "enroll-response.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/unknown-field.json",
+    "schema": "domain-claim.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/imprecise-timestamp.json",
+    "schema": "domain-claim.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/not-revoked.json",
+    "schema": "unenroll-response.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/platform-newline.json",
+    "schema": "enroll-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/hostname-newline.json",
+    "schema": "enroll-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/capability-newline.json",
+    "schema": "enroll-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/version-text-newline.json",
+    "schema": "enroll-request.schema.json",
+    "valid": false
+  }
+]

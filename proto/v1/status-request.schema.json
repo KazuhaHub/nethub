@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.com/nethub/v1/status-request.schema.json",
+  "type": "object",
+  "properties": {
+    "agent_protocol_version": {
+      "$ref": "common.schema.json#/$defs/version"
+    },
+    "device_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "platform_version": {
+      "$ref": "common.schema.json#/$defs/short_text"
+    },
+    "agent_version": {
+      "$ref": "common.schema.json#/$defs/short_text"
+    },
+    "service_state": {
+      "enum": [
+        "running",
+        "stopped",
+        "disabled",
+        "error"
+      ]
+    },
+    "last_reconcile_success": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "last_reconcile_at": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "agent_protocol_version",
+    "device_id",
+    "platform_version",
+    "agent_version",
+    "service_state",
+    "last_reconcile_success",
+    "last_reconcile_at"
+  ],
+  "additionalProperties": true,
+  "maxProperties": 23
+}

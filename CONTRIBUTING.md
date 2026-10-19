@@ -315,10 +315,13 @@ certificate issuance; the deployment report records the separate public test.
   tagged releases only (see
   [License and repository layout](#license-and-repository-layout)).
 
-**Contract tests:** shared JSON Schemas and Go/Python wire-contract tests are W4
-work, not an existing CI gate. `proto/` currently contains the intended contract
-and recorded upstream hook observations. Once schemas land, changes to either
-consumer must pass both contract suites even when they do not modify `proto/`.
+**Contract tests:** shared v1 JSON Schemas, Go wire types/bounded enrollment
+parsing, and the OPNsense request builder are checked against the same valid and
+invalid examples. Run `GOWORK=off go test -count=1 ./internal/protocol` from `server/` and
+`python3 -m pytest -q agents/opnsense/tests` from the repository root (pytest 8.3.5,
+jsonschema 4.25.1). Both run in CI. Device handlers and appliance enrollment remain
+W4 work; fixture round-trips do not prove endpoint behavior. Changes to either
+consumer must pass both suites even when they do not modify `proto/`.
 
 ## Filing issues
 

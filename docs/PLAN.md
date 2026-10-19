@@ -1376,7 +1376,7 @@ Evidence: source e27e908, main CI run 39192294899, and the combined clean-host p
 
 - enroll 请求至少包含：
   - `enroll_token`、`agent_protocol_version`；
-  - `platform`（固定 `"opnsense"`）、`platform_version`、`agent_version`；
+  - `platform` (bounded platform-neutral identifier; the OPNsense builder reports `"opnsense"`), `platform_version`, `agent_version`;
   - `capabilities`（v1 只有 `["remote.web"]`）；
   - `hostname`、`cluster_hint`。
 - enroll 响应：`device_id`、`device_secret`、`frp_token`、`server_addr`、`server_port`、`subdomain`、`domain_claim`，
