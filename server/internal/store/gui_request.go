@@ -10,24 +10,19 @@ import (
 	"errors"
 	"net/netip"
 	"regexp"
-	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/device"
 	"github.com/KazuhaHub/nethub/server/internal/guicert"
 )
 
-var ErrGUIRequestConflict = errors.New("device certificate request already bound")
+var ErrGUIRequestConflict = guicert.ErrConflict
 
 var certificateDomain = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$`)
 var certificateLabel = regexp.MustCompile(`^[a-z0-9]{8}$`)
 
 // GUIRequest is public signed material, excluded from ordinary status JSON.
 // A request identifies the CSR, not a certificate generation or an issuance grant.
-type GUIRequest struct {
-	ID, DeviceID, AssignedHost, PublicKey, Fingerprint string    `json:"-"`
-	DER                                                []byte    `json:"-"`
-	CreatedAt                                          time.Time `json:"-"`
-}
+type GUIRequest = guicert.StoredRequest
 
 // GUIRequestStore must receive DeviceDomain from trusted deployment settings.
 // No API caller may supply the assigned host, tenant or enrollment public key.
@@ -116,19 +111,36 @@ func readGUIRequest(ctx context.Context, tx *sql.Tx, tenant, id, host, key strin
 // Read reauthorizes the live credential and assignment before returning the exact
 // original CSR for cache recovery. Revocation does not delete retained evidence.
 func (s *GUIRequestStore) Read(ctx context.Context, credential device.Credential, id string) (GUIRequest, bool, error) {
+	_, record, err := s.Settings(ctx, credential, id)
+	if err != nil || record == nil {
+		return GUIRequest{}, false, err
+	}
+	return *record, true, nil
+}
+
+// Settings returns the current assignment and, when present, its original CSR.
+func (s *GUIRequestStore) Settings(ctx context.Context, credential device.Credential, id string) (guicert.Assignment, *GUIRequest, error) {
 	tx, host, key, err := s.lock(ctx, credential, id)
 	if err != nil {
-		return GUIRequest{}, false, err
+		return guicert.Assignment{}, nil, err
 	}
 	defer tx.Rollback()
 	result, found, err := readGUIRequest(ctx, tx, credential.TenantID, id, host, key)
 	if err != nil {
-		return GUIRequest{}, false, err
+		return guicert.Assignment{}, nil, err
 	}
 	if tx.Commit() != nil {
-		return GUIRequest{}, false, device.ErrUnavailable
+		return guicert.Assignment{}, nil, device.ErrUnavailable
 	}
-	return result, found, nil
+	bound, err := guicert.ValidatePublicKey(key)
+	if err != nil {
+		return guicert.Assignment{}, nil, device.ErrUnavailable
+	}
+	assignment := guicert.Assignment{Host: host, KeyFingerprint: bound.Fingerprint}
+	if !found {
+		return assignment, nil, nil
+	}
+	return assignment, &result, nil
 }
 
 // Admit atomically validates and persists the signed request with the current

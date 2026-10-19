@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.com/nethub/v1/certificate-settings-response.schema.json",
+  "type": "object",
+  "properties": {
+    "agent_protocol_version": {
+      "$ref": "common.schema.json#/$defs/version"
+    },
+    "device_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "assigned_host": {
+      "$ref": "common.schema.json#/$defs/gui_assigned_host"
+    },
+    "gui_key_fingerprint": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "request": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common.schema.json#/$defs/certificate_record"
+        }
+      ]
+    }
+  },
+  "required": [
+    "agent_protocol_version",
+    "device_id",
+    "assigned_host",
+    "gui_key_fingerprint",
+    "request"
+  ],
+  "additionalProperties": true,
+  "maxProperties": 21
+}

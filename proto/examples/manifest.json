@@ -138,5 +138,45 @@
     "path": "invalid/null-gui-fingerprint.json",
     "schema": "enroll-response.schema.json",
     "valid": false
+  },
+  {
+    "path": "valid/certificate-settings-request.json",
+    "schema": "certificate-settings-request.schema.json",
+    "valid": true
+  },
+  {
+    "path": "invalid/certificate-settings-request-missing-device.json",
+    "schema": "certificate-settings-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "valid/certificate-submit-request.json",
+    "schema": "certificate-submit-request.schema.json",
+    "valid": true
+  },
+  {
+    "path": "invalid/certificate-submit-request-missing-device.json",
+    "schema": "certificate-submit-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "valid/certificate-settings-response.json",
+    "schema": "certificate-settings-response.schema.json",
+    "valid": true
+  },
+  {
+    "path": "invalid/certificate-settings-response-missing-device.json",
+    "schema": "certificate-settings-response.schema.json",
+    "valid": false
+  },
+  {
+    "path": "valid/certificate-submit-response.json",
+    "schema": "certificate-submit-response.schema.json",
+    "valid": true
+  },
+  {
+    "path": "invalid/certificate-submit-response-missing-device.json",
+    "schema": "certificate-submit-response.schema.json",
+    "valid": false
   }
 ]

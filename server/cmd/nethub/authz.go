@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"runtime"
@@ -77,6 +78,7 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 	relayAddr := flags.String("relay-addr", "", "Relay control-channel hostname or IP")
 	relayName := flags.String("relay-server-name", "", "Verified relay TLS server name")
 	relayPort := flags.Uint("relay-port", 7000, "Relay control-channel port")
+	deviceDomain := flags.String("device-domain", "", "Assigned device DNS suffix; enable certificate request admission")
 	hookListen := flags.String("hook-listen", "", "Internal relay callback IP:port; enable with hook-peer")
 	adminOrigin := flags.String("frps-admin-origin", "", "Private frps admin origin with an explicit port")
 	adminUserFile := flags.String("frps-admin-user-file", "", "Private frps admin username file")
@@ -139,7 +141,20 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	logger := slog.New(slog.NewJSONHandler(stderr, nil))
-	handler, err := device.NewHTTP(device.HTTPConfig{Origin: *origin, TrustedProxies: proxies, Logger: logger}, service)
+	var certificates *device.CertificateService
+	if *deviceDomain != "" {
+		console, parseErr := url.Parse(*origin)
+		if parseErr != nil || strings.EqualFold(console.Hostname(), *deviceDomain) || strings.HasSuffix(strings.ToLower(console.Hostname()), "."+*deviceDomain) {
+			fmt.Fprintln(stderr, "Console origin must be outside the device certificate domain")
+			return 1
+		}
+		certificates, err = device.NewCertificates(service, &store.GUIRequestStore{Enrollment: repository, DeviceDomain: *deviceDomain})
+		if err != nil || certificates.Health(startup) != nil {
+			fmt.Fprintln(stderr, "Certificate admission domain or database authorization is invalid")
+			return 1
+		}
+	}
+	handler, err := device.NewHTTP(device.HTTPConfig{Origin: *origin, TrustedProxies: proxies, Logger: logger, Certificates: certificates}, service)
 	if err != nil || service.Health(startup) != nil {
 		fmt.Fprintln(stderr, "Authz origin, proxy configuration or database authorization is invalid")
 		return 1

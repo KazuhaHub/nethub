@@ -16,6 +16,7 @@ import (
 
 	"github.com/KazuhaHub/nethub/server/internal/auth"
 	"github.com/KazuhaHub/nethub/server/internal/clientip"
+	"github.com/KazuhaHub/nethub/server/internal/guicert"
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
 )
 
@@ -25,19 +26,24 @@ type HTTPConfig struct {
 	Origin         string
 	TrustedProxies []netip.Prefix
 	Logger         *slog.Logger
+	Certificates   *CertificateService
 }
 
 type HTTPServer struct {
-	service  *Service
-	origin   *auth.OriginPolicy
-	clientIP *clientip.Resolver
-	logger   *slog.Logger
-	host     string
+	service      *Service
+	origin       *auth.OriginPolicy
+	clientIP     *clientip.Resolver
+	logger       *slog.Logger
+	host         string
+	certificates *CertificateService
 }
 
 func NewHTTP(config HTTPConfig, service *Service) (*HTTPServer, error) {
 	if service == nil || config.Logger == nil {
 		return nil, errors.New("device service and logger are required")
+	}
+	if config.Certificates != nil && config.Certificates.lifecycle != service {
+		return nil, ErrUnavailable
 	}
 	origin, err := auth.NewOriginPolicy(config.Origin)
 	if err != nil {
@@ -48,7 +54,7 @@ func NewHTTP(config HTTPConfig, service *Service) (*HTTPServer, error) {
 		return nil, err
 	}
 	u, _ := url.Parse(config.Origin)
-	return &HTTPServer{service: service, origin: origin, clientIP: resolver,
+	return &HTTPServer{service: service, certificates: config.Certificates, origin: origin, clientIP: resolver,
 		logger: config.Logger, host: strings.TrimSuffix(strings.ToLower(u.Host), ":443")}, nil
 }
 
@@ -69,7 +75,7 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			deviceError(w, r, 400, "invalid_request", "Invalid health request")
 			return
 		}
-		if err := s.service.Health(r.Context()); err != nil {
+		if err := s.service.Health(r.Context()); err != nil || s.certificates != nil && s.certificates.Health(r.Context()) != nil {
 			deviceError(w, r, 503, "unavailable", "Device service unavailable")
 			return
 		}
@@ -84,7 +90,8 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	lifecycle := r.URL.Path == "/api/v1/devices/status" || r.URL.Path == "/api/v1/devices/unenroll"
-	if r.URL.EscapedPath() != r.URL.Path || r.URL.Path != enrollPath && !lifecycle {
+	certificate := s.certificates != nil && (r.URL.Path == "/api/v1/devices/gui-certificate/settings" || r.URL.Path == "/api/v1/devices/gui-certificate/request")
+	if r.URL.EscapedPath() != r.URL.Path || r.URL.Path != enrollPath && !lifecycle && !certificate {
 		deviceError(w, r, 404, "not_found", "Not found")
 		return
 	}
@@ -127,6 +134,10 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		deviceError(w, r, 400, "invalid_request", "Invalid request body")
 		return
 	}
+	if certificate {
+		s.certificate(w, r, data, ip)
+		return
+	}
 	if lifecycle {
 		s.lifecycle(w, r, data, ip)
 		return
@@ -145,6 +156,39 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusCreated)
 	// A lost response does not authorize replay of the consumed enrollment token.
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+func (s *HTTPServer) certificate(w http.ResponseWriter, r *http.Request, data []byte, ip netip.Addr) {
+	values := r.Header.Values("Authorization")
+	if len(values) != 1 || !strings.HasPrefix(values[0], "Bearer ") || !protocol.ValidDeviceSecret(strings.TrimPrefix(values[0], "Bearer ")) {
+		deviceError(w, r, 401, "device_authentication_failed", "Device authentication failed")
+		return
+	}
+	secret := strings.TrimPrefix(values[0], "Bearer ")
+	var result protocol.CertificateSettings
+	var err error
+	if r.URL.Path == "/api/v1/devices/gui-certificate/settings" {
+		var identity protocol.Identity
+		identity, err = protocol.DecodeCertificateSettings(bytes.NewReader(data))
+		if err == nil {
+			result, err = s.certificates.Settings(r.Context(), identity, secret, ip)
+		}
+	} else {
+		var input protocol.CertificateSubmit
+		input, err = protocol.DecodeCertificateSubmit(bytes.NewReader(data))
+		if err == nil {
+			result, err = s.certificates.Submit(r.Context(), input, secret, ip)
+		}
+	}
+	if errors.Is(err, ErrDenied) {
+		deviceError(w, r, 401, "device_authentication_failed", "Device authentication failed")
+		return
+	}
+	if err != nil {
+		s.failure(w, r, err)
+		return
+	}
 	_ = json.NewEncoder(w).Encode(result)
 }
 
@@ -185,6 +229,12 @@ func (s *HTTPServer) lifecycle(w http.ResponseWriter, r *http.Request, data []by
 
 func (s *HTTPServer) failure(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, protocol.ErrCertificateVersion):
+		deviceError(w, r, 400, "incompatible_protocol", "Certificate requests require protocol 1.2 or later within major 1")
+	case errors.Is(err, guicert.ErrRequest):
+		deviceError(w, r, 400, "invalid_certificate_request", "Invalid device certificate request")
+	case errors.Is(err, guicert.ErrConflict):
+		deviceError(w, r, 409, "certificate_request_conflict", "Device certificate request already bound")
 	case errors.Is(err, protocol.ErrIncompatibleVersion):
 		deviceError(w, r, 400, "incompatible_protocol", "Unsupported device protocol; supported major is 1")
 	case errors.Is(err, protocol.ErrInvalidRequest):
