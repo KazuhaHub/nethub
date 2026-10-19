@@ -59,18 +59,33 @@ type Client struct {
 }
 
 func New(config Config) (*Client, error) {
-	if !validKey(config.Key) || len(config.AdditionalOrigins) > 8 {
+	if !validKey(config.Key) {
 		return nil, ErrConfig
+	}
+	origins, contact, err := validatePolicy(config)
+	if err != nil {
+		return nil, err
+	}
+	key := *config.Key
+	key.D = new(big.Int).Set(config.Key.D)
+	key.X, key.Y = new(big.Int).Set(config.Key.X), new(big.Int).Set(config.Key.Y)
+	t := newTransport(origins, config.Roots)
+	return &Client{gate: make(chan struct{}, 1), transport: t, contact: contact, key: &key, directory: config.DirectoryURL}, nil
+}
+
+func validatePolicy(config Config) (map[string]bool, []string, error) {
+	if len(config.AdditionalOrigins) > 8 {
+		return nil, nil, ErrConfig
 	}
 	directory, ok := endpoint(config.DirectoryURL)
 	if !ok {
-		return nil, ErrConfig
+		return nil, nil, ErrConfig
 	}
 	origins := map[string]bool{directory.Scheme + "://" + directory.Host: true}
 	for _, value := range config.AdditionalOrigins {
 		u, ok := endpoint(value)
 		if !ok || u.Path != "" || u.RawQuery != "" || u.ForceQuery {
-			return nil, ErrConfig
+			return nil, nil, ErrConfig
 		}
 		origins[value] = true
 	}
@@ -78,15 +93,11 @@ func New(config Config) (*Client, error) {
 	if config.ContactEmail != "" {
 		address, err := mail.ParseAddress(config.ContactEmail)
 		if err != nil || address.Address != config.ContactEmail || address.Name != "" || len(config.ContactEmail) > 254 || strings.ContainsAny(config.ContactEmail, "\r\n\x00") {
-			return nil, ErrConfig
+			return nil, nil, ErrConfig
 		}
 		contact = []string{"mailto:" + address.Address}
 	}
-	key := *config.Key
-	key.D = new(big.Int).Set(config.Key.D)
-	key.X, key.Y = new(big.Int).Set(config.Key.X), new(big.Int).Set(config.Key.Y)
-	t := newTransport(origins, config.Roots)
-	return &Client{gate: make(chan struct{}, 1), transport: t, contact: contact, key: &key, directory: config.DirectoryURL}, nil
+	return origins, contact, nil
 }
 
 func (c *Client) newSDK() *acme.Client {

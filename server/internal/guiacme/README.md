@@ -39,8 +39,9 @@ redirects, body/header handling and cancellation. These tests are not genuine CA
 issuance acceptance. No live public account is created and no deployment route or
 timer is installed.
 
-Device authorization and immutable public-key binding, durable key/account/job
-storage, HTTP-01 order execution, issued-chain validation, authenticated delivery
-and native GUI installation remain required before this client can issue router
-certificates. The existing `guicert` and `http01` packages provide separate request,
+The separate `AccountStore` implements protected key/account persistence and
+recovery; see [its contract](STORE.md). Deployment wiring, current-assignment
+authorization, durable order jobs, HTTP-01 execution, authenticated delivery and
+native GUI installation remain required before issuing router certificates.
+The existing `guicert` and `http01` packages provide separate request,
 chain and publication checks; none of those checks alone authorize issuance.
