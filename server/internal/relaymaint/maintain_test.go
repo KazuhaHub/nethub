@@ -26,6 +26,10 @@ type serviceFixture struct {
 	restarts, publishes int
 }
 
+type invalidBinding struct{ Service }
+
+func (invalidBinding) Running(context.Context) (bool, error) { return false, ErrState }
+
 func (f *serviceFixture) Running(context.Context) (bool, error) { return f.running, nil }
 func (f *serviceFixture) Current() ([]byte, []byte, error) {
 	return bytes.Clone(f.cert), bytes.Clone(f.key), nil
@@ -149,6 +153,12 @@ func TestRetryBudgetReusesIssuedGeneration(t *testing.T) {
 	if f.restarts != 6 {
 		t.Fatal("exhausted job restarted")
 	}
+	e.Service = invalidBinding{f}
+	state, err = e.Run(context.Background(), true)
+	if err != ErrMaintenance || state.Attempts != 3 || state.Phase != "exhausted" || f.restarts != 6 {
+		t.Fatal("invalid project binding reset the retry budget")
+	}
+	e.Service = f
 	state, err = e.Run(context.Background(), true)
 	if err != nil || state.LastGood != candidate || f.restarts != 7 {
 		t.Fatal("operator retry did not reuse issued generation")

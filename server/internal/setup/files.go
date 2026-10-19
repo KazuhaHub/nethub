@@ -327,17 +327,23 @@ func VerifyBackup(directory, backup string) error {
 	if err := verifyFiles(destination, manifest.Files); err != nil {
 		return err
 	}
+	sourceFiles := make([]os.FileInfo, 0, len(manifest.Files))
 	for _, file := range manifest.Files {
 		a, err := os.Stat(filepath.Join(source, filepath.FromSlash(file.Path)))
 		if err != nil {
 			return err
 		}
+		sourceFiles = append(sourceFiles, a)
+	}
+	for _, file := range manifest.Files {
 		b, err := os.Stat(filepath.Join(destination, filepath.FromSlash(file.Path)))
 		if err != nil {
 			return err
 		}
-		if os.SameFile(a, b) {
-			return errors.New("backup must contain independent file copies")
+		for _, a := range sourceFiles {
+			if os.SameFile(a, b) {
+				return errors.New("backup must contain independent file copies")
+			}
 		}
 	}
 	return nil

@@ -165,6 +165,16 @@ func (e Engine) Run(ctx context.Context, retry bool) (State, error) {
 			return state, ErrState
 		}
 	}
+	if (state.Phase == "exhausted" || state.Phase == "recovery-failed") && !retry {
+		return state, ErrMaintenance
+	}
+	running, err := e.Service.Running(ctx)
+	if err != nil {
+		return fail("observation_failed")
+	}
+	if !running && state.Phase != "applying" && state.Phase != "rollback" && !(retry && state.Candidate != "") {
+		return fail("service_stopped")
+	}
 	if retry && (state.Phase == "exhausted" || state.Phase == "recovery-failed") {
 		state.Phase = "issued"
 		state.Attempts = 0
@@ -174,9 +184,6 @@ func (e Engine) Run(ctx context.Context, retry bool) (State, error) {
 			return state, ErrState
 		}
 	}
-	if state.Phase == "exhausted" || state.Phase == "recovery-failed" {
-		return state, ErrMaintenance
-	}
 	if retry && state.Phase == "waiting" {
 		state.Phase = "issued"
 		state.NextAttempt = time.Time{}
@@ -184,13 +191,6 @@ func (e Engine) Run(ctx context.Context, retry bool) (State, error) {
 		if s.save(state) != nil {
 			return state, ErrState
 		}
-	}
-	running, err := e.Service.Running(ctx)
-	if err != nil {
-		return fail("observation_failed")
-	}
-	if !running && state.Phase != "applying" && state.Phase != "rollback" && !(retry && state.Candidate != "") {
-		return fail("service_stopped")
 	}
 	if state.Phase == "waiting" && e.now().Before(state.NextAttempt) {
 		return state, nil

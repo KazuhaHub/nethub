@@ -64,3 +64,25 @@ func TestMaintenanceIdentityDoesNotRequireBuildSource(t *testing.T) {
 		t.Fatal("runtime identity validation depends on build source or initialization accepts missing sources")
 	}
 }
+
+func TestBackupCannotAliasAnotherSharedCredentialSource(t *testing.T) {
+	parent := t.TempDir()
+	bundle, err := Generate(filepath.Join(parent, "deployment"), fixtureConfig(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	backup, err := Backup(bundle, filepath.Join(parent, "backup"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(backup, "secrets/authz/frp_token")
+	if os.Remove(target) != nil {
+		t.Fatal("fixture replacement")
+	}
+	if err := os.Link(filepath.Join(bundle, "secrets/frps/frp_token"), target); err != nil {
+		t.Skip("hardlink fixture unavailable")
+	}
+	if VerifyBackup(bundle, backup) == nil {
+		t.Fatal("backup aliases a different source path with the same credential value")
+	}
+}

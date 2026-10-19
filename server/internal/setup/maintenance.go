@@ -96,16 +96,16 @@ type relayHost struct {
 	args                     []string
 	ca                       []byte
 }
-type commandBuffer struct{ bytes.Buffer }
+type commandBuffer struct{ data bytes.Buffer }
 
 func (b *commandBuffer) Write(p []byte) (int, error) {
 	size := len(p)
-	if b.Len() < 65536 {
-		remaining := 65536 - b.Len()
+	if b.data.Len() < 65536 {
+		remaining := 65536 - b.data.Len()
 		if len(p) > remaining {
 			p = p[:remaining]
 		}
-		_, _ = b.Buffer.Write(p)
+		_, _ = b.data.Write(p)
 	}
 	return size, nil
 }
@@ -124,7 +124,7 @@ func (h *relayHost) command(ctx context.Context, args ...string) ([]byte, error)
 	if command.Run() != nil {
 		return nil, relaymaint.ErrMaintenance
 	}
-	return output.Bytes(), nil
+	return output.data.Bytes(), nil
 }
 
 func (h *relayHost) Running(ctx context.Context) (bool, error) {
@@ -134,7 +134,7 @@ func (h *relayHost) Running(ctx context.Context) (bool, error) {
 	}
 	ids := strings.Fields(string(output))
 	if len(ids) == 0 {
-		return false, nil
+		return false, relaymaint.ErrState
 	}
 	if len(ids) != 1 {
 		return false, relaymaint.ErrState
