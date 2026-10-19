@@ -47,10 +47,25 @@ Current assignment/lease checks still precede every external mutation. An
 ambiguous new-order reply without a saved URI is terminal indeterminate work;
 resume must not blindly create another order. Ordinary JSON excludes progress.
 
-These foundations do not persist issued chains or deployment status, configure
-an account, start a scheduler/host adapter, call a CA or change a device. The
-actual CA coordinator and recovery fixture are not connected yet. Issued
-material and verified native application will remain separate states.
+Migration 00010 stores independently validated public chains as immutable
+generations. Completion requires a fresh live lease and a saved valid/finalizing
+order with its download identity. The same completion token/version and exact
+material recover the original generation after a lost reply; another payload
+cannot replace it. Completion and one issuance audit commit together. Revocation
+blocks completion/readback while retaining issued evidence. No private device
+key enters the table or payload.
+
+Material validation uses independently configured roots and the original bound
+CSR/key/SAN/current validity. Renewal follows the earliest validated chain expiry,
+with a lead bounded by actual lifetime and stable per-device spread. A minimum
+issuance interval rejects material too near expiry to schedule safely, avoiding
+an immediate short-lifetime renewal loop. These are issuance states, not verified
+device application or an assertion that a router is serving the new leaf.
+
+These foundations do not configure an account, start a scheduler/host adapter,
+call a CA, deliver a chain or change a device. The actual CA coordinator and
+recovery fixture are not connected yet. Verified native application and retrying
+deployment of the same issued generation remain separate integration work.
 
 Fresh bootstrap creates the reserved no-login role. Migration remains compatible
 with a disabled legacy deployment where that role is absent; enabling an issuer
