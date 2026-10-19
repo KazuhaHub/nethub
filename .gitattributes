@@ -2,3 +2,4 @@
 server/web/** text=auto eol=lf
 server/.go-version text eol=lf
 agents/opnsense/plugin/packaging/freebsd/+* text eol=lf
+agents/opnsense/** text=auto eol=lf
