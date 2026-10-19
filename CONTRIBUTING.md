@@ -4,10 +4,12 @@ Thanks for your interest in NetHub. This document covers how contributions are
 licensed, how the repository is organized and how it relates to the separate
 packaging repository, and the conventions we expect from pull requests.
 
-NetHub is **pre-alpha**, with accepted W0 measurements and natively validated
-W2 OPNsense tunnel integration. There is no released version or complete deployment;
-enrollment and the control plane remain unimplemented. The design and
-stage-specific READMEs distinguish verified behavior from planned features.
+NetHub is **pre-alpha**, with accepted W0 measurements, native W2 OPNsense tunnel
+validation, and W3 console deployment evidence. The console, database boundaries,
+initialization and first-administrator CLI are implemented. Device enrollment,
+relay authorization and full SSO remain unfinished; there is no released version.
+Stage-specific READMEs and validation records distinguish tested behavior from
+planned features.
 
 ## Table of contents
 
@@ -155,14 +157,13 @@ change as a blocking request for changes, not a nitpick.
 
 ### Where things stand
 
-NetHub is pre-alpha. As of this writing the repository holds documentation
-and the Weekend 0 kit only. There is no `nethub` binary, no `docker compose`
-stack and no agent plugin yet. This section therefore has two parts:
-
-- what you can set up and run **today**;
-- the workflow that is **planned** for when code lands. That part is marked
-  as planned, and will be replaced with tested steps in the same pull request
-  that adds the code.
+The Go CLI, React console, console Compose stack and OPNsense development plugin
+exist. Use the commands below for isolated source checks. For a console
+deployment, follow [the quickstart](deploy/QUICKSTART.md), including backup
+acknowledgement and first-administrator creation. The stack does not yet provide
+device enrollment or relay authorization. The W3 clean-host/public validation
+and its environment acceptance limit are recorded in
+[the deployment report](deploy/validation-w3.md).
 
 ### Tools
 
@@ -170,9 +171,9 @@ stack and no agent plugin yet. This section therefore has two parts:
 |---|---|---|---|
 | Git and the GitHub CLI | any recent | everything | `git --version`, `gh --version` |
 | Go | 1.26.9 (the build pin in `server/.go-version`; `go.mod` declares the compatibility floor) | the control plane in `server/` | `go version` |
-| Node.js | the current LTS release, not "Current" | the console source in `server/web/` | `node -v` |
-| Docker and Docker Compose | any recent | the local stack (Postgres 16, Caddy, `frps`, `nethub web`, `nethub authz`) | `docker version`, `docker compose version` |
-| Python | 3.13.x (the version OPNsense 26.7 ships); any Python 3.11 or newer is enough for today's two checks below | the OPNsense agent (`agentctl.py`) and its tests, and `weekend0/probe.py`. Python is used nowhere else | `python3.13 --version` |
+| Node.js | 24.14.0, matching CI and the Docker builder | the console source in `server/web/` | `node -v` |
+| Docker and Docker Compose | Compose 2.24.4 or later; tested Engine/Compose versions are in the quickstart | console deployment and isolated database/deployment tests; relay integration remains W4 | `docker version`, `docker compose version` |
+| Python | 3.13.x on OPNsense 26.7; 3.11 or newer for host-side checks | agent, packaging helpers, deployment checks and Weekend 0 tools | `python3.13 --version` |
 | PHP CLI | the same major and minor version as the test device's OPNsense | syntax checks (`php -l`) of the plugin's PHP files | `php -v` |
 | `psql` | 16 or newer | inspecting the local database | `psql --version` |
 
@@ -247,60 +248,77 @@ Anything that touches the agent needs an OPNsense machine to install it on.
 - **Behind NAT is ideal.** If the test VM has a public address instead, block
   all inbound traffic except SSH from your own address. Only then does a
   working tunnel prove that no inbound port is needed.
-- **SSH as root with a key:**
-  - System → Settings → Administration → Secure Shell: enable it, permit root
-    login, and disable password login;
-  - System → Access → Users → root: add your public key.
+- **Preserve the test host's authorized SSH policy.** Verify its host key before
+  using either key or password authentication, and retain an independent console
+  recovery path. Do not replace credentials or disable an existing login method
+  as part of an unrelated plugin test.
 
-### Planned local workflow (not yet available)
+### Current local workflow
 
-This is how development is expected to work once the code exists. Some of
-it is still a proposal and is marked as such.
+The shell examples below target a POSIX development environment. Go commands use
+the compiler pinned in `server/.go-version`; `GOTOOLCHAIN=local` prevents a silent
+toolchain download. On Windows, use the equivalent environment assignments or a
+Linux development environment for Docker/POSIX integration checks.
 
 **Control plane:**
 
-1. Start a local Postgres, bound to `127.0.0.1` only. The proposal is a
-   development compose file, `deploy/compose.dev.yml`; it does not exist yet.
-2. Build the console first. From `server/web/`, run `npm ci`, then
-   `npm run build`. The Go binary embeds the build output with `go:embed`, so
-   `go build` fails until it exists. The build output itself is not committed.
-3. Run the Go checks from `server/`. `gofmt -l` only lists unformatted files;
+1. From `server/web/`, run `npm ci --ignore-scripts`, `npm run format:check`,
+   `npm test`, and `npm run build`. The Go binary embeds that build output;
+   it is not committed. For the isolated browser suite, install Chromium with
+   `npx playwright install --with-deps chromium`, then run `npm run verify`.
+2. Run the Go checks from `server/`. `gofmt -l` only lists unformatted files;
    it does not fail on them, hence the `test -z`:
 
    ```bash
-   go build ./... && go vet ./... && test -z "$(gofmt -l .)" && go test ./... -race -count=1
+   export GOWORK=off GOTOOLCHAIN=local
+   go mod verify
+   test -z "$(gofmt -l cmd internal)"
+   go build ./...
+   go vet ./...
+   go test -race ./...
    ```
 
-   The integration tests (row-level security, column grants) need the local
-   Postgres.
+3. From `server/`, run `sh tests/postgres.sh` with Docker available for the
+   actual-role PostgreSQL tests. The script creates an isolated database and
+   runs its integration test binary; ordinary `go test` alone does not establish
+   the RLS, grant or database-concurrency evidence. The script removes its owned
+   container and temporary state on exit.
 
 **Full stack:**
 
-1. `nethub init` writes per-service secrets into `deploy/secrets/`.
-2. `docker compose up -d` starts the stack.
-3. `nethub doctor` checks it.
+Follow [the quickstart](deploy/QUICKSTART.md) for the exact deployment paths,
+initialization/backup acknowledgement, migration, administrator creation and
+Compose commands. `nethub doctor` currently checks the implemented setup scope;
+complete relay/runtime/backup checks remain W7.
+
+The isolated Linux acceptance harness is `sh server/tests/compose.sh`, run as root
+from the repository root. CI enables its assembled-image scan and deployed-browser
+checks; see `.github/workflows/ci.yml` for those environment variables. It uses
+an internal test CA. Passing that harness does not prove public DNS or public
+certificate issuance; the deployment report records the separate public test.
 
 **OPNsense agent:**
 
-- `docs/DESIGN.md` §2 describes the development loop. Symlink or `rsync`
-  `agents/opnsense/plugin/` into the packaging repository's
-  `src/os-nethub-agent/`, build a development package with that repository's
-  tooling on the test device, and install it there.
-- The exact plugin layout and build entry point are still being settled. The
-  steps here will be made concrete when the plugin skeleton lands.
+- Install the CI-pinned host test dependencies (`pytest==8.3.5` and
+  `jinja2==3.1.6`) in a development environment with PHP CLI and POSIX sh.
+  From the repository root, run
+  `python3 -m pytest -q agents/opnsense/plugin/tests` and
+  `python3 deploy/frp/check_versions.py`.
+- On the isolated FreeBSD/OPNsense test guest, enter
+  `agents/opnsense/plugin/`, run `sh build.sh`, and install
+  `dist/os-nethub-agent.pkg` with `pkg add`. The build downloads the pinned,
+  checksum-verified official frpc archive. It does not require copying source
+  into or changing the separate packaging repository. See
+  [the plugin development guide](agents/opnsense/plugin/README.md) for prerequisites
+  and the native installation/service tests.
 - Signed packages for real installs are built and published separately, from
   tagged releases only (see
   [License and repository layout](#license-and-repository-layout)).
 
-**Contract tests:** the JSON Schemas live in `proto/`. The contract tests
-check both the Go server and the agent (`agents/opnsense/tests/`) against
-them, and they run in CI on every pull request. A change to the server or the
-agent can break the contract without touching `proto/` at all.
-
-### Help wanted
-
-If you want to help get this section written for real, that is itself a
-welcome contribution. Open an issue describing what you got working and how.
+**Contract tests:** shared JSON Schemas and Go/Python wire-contract tests are W4
+work, not an existing CI gate. `proto/` currently contains the intended contract
+and recorded upstream hook observations. Once schemas land, changes to either
+consumer must pass both contract suites even when they do not modify `proto/`.
 
 ## Filing issues
 
