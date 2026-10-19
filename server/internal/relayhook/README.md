@@ -46,7 +46,7 @@ input, saturation, database deadlines and a real slow-body TCP connection. The
 native PostgreSQL harness adds valid signed-but-stale/wrong assignments,
 revocation/claim changes during observed row-lock waits, and compiled-process
 callbacks, a real 500 ms database lock timeout, recovery, listener separation and
-shutdown. Native results require this change's CI. Real frps registration and
+shutdown. These native cases passed in run 39219581415 on 3c24e5e. Real frps registration and
 tunnel traffic still require W4 deployment acceptance; these tests send callback
 HTTP directly. Ping and NewUserConn remain W5 work, so this step does not claim
 to disconnect existing sessions or enforce the browser source-IP gate.

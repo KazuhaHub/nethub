@@ -1448,6 +1448,13 @@ remain W5. See [the callback boundary](../server/internal/relayhook/README.md).
 `nethub authz` 每 15 秒调一次 frps 的 admin API（只在内部网络），列出在线代理，更新 `devices.last_seen_at`。
 本阶段只读、只更新状态，不做任何断线动作（DESIGN §5：admin API 断不了在线连接）。
 
+W4-5 implementation note (2026-10-19): the bounded admin poller and authz
+runtime integration now exist. Storage refreshes only matching nonrevoked routes,
+uses database time and tenant RLS, and skips busy rows. Local Go tests/vet pass;
+new genuine storage/console cases and a compiled-process 15-second HTTP-fixture
+probe still need CI. Real frps interoperability remains W4-6 deployment acceptance.
+See [the observation boundary](../server/internal/relaystate/README.md).
+
 **W4-6 frps 和 Caddy 的部署配置。**
 
 - frps 的配置：仓库里只提交模板 `deploy/frps/frps.toml.tmpl`（只有占位值）。`nethub init` 把它渲染成 `deploy/secrets/frps/frps.toml`（在被忽略的目录里），只挂进 frps 容器。

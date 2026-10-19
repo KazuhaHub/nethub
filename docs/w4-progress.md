@@ -106,14 +106,38 @@ enrollment listener cannot serve callbacks; both listeners stop together.
 Local Go tests/vet pass. The genuine PostgreSQL follow-up covers wrong/stale
 signed assignments, revocation and claim replacement during observed row locks,
 and the compiled runtime's actual callback requests, lock timeout, recovery and
-listener separation. Native callback CI is pending. Real frps registration/tunnel
-traffic remains deployment acceptance. See [the boundary and sources](../server/internal/relayhook/README.md).
+listener separation. PR #47 merged as 48e2fa6 after all six checks passed on 3c24e5e (run
+39219581415). Genuine callback, lock-race and compiled-process cases passed.
+Real frps registration/tunnel traffic remains deployment acceptance. See [the boundary and sources](../server/internal/relayhook/README.md).
+
+## W4-5: read-only relay observations
+
+The observer reads the authenticated private admin API immediately and every 15
+seconds. It never follows redirects or uses environment proxies; DNS results
+must all remain private/loopback. Responses have bounded bytes, entries and
+processing time. Recognized names/configurations must agree with the device route
+policy before any storage call. Offline, missing and malformed responses cannot
+refresh devices.
+
+The authz store selects existing tenant scopes from the database, retains forced
+RLS and updates only matching nonrevoked devices' last_seen_at with the database
+clock. Busy device rows are skipped; empty observations do not extend online
+state. The existing console's 45-second window expires old observations. Admin
+failures emit fixed transitions and do not stop authorization listeners.
+
+Local Go tests/vet pass. New genuine PostgreSQL cases check tenant/route/revocation
+matching, unchanged identity fields, owner-scoped console online/expiry results,
+lock skipping and denied web-role writes. The compiled CLI test polls a local
+HTTP admin fixture at the actual 15-second cadence and checks persistence and
+shutdown. Native follow-up CI remains pending. Real frps response interoperability
+and multi-client traffic still need W4 deployment acceptance. See [the observer
+boundary and source references](../server/internal/relaystate/README.md).
 
 ## Remaining W4 work
 
-- Verify W4-4 native callback/race CI, then complete remaining device status,
+- Verify W4-5 native periodic observation/storage CI, then complete device status,
   rotation and unenrollment handlers as the corresponding W4/W7 tasks require.
-- W4-5/W4-6: relay observation, production frps/authz Compose wiring and source-IP
+- W4-6: production frps/authz Compose wiring, real relay observation and source-IP
   verification in the actual container topology.
 - W4-7/W4-8: verified HTTPS enrollment, PHP model save/configuration lock, private
   request-file handling, local idempotence, status and unenrollment.
