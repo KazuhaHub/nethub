@@ -51,10 +51,10 @@ establish another host's firewall/NAT behavior, native OPNsense enrollment or GU
 certificate installation. Raw requests, source addresses, hostnames, passwords,
 generated deployment files, certificate keys and screenshots stay outside Git.
 
-External reverse-proxy acceptance is recorded below. Durable relay renewal/application/rollback,
-authenticated trust generation acknowledgement, and OPNsense GUI ACME
-issuance/installation/renewal remain required. Initial material generation and a
-successful public relay are not certificate lifecycle acceptance.
+External reverse-proxy and durable same-root relay maintenance acceptance are
+recorded below. Authenticated trust generation acknowledgement and OPNsense GUI
+ACME issuance/installation/renewal remain required. Initial material generation
+and a successful public relay are not complete certificate lifecycle acceptance.
 
 ## Existing host HTTPS proxy
 
@@ -92,3 +92,52 @@ without a failure. That bounded run does not establish exhaustive parser coverag
 The validator supports a device-generated GUI key and public CSR/chain exchange.
 It does not authorize a tenant/device, contact an ACME issuer, deliver/install
 certificates or implement renewal. Those components remain open.
+
+## Same-root relay leaf maintenance
+
+PR #56 merged as 689e8e9 after all six checks passed on
+d099ee803df258c5948b57aef0848169578ff473, run 39248588114. Inspected deployment
+logs confirm a genuine due leaf, injected recreation failure, verified rollback,
+reuse of the persisted issued generation, fresh served fingerprint, two official
+frpc clients, unchanged-scan suppression, an actual host timer and production unit
+verification. Retry to both working tunnels measured 690 ms in that isolated CI
+environment. All four image scans and existing deployment regressions passed.
+
+The native LXC public run used the exact verified host binary from that CI image,
+the original retained deployment authority/backup and earlier PR #51 application
+images. It loaded a currently valid due fixture under the same authority, enrolled
+two labelled Linux fixture clients through verified console HTTPS, then invoked
+the normal root maintenance command. Fresh external IPv4 TLS checked the control
+leaf against the independent CA/hostname and confirmed the new fingerprint.
+Both 8443 routes verified their fixture certificates/hostnames and expected bodies.
+
+Trigger to fresh external confirmation of both routes measured 4.0 seconds. After
+the trigger, 17 fresh control/HTTP probes failed and 62 succeeded; renewal is not
+seamless. This includes sampling and command-trigger latency, not an exact outage
+measurement or a bound for other networks. The CA key and unrelated container IDs
+were unchanged, ownership/modes and doctor passed, and a second scan did not
+restart frps. The verified renewed generation and its journal were retained.
+
+An independent nine-minute restoration timer was armed before listener changes.
+The public window lasted 25.699 seconds. All certificate writers and descendants
+were stopped, owned public containers removed, original 80/443/8443 listeners
+restored, and 7000 closed before cancelling the timer. A subsequent independent
+check confirmed restoration and timer inactivity. Disposable cleanup tests covered
+baseline restoration, retained successful generations, corrupt baseline recovery
+and a child process that ignored termination; no original services were touched
+by those cleanup tests. Secrets and raw evidence remain outside Git.
+
+This accepts same-root relay leaf maintenance with Linux fixture clients. It does
+not establish native OPNsense enrollment, GUI certificates, authenticated trust
+acknowledgements or CA rotation. Expired-candidate replacement remains open.
+
+## Returned router certificate chains
+
+Local tests validate the returned current server chain against the original signed
+P-256 CSR, exact assigned name and independently supplied roots. They reject a
+response-supplied untrusted root, another device key, missing intermediates,
+reordered/duplicate/unrelated certificates, malformed/mixed PEM, altered
+signatures, expanded identities and incorrect usage. Effective chain expiry is
+reported separately from the leaf's own dates. Tests and vet pass locally; CI on
+the current change is required. No live ACME issuance or appliance installation
+is established by these parser/trust tests.
