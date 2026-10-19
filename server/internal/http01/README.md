@@ -49,3 +49,9 @@ an isolated nonroot/read-only container. The production runtime image does not
 contain the separately compiled acceptance binary. No public ACME account, live
 certificate issuance, device key binding or GUI certificate installation is
 established by these tests.
+
+The Linux host probes the genuine test proxy through its verified private address
+on an owned internal bridge. No host ports are requested or effectively published.
+The harness verifies the network identity, internal flag and container membership;
+it does not assume Docker implements port publishing for an internal network.
+See [Docker bridge isolation and host reachability](https://docs.docker.com/engine/network/port-publishing/#gateway-modes).
