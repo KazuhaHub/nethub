@@ -11,14 +11,15 @@ the reasoning.
 > **Status:** W3 foundation work has started after native W2 acceptance. The Go
 > module directly imports authcore/saml v0.6.2; the SAML adapter delegates protocol
 > processing and enforces console policy. The CLI provides the console API, migrate,
-> and help/version; other commands still fail explicitly. Database bootstrap,
+> init, scoped doctor checks, and help/version. Authz remains unfinished. Database bootstrap,
 > migrations, and actual-role PostgreSQL/HTTPS API tests pass. The React console
-> passes isolated browser flows under strict CSP. Device enrollment, init,
-> complete deployment, and SSO flows remain unfinished.
+> passes isolated browser flows under strict CSP. Initialization and the console
+> Compose stack are implemented; complete deployment acceptance, device enrollment,
+> and SSO flows remain unfinished.
 
 The local [first-admin command](cmd/nethub/admin-bootstrap.md) is implemented with
 hidden terminal entry or protected stdin, owner-role isolation, and atomic one-time
-creation. The init wizard and its Compose bootstrap service remain pending.
+creation. The init wizard and its Compose bootstrap service are now wired; public deployment acceptance remains pending.
 
 The local [password/session service](internal/auth/README.md) and tenant-bound
 PostgreSQL authentication store are implemented, with actual-role tests for

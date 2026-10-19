@@ -1,0 +1,5 @@
+{$NETHUB_CONSOLE_HOST} {
+    @internal path /healthz /healthz/*
+    respond @internal 404
+    reverse_proxy nethub-web:8080
+}

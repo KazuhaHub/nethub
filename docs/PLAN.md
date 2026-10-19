@@ -1268,7 +1268,7 @@ DESIGN §6 还建议做"一次性撤销"（web 只能把 `revoked` 设成 true�
    - 写 `docker-compose.override.yml`；
    - **强制备份提示**（要求输入一句确认的话才能继续）。
 2. `docker compose up -d`。
-3. 用 `docker compose exec nethub-web nethub admin create --email ...` 创建首个管理员（本地密码）。`init` 结束时把这条命令打印出来。
+3. Confirmed D15: use `docker compose run --rm admin-bootstrap --email ...` after migration. This separate one-shot service has owner credentials; web does not. Init prints the command.
    这是一个新的子命令，DESIGN 里只列了 `web`、`authz`、`migrate`、`init`、`doctor` 五个，所以要在【D15】里确认。
 
 密钥清单以 DESIGN 决策 #21 和 §7 为准。随机数一律用 `crypto/rand`。

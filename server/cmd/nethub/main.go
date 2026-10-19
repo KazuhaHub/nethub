@@ -24,7 +24,8 @@ Commands:
   admin        Manage the initial administrator
   version      Print the build version
 
-The console, migrations, first-admin creation, and help/version are implemented.
+Console, migration, first-admin creation, initialization, and scoped doctor checks
+are implemented. Device authorization remains unfinished.
 `
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -73,7 +74,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runWeb(args[1:], stdout, stderr)
 	case "admin":
 		return runAdmin(args[1:], stdout, stderr)
-	case "authz", "init", "doctor":
+	case "init":
+		return runInit(args[1:], stdout, stderr)
+	case "doctor":
+		return runDoctor(args[1:], stdout, stderr)
+	case "authz":
 		fmt.Fprintf(stderr, "%s is not implemented in this foundation build\n", args[0])
 		return 1
 	default:
