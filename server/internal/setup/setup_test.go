@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -33,7 +34,7 @@ func TestGenerateBackupAndNonOverwrite(t *testing.T) {
 	}
 	unique := map[string]bool{}
 	for _, file := range manifest.Files {
-		if len(file.Path) > len("secrets/postgres/") && file.Path[:len("secrets/postgres/")] == "secrets/postgres/" && file.UID != 70 {
+		if strings.HasPrefix(file.Path, "secrets/postgres/") && file.UID != 70 {
 			t.Fatal("PostgreSQL secret owner does not match Alpine image")
 		}
 		unique[file.SHA256] = true

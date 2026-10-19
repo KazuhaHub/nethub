@@ -6,6 +6,8 @@ stage=$(mktemp -d)
 name="nethub-db-test-$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"
 image=${NETHUB_POSTGRES_TEST_IMAGE:-"$name:postgres"}
 cleanup() {
+    status=$?
+    if [ "$status" -ne 0 ] && [ -f "$stage/build.log" ]; then tail -n 60 "$stage/build.log" >&2; fi
     docker rm -f -v "$name" >/dev/null 2>&1 || true
     if [ -z "${NETHUB_POSTGRES_TEST_IMAGE:-}" ]; then docker image rm "$image" >/dev/null 2>&1 || true; fi
     case "$stage" in /tmp/*|/var/tmp/*) rm -rf -- "$stage" ;; esac

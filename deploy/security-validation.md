@@ -22,35 +22,58 @@ GOWORK=off GOTOOLCHAIN=local GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
   go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 ```
 
-## Container findings remain open
+## Container remediation validation
 
-Remediation is being validated in `deploy/images`: Caddy 2.11.7 with x/net
-0.60.0, and PostgreSQL 16 Alpine with gosu rebuilt from its 1.19 commit. All
-three deployment images build with Go 1.26.9. Compose acceptance can scan each
-assembled image with an exit-code gate before starting services. Until the
-assembled scans and fresh deployment/database checks succeed, the baseline
-findings below remain unresolved acceptance work.
+The derived helper builds use Caddy 2.11.7 with x/net 0.60.0 and PostgreSQL
+16 Alpine with gosu rebuilt from its 1.19 commit. All three Go binaries use
+Go 1.26.9. The actual assembled runtime, PostgreSQL, and Caddy images each
+passed pinned Trivy HIGH/CRITICAL checks with exit-code enforcement and no
+ignore rules. CI run 39183393699 on source commit b3efbd4 passed all six jobs;
+Deployment checks took 4m38s and printed the three-image success marker before
+running fresh Compose acceptance. The resulting stack passed first-start,
+UID/mount isolation, one-shot administrator login, empty inventory, token
+issuance, private health routing, log-secret exclusion, and failed-migration
+startup gating. Required helper-module advisory results are scoped below:
+gosu's x/sys advisory affects Windows code; Caddy's x/crypto advisory concerns
+the unimported openpgp package. Neither source scan reports an affected symbol
+or imported package, and neither produced a HIGH/CRITICAL image finding.
+
+The native derived PostgreSQL build passed all thirteen live boundary groups,
+including initial admin creation, forced RLS/column grants, tenant/member scope,
+single-use token concurrency, read-only dump, revocation/audit, authentication,
+and the actual HTTP/database integration (3.87 seconds). Repeated bootstrap also
+passed. The runtime and PostgreSQL images built successfully. Native Caddy
+compilation was stopped when free disk on the shared test LXC fell to about
+1.3 GiB; removing only the owned build container/cache restored about 4.4 GiB.
+This interruption is preserved as resource-limited evidence, not a Caddy build
+failure diagnosis. The complete three-image check passed on an ephemeral CI
+runner. Owned native
+images/stages were removed after private archival; original 443/8443 listeners
+were independently verified present.
 
 Trivy 0.76.0 was pinned to
 `aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222`.
-Scans used remote image retrieval, vulnerability scanning only, HIGH/CRITICAL
-severity, JSON reports, and no ignore rules or `--ignore-unfixed`. Report-mode
-exit zero only means the scanner completed; it is not a clean security result.
-Full reports remain in private test evidence.
+Baseline scans used remote image retrieval, vulnerability scanning only,
+HIGH/CRITICAL severity, JSON reports, and no ignore rules or `--ignore-unfixed`.
+Their report-mode exit zero only means the scanner completed; it is not a clean
+security result. Full baseline reports remain in private test evidence. The
+assembled-image CI checks instead use saved image tar files and `--exit-code 1`;
+their log success marker requires all three scans to return zero.
 
 - The deployment's pinned distroless base reported zero HIGH/CRITICAL findings.
   This does not cover the NetHub binary subsequently copied into the image.
-- The pinned Caddy image reported four HIGH findings in its Go binary: x/net
+- The original pinned Caddy image reported four HIGH findings in its Go binary: x/net
   CVE-2026-78669 and three standard-library findings. Official Caddy 2.11.7
   currently resolves to the same digest, so changing its tag alone is no fix.
-- The pinned PostgreSQL image reported HIGH/CRITICAL OS and embedded Go
+- The original pinned PostgreSQL image reported HIGH/CRITICAL OS and embedded Go
   findings. Candidate current PostgreSQL 16 images were compared without
   changing the deployment: default Debian reported 62 OS and 25 gosu findings;
   Bookworm reported 74 OS and 25 gosu findings; Alpine reported zero OS but
   retained 25 gosu findings. Counts are package/advisory occurrences, not
   distinct CVE counts. Switching to Alpine alone would not clear this gate.
 
-Image remediation, a scan of the actual assembled NetHub runtime image, and
-repeat deployment acceptance remain required. No existing relay services were
-stopped for these scans. Public ACME and deployed-browser acceptance also remain
+The rebuilt helpers and assembled-image scans resolve this scoped gate. Results
+are a dated snapshot; future database updates can introduce new findings and
+CI will fail closed. No existing relay services were stopped for these scans.
+Public ACME, deployed-browser acceptance, and complete doctor coverage remain
 open. W3 is not complete.

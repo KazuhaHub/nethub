@@ -14,6 +14,12 @@ postgres_image=${NETHUB_POSTGRES_TEST_IMAGE:-"$image-postgres"}
 caddy_image=${NETHUB_CADDY_TEST_IMAGE:-"$image-caddy"}
 compose() { docker compose -p "$project" -f "$stage/deployment/docker-compose.yml" -f "$stage/deployment/docker-compose.override.yml" -f "$stage/test.yml" "$@"; }
 cleanup() {
+    status=$?
+    if [ "$status" -ne 0 ]; then
+        for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log"; do
+            if [ -f "$log" ]; then tail -n 60 "$log" >&2; fi
+        done
+    fi
     if [ -f "$stage/test.yml" ]; then
         compose logs --no-color > "$stage/runtime-final.log" 2>&1 || true
         compose down -v --remove-orphans >/dev/null 2>&1 || true
