@@ -21,6 +21,12 @@ RUN go test -c -o /out/http01.test ./internal/http01
 FROM scratch AS http01-acceptance
 COPY --from=http01-tests-build /out/http01.test /http01.test
 
+FROM build AS guiacme-tests-build
+RUN go test -c -o /out/guiacme.test ./internal/guiacme
+
+FROM scratch AS guiacme-acceptance
+COPY --from=guiacme-tests-build /out/guiacme.test /guiacme.test
+
 FROM gcr.io/distroless/static-debian13:nonroot@sha256:e2e927ec666bae08560abb3c55d0659eceabb657f56b6782ab500a9fc7f555e3
 COPY --from=build /out/nethub /nethub
 COPY LICENSE NOTICE /licenses/

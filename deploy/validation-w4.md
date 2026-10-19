@@ -273,3 +273,34 @@ production CLI, mount, order or timer wiring and created no public CA account.
 Actual six-job logs for #65-#67 were read, including genuine Caddy, assembled-image,
 browser, two-client relay, renewal, expired-candidate and external-proxy checks.
 GUI ACME issuance/application and trust acknowledgements/root rotation remain open.
+
+## Signed request reuse and genuine ACME order admission
+
+PR #68 merged as 75c27a0 after six d4e5d4d checks (39297924932) and actual
+log verification. PR #69 merged as 6f47940 after six 0d07f8b checks
+(39299453951), including 276 plugin tests with the native-only skip. Its first
+Linux run found that OpenSSL could return zero for a failed CSR signature check;
+the corrected code requires the exact positive verification result. All 27 native
+request cases passed, temporary keys were removed and the appliance configuration
+stayed unchanged. A native-generated CSR also passed the production Go key/profile
+validator; wrong-host and unbound requests were rejected. This was a private source
+rehearsal, not a plugin upgrade or CSR-upload/installation acceptance.
+
+PR #70 merged as 505ff25 after six 920cad7 checks (39301043354), with actual
+race/database and complete deployment logs inspected. Account-bound single-name
+order creation/inspection passed all local Go tests/vet, actual Linux account
+tests and twenty repeated order/recovery cases. Ordinary work cannot register or
+repair a missing account, and observation never creates another order. Durable
+jobs and current tenant/device/assignment authorization remain required before
+production use.
+
+The next focused native fixture used pinned official Pebble 2.10.1 on a
+nonoverlapping internal Docker bridge with no host ports. Actual ACME requests
+passed explicit test-account consent, a bound pending order, advertised default
+profile and three observations of that same order. The CA log showed one order
+and account state stayed unchanged. It took 2.44 seconds and accepted no challenge
+or issued certificate. Independent cleanup verified container/network and complete
+temporary-key removal before cancelling its guard; original public services
+remained running. Initial startup/inline-terms failures were retained and corrected;
+see the precise scope and dependency pin in server/internal/guiacme/PEBBLE.md.
+The fixture's own current-head CI and complete deployment run remain merge gates.

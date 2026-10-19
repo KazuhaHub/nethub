@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/mail"
+	"net/url"
 	"strings"
 	"time"
 
@@ -153,7 +154,7 @@ func (c *Client) EnsureAccount(ctx context.Context, registration Registration) (
 		}
 	}
 	if directory.Terms != "" {
-		if _, ok := endpoint(directory.Terms); !ok {
+		if !validTermsReference(directory.Terms) {
 			return Account{}, ErrRemote
 		}
 	}
@@ -183,6 +184,25 @@ func (c *Client) EnsureAccount(ctx context.Context, registration Registration) (
 		return Account{}, ErrAccount
 	}
 	return Account{URI: account.URI, OrdersURL: account.OrdersURL}, nil
+}
+
+func validTermsReference(value string) bool {
+	if _, ok := endpoint(value); ok {
+		return true
+	}
+	// A CA may identify its agreement with a self-contained plain-text data URL.
+	// This is comparison-only metadata: never fetch, execute or render it as HTML.
+	// Exact current consent is still required before account creation.
+	const prefix = "data:text/plain,"
+	if !strings.HasPrefix(value, prefix) || len(value) > 2048 {
+		return false
+	}
+	encoded := strings.TrimPrefix(value, prefix)
+	text, err := url.PathUnescape(encoded)
+	if err != nil || text == "" || url.PathEscape(text) != encoded {
+		return false
+	}
+	return strings.IndexFunc(text, func(r rune) bool { return r < 32 || r > 126 || r == '<' || r == '>' }) == -1
 }
 
 func remoteError(ctx context.Context) error {
