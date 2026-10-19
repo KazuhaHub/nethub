@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.com/nethub/v1/rotate-response.schema.json",
+  "type": "object",
+  "properties": {
+    "agent_protocol_version": {
+      "$ref": "common.schema.json#/$defs/version"
+    },
+    "device_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "device_secret": {
+      "$ref": "common.schema.json#/$defs/secret"
+    },
+    "frp_token": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "server_addr": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/hostname"
+        },
+        {
+          "type": "string",
+          "format": "ipv6",
+          "maxLength": 45
+        }
+      ]
+    },
+    "server_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "server_name": {
+      "$ref": "common.schema.json#/$defs/hostname"
+    },
+    "subdomain": {
+      "$ref": "common.schema.json#/$defs/subdomain"
+    },
+    "domain_claim": {
+      "$ref": "common.schema.json#/$defs/claim"
+    },
+    "relay_ca_pem": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 32768,
+      "pattern": "^(-----BEGIN CERTIFICATE-----\\n[A-Za-z0-9+/=\\r\\n]+-----END CERTIFICATE-----\\n){1,2}$"
+    }
+  },
+  "required": [
+    "agent_protocol_version",
+    "device_id",
+    "device_secret",
+    "frp_token",
+    "server_addr",
+    "server_port",
+    "server_name",
+    "subdomain",
+    "domain_claim",
+    "relay_ca_pem"
+  ],
+  "additionalProperties": true,
+  "maxProperties": 26
+}

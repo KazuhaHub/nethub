@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.com/nethub/v1/status-response.schema.json",
+  "type": "object",
+  "properties": {
+    "agent_protocol_version": {
+      "$ref": "common.schema.json#/$defs/version"
+    },
+    "device_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "accepted": {
+      "const": true
+    },
+    "revoked": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "agent_protocol_version",
+    "device_id",
+    "accepted",
+    "revoked"
+  ],
+  "additionalProperties": true,
+  "maxProperties": 20
+}

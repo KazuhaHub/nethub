@@ -62,7 +62,7 @@ jobs:
           git diff --exit-code -- go.mod go.sum
       - name: Test and vet
         run: |
-          go test -race ./...
+          go test -race -count=1 ./...
           go vet ./...
       - name: Verify PostgreSQL security boundaries
         run: sh tests/postgres.sh
@@ -165,10 +165,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install test runner
-        run: python3 -m pip install pytest==8.3.5 jinja2==3.1.6
+        run: python3 -m pip install pytest==8.3.5 jinja2==3.1.6 jsonschema==4.25.1
 
       - name: Validate plugin sources
-        run: python3 -m pytest -q agents/opnsense/plugin/tests
+        run: python3 -m pytest -q agents/opnsense/plugin/tests agents/opnsense/tests
 
       - name: Verify official frp pins and os-frp version agreement
         run: python3 deploy/frp/check_versions.py

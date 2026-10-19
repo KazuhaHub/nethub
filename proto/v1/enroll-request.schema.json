@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.com/nethub/v1/enroll-request.schema.json",
+  "type": "object",
+  "properties": {
+    "agent_protocol_version": {
+      "$ref": "common.schema.json#/$defs/version"
+    },
+    "enroll_token": {
+      "$ref": "common.schema.json#/$defs/secret"
+    },
+    "platform": {
+      "$ref": "common.schema.json#/$defs/platform"
+    },
+    "platform_version": {
+      "$ref": "common.schema.json#/$defs/short_text"
+    },
+    "agent_version": {
+      "$ref": "common.schema.json#/$defs/short_text"
+    },
+    "capabilities": {
+      "$ref": "common.schema.json#/$defs/capabilities"
+    },
+    "hostname": {
+      "$ref": "common.schema.json#/$defs/hostname"
+    },
+    "cluster_hint": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "agent_protocol_version",
+    "enroll_token",
+    "platform",
+    "platform_version",
+    "agent_version",
+    "capabilities",
+    "hostname",
+    "cluster_hint"
+  ],
+  "additionalProperties": true,
+  "maxProperties": 24
+}
