@@ -57,11 +57,15 @@ lock the W2 debugging controls when enrollment owns these settings.
 
 ## Remaining specification work
 
-D22 already selects a deployment CA, a relay leaf certificate, and explicit
-trustedCaFile/serverName, with no CA private key in runtime containers. W4 still
-must define validity, expiry checks, backup coverage, and staged rotation behavior
-before implementation. Do not treat this proposal as approval of unreviewed CA
-lifecycle details. Formal package signing/publication remains D13.
+D22 selects a deployment CA, a relay leaf certificate, and explicit
+trustedCaFile/serverName, with no CA private key in runtime containers. On
+2026-10-18 Kazuha required automatic renewal, distribution and configuration,
+referenced PSP, and selected console/relay scope for v1. Console HTTPS belongs
+to the selected reverse proxy; NetHub must not duplicate its certificate manager.
+Router GUI certificate installation remains v1.1. See [the source review and
+automation design](certificate-automation.md). Its execution/validity details are
+a proposed implementation, not completed automation. Formal package signing
+and publication remain D13.
 
 ## Platform extension boundary
 

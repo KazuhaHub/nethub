@@ -195,7 +195,7 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 | D19 | 路由器上的插件怎么知道控制台地址：enroll 页面多一个"控制台地址"输入框，还是把地址编进 enroll token 里 | W4-1 之前（协议里要写清楚） | W4 | 无，Kazuha 定 | Confirmed 2026-10-18: separate HTTPS console address input; keep the opaque enrollment token. See w4-decisions.md. |
 | D20 | 打包仓库里的现有插件文件能不能直接复制进 NetHub。打包仓库的根许可证是 MIT，而且有其他版权人；NetHub 要保持单一版权的 Apache-2.0（DESIGN §2） | W1 开始前 | W1、W2 | 只当结构参考、自己重写；确实要复制某个文件前，先问 Kazuha 那个文件是谁写的（本计划建议） | Confirmed 2026-10-18: independently write NetHub files; reference structure only, no third-party copying. Omit kazuha.sh mirror. |
 | D21 | 要不要注册 `newwanip` 钩子：DESIGN 决策 #17 要求注册（带防抖），但打包仓库的 `os-frp` 故意不注册，理由是 frpc 自己会重连，WAN 地址变化时重启反而会断掉正常的隧道 | W2-6 之前 | W2 | 无，Kazuha 定（看 `os-frp` 的 `frp.inc` 里那段注释） | Confirmed 2026-10-18: do not register newwanip; use frpc reconnect and periodic reconcile. W2 must measure recovery after a real WAN address change; if automatic recovery fails, switch to the debounced hook in DESIGN #17. |
-| D22 | 设备到中继 7000 端口的控制通道怎么做服务端认证（DESIGN §14 Q10）：frpc 不配 CA 时根本不校验 frps 的证书，路径上的中间人能截下 domain claim | W2-3 写模板之前定方向，W4 enroll 之前定细节 | W2、W4 | `nethub init` 生成部署 CA、给 frps 签长期证书 + enroll 响应下发 CA 证书（PEM）+ 模板写 `transport.tls.trustedCaFile`（DESIGN Q10） | Confirmed direction 2026-10-18: deployment CA, relay server certificate, device trustedCaFile and serverName; keep the CA private key outside runtime containers. Enrollment and rotation details remain W4 work. |
+| D22 | 设备到中继 7000 端口的控制通道怎么做服务端认证（DESIGN §14 Q10）：frpc 不配 CA 时根本不校验 frps 的证书，路径上的中间人能截下 domain claim | W2-3 写模板之前定方向，W4 enroll 之前定细节 | W2、W4 | `nethub init` 生成部署 CA、给 frps 签长期证书 + enroll 响应下发 CA 证书（PEM）+ 模板写 `transport.tls.trustedCaFile`（DESIGN Q10） | Confirmed direction 2026-10-18: deployment CA, relay server certificate, device trustedCaFile and serverName; keep the CA private key outside runtime containers. On 2026-10-18 Kazuha required automatic renewal/distribution/configuration, referenced PSP, selected console/relay scope, and kept router GUI certificates in v1.1. Console TLS belongs to the reverse proxy. Implementation details: certificate-automation.md; not yet implemented. |
 
 ---
 
@@ -1451,6 +1451,7 @@ Evidence: source e27e908, main CI run 39192294899, and the combined clean-host p
 - 在 CI 里加一步：用样例值渲染这份模板，下载官方 frps（校验 sha256），运行 `frps verify`。
 - `deploy/Caddyfile`：控制台域名下，`/api/v1/devices/*` 转给 `nethub-authz`，其余转给 `nethub-web`，证书自动申请。
 - `docker-compose.yml` 加上 `nethub-authz` 和 `frps`。只有 7000 和 8443 对外，admin API 和回调端口都不对外。
+- Certificate automation (Kazuha, 2026-10-18): implement automatic relay leaf renewal/application and authenticated public trust distribution, with durable retries and applied-generation verification. Console TLS is owned by the selected reverse proxy (bundled Caddy or external); do not add a competing application ACME manager. Add and test the external-proxy deployment path with explicit proxy trust and no publicly exposed origin listener. Keep router GUI certificate installation in v1.1. Follow [the certificate automation design](certificate-automation.md); CA signing keys remain outside application runtime containers.
 - frps 放进 docker 之后，它看到的浏览器地址可能变成 docker 网关的地址，而不是真实的客户端 IP（和 docker 的端口转发方式有关）。
   W0 是直接在 VPS 上跑的 frps，测出的结论不一定适用。W5 的门禁要用这个地址，所以这里就要确认：要么让 frps 用宿主机网络（`network_mode: host`），
   要么在 compose 环境里按 RUNBOOK ⑤ 的方法重测一次 `remote_addr`。结果写进 PR。
