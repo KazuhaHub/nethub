@@ -12,7 +12,7 @@ import stat
 import time
 from urllib.parse import urlsplit
 
-from protocol import MAX_BODY_BYTES, ProtocolError, build_enroll_request
+from protocol import MAX_BODY_BYTES, ProtocolError, build_enroll_request, gui_key_fingerprint
 
 _HOST = re.compile(r'[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*', re.ASCII)
 _UUID = re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}', re.ASCII)
@@ -122,6 +122,11 @@ def validate_response(value, now=None):
     if not isinstance(value, dict) or not required <= value.keys() or len(value) > 26:
         _invalid()
     result = {name: value[name] for name in required}
+    if 'gui_key_fingerprint' in value:
+        fingerprint = value['gui_key_fingerprint']
+        if not isinstance(fingerprint, str) or not re.fullmatch(r'[0-9a-f]{64}', fingerprint):
+            _invalid()
+        result['gui_key_fingerprint'] = fingerprint
     version = result['agent_protocol_version']
     if not isinstance(version, str) or len(version) > 64 or not _SEMVER.fullmatch(version):
         _invalid()
@@ -201,9 +206,12 @@ def consume_request(path, directory=Path('/var/db/nethub-agent/requests')):
             os.close(descriptor)
 
 
-def request_enrollment(origin, token, platform_version, agent_version, hostname, context=None, cluster_hint=False):
-    request = build_enroll_request(token, platform_version, agent_version, hostname, cluster_hint)
-    return validate_response(request_json(origin, '/api/v1/devices/enroll', request, 201, context=context))
+def request_enrollment(origin, token, platform_version, agent_version, hostname, context=None, cluster_hint=False, gui_public_key=None):
+    request = build_enroll_request(token, platform_version, agent_version, hostname, cluster_hint, gui_public_key)
+    result = validate_response(request_json(origin, '/api/v1/devices/enroll', request, 201, context=context))
+    if gui_public_key is not None and result.get('gui_key_fingerprint') != gui_key_fingerprint(gui_public_key):
+        raise ProtocolError('Server did not confirm the certificate key binding; upgrade the server before retrying enrollment')
+    return result
 
 
 def request_json(origin, path, request, expected_status=200, secret=None, context=None):

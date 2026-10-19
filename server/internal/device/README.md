@@ -1,5 +1,18 @@
 # Device enrollment service
 
+Protocol 1.1 optionally admits a canonical P-256 GUI public key in the same
+transaction that consumes the one-use token and creates the assigned identity.
+The response acknowledges its SHA256 DER fingerprint. Migration 00006 prevents
+changing or clearing that binding, including backfilling a legacy null value;
+readiness also requires the guard to be enabled. The web role has no column grant.
+Legacy requests remain unbound and can re-enroll when certificate support is
+enabled. There is no bearer-only key-binding endpoint. Later issuance must also
+authorize the live assignment and require a signed CSR with this exact key.
+
+The native request helpers understand the optional key and require its matching
+acknowledgement when supplied. Native key generation, certificate job admission,
+issuance/delivery and installation are not enabled by this admission change.
+
 This is the admission/transaction layer, HTTP adapter and enrollment runtime for
 W4-3. `nethub authz` serves the handler on a private listener. Internal relay
 callbacks have a separate listener. Production Compose exposure and native

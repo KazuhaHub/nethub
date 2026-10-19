@@ -11,9 +11,10 @@ import (
 	"strings"
 
 	"github.com/KazuhaHub/nethub/server/internal/boundedjson"
+	"github.com/KazuhaHub/nethub/server/internal/guicert"
 )
 
-const Version = "1.0.0"
+const Version = "1.1.0"
 const MaxBodyBytes = boundedjson.MaxBytes
 
 var ErrInvalidRequest = errors.New("invalid device request")
@@ -33,6 +34,7 @@ type EnrollRequest struct {
 	Capabilities         []string `json:"capabilities"`
 	Hostname             string   `json:"hostname"`
 	ClusterHint          bool     `json:"cluster_hint"`
+	GUIPublicKey         string   `json:"gui_public_key,omitempty"`
 }
 
 type EnrollResponse struct {
@@ -46,6 +48,7 @@ type EnrollResponse struct {
 	Subdomain            string `json:"subdomain"`
 	DomainClaim          string `json:"domain_claim"`
 	RelayCAPEM           string `json:"relay_ca_pem"`
+	GUIKeyFingerprint    string `json:"gui_key_fingerprint,omitempty"`
 }
 
 // CompatibleVersion checks the major before any enrollment token is consumed.
@@ -92,6 +95,11 @@ func (r EnrollRequest) ValidateMetadata() error {
 		!shortText(r.AgentVersion) || len(r.Capabilities) < 1 || len(r.Capabilities) > 16 {
 		return ErrInvalidRequest
 	}
+	if r.GUIPublicKey != "" {
+		if _, err := guicert.ValidatePublicKey(r.GUIPublicKey); err != nil {
+			return ErrInvalidRequest
+		}
+	}
 	seen := make(map[string]bool, len(r.Capabilities))
 	for _, capability := range r.Capabilities {
 		if len(capability) > 64 || !capabilityPattern.MatchString(capability) || seen[capability] {
@@ -116,6 +124,13 @@ func DecodeEnroll(reader io.Reader) (EnrollRequest, error) {
 			return request, ErrInvalidRequest
 		}
 		known[field] = value
+	}
+	if value, ok := fields["gui_public_key"]; ok {
+		var key string
+		if json.Unmarshal(value, &key) != nil || key == "" {
+			return EnrollRequest{}, ErrInvalidRequest
+		}
+		known["gui_public_key"] = value
 	}
 	filtered, err := json.Marshal(known)
 	if err != nil || json.Unmarshal(filtered, &request) != nil {

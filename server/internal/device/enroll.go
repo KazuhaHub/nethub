@@ -19,6 +19,7 @@ import (
 
 	"github.com/KazuhaHub/nethub/server/internal/auth"
 	"github.com/KazuhaHub/nethub/server/internal/claim"
+	"github.com/KazuhaHub/nethub/server/internal/guicert"
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
 )
 
@@ -45,6 +46,7 @@ type Metadata struct {
 	ProtocolVersion, Platform, PlatformVersion, AgentVersion, Hostname string
 	Capabilities                                                       []string
 	ClusterHint                                                        bool
+	GUIPublicKey                                                       string
 }
 
 type Registration struct {
@@ -69,7 +71,7 @@ type Repository interface {
 func (r Registration) Validate() error {
 	input := protocol.EnrollRequest{AgentProtocolVersion: r.ProtocolVersion,
 		Platform: r.Platform, PlatformVersion: r.PlatformVersion, AgentVersion: r.AgentVersion,
-		Hostname: r.Hostname, Capabilities: r.Capabilities, ClusterHint: r.ClusterHint}
+		Hostname: r.Hostname, Capabilities: r.Capabilities, ClusterHint: r.ClusterHint, GUIPublicKey: r.GUIPublicKey}
 	if err := input.ValidateMetadata(); err != nil {
 		return err
 	}
@@ -286,7 +288,7 @@ func (s *Service) Enroll(ctx context.Context, request protocol.EnrollRequest, ip
 			ProtocolVersion: request.AgentProtocolVersion, Platform: request.Platform,
 			PlatformVersion: request.PlatformVersion, AgentVersion: request.AgentVersion,
 			Hostname: request.Hostname, Capabilities: append([]string(nil), request.Capabilities...),
-			ClusterHint: request.ClusterHint}}
+			ClusterHint: request.ClusterHint, GUIPublicKey: request.GUIPublicKey}}
 	assigned, err := s.repository.Register(ctx, record, func(value Assignment) (string, error) {
 		if ctx.Err() != nil || !s.trustValid(s.now()) {
 			return "", ErrUnavailable
@@ -299,7 +301,12 @@ func (s *Service) Enroll(ctx context.Context, request protocol.EnrollRequest, ip
 		}
 		return protocol.EnrollResponse{}, ErrUnavailable
 	}
-	return protocol.EnrollResponse{AgentProtocolVersion: protocol.Version,
+	var fingerprint string
+	if request.GUIPublicKey != "" {
+		key, _ := guicert.ValidatePublicKey(request.GUIPublicKey)
+		fingerprint = key.Fingerprint
+	}
+	return protocol.EnrollResponse{AgentProtocolVersion: protocol.Version, GUIKeyFingerprint: fingerprint,
 		DeviceID: assigned.ID, DeviceSecret: rawSecret, FRPToken: s.relay.FRPToken,
 		ServerAddr: s.relay.Address, ServerPort: s.relay.Port, ServerName: s.relay.ServerName,
 		Subdomain: assigned.Subdomain, DomainClaim: assigned.Claim, RelayCAPEM: s.relay.CAPEM}, nil
