@@ -82,3 +82,20 @@ func (s *AccountStore) openOrder(ctx context.Context, uri string, csr []byte, ho
 	}
 	return session, nil
 }
+
+func (session *orderSession) savedOrder(saved Order) (Order, *acme.Order, error) {
+	raw, err := session.sdk.GetOrder(session.ctx, saved.URI)
+	if err != nil {
+		return Order{}, nil, remoteError(session.ctx)
+	}
+	order, err := session.result(raw, saved.URI, saved.Host)
+	if err != nil {
+		return Order{}, nil, err
+	}
+	if order.RequestFingerprint != saved.RequestFingerprint || order.Profile != saved.Profile ||
+		order.AuthorizationURL != saved.AuthorizationURL || order.FinalizeURL != saved.FinalizeURL ||
+		saved.CertificateURL != "" && order.CertificateURL != saved.CertificateURL {
+		return Order{}, nil, ErrOrder
+	}
+	return order, raw, nil
+}

@@ -1,11 +1,15 @@
 package guiacme
 
 import (
+	"bytes"
 	"context"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,6 +21,15 @@ import (
 )
 
 func TestPebbleHTTP01Validation(t *testing.T) {
+	pebbleHTTP01Flow(t, false)
+}
+
+func TestPebbleCertificateIssuance(t *testing.T) {
+	pebbleHTTP01Flow(t, true)
+}
+
+func pebbleHTTP01Flow(t *testing.T, finalize bool) {
+	t.Helper()
 	if os.Getenv("NETHUB_GUIACME_PEBBLE_IMAGE") == "" {
 		t.Skip("requires the isolated genuine ACME deployment harness")
 	}
@@ -24,7 +37,11 @@ func TestPebbleHTTP01Validation(t *testing.T) {
 	if image == "" {
 		t.Fatal("requires the exact deployment Caddy image")
 	}
-	p := newPebbleHarness(t)
+	p := newPebbleHarness(t, finalize)
+	var issuingRoots *x509.CertPool
+	if finalize {
+		issuingRoots = pebbleIssuingRoots(t, p)
+	}
 	name := p.name + "-proxy"
 	if exec.Command("docker", "container", "inspect", name).Run() == nil {
 		t.Fatal("proxy fixture identity already exists")
@@ -228,5 +245,59 @@ func TestPebbleHTTP01Validation(t *testing.T) {
 	if !matched {
 		t.Fatal("no independent successful CA fetch in proxy access log")
 	}
+	if finalize {
+		// Retain the ready-job identity and simulate interruption before issued
+		// material is persisted. Production still needs durable worker intent.
+		material, err := p.store.FinalizeOrder(context.Background(), order, csr, public, issuingRoots)
+		if err != nil || len(material.Chain.PEM) == 0 {
+			t.Fatalf("genuine issued chain: %v", err)
+		}
+		reopened, err := NewAccountStore(p.store.directory, p.store.config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		recovered, err := reopened.FinalizeOrder(context.Background(), order, csr, public, issuingRoots)
+		if err != nil || !bytes.Equal(recovered.Chain.PEM, material.Chain.PEM) || recovered.Order.CertificateURL != material.Order.CertificateURL {
+			t.Fatalf("genuine issued recovery: %v", err)
+		}
+		endpoint, err := url.Parse(order.FinalizeURL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		log := string(p.docker("logs", p.containerID))
+		// Pebble logs its registered route prefix rather than the opaque order
+		// suffix. This isolated CA has exactly one order and one finalize POST.
+		prefix := endpoint.Path[:strings.LastIndex(endpoint.Path, "/")+1]
+		if prefix == "/" || strings.Count(log, "POST "+prefix+" -> calling handler()") != 1 ||
+			!strings.Contains(log, "There are now 1 orders in the db") || strings.Contains(log, "There are now 2 orders in the db") {
+			t.Fatal("genuine recovery resubmitted CSR")
+		}
+		t.Log("Actual Pebble certificate issuance passed real HTTP-01 validation, independent configured root verification, exact CSR/key chain and reopened-account recovery with one finalization; no native installation")
+		return
+	}
 	t.Log("Actual Pebble HTTP-01 validation passed durable publisher, genuine Caddy response, CA-source fetch, same-order ready recovery and retired response removal; no certificate finalized")
+}
+
+func pebbleIssuingRoots(t *testing.T, p *pebbleHarness) *x509.CertPool {
+	t.Helper()
+	response, err := p.httpClient.Get("https://" + net.JoinHostPort(p.address.String(), "15000") + "/roots/0")
+	if err != nil {
+		t.Fatal("pinned fixture management TLS")
+	}
+	defer response.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(response.Body, 8193))
+	if err != nil || response.StatusCode != 200 || len(data) > 8192 {
+		t.Fatal("fixture public root response")
+	}
+	block, tail := pem.Decode(data)
+	if block == nil || block.Type != "CERTIFICATE" || len(block.Headers) != 0 || len(bytes.TrimSpace(tail)) != 0 {
+		t.Fatal("fixture public root encoding")
+	}
+	root, err := x509.ParseCertificate(block.Bytes)
+	if err != nil || !root.IsCA || !root.BasicConstraintsValid || root.CheckSignatureFrom(root) != nil {
+		t.Fatal("fixture public root identity")
+	}
+	roots := x509.NewCertPool()
+	roots.AddCert(root)
+	return roots
 }
