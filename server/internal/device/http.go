@@ -83,7 +83,8 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		deviceError(w, r, 400, "invalid_request", "Unrecognized console host")
 		return
 	}
-	if r.URL.Path != enrollPath || r.URL.EscapedPath() != enrollPath {
+	lifecycle := r.URL.Path == "/api/v1/devices/status" || r.URL.Path == "/api/v1/devices/unenroll"
+	if r.URL.EscapedPath() != r.URL.Path || r.URL.Path != enrollPath && !lifecycle {
 		deviceError(w, r, 404, "not_found", "Not found")
 		return
 	}
@@ -126,6 +127,10 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		deviceError(w, r, 400, "invalid_request", "Invalid request body")
 		return
 	}
+	if lifecycle {
+		s.lifecycle(w, r, data, ip)
+		return
+	}
 	input, err := protocol.DecodeEnroll(bytes.NewReader(data))
 	if err != nil {
 		s.failure(w, r, err)
@@ -143,6 +148,41 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(result)
 }
 
+func (s *HTTPServer) lifecycle(w http.ResponseWriter, r *http.Request, data []byte, ip netip.Addr) {
+	values := r.Header.Values("Authorization")
+	if len(values) != 1 || !strings.HasPrefix(values[0], "Bearer ") || !protocol.ValidDeviceSecret(strings.TrimPrefix(values[0], "Bearer ")) {
+		deviceError(w, r, 401, "device_authentication_failed", "Device authentication failed")
+		return
+	}
+	secret := strings.TrimPrefix(values[0], "Bearer ")
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	var result any
+	var err error
+	if r.URL.Path == "/api/v1/devices/status" {
+		var input protocol.StatusRequest
+		input, err = protocol.DecodeStatus(bytes.NewReader(data))
+		if err == nil {
+			result, err = s.service.Report(ctx, input, secret, ip)
+		}
+	} else {
+		var input protocol.Identity
+		input, err = protocol.DecodeIdentity(bytes.NewReader(data))
+		if err == nil {
+			result, err = s.service.Unenroll(ctx, input, secret, ip)
+		}
+	}
+	if errors.Is(err, ErrDenied) {
+		deviceError(w, r, 401, "device_authentication_failed", "Device authentication failed")
+		return
+	}
+	if err != nil {
+		s.failure(w, r, err)
+		return
+	}
+	_ = json.NewEncoder(w).Encode(result)
+}
+
 func (s *HTTPServer) failure(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, protocol.ErrIncompatibleVersion):
@@ -153,14 +193,14 @@ func (s *HTTPServer) failure(w http.ResponseWriter, r *http.Request, err error) 
 		deviceError(w, r, 401, "enrollment_failed", "Enrollment failed")
 	case errors.Is(err, ErrLimited):
 		w.Header().Set("Retry-After", "60")
-		deviceError(w, r, 429, "rate_limited", "Retry enrollment later")
+		deviceError(w, r, 429, "rate_limited", "Retry device request later")
 	case errors.Is(err, ErrBusy):
 		w.Header().Set("Retry-After", "1")
-		deviceError(w, r, 429, "busy", "Retry enrollment later")
+		deviceError(w, r, 429, "busy", "Retry device request later")
 	default:
 		// Never log request bodies, credentials, headers or dependency errors.
-		s.logger.Error("Device enrollment unavailable")
-		deviceError(w, r, 503, "unavailable", "Device enrollment unavailable")
+		s.logger.Error("Device API unavailable")
+		deviceError(w, r, 503, "unavailable", "Device API unavailable")
 	}
 }
 

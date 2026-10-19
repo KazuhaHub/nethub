@@ -67,8 +67,37 @@ policy stayed unchanged; the tested 0.0.3 package remains installed. The upgrade
 window is closed and its watcher has exited. Private backups and logs are retained.
 
 The console now also displays/copies its origin beside the opaque token; browser
-tests check both values and screenshots mask both fields. Its current-head CI
-and actual fresh public-console → native plugin → relay → online-device/browser
-acceptance remain pending. W4-8 unenroll/status,
+tests check both values and screenshots mask both fields.
+
+## Public console and actual native enrollment
+
+PR #58 merged as a3bc4da after all six checks passed on
+d1c8f34c7e897709f6a886589d4ed0594ab11363 (run 39264535841); actual job logs
+were inspected. Deployment logs include all four image scans, complete real
+browser/relay/external-proxy flows and renewal/rollback/two-client recovery in
+639 ms, with the actual host timer. Plugin CI passed 170 tests with the existing
+FreeBSD-only lock test skipped on Linux.
+
+Native acceptance used a fresh isolated database and authority and all four exact
+CI images. Installed package source and build inputs matched the tested server
+revision. The actual OPNsense 26.7.7 NAT guest enrolled through its browser UI
+against independently verified public console HTTPS. Click to online inventory
+took 3.642 seconds. The native model contained the assignment, initial CA material
+matched its mode-0600 file, frpc was running, and the consumed request was absent.
+The browser cleared the token input; page errors and external requests were zero.
+Repeated enrollment returned the existing assignment without another server
+request. Settings remained filtered and the old debug endpoint returned 404.
+Checked assignment credentials were absent from five device logs and service logs.
+
+The public window lasted 103.551 seconds. Independent restoration was armed
+before changes. Original services/listeners were restored, test control port
+closed, both authorities unchanged and scoped doctor passed. Device model values,
+eleven owned files, stopped service intent and system/unrelated configuration
+hashes matched the baseline; the watcher exited. Root credentials, password SSH
+and GUI security checks were unchanged. The owner-approved 1 GiB lab exception
+remains; local GUI access used the pinned self-signed lab certificate. This is
+native enrollment acceptance, not formal GUI certificate or full W4 acceptance.
+
+W4-8 unenroll/status,
 authenticated trust distribution, CA rotation, expired-candidate replacement
 and GUI ACME issuance/installation/renewal are not implemented by this increment.

@@ -12,22 +12,26 @@ type Owner struct {
 }
 
 type Device struct {
-	ID              string     `json:"id"`
-	Label           string     `json:"label"`
-	Hostname        string     `json:"hostname"`
-	Subdomain       string     `json:"subdomain"`
-	URL             string     `json:"url"`
-	Platform        string     `json:"platform"`
-	PlatformVersion string     `json:"platform_version"`
-	AgentVersion    string     `json:"agent_version"`
-	Capabilities    []string   `json:"capabilities"`
-	ClusterHint     *string    `json:"cluster_hint"`
-	Online          bool       `json:"online"`
-	LastSeenAt      *time.Time `json:"last_seen_at"`
-	EnrolledAt      time.Time  `json:"enrolled_at"`
-	Revoked         bool       `json:"revoked"`
-	RevokedAt       *time.Time `json:"revoked_at"`
-	Owner           Owner      `json:"owner"`
+	ID                   string     `json:"id"`
+	Label                string     `json:"label"`
+	Hostname             string     `json:"hostname"`
+	Subdomain            string     `json:"subdomain"`
+	URL                  string     `json:"url"`
+	Platform             string     `json:"platform"`
+	PlatformVersion      string     `json:"platform_version"`
+	AgentVersion         string     `json:"agent_version"`
+	Capabilities         []string   `json:"capabilities"`
+	ClusterHint          *string    `json:"cluster_hint"`
+	Online               bool       `json:"online"`
+	LastSeenAt           *time.Time `json:"last_seen_at"`
+	EnrolledAt           time.Time  `json:"enrolled_at"`
+	Revoked              bool       `json:"revoked"`
+	RevokedAt            *time.Time `json:"revoked_at"`
+	Owner                Owner      `json:"owner"`
+	ServiceState         *string    `json:"service_state"`
+	LastReportAt         *time.Time `json:"last_report_at"`
+	LastReconcileSuccess *bool      `json:"last_reconcile_success"`
+	LastReconcileAt      *time.Time `json:"last_reconcile_at"`
 }
 
 type DeviceQuery struct {

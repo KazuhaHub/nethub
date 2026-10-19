@@ -2,8 +2,8 @@
 
 This is the admission/transaction layer, HTTP adapter and enrollment runtime for
 W4-3. `nethub authz` serves the handler on a private listener. Internal relay
-callbacks have a separate listener; production Compose exposure and appliance
-enrollment UI remain unfinished.
+callbacks have a separate listener. Production Compose exposure and native
+OPNsense enrollment have passed public acceptance; see the plugin W4 report.
 
 Runtime startup reads the deployment's lowercase 64-character hex claim key and
 frp token from private regular files, decoding the claim key into 32 raw bytes.
@@ -20,7 +20,7 @@ runtime bounds headers/read/write/idle times and drains requests on SIGTERM.
 Trust and keys are startup snapshots; automatic generation reload is still
 certificate-maintenance work.
 
-`NewHTTP` serves only `POST /api/v1/devices/enroll`. It checks the configured host,
+`NewHTTP` serves `POST /api/v1/devices/{enroll,status,unenroll}`. It checks the configured host,
 optional exact Origin, JSON media/encoding, canonical path and a 64 KiB body
 limit before admission. Query parameters are rejected; cookies do not establish
 device authority. Client addresses come from the socket or an explicitly trusted
@@ -29,6 +29,10 @@ Responses prohibit caching and expose fixed errors without logging request or
 dependency values. Successful creation returns 201; invalid/replayed credentials
 return the same 401, capacity limits return 429 with Retry-After, and internal
 failures return 503 without a partial credential response.
+
+Status and removal authenticate the device bearer secret and recheck its hash
+under the mutation lock. See [lifecycle boundaries](README-lifecycle.md). Rotation
+is not exposed by this increment.
 
 The service validates the shared request and protocol major before hashing or
 calling storage. It validates a bounded relay configuration/public root bundle,
