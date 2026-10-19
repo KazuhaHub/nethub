@@ -72,7 +72,7 @@ jobs:
   vulnerability-check:
     name: Go vulnerability checks
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: read
     defaults:
@@ -97,6 +97,20 @@ jobs:
         run: |
           test "$(go env GOVERSION)" = "go$(cat .go-version)"
           go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - name: Verify and scan rebuilt helper dependencies
+        run: |
+          test -z "$(gofmt -l ../deploy/images)"
+          for helper in caddy postgres; do
+            (
+              cd "../deploy/images/$helper"
+              go mod verify
+              go mod tidy
+              git diff --exit-code -- go.mod go.sum
+              target=./...
+              if [ "$helper" = postgres ]; then target=github.com/tianon/gosu; fi
+              GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 "$target"
+            )
+          done
 
   deployment:
     name: Deployment checks
@@ -108,7 +122,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Verify clean Compose startup and migration failure
-        run: sudo sh server/tests/compose.sh
+        env:
+          NETHUB_SCAN_IMAGES: "1"
+        run: sudo --preserve-env=NETHUB_SCAN_IMAGES sh server/tests/compose.sh
 
   opnsense-plugin:
     name: OPNsense plugin checks

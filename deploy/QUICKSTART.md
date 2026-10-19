@@ -8,10 +8,10 @@ internal test CA, not a public certificate.
 
 Use a Linux Docker host with Docker Engine and Compose supporting `!override`
 ([Compose 2.24.4 or later](https://docs.docker.com/reference/compose-file/merge/#replace-value)). Keep the source checkout available for image builds.
-Build the console with Node 24.14.0, then the CLI with Go 1.26.0, or use the pinned
+Build the console with Node 24.14.0, then the CLI with Go 1.26.9, or use the pinned
 three-stage deploy/Dockerfile. Runtime is static distroless nonroot (UID 65532).
 Run host initialization/file checks as root because local Compose bind mounts
-preserve host ownership. The pinned PostgreSQL image uses UID 999, verified natively.
+preserve host ownership. The PostgreSQL 16 Alpine image uses UID 70; runtime secrets remain UID 65532.
 Docker's [file-based service secret model](https://docs.docker.com/compose/how-tos/use-secrets/)
 is the reference for the explicit read-only mounts and ownership checks.
 
@@ -40,7 +40,7 @@ is the reference for the explicit read-only mounts and ownership checks.
 4. After confirmation, change into the generated deployment directory:
 
    ```sh
-   docker compose build migrate
+   docker compose build migrate postgres caddy
    docker compose up -d
    docker compose run --rm admin-bootstrap --email YOUR_EMAIL
    nethub doctor --directory . --expected-address YOUR_PUBLIC_RELAY_ADDRESS

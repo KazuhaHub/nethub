@@ -1,7 +1,10 @@
 name: nethub
 services:
   postgres:
-    image: postgres:16@sha256:5a65324fe84dc41709ff914e90b07f3e2f577073ed27bf917d4873aca0c9ec51
+    image: nethub-postgres-local:dev
+    build:
+      context: ..
+      dockerfile: deploy/images/postgres/Dockerfile
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD_FILE: /run/secrets/pg_bootstrap
@@ -63,7 +66,10 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
   caddy:
-    image: caddy:2@sha256:685ae3d7c34d9b5f8caeddc5d14051db7bbd88ff1f5a2fa0c16bd8ca328fb7af
+    image: nethub-caddy-local:dev
+    build:
+      context: ..
+      dockerfile: deploy/images/caddy/Dockerfile
     ports: ["80:80", "443:443"]
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro

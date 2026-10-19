@@ -42,3 +42,16 @@ browser flows against the real deployment, the remaining W3 security scan gate,
 and complete doctor coverage remain outstanding. W3 is not complete. Deployment
 CA/certificate handling and device/authz/frps integration follow in W4; scheduled
 database backups and final operational checks follow in W7.
+
+## Patched helper image follow-up
+
+PR #36 replaces the initial Debian PostgreSQL/Caddy binaries with derived,
+checksum-pinned builds described in [image notes](images/README.md). Fresh
+setup now uses manifest v2 and PostgreSQL UID 70. Native PostgreSQL boundary
+checks passed all thirteen groups in 3.87 seconds, including actual HTTP tests
+and read-only dump; repeated bootstrap passed. On the ephemeral Linux runner,
+CI run 39183393699 passed assembled-image HIGH/CRITICAL scans for runtime,
+PostgreSQL, and Caddy without exclusions, then repeated all fresh Compose and
+failed-migration checks. The original UID 999 evidence above remains historical;
+old bundles/volumes are not silently migrated. Public ACME and deployed-browser
+acceptance remain outstanding.

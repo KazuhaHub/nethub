@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -25,7 +26,7 @@ func TestGenerateBackupAndNonOverwrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	manifest, err := Load(bundle)
-	if err != nil || manifest.ConfirmedAt != nil || len(manifest.Files) != 17 {
+	if err != nil || manifest.Version != 2 || manifest.ConfirmedAt != nil || len(manifest.Files) != 17 {
 		t.Fatal("unexpected generated state")
 	}
 	if err = verifyFiles(bundle, manifest.Files); err != nil {
@@ -33,6 +34,9 @@ func TestGenerateBackupAndNonOverwrite(t *testing.T) {
 	}
 	unique := map[string]bool{}
 	for _, file := range manifest.Files {
+		if strings.HasPrefix(file.Path, "secrets/postgres/") && file.UID != 70 {
+			t.Fatal("PostgreSQL secret owner does not match Alpine image")
+		}
 		unique[file.SHA256] = true
 	}
 	if len(unique) != 10 {
@@ -126,6 +130,15 @@ func TestConfigAndManifestBoundaries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	manifest.Version = 1
+	legacy, _ := json.Marshal(manifest)
+	if err = os.WriteFile(filepath.Join(bundle, "setup.json"), legacy, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = Load(bundle); err == nil {
+		t.Fatal("legacy UID scheme accepted without explicit migration")
+	}
+	manifest.Version = 2
 	manifest.Files[0].Path = "../outside"
 	data, _ := json.Marshal(manifest)
 	if err = os.WriteFile(filepath.Join(bundle, "setup.json"), data, 0600); err != nil {

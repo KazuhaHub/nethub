@@ -138,7 +138,7 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	fmt.Fprintln(stdout, "Deployment files prepared. Change into the requested deployment directory, then run:")
-	fmt.Fprintln(stdout, "  docker compose build migrate")
+	fmt.Fprintln(stdout, "  docker compose build migrate postgres caddy")
 	fmt.Fprintln(stdout, "  docker compose up -d")
 	fmt.Fprintln(stdout, "  docker compose run --rm admin-bootstrap --email YOUR_EMAIL")
 	fmt.Fprintln(stdout, "  nethub doctor --directory .")
