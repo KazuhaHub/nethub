@@ -48,6 +48,7 @@ func TestPostgresBoundaries(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	t.Run("isolated_gui_issuer_role", func(t *testing.T) { testGUIIssuerRole(t, ctx, owner, web, authz) })
 	var tenantA, tenantB string
 	if err := owner.QueryRowContext(ctx, `SELECT id FROM tenants`).Scan(&tenantA); err != nil {
 		t.Fatal(err)
