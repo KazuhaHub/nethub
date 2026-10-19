@@ -115,6 +115,9 @@ if docker compose -p "$project" -f "$stage/deployment/docker-compose.yml" -f "$s
     echo 'Stack unexpectedly started despite failed migration' >&2
     exit 1
 fi
+migration=$(compose ps -aq migrate)
+[ -n "$migration" ]
+[ "$(docker inspect --format '{{.State.ExitCode}}' "$migration")" = 2 ]
 running=$(compose ps --status running --services)
 if printf '%s\n' "$running" | grep -qx nethub-web; then echo 'Web started after failed migration' >&2; exit 1; fi
 echo 'Failed migration prevented console startup'
