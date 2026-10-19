@@ -1,7 +1,7 @@
 # W3 initialization and Compose validation (2026-10-18)
 
-Current checkpoint: the W3 console functional evidence is available. Acceptance
-of the isolated VM in place of PLAN W3-12's new VPS is awaiting the owner.
+Current checkpoint: Kazuha accepted the fresh Debian VM/public-ingress run as
+PLAN W3-12's deployment environment on 2026-10-18. W3 console evidence is complete.
 Main CI run 39192294899 passed all six jobs on e27e908. The same source passed a
 fresh Linux guest deployment with real public HTTPS and browser verification.
 The closing documentation PR must retain the exact-head CI merge gate. Device
@@ -187,7 +187,8 @@ No device credential or SSH policy was changed.
 | Strict CSP | Zero violations in isolated, deployed, and public browser reports |
 | CI and vulnerability gates | All six jobs on e27e908; zero affected Go symbols/imported packages and zero HIGH/CRITICAL findings in the three assembled images; module-only advisory scope remains in security-validation.md |
 
-These records complete the functional W3 console evidence. Environment acceptance
-is awaiting the owner because PLAN W3-12 specifies a new VPS. The closing PR uses
-the normal exact-head six-check merge gate. They do not claim device enrollment,
+These records complete the W3 console evidence within the environment accepted
+by Kazuha on 2026-10-18: a fresh Debian VM with bounded public TCP forwarding
+through the existing LXC, instead of a new VPS. The closing PR uses the normal
+exact-head six-check merge gate. They do not claim device enrollment,
 SSO, relay source-IP behavior, complete doctor coverage, or W7 readiness.

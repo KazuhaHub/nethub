@@ -1,8 +1,8 @@
 # W4 implementation decisions
 
 Status: D16, D19, and W4-7 confirmed by Kazuha on 2026-10-18. W3 evidence is
-complete; implementation follows W3 environment confirmation and the closing PR
-merge. This document records the approved choices before schemas or handlers exist. D22 lifecycle details below remain specification work.
+complete, and Kazuha accepted the fresh Debian VM/public-ingress environment
+on 2026-10-18. Implementation follows the closing PR merge. This document records the approved choices before schemas or handlers exist. D22 lifecycle details below remain specification work.
 
 ## D16: protocol versions
 

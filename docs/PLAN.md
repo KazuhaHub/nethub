@@ -1320,11 +1320,11 @@ Confirmed D15/D18 order (2026-10-18):
 
 - [x] 能用首个管理员登录、生成 enroll token、看到空设备列表（截图）
 - [x] RLS 双租户测试、同租户按用户隔离测试、列级授权测试（不能改身份列、不能插入 `devices`）、特权函数测试、未设租户测试，都在 CI 里跑，绿
-- [ ] 在干净 VPS 上 `docker compose up -d` 一次成功（贴命令输出），`migrate` 服务正常退出，控制台有有效的 HTTPS 证书
+- [x] 在干净 VPS 上 `docker compose up -d` 一次成功（贴命令输出），`migrate` 服务正常退出，控制台有有效的 HTTPS 证书
 - [x] 页面在严格 CSP 下没有被拦截的资源（浏览器开发者工具的 Console 里没有 CSP 报错）
 - [x] CI 全绿；`govulncheck` 没有报告漏洞
 
-Evidence: source e27e908, main CI run 39192294899, and the combined clean-host public run in [deployment validation](../deploy/validation-w3.md). Go advisory scope is recorded separately. The isolated clean-VM/public run passed; owner acceptance of this environment in place of a new VPS is pending. The closing record PR must pass the normal exact-head CI gate before W4 implementation.
+Evidence: source e27e908, main CI run 39192294899, and the combined clean-host public run in [deployment validation](../deploy/validation-w3.md). Go advisory scope is recorded separately. The isolated clean-VM/public run passed. Kazuha accepted the fresh Debian VM with bounded public TCP forwarding through the existing LXC in place of a new VPS on 2026-10-18. The closing record PR must pass the normal exact-head CI gate before W4 implementation.
 
 ### 常见坑
 
