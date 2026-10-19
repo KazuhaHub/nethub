@@ -10,9 +10,11 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -53,7 +55,14 @@ func TestCaddyPublicHTTP01Route(t *testing.T) {
 	if _, err := rand.Read(nonce[:]); err != nil {
 		t.Fatal(err)
 	}
-	name := "nethub-http01-test-" + hex.EncodeToString(nonce[:])
+	operation := os.Getenv("NETHUB_HTTP01_TEST_NONCE")
+	if operation == "" {
+		operation = hex.EncodeToString(nonce[:])
+	}
+	if !regexp.MustCompile(`^[a-f0-9]{16}$`).MatchString(operation) {
+		t.Fatal("invalid test operation identity")
+	}
+	name := "nethub-http01-test-" + operation
 	network := name + "-network"
 	command := func(args ...string) []byte {
 		t.Helper()
@@ -66,27 +75,64 @@ func TestCaddyPublicHTTP01Route(t *testing.T) {
 		}
 		return out
 	}
+	for _, target := range []struct{ kind, name string }{{"container", name}, {"network", network}} {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err := exec.CommandContext(ctx, "docker", target.kind, "inspect", target.name).Run()
+		cancel()
+		if err == nil {
+			t.Fatal("test operation identity already exists")
+		}
+	}
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 		defer cancel()
-		_ = exec.CommandContext(ctx, "docker", "rm", "--force", name).Run()
-		_ = exec.CommandContext(ctx, "docker", "network", "rm", network).Run()
+		for _, target := range []struct{ kind, name string }{{"container", name}, {"network", network}} {
+			out, err := exec.CommandContext(ctx, "docker", target.kind, "inspect", target.name).Output()
+			var info []struct {
+				ID     string
+				Labels map[string]string
+				Config struct{ Labels map[string]string }
+			}
+			if err != nil || json.Unmarshal(out, &info) != nil || len(info) != 1 {
+				continue
+			}
+			labels := info[0].Labels
+			if target.kind == "container" {
+				labels = info[0].Config.Labels
+			}
+			if labels["org.nethub.http01-test"] != operation {
+				t.Error("test resource ownership changed")
+				continue
+			}
+			args := []string{target.kind, "rm"}
+			if target.kind == "container" {
+				args = append(args, "--force")
+			}
+			if err := exec.CommandContext(ctx, "docker", append(args, info[0].ID)...).Run(); err != nil {
+				t.Error("owned test resource cleanup failed")
+			}
+		}
 	})
-	command("network", "create", "--internal", network)
+	command("network", "create", "--internal", "--label", "org.nethub.http01-test="+operation, network)
 	command("run", "--detach", "--name", name, "--pull", "never", "--network", network,
+		"--label", "org.nethub.http01-test="+operation,
 		"--user", "65532:65532", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
 		"--sysctl", "net.ipv4.ip_unprivileged_port_start=0",
-		"--publish", "127.0.0.1::80", "--publish", "127.0.0.1::443",
 		"--mount", "type=bind,source="+p.public+",target=/challenges,readonly",
 		"--mount", "type=bind,source="+caddyfile+",target=/etc/caddy/Caddyfile,readonly",
 		"--mount", "type=bind,source="+data+",target=/data",
 		"--mount", "type=bind,source="+config+",target=/config", image)
 	var inspect []struct {
-		Config          struct{ User string }
-		State           struct{ Running bool }
-		HostConfig      struct{ ReadonlyRootfs bool }
+		ID         string
+		Config     struct{ User string }
+		State      struct{ Running bool }
+		HostConfig struct {
+			ReadonlyRootfs bool
+			PortBindings   map[string]json.RawMessage
+		}
 		NetworkSettings struct {
-			Ports map[string][]struct{ HostIp, HostPort string }
+			Ports    map[string][]struct{ HostIp, HostPort string }
+			Networks map[string]struct{ IPAddress, NetworkID string }
 		}
 		Mounts []struct {
 			Source, Destination string
@@ -112,18 +158,36 @@ func TestCaddyPublicHTTP01Route(t *testing.T) {
 	if !publicMounted {
 		t.Fatal("proxy publication directory binding changed")
 	}
-	port := func(key string) string {
-		values := info.NetworkSettings.Ports[key]
-		if len(values) != 1 || values[0].HostIp != "127.0.0.1" {
-			t.Fatal("proxy escaped loopback")
-		}
-		return values[0].HostPort
+	if len(info.HostConfig.PortBindings) != 0 {
+		t.Fatal("isolated proxy requested host port publication")
 	}
-	httpPort, httpsPort := port("80/tcp"), port("443/tcp")
+	for _, bindings := range info.NetworkSettings.Ports {
+		if len(bindings) != 0 {
+			t.Fatal("isolated proxy published a host port")
+		}
+	}
+	var networks []struct {
+		ID         string
+		Driver     string
+		Internal   bool
+		Containers map[string]json.RawMessage
+	}
+	if json.Unmarshal(command("network", "inspect", network), &networks) != nil || len(networks) != 1 || networks[0].Driver != "bridge" || !networks[0].Internal || len(info.NetworkSettings.Networks) != 1 {
+		t.Fatal("proxy network is not the isolated test bridge")
+	}
+	attachment, ok := info.NetworkSettings.Networks[network]
+	address, err := netip.ParseAddr(attachment.IPAddress)
+	if !ok || err != nil || !address.Is4() || !address.IsPrivate() || attachment.NetworkID != networks[0].ID || networks[0].Containers[info.ID] == nil {
+		t.Fatal("proxy address is not bound to the owned internal network")
+	}
+	// Internal bridges do not publish the requested host ports on the tested
+	// engine. The Linux host can reach their private address directly; publish
+	// no host ports and retain the network's external isolation instead.
+	httpAddress, httpsAddress := net.JoinHostPort(address.String(), "80"), net.JoinHostPort(address.String(), "443")
 	client := &http.Client{Timeout: 3 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }, Transport: &http.Transport{Proxy: nil}}
 	t.Cleanup(func() { client.CloseIdleConnections() })
 	request := func(host, path, method string) (int, string, string, error) {
-		r, err := http.NewRequest(method, "http://127.0.0.1:"+httpPort+path, nil)
+		r, err := http.NewRequest(method, "http://"+httpAddress+path, nil)
 		if err != nil {
 			return 0, "", "", err
 		}
@@ -185,7 +249,7 @@ func TestCaddyPublicHTTP01Route(t *testing.T) {
 		dialer := tls.Dialer{Config: &tls.Config{RootCAs: roots, ServerName: host, MinVersion: tls.VersionTLS12}, NetDialer: &net.Dialer{Timeout: 3 * time.Second}}
 		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 		defer cancel()
-		connection, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort("127.0.0.1", httpsPort))
+		connection, err := dialer.DialContext(ctx, "tcp", httpsAddress)
 		if err == nil {
 			connection.Close()
 		}

@@ -193,3 +193,24 @@ verified fresh control TLS and recovered both official frpc clients. The next sc
 did not restart frps. Existing image scans/browser/external-proxy/timer regressions
 passed. This is isolated genuine deployment evidence; the retained native
 operator authority/journal was not modified for this change.
+
+## Isolated HTTP-01 proxy fixture
+
+The focused genuine Caddy fixture passed on a private internal bridge using the
+previously tested Caddy image with identical current Caddy build inputs. Its
+nonroot/read-only proxy had no published host ports and no private issuer-state
+mount. Actual requests passed response/header, cross-host, original-URI/query,
+method and metadata rejection; HEAD, expiration cleanup, read-only storage and
+independent console redirect/TLS ownership also passed. The proxy did not obtain
+a GUI TLS identity. The final fixture run took 2.15 seconds.
+
+The first deployment run exposed a fixture assumption: the tested engine retained
+requested internal-network port bindings but did not effectively publish them.
+The corrected test verifies internal bridge identity/container membership and
+probes its private address directly, with no host port requests. Exact operation
+labels, identity-collision checks and owned-ID cleanup protect test resources.
+The focused native rehearsal also used an independent cleanup timer and verified
+that owned containers/networks were gone and original services remained running
+before cancelling it. It did not stop public services or install any router key,
+certificate, application route or account. Full current-head PR #62 CI still gates
+merge; this is publication/proxy evidence, not ACME issuance or full W4 acceptance.
