@@ -139,24 +139,9 @@ func (c *Client) EnsureAccount(ctx context.Context, registration Registration) (
 	// Discovery is fresh for each operation: cached old terms must never be
 	// silently accepted after a CA changes its advertised agreement.
 	sdk := c.newSDK()
-	directory, err := sdk.Discover(ctx)
+	directory, err := c.discoverDirectory(ctx, sdk)
 	if err != nil {
-		return Account{}, remoteError(ctx)
-	}
-	for _, value := range []string{directory.RegURL, directory.OrderURL, directory.NonceURL} {
-		if !c.transport.allowed(value) {
-			return Account{}, ErrRemote
-		}
-	}
-	for _, value := range []string{directory.RevokeURL, directory.KeyChangeURL, directory.AuthzURL} {
-		if value != "" && !c.transport.allowed(value) {
-			return Account{}, ErrRemote
-		}
-	}
-	if directory.Terms != "" {
-		if !validTermsReference(directory.Terms) {
-			return Account{}, ErrRemote
-		}
+		return Account{}, err
 	}
 	account, err := sdk.GetReg(ctx, "")
 	if errors.Is(err, acme.ErrNoAccount) {
@@ -184,6 +169,29 @@ func (c *Client) EnsureAccount(ctx context.Context, registration Registration) (
 		return Account{}, ErrAccount
 	}
 	return Account{URI: account.URI, OrdersURL: account.OrdersURL}, nil
+}
+
+func (c *Client) discoverDirectory(ctx context.Context, sdk *acme.Client) (acme.Directory, error) {
+	directory, err := sdk.Discover(ctx)
+	if err != nil {
+		return acme.Directory{}, remoteError(ctx)
+	}
+	for _, value := range []string{directory.RegURL, directory.OrderURL, directory.NonceURL} {
+		if !c.transport.allowed(value) {
+			return acme.Directory{}, ErrRemote
+		}
+	}
+	for _, value := range []string{directory.RevokeURL, directory.KeyChangeURL, directory.AuthzURL} {
+		if value != "" && !c.transport.allowed(value) {
+			return acme.Directory{}, ErrRemote
+		}
+	}
+	if directory.Terms != "" {
+		if !validTermsReference(directory.Terms) {
+			return acme.Directory{}, ErrRemote
+		}
+	}
+	return directory, nil
 }
 
 func validTermsReference(value string) bool {

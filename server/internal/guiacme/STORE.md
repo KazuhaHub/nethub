@@ -42,11 +42,13 @@ a new store instance. Filesystem tests cover OS exclusion, state/lease loss,
 corruption, policy mismatches, foreign data and production Unix link/mode/umask
 boundaries. They do not create a public account or prove genuine CA issuance.
 
-This component installs no CLI, application mount, timer or production path. Keep
+This library installs no application mount, timer or production path. Keep
 its directory in protected issuer state, outside web/authz/frps and HTTP-01 public
 mounts, and include it in the eventual verified private backup/recovery procedure.
-Full deployment integration, issuance authorization, durable order jobs, native
-delivery and certificate application remain separate work.
+Explicit root-host commands now compose account provisioning and recovery; see
+[their contract](PROVISIONING.md). Issuance authorization and durable jobs have
+separate integration evidence. Combined native/public application acceptance
+remains outstanding.
 
 ## Explicit private backup and recovery
 
@@ -76,7 +78,7 @@ refused. Failed publications remain for operator review; no recursive cleanup
 or automatic adoption occurs.
 
 Backup/recovery follow the original Unix ownership and durability contract;
-Windows tests cover state logic only. These library operations do not enable a
-production account, accept Terms of Service, install a timer or wire an operator
-command. Explicit provisioning/current-terms consent and deployment acceptance
-remain separate work.
+Windows tests cover state logic only. The library operations do not enable a
+production account, accept Terms of Service or install a timer. The explicit
+operator workflow requires verified backup and current-terms consent before
+registration. Public-account deployment acceptance remains separate work.

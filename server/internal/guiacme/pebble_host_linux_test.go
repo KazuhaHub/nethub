@@ -25,14 +25,18 @@ import (
 // private CA/proxy resources. Its outer deployment harness arms an independent
 // exact-resource cleanup guard before entering this test.
 func TestPebbleProtectedHostIssuer(t *testing.T) {
-	testPebbleProtectedHostIssuer(t, false)
+	testPebbleProtectedHostIssuer(t, false, false)
 }
 
 func TestPebbleProtectedHostIssuerRenewal(t *testing.T) {
-	testPebbleProtectedHostIssuer(t, true)
+	testPebbleProtectedHostIssuer(t, true, false)
 }
 
-func testPebbleProtectedHostIssuer(t *testing.T, renewal bool) {
+func TestPebbleProtectedHostAccountProvisioning(t *testing.T) {
+	testPebbleProtectedHostIssuer(t, false, true)
+}
+
+func testPebbleProtectedHostIssuer(t *testing.T, renewal, provisionAccount bool) {
 	binary, image := os.Getenv("NETHUB_HOST_ISSUER_BINARY"), os.Getenv("NETHUB_HOST_POSTGRES_IMAGE")
 	if binary == "" || image == "" {
 		t.Skip("requires the independently guarded host-command fixture")
@@ -201,6 +205,101 @@ func testPebbleProtectedHostIssuer(t *testing.T, renewal bool) {
 			t.Fatal("issuer accepted a stopped independent cleanup timer")
 		}
 		must(nil, "/usr/bin/systemctl", "start", timer+".timer")
+		activeAccountDirectory := files.AccountDirectory
+		if provisionAccount {
+			var policy setup.GUIIssuerPolicy
+			if json.Unmarshal(policyBytes, &policy) != nil {
+				t.Fatal("account policy fixture")
+			}
+			policy.AccountDirectory = filepath.Join(files.Stage, "operator-account")
+			writeJSON(issuerFile, policy)
+			accountArgs := func(action string, extra ...string) []string {
+				return append([]string{"certificates", "account", action, "--directory", directory, "--config-file", issuerFile}, extra...)
+			}
+			accountCommand := func(action string, extra ...string) setup.GUIAccountResult {
+				t.Helper()
+				data := must(nil, binary, accountArgs(action, extra...)...)
+				var result setup.GUIAccountResult
+				if json.Unmarshal(data, &result) != nil || result.State == "" {
+					t.Fatal("account command returned invalid status")
+				}
+				return result
+			}
+			if _, err := command(nil, binary, accountArgs("lookup")...); err == nil {
+				t.Fatal("ordinary lookup initialized missing account")
+			}
+			if _, err := os.Lstat(policy.AccountDirectory); !os.IsNotExist(err) {
+				t.Fatal("missing lookup created account directory")
+			}
+			if accountCommand("initialize").State != "initialized" {
+				t.Fatal("offline account initialization failed")
+			}
+			backup := filepath.Join(files.Stage, "operator-account-backup")
+			if accountCommand("backup", "--backup-directory", backup).State != "backed_up" {
+				t.Fatal("account backup failed")
+			}
+			if accountCommand("verify-backup", "--backup-directory", backup).State != "backup_verified" {
+				t.Fatal("account backup verification failed")
+			}
+			overlap := filepath.Join(directory, "runtime/forbidden-backup")
+			if _, err := command(nil, binary, accountArgs("backup", "--backup-directory", overlap)...); err == nil {
+				t.Fatal("account key backup allowed in runtime namespace")
+			}
+			if _, err := os.Lstat(overlap); !os.IsNotExist(err) {
+				t.Fatal("forbidden backup created state")
+			}
+			consentFile := filepath.Join(files.Stage, "operator-consent.json")
+			writeJSON(consentFile, map[string]string{"accepted_terms_reference": "https://terms.example.test/outdated"})
+			registration := []string{"--backup-directory", backup, "--terms-file", consentFile, "--allow-create"}
+			if _, err := command(nil, binary, accountArgs("register", registration...)...); err == nil {
+				t.Fatal("outdated terms registered account")
+			}
+			review := accountCommand("terms")
+			if review.State != "review_terms" || review.TermsReference == nil {
+				t.Fatal("fresh terms review unavailable")
+			}
+			// This explicitly consents only to the disposable private test CA.
+			writeJSON(consentFile, map[string]string{"accepted_terms_reference": *review.TermsReference})
+			if _, err := command(nil, binary, accountArgs("register", "--terms-file", consentFile, "--allow-create")...); err == nil {
+				t.Fatal("registration without backup accepted")
+			}
+			if accountCommand("register", registration...).State != "registered" {
+				t.Fatal("explicit private registration failed")
+			}
+			if accountCommand("register", registration...).State != "registered" {
+				t.Fatal("registration retry failed")
+			}
+			registered, err := os.ReadFile(filepath.Join(policy.AccountDirectory, "account.json"))
+			if err != nil {
+				t.Fatal("registered private state unavailable")
+			}
+			var original struct {
+				URI string `json:"account_uri"`
+			}
+			if json.Unmarshal(registered, &original) != nil || original.URI == "" {
+				t.Fatal("registered account identity missing")
+			}
+			policy.AccountDirectory = filepath.Join(files.Stage, "operator-account-restored")
+			writeJSON(issuerFile, policy)
+			if accountCommand("restore", "--backup-directory", backup).State != "restored" {
+				t.Fatal("pre-registration backup recovery failed")
+			}
+			if accountCommand("lookup").State != "registered" {
+				t.Fatal("same-key account lookup recovery failed")
+			}
+			restored, err := os.ReadFile(filepath.Join(policy.AccountDirectory, "account.json"))
+			if err != nil {
+				t.Fatal("restored private state unavailable")
+			}
+			var recovered struct {
+				URI string `json:"account_uri"`
+			}
+			if json.Unmarshal(restored, &recovered) != nil || recovered.URI != original.URI {
+				t.Fatal("restore lookup changed account identity")
+			}
+			activeAccountDirectory = policy.AccountDirectory
+			t.Log("Protected account commands passed offline initialization, verified immutable backup, runtime-overlap refusal, fresh terms review, outdated/missing-backup consent refusal, explicit private-CA registration retry and original-account recovery from pre-registration backup")
+		}
 		client := enrollHostDevice(t, directory, nonce, binding, run, must)
 		requestID, host := client.settings.Request.RequestID, client.settings.AssignedHost
 		csr = client.csr
@@ -220,7 +319,7 @@ func testPebbleProtectedHostIssuer(t *testing.T, renewal bool) {
 			"/srv/nethub-deployment":      directory,
 			"--project-name nethub":       "--project-name " + project,
 			"/etc/nethub/gui-issuer.json": issuerFile + " --compose-file " + override,
-			"/var/lib/nethub-gui-acme":    files.AccountDirectory,
+			"/var/lib/nethub-gui-acme":    activeAccountDirectory,
 			"/srv/nethub-http01":          filepath.Join(files.Stage, "http-public"),
 			"/var/lib/nethub-http01":      filepath.Join(files.Stage, "http-private"),
 			"nethub-http01-cleanup":       timer,
