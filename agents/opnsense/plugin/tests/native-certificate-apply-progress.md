@@ -72,3 +72,30 @@ Native tests cover the installed configuration metadata without mutating it,
 service-owned synthetic XML and rejection of wrong user/group/mode/key ownership.
 The focused working-tree native run passed 112 cases; exact committed-source and
 live GUI acceptance must be recorded separately.
+
+
+## Native acceptance checkpoint
+
+Exact committed 0.0.10 source `8a3cf5056a7faf24b403f99364a2ab3731c06d0c`
+passed 291 native cases and built the unsigned package identified in HANDOFF.
+That package then passed actual Core import, independently trusted
+CA/hostname/leaf/GET confirmation, idempotence and rollback from an injected
+second-generation confirmation failure. A separate process held both writer
+locks with a durable prepared journal until a cache-flushing quick VM reboot.
+After the boot identity changed, the product early recovery journal was rolled
+back and the native selected entry matched last-good before lab restoration.
+Stock early-hook ordering precedes ordinary GUI startup; recovery latency was
+not separately measured.
+
+Both experiments completed their guarded restoration to the original GUI/model,
+System/unrelated tree, 18 owned files, stopped intent and package 0.0.6. Original
+GUI TLS/HTTP and pinned SSH authentication pass. Package checksums pass; owned
+processes, temporary hooks and GUI runtime paths are absent. The external test
+issuer key was deleted. Native Core configuration backups containing lab entries
+remain in the appliance's normal backup history; runtime cleanup is not erasure
+of those historical keys. Root and GUI security settings stayed unchanged.
+
+These are native private-CA proofs on the accepted 1 GiB test VM. Fresh combined
+public HTTPS/native enrollment, applied acknowledgements, renewals and trust
+transitions remain. Documentation after the tested source commit changes no
+package or test code; its validation must retain the original artifact binding.
