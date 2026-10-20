@@ -36,10 +36,12 @@ class PhpModel:
         self.healthy = True
         self.last_response = {}
         self.operations = []
+        self.config_identity = None
 
     def call(self, action, request):
         value = {'config_file': str(self.configuration), 'directory': str(self.directory),
-                 'state_directory': str(self.state), 'owner': os.geteuid(), 'action': action, 'request': request}
+                 'state_directory': str(self.state), 'owner': os.geteuid(), 'config_identity': self.config_identity,
+                 'action': action, 'request': request}
         php = os.environ.get('NETHUB_TEST_PHP') or shutil.which('php')
         assert php, 'Native PHP with DOM, SimpleXML and OpenSSL is required'
         result = subprocess.run([php, str(PROGRAM), str(SCRIPT)], input=json.dumps(value).encode(), capture_output=True, timeout=8)

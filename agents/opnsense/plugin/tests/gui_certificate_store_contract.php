@@ -58,7 +58,7 @@ try {
     }
     require $argv[1];
     $store = new NativeGuiCertificateStore(new NativeCertificateFixtureConfig($input['config_file']),
-        $input['directory'], $input['config_file'], $input['state_directory'], $input['owner']);
+        $input['directory'], $input['config_file'], $input['state_directory'], $input['owner'], $input['config_identity'] ?? null);
     echo json_encode(['success' => true, 'result' => $store->dispatch($input['action'], $input['request'])], JSON_THROW_ON_ERROR);
 } catch (Throwable $error) {
     echo json_encode(['success' => false, 'message' => 'Fenced native certificate model refused the operation',

@@ -54,3 +54,21 @@ package-removal ordering. They do not establish actual Core GUI application,
 reload or reboot. Installed 0.0.6 stays unchanged until the scoped watcher is
 extended and rehearsed. Guarded live/public pipeline evidence, applied-generation
 acknowledgements, renewal authorization and trust transitions remain required.
+
+The first guarded live 0.0.9 attempt stopped during preparation, before any GUI
+certificate/ref save. Native Core owns its configuration through the service
+account configured by AppConfig, rather than necessarily root. The guard restored
+the original model, all 18 owned files, package 0.0.6 and pinned GUI access, then
+closed and removed its temporary boot hooks. This failed attempt is not GUI
+application acceptance.
+
+The 0.0.10 correction resolves Core's configured user/group from protected local
+account databases, without requiring the optional PHP POSIX extension. The CLI
+supplies that identity from Core AppConfig; it never comes from HTTP input or the
+plugin model. Only the native configuration file may use that service owner and
+exact group. Root-owned plugin keys, snapshots and directories retain their
+existing ownership checks; links and public configuration modes remain refused.
+Native tests cover the installed configuration metadata without mutating it,
+service-owned synthetic XML and rejection of wrong user/group/mode/key ownership.
+The focused working-tree native run passed 112 cases; exact committed-source and
+live GUI acceptance must be recorded separately.
