@@ -72,9 +72,13 @@ fi
 docker build --target http01-acceptance -f "$root/deploy/Dockerfile" -t "$http01_test_image" "$root" > "$stage/http01-build.log" 2>&1
 docker create --name "$http01_binary_holder" --network none "$http01_test_image" /http01.test >/dev/null
 docker cp "$http01_binary_holder:/http01.test" "$stage/http01.test"
+docker cp "$http01_binary_holder:/nethub" "$stage/http01-nethub"
 docker rm "$http01_binary_holder" >/dev/null
-chmod 0700 "$stage/http01.test"
-NETHUB_HTTP01_CADDY_IMAGE="$caddy_image" "$stage/http01.test" -test.v -test.run '^TestCaddyPublicHTTP01Route$' -test.timeout=90s
+chmod 0700 "$stage/http01.test" "$stage/http01-nethub"
+NETHUB_HTTP01_CADDY_IMAGE="$caddy_image" NETHUB_HTTP01_TEST_BINARY="$stage/http01-nethub" \
+    "$stage/http01.test" -test.v -test.run '^Test(CaddyPublicHTTP01Route|NativeHTTP01CleanupCLI)$' -test.timeout=120s
+python3 "$root/server/tests/http01-cleanup.py" "$root" "$stage/http01-nethub" \
+    "$stage/http01.test" "$stage/http01-cleanup"
 docker pull --platform linux/amd64 "$pebble_image" > "$stage/pebble-pull.log" 2>&1
 docker build --target guiacme-acceptance -f "$root/deploy/Dockerfile" -t "$guiacme_test_image" "$root" > "$stage/guiacme-build.log" 2>&1
 docker create --name "$guiacme_binary_holder" --network none "$guiacme_test_image" /guiacme.test >/dev/null

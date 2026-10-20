@@ -20,6 +20,7 @@ RUN go test -c -o /out/http01.test ./internal/http01
 
 FROM scratch AS http01-acceptance
 COPY --from=http01-tests-build /out/http01.test /http01.test
+COPY --from=build /out/nethub /nethub
 
 FROM build AS guiacme-tests-build
 RUN go test -c -o /out/guiacme.test ./internal/guiacme

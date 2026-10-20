@@ -17,8 +17,11 @@ import (
 )
 
 func runCertificates(args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "cleanup-http01" {
+		return runHTTP01Cleanup(args[1:], stdout, stderr)
+	}
 	if len(args) == 0 || args[0] != "maintain-relay" {
-		fmt.Fprintln(stderr, "Usage: nethub certificates maintain-relay --directory PATH --project-name NAME")
+		fmt.Fprintln(stderr, "Usage: nethub certificates maintain-relay --directory PATH --project-name NAME | cleanup-http01 --config-file PATH")
 		return 2
 	}
 	flags := flag.NewFlagSet("certificates maintain-relay", flag.ContinueOnError)

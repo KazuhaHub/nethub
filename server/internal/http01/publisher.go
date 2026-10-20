@@ -437,23 +437,31 @@ func (p *Publisher) Remove(ctx context.Context, host, generation string) error {
 // CleanupExpired is called by the issuer's recovery scan. Static HTTP serving
 // does not itself enforce this deadline; callers must schedule that scan.
 func (p *Publisher) CleanupExpired(ctx context.Context, host string) error {
+	_, err := p.cleanupExpired(ctx, host)
+	return err
+}
+
+func (p *Publisher) cleanupExpired(ctx context.Context, host string) (bool, error) {
 	dir, lease, err := p.lease(ctx, host)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer release(lease)
 	current, err := loadActive(dir)
 	if err != nil || current == "" {
-		return err
+		return false, err
 	}
 	op, err := p.loadOperation(dir, current)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if op.Phase == "removing" || op.Phase == "removed" || !op.ExpiresAt.After(p.now().UTC()) {
-		return p.removeLocked(dir, op)
+		if err := p.removeLocked(dir, op); err != nil {
+			return false, err
+		}
+		return true, nil
 	}
-	return nil
+	return false, nil
 }
 
 func missing(path string) bool { _, err := os.Lstat(path); return os.IsNotExist(err) }
