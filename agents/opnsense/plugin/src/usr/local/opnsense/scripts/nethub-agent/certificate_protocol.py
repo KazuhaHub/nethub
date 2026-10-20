@@ -1,6 +1,6 @@
 """Bounded public CSR messages; cache recovery still verifies the local key/signature."""
 import base64
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import re
 
@@ -79,3 +79,85 @@ def submit_request(origin, secret, device_id, subdomain, key_fingerprint, csr_de
     if result['request'] is None or result['request']['csr_der'] != csr_der:
         _fail()
     return result
+
+
+def _chain_encoding(value, fingerprint):
+    if not isinstance(value, str) or not 1 <= len(value) <= 32768 or not value.isascii():
+        _fail()
+    blocks = re.findall(r'-----BEGIN CERTIFICATE-----\n([A-Za-z0-9+/=\n]+)-----END CERTIFICATE-----\n', value)
+    if not 1 <= len(blocks) <= 5:
+        _fail()
+    canonical, seen = '', set()
+    for index, body in enumerate(blocks):
+        try:
+            der = base64.b64decode(body.replace('\n', ''), validate=True)
+        except ValueError:
+            _fail()
+        if not 128 <= len(der) <= 32768 or der in seen:
+            _fail()
+        seen.add(der)
+        encoded = base64.b64encode(der).decode('ascii')
+        canonical += ('-----BEGIN CERTIFICATE-----\n'
+                      + ''.join(encoded[i:i + 64] + '\n' for i in range(0, len(encoded), 64))
+                      + '-----END CERTIFICATE-----\n')
+        if index == 0 and hashlib.sha256(der).hexdigest() != fingerprint:
+            _fail()
+    if canonical != value:
+        _fail()
+
+
+def delivery(value, device_id, subdomain, key_fingerprint, original, now=None):
+    """Parse bound public wire material; this does not establish certificate trust.
+
+    The caller still verifies the local CSR/key, exact SAN and full chain against
+    independent native trust before staging or applying a GUI certificate.
+    """
+    if not isinstance(value, dict) or 'issued' not in value or len(value) > 22:
+        _fail()
+    settings_fields = {'agent_protocol_version', 'device_id', 'assigned_host', 'gui_key_fingerprint', 'request'}
+    result = settings({key: value[key] for key in settings_fields if key in value}, device_id, subdomain, key_fingerprint)
+    if (value['agent_protocol_version'].split('.')[1] == '2' or 'issued' not in value
+            or result['request'] is None or not isinstance(original, dict)
+            or result['request'] != original):
+        _fail()
+    issued = value['issued']
+    result['issued'] = None
+    if issued is None:
+        return result
+    fields = {'generation_id', 'generation', 'chain_pem', 'leaf_fingerprint',
+              'not_before', 'not_after', 'valid_until', 'renew_after'}
+    if (not isinstance(issued, dict) or not fields <= issued.keys() or len(issued) > len(fields) + 16
+            or not isinstance(issued['generation_id'], str) or not _UUID.fullmatch(issued['generation_id'])
+            or type(issued['generation']) is not int or not 1 <= issued['generation'] <= 2147483647
+            or not isinstance(issued['leaf_fingerprint'], str) or not re.fullmatch('[a-f0-9]{64}', issued['leaf_fingerprint'])):
+        _fail()
+    _chain_encoding(issued['chain_pem'], issued['leaf_fingerprint'])
+    stamps = []
+    for name in ['not_before', 'not_after', 'valid_until', 'renew_after']:
+        text = issued[name]
+        if not isinstance(text, str) or len(text) != 27:
+            _fail()
+        try:
+            stamp = datetime.strptime(text, '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc)
+            if stamp.strftime('%Y-%m-%dT%H:%M:%S.%fZ') != text:
+                _fail()
+        except ValueError:
+            _fail()
+        stamps.append(stamp)
+    before, after, until, renew = stamps
+    now = datetime.now(timezone.utc) if now is None else now
+    if not before <= now < until <= after or not before < renew < until:
+        _fail()
+    result['issued'] = {key: issued[key] for key in fields}
+    return result
+
+
+def request_issued(origin, secret, device_id, subdomain, key_fingerprint, original, context=None):
+    if (not isinstance(original, dict) or not isinstance(original.get('request_id'), str)
+            or not _UUID.fullmatch(original['request_id']) or not isinstance(original.get('csr_fingerprint'), str)
+            or not re.fullmatch('[a-f0-9]{64}', original['csr_fingerprint'])
+            or hashlib.sha256(_csr(original.get('csr_der'))).hexdigest() != original['csr_fingerprint']):
+        _fail()
+    body = dict(identity(device_id), request_id=original['request_id'], csr_fingerprint=original['csr_fingerprint'])
+    value = request_json(origin, '/api/v1/devices/gui-certificate/issued', body, secret=secret, context=context)
+    return delivery(value, device_id, subdomain, key_fingerprint, original)

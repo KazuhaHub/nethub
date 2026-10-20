@@ -97,7 +97,10 @@ The opt-in `TestPebbleProtectedHostIssuer` uses a fresh generated deployment and
 independent backup, genuine Compose PostgreSQL, the compiled production CLI,
 registered private Pebble account, independent API/issuing roots and real Caddy
 HTTP-01 serving. It verifies idle discovery, stopped-cleanup-timer refusal,
-original-key issuance and idle retry. CA logs independently verify one order and
+original-key issuance and idle retry. Fresh device enrollment, original CSR
+admission/queue and issued-chain download use the compiled HTTP server and its
+real restricted database role. Download retries retain the same public generation;
+device removal denies later downloads. CA logs independently verify one order and
 one finalization. An outer exact-resource expiry guard precedes the test; normal
 and expiry cleanup remove only that nonce's services, volumes, networks and keys.
 
@@ -106,11 +109,14 @@ home; it does not claim the shipped cleanup sandbox. The shipped cleanup unit ha
 separate genuine native acceptance. The issuer service template is run with
 fixture paths/project and read-only home access instead of masked home, retaining
 its strict system filesystem, privilege restrictions and explicit writable paths.
-Public CSR metadata is administratively
-seeded only in this labelled disposable database, and retry time is advanced
-only there. The separate compiled HTTP/database fixture checks actual enrolled
+The host fixture seeds only an initial tenant/user/enrollment-token authority;
+device/CSR/job admission uses the production HTTP paths. It runs authz inside its
+disposable PostgreSQL container for private bridge access, using nethub_authz SQL
+credentials; it does not replace production container isolation or public HTTPS
+acceptance. The separate interrupted-coordinator recovery fixture still seeds
+public CSR metadata explicitly. Retry time is advanced only in owned fixtures.
+The separate compiled HTTP/database fixture checks actual enrolled
 device CSR admission and atomic queueing, failure rollback, duplicate audit/job
-refusal and cancellation after revocation. These remain separate from combined
-enrollment-to-issuance acceptance, production recovery timing, renewal authorization, issued-chain
-delivery, native GUI installation/rollback, or staged trust transitions. Those
+refusal and cancellation after revocation. Production recovery timing, renewal
+authorization, native GUI installation/rollback and staged trust transitions
 remain required before W4 certificate automation is complete.

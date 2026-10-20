@@ -178,5 +178,20 @@
     "path": "invalid/certificate-submit-response-missing-device.json",
     "schema": "certificate-submit-response.schema.json",
     "valid": false
+  },
+  {
+    "path": "valid/certificate-issued-request.json",
+    "schema": "certificate-issued-request.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/certificate-issued-response.json",
+    "schema": "certificate-issued-response.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/certificate-issued-pending-response.json",
+    "schema": "certificate-issued-response.schema.json",
+    "valid": true
   }
 ]

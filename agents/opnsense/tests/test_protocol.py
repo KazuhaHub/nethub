@@ -40,6 +40,7 @@ def test_schema_definitions_and_manifest_coverage():
 
 def test_actual_agent_request_matches_shared_schema():
     expected = json.loads((PROTO / 'examples/valid/enroll-request.json').read_text(encoding='utf-8'))
+    expected['agent_protocol_version'] = AGENT.VERSION
     actual = AGENT.build_enroll_request(expected['enroll_token'], expected['platform_version'],
                                       expected['agent_version'], expected['hostname'])
     assert actual == expected

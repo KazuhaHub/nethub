@@ -1,11 +1,12 @@
 # Device protocol
 
-The shared device protocol is version **1.2.0**, recorded in `VERSION`.
+The shared device protocol is version **1.3.0**, recorded in `VERSION`.
 `v1/*.schema.json` are JSON Schema draft 2020-12 documents used by Go and Python
 contract tests. Enrollment, signed claims and native OPNsense enrollment are
 implemented. Authenticated status/removal and native appliance lifecycle behavior
-have passed acceptance. Trust generation acknowledgements, GUI certificates and
-credential rotation remain separate work.
+have passed acceptance. GUI issuance and authenticated public-chain delivery are
+implemented; native installation/renewal, trust acknowledgements and credential
+rotation remain separate work.
 
 ## Messages
 
@@ -19,6 +20,7 @@ credential rotation remain separate work.
 | unenroll-request / unenroll-response | Authenticated removal request and confirmed revocation |
 | certificate-settings-request / certificate-settings-response | Live assigned GUI hostname, enrollment key fingerprint and original public CSR, when present |
 | certificate-submit-request / certificate-submit-response | Enrollment-bound signed CSR admission and exact durable readback |
+| certificate-issued-request / certificate-issued-response | Authenticated original-request pins and pending or issued public generation |
 
 The public device endpoints are `/api/v1/devices/{enroll,status,rotate,unenroll}`
 under the administrator-selected HTTPS console origin. Enrollment carries its
@@ -45,6 +47,31 @@ CSR signature, single assigned DNS SAN and the enrollment-bound P-256 key.
 The agent wire helper checks its expected device/subdomain/key fingerprint and
 record hash. Cache restoration must still verify the CSR against the protected
 local key; wire parsing alone does not authorize persistence or key creation.
+
+Protocol 1.3 adds authenticated POST `/api/v1/devices/gui-certificate/issued` for
+major-1 clients with minor >= 3. The request carries the device ID, original
+request ID and CSR SHA256 fingerprint. A live device receives its same signed
+request/assignment and either `issued: null` or an immutable public generation:
+generation ID/number, canonical certificate PEM, leaf SHA256 and microsecond UTC
+not-before/not-after/effective-validity/renewal times. A mismatch or revoked
+assignment is denied. Settings reads and delivery polls never enqueue renewals.
+
+The chain is at most 32768 bytes, with at most five canonical public certificates;
+the whole message remains limited to 65536 bytes. Leaf/key/exact-name/CSR and
+metadata correlation are checked before emission. SQL delivery has a narrow
+authz-only function, holding the same live assignment lock and filtering expired
+generations; application roles receive no raw generation/lease/checkpoint access.
+Public wire validation does not establish a trusted root or application success.
+The recipient must independently verify its local key, CSR, exact hostname and
+certificate chain using native trust before installation. No CA key, device key,
+account/order URL or lease token is a delivery field.
+
+The combined private fixture now uses compiled HTTP enrollment and CSR admission,
+the host worker, genuine test CA/Caddy validation and authenticated chain download,
+then checks refusal after removal. It seeds only initial admin/token authority.
+Its internal HTTP bridge and logical client do not replace public HTTPS or native
+appliance acceptance. The public sample leaf is a test wire example with an
+ephemeral in-memory fixture signer; it is not a trusted root or deployment policy.
 
 An enroll response includes `server_name` and `relay_ca_pem`. The agent must
 verify console HTTPS before accepting them, validate certificates and the relay

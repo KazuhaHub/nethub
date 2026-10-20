@@ -35,6 +35,15 @@ func (s *GUIJobQueue) Health(ctx context.Context) error {
 	var ready bool
 	err := s.Requests.Enrollment.DB.QueryRowContext(ctx, `SELECT
  has_function_privilege(current_user,'public.enqueue_gui_certificate_request(uuid)','EXECUTE')
+ AND has_function_privilege(current_user,'public.read_issued_gui_certificate(uuid,uuid,text,text)','EXECUTE')
+ AND EXISTS (SELECT FROM pg_proc WHERE oid='public.read_issued_gui_certificate(uuid,uuid,text,text)'::regprocedure
+   AND prosecdef AND proowner='nethub_owner'::regrole)
+ AND NOT has_table_privilege(current_user,'public.gui_certificate_generations','SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
+ AND NOT has_any_column_privilege(current_user,'public.gui_certificate_generations','SELECT,INSERT,UPDATE,REFERENCES')
+ AND EXISTS (SELECT FROM pg_class WHERE oid='public.gui_certificate_generations'::regclass AND relrowsecurity AND relforcerowsecurity)
+ AND EXISTS (SELECT FROM pg_trigger WHERE tgrelid='public.gui_certificate_generations'::regclass
+   AND tgname='gui_certificate_generation_immutable' AND NOT tgisinternal AND tgenabled IN ('O','A')
+   AND tgfoid='public.retain_gui_certificate_generation()'::regprocedure)
  AND NOT has_table_privilege(current_user,'public.gui_certificate_jobs','SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
  AND NOT has_any_column_privilege(current_user,'public.gui_certificate_jobs','SELECT,INSERT,UPDATE,REFERENCES')
  AND EXISTS (SELECT 1 FROM pg_class WHERE oid='public.gui_certificate_jobs'::regclass AND relrowsecurity AND relforcerowsecurity)

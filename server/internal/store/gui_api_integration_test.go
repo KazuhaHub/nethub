@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
@@ -78,6 +79,22 @@ func testRuntimeCertificateRequest(t *testing.T, f *enrollmentFixture, client *h
 		t.Fatal("compiled CSR admission failed", status)
 	}
 	saved := *settings.Request
+	issuedInput := protocol.CertificateIssuedRequest{Identity: identity, RequestID: saved.RequestID, CSRFingerprint: saved.CSRFingerprint}
+	status, body = post("issued", issuedInput)
+	var pending protocol.CertificateDelivery
+	if status != 200 || json.Unmarshal(body, &pending) != nil || pending.Validate() != nil || pending.Issued != nil || pending.Request.RequestID != saved.RequestID {
+		t.Fatal("compiled original request pending delivery failed", status)
+	}
+	wrongBinding := issuedInput
+	wrongBinding.CSRFingerprint = strings.Repeat("0", 64)
+	if status, _ := post("issued", wrongBinding); status != 401 {
+		t.Fatal("compiled delivery accepted another fingerprint", status)
+	}
+	oldDelivery := issuedInput
+	oldDelivery.AgentProtocolVersion = "1.2.0"
+	if status, _ := post("issued", oldDelivery); status != 400 {
+		t.Fatal("compiled old minor reached delivery", status)
+	}
 	for _, action := range []string{"request", "settings"} {
 		var input any = identity
 		if action == "request" {
@@ -119,6 +136,7 @@ func testRuntimeCertificateRequest(t *testing.T, f *enrollmentFixture, client *h
 		t.Fatal("compiled retries duplicated initial work or audit", err)
 	}
 	t.Log("Compiled authenticated CSR admission and initial queue committed atomically; queue-grant failure rolled back request/job/audits and exact retries retained one generation and audit pair")
+	t.Log("Compiled certificate delivery authenticated original request polling, bounded pending readback, wrong-binding refusal and minor-version separation")
 	t.Log("Compiled authz certificate settings, bound CSR submission, exact retries/recovery, conflict and wrong-SAN checks passed against genuine PostgreSQL")
 	return post
 }

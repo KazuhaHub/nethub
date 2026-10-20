@@ -27,8 +27,8 @@ func schemas(t *testing.T) map[string]*jsonschema.Schema {
 	compiler := jsonschema.NewCompiler()
 	compiler.AssertFormat()
 	files, err := filepath.Glob(filepath.Join(protocolRoot(t), "v1", "*.schema.json"))
-	if err != nil || len(files) != 14 {
-		t.Fatalf("expected fourteen shared schemas, got %d: %v", len(files), err)
+	if err != nil || len(files) != 16 {
+		t.Fatalf("expected sixteen shared schemas, got %d: %v", len(files), err)
 	}
 	for _, path := range files {
 		data, err := os.ReadFile(path)
@@ -127,6 +127,7 @@ func TestWireTypesRoundTripThroughSharedSchemas(t *testing.T) {
 		"domain-claim":                 &ClaimPayload{},
 		"certificate-settings-request": &Identity{}, "certificate-submit-request": &CertificateSubmit{},
 		"certificate-settings-response": &CertificateSettings{}, "certificate-submit-response": &CertificateSettings{},
+		"certificate-issued-request": &CertificateIssuedRequest{}, "certificate-issued-response": &CertificateDelivery{},
 	} {
 		t.Run(name, func(t *testing.T) {
 			data := example(t, name)

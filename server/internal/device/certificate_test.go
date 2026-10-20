@@ -26,6 +26,18 @@ type certificateRepository struct {
 	err, healthErr error
 	found          bool
 	calls          int
+	issued         *guicert.IssuedCertificate
+}
+
+func (s *certificateRepository) Issued(_ context.Context, c Credential, id, requestID, fingerprint string) (guicert.StoredRequest, *guicert.IssuedCertificate, error) {
+	s.calls++
+	if c != s.credential || id != s.record.DeviceID || requestID != s.record.ID || fingerprint != s.record.Fingerprint || !s.found {
+		return guicert.StoredRequest{}, nil, ErrDenied
+	}
+	if s.err != nil {
+		return guicert.StoredRequest{}, nil, s.err
+	}
+	return s.record, s.issued, nil
 }
 
 func (s *certificateRepository) Health(context.Context) error { return s.healthErr }

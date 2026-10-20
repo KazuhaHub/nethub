@@ -17,3 +17,12 @@ type StoredRequest struct {
 type Assignment struct {
 	Host, KeyFingerprint string `json:"-"`
 }
+
+// IssuedCertificate carries immutable public material, never issuer checkpoints
+// or a successful native application acknowledgement.
+type IssuedCertificate struct {
+	ID, Fingerprint                             string    `json:"-"`
+	Generation                                  int       `json:"-"`
+	PEM                                         []byte    `json:"-"`
+	NotBefore, NotAfter, ValidUntil, RenewAfter time.Time `json:"-"`
+}
