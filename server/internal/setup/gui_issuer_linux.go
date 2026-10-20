@@ -287,6 +287,15 @@ func RunGUIIssuer(ctx context.Context, options GUIIssuerOptions) (GUIIssuerResul
 		return result, ErrGUIIssuer
 	}
 	if work == nil {
+		if _, err := store.EnqueueRenewals(ctx); err != nil {
+			return result, ErrGUIIssuer
+		}
+		work, err = store.Claim(ctx)
+		if err != nil {
+			return result, ErrGUIIssuer
+		}
+	}
+	if work == nil {
 		return GUIIssuerResult{State: "idle"}, nil
 	}
 	coordinator := &guiissuer.Coordinator{Store: store, Account: account, Publisher: checkedGUIPublisher{publisher: publisher, timer: policy.CleanupTimer}, Roots: roots}

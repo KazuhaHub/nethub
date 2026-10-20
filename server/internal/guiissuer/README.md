@@ -21,8 +21,9 @@ expired-lease recoveries, five transient failures and sixty pending observations
 Transient retries use bounded exponential backoff; ordinary pending observations
 wait thirty seconds without consuming the failure budget. Policy failures and
 indeterminate order creation are terminal. A terminal initial enqueue returns
-the same job; a future explicit renewal/recovery operation must authorize another
-generation rather than reset these counters silently.
+the same job. Renewal admission authorizes another generation only from an issued
+generation that has reached its database renewal time; terminal recovery still
+requires operator review rather than resetting counters silently.
 
 `DecodeSnapshot` independently checks the host's trusted device suffix/exclusions,
 canonical identity/timing/budget fields, immutable public key, original CSR hash,
@@ -61,6 +62,27 @@ with a lead bounded by actual lifetime and stable per-device spread. A minimum
 issuance interval rejects material too near expiry to schedule safely, avoiding
 an immediate short-lifetime renewal loop. These are issuance states, not verified
 device application or an assertion that a router is serving the new leaf.
+
+Migration 00013 adds issuer-only renewal admission. The existing protected host
+command checks deployment, account, trust, cleanup and database readiness first,
+then claims existing work first. An idle invocation scans at most 32 due devices
+and admits at most one renewal, matching its one-job capacity and avoiding a
+renewal batch expiring behind its own queue. It accepts no client
+clock, requested generation, hostname override or private key. The host's exact
+device suffix and exclusions fence the scan. Parent locks serialize enrollment,
+renewal and revocation; blocked parents are skipped. Every predicate is rechecked
+under the lock, and one next-generation job plus its audit commit atomically.
+Concurrent scans and lost replies retain that same job. The original CSR/key
+stays bound; a new CA order belongs to the new job, not to delivery or reporting.
+
+The latest issued generation supplies `renew_after`, derived from validated
+effective chain expiry. Expired certificates remain eligible for recovery, but
+an active or terminal newer job prevents automatic creation of more CA work.
+Failed initial issuance also has no issued generation to renew. Polling and
+application acknowledgements never enqueue renewals; an offline device does not
+need to report before the issuer renews its current immutable assignment.
+Scheduling fixtures deliberately seed public material/clock metadata and do not
+establish genuine renewed issuance or native installation acceptance.
 
 `SQLStore` connects private queue/progress/completion functions through a bounded
 stdin-only SQL runner. Every fresh session suppresses statement/error text before
