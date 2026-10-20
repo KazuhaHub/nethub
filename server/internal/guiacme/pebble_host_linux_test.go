@@ -25,6 +25,14 @@ import (
 // private CA/proxy resources. Its outer deployment harness arms an independent
 // exact-resource cleanup guard before entering this test.
 func TestPebbleProtectedHostIssuer(t *testing.T) {
+	testPebbleProtectedHostIssuer(t, false)
+}
+
+func TestPebbleProtectedHostIssuerRenewal(t *testing.T) {
+	testPebbleProtectedHostIssuer(t, true)
+}
+
+func testPebbleProtectedHostIssuer(t *testing.T, renewal bool) {
 	binary, image := os.Getenv("NETHUB_HOST_ISSUER_BINARY"), os.Getenv("NETHUB_HOST_POSTGRES_IMAGE")
 	if binary == "" || image == "" {
 		t.Skip("requires the independently guarded host-command fixture")
@@ -52,7 +60,11 @@ func TestPebbleProtectedHostIssuer(t *testing.T) {
 		}
 		return bytes.TrimSpace(data)
 	}
-	guiacme.RunPebbleHostFixture(t, func(files guiacme.PebbleHostFiles, account *guiacme.AccountStore, publisher *http01.Publisher, roots *x509.CertPool, csr []byte, public string) guiacme.Order {
+	fixture := guiacme.RunPebbleHostFixture
+	if renewal {
+		fixture = guiacme.RunPebbleHostRenewalFixture
+	}
+	fixture(t, func(files guiacme.PebbleHostFiles, account *guiacme.AccountStore, publisher *http01.Publisher, roots *x509.CertPool, csr []byte, public string) guiacme.Order {
 		write := func(path string, data []byte) {
 			t.Helper()
 			if os.WriteFile(path, data, 0600) != nil {
@@ -140,9 +152,24 @@ func TestPebbleProtectedHostIssuer(t *testing.T) {
 		must(nil, "/usr/bin/systemctl", "daemon-reload")
 		must(nil, "/usr/bin/systemctl", "start", timer+".service", timer+".timer")
 		args := []string{"certificates", "issue-gui", "--directory", directory, "--project-name", project, "--config-file", issuerFile, "--compose-file", override}
+		issuerCommand := func() ([]byte, error) {
+			// Periodic cleanup may briefly hold the namespace lock. The CLI's
+			// explicit busy skip is not successful admission or a policy failure.
+			until := time.Now().Add(15 * time.Second)
+			for {
+				data, err := command(nil, binary, args...)
+				if err != nil || strings.TrimSpace(string(data)) != "GUI issuer already running or namespace busy; skipped" || time.Now().After(until) {
+					return data, err
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
 		invoke := func() setup.GUIIssuerResult {
 			t.Helper()
-			data := must(nil, binary, args...)
+			data, err := issuerCommand()
+			if err != nil {
+				t.Fatal("host issuer command failed")
+			}
 			var result setup.GUIIssuerResult
 			if json.Unmarshal(data, &result) != nil {
 				t.Fatal("host issuer returned non-JSON state")
@@ -162,15 +189,15 @@ func TestPebbleProtectedHostIssuer(t *testing.T) {
 		}
 		missingAccount.AccountDirectory = filepath.Join(files.Stage, "uninitialized-account")
 		writeJSON(issuerFile, missingAccount)
-		if _, err := command(nil, binary, args...); err == nil {
+		if _, err := issuerCommand(); err == nil {
 			t.Fatal("host issuer accepted an uninitialized account")
 		}
 		if _, err := os.Lstat(missingAccount.AccountDirectory); !os.IsNotExist(err) {
 			t.Fatal("ordinary host work initialized or replaced account state")
 		}
 		write(issuerFile, policyBytes)
-		must(nil, "/usr/bin/systemctl", "stop", timer+".timer")
-		if _, err := command(nil, binary, args...); err == nil {
+		must(nil, "/usr/bin/systemctl", "stop", timer+".timer", timer+".service")
+		if _, err := issuerCommand(); err == nil {
 			t.Fatal("issuer accepted a stopped independent cleanup timer")
 		}
 		must(nil, "/usr/bin/systemctl", "start", timer+".timer")
@@ -245,7 +272,67 @@ func TestPebbleProtectedHostIssuer(t *testing.T) {
 		if invoke().State != "idle" {
 			t.Fatal("host issued work was not idempotent")
 		}
-		order := fixtureSQL(t, binding, run, "SELECT checkpoint#>>'{order,finalize_url}' FROM public.gui_certificate_progress WHERE job_id=(SELECT id FROM public.gui_certificate_jobs WHERE request_id='"+requestID+"')")
+		confirm := func(delivered protocol.CertificateDelivery) protocol.CertificateAppliedRequest {
+			t.Helper()
+			report := protocol.CertificateAppliedRequest{CertificateIssuedRequest: issuedInput, GenerationID: delivered.Issued.ID,
+				Generation: delivered.Issued.Generation, LeafFingerprint: delivered.Issued.LeafFingerprint}
+			// Deliberately discard the first successful response body. This tests
+			// reporting recovery; it does not claim an interrupted TCP connection.
+			if status, _ := client.post("applied", report); status != 200 {
+				t.Fatal("initial application report failed", status)
+			}
+			status, body := client.post("applied", report)
+			var reply protocol.CertificateAppliedResponse
+			if status != 200 || json.Unmarshal(body, &reply) != nil || reply.Validate() != nil || reply.CertificateAppliedRequest != report {
+				t.Fatal("application retry correlation failed", status)
+			}
+			stamp := fixtureSQL(t, binding, run, "SELECT to_char(accepted_at AT TIME ZONE 'UTC','YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') FROM public.gui_certificate_applications WHERE generation_id='"+report.GenerationID+"'")
+			if string(stamp) != reply.AcceptedAt {
+				t.Fatal("application retry lost original acceptance timestamp")
+			}
+			return report
+		}
+		firstReport := confirm(first)
+		lastReport := firstReport
+		if renewal {
+			// Age only the labelled disposable generation's schedule. Keep the
+			// genuine CA chain/key/expiry unchanged and restore immutability in
+			// the same transaction; do not change any host or CA clock.
+			fixtureSQL(t, binding, run, "BEGIN;ALTER TABLE public.gui_certificate_generations DISABLE TRIGGER gui_certificate_generation_immutable;UPDATE public.gui_certificate_generations SET issued_at=clock_timestamp()-interval '2 days',renew_after=clock_timestamp()-interval '1 day' WHERE id='"+first.Issued.ID+"';ALTER TABLE public.gui_certificate_generations ENABLE TRIGGER gui_certificate_generation_immutable;COMMIT")
+			deadline = time.Now().Add(60 * time.Second)
+			for string(fixtureSQL(t, binding, run, "SELECT count(*) FROM public.gui_certificate_generations WHERE request_id='"+requestID+"'")) != "2" {
+				fixtureSQL(t, binding, run, "UPDATE public.gui_certificate_jobs SET next_attempt_at=clock_timestamp() WHERE request_id='"+requestID+"' AND state='retry_wait'")
+				result := invoke()
+				if result.State == "issued" {
+					break
+				}
+				if result.State != "waiting" || time.Now().After(deadline) {
+					t.Fatal("renewal did not finish its bounded genuine order")
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			status, body = client.post("issued", issuedInput)
+			var second protocol.CertificateDelivery
+			if status != 200 || json.Unmarshal(body, &second) != nil || second.Validate() != nil || second.Issued == nil || second.Issued.Generation != 2 || second.Issued.ID == first.Issued.ID || second.Issued.LeafFingerprint == first.Issued.LeafFingerprint || second.Request.CSRDER != first.Request.CSRDER {
+				t.Fatal("renewal did not deliver new original-key generation", status)
+			}
+			if _, err := guicert.ValidateChain([]byte(second.Issued.ChainPEM), csr, host, roots, time.Now()); err != nil {
+				t.Fatal("renewal independent trust verification", err)
+			}
+			lastReport = confirm(second)
+			if status, _ := client.post("applied", firstReport); status != 401 {
+				t.Fatal("older application report accepted after generation two", status)
+			}
+			if invoke().State != "idle" {
+				t.Fatal("renewal/application retries created more CA work")
+			}
+			counts := fixtureSQL(t, binding, run, "SELECT (SELECT count(*) FROM public.gui_certificate_requests WHERE device_id='"+client.settings.DeviceID+"'),(SELECT count(*) FROM public.gui_certificate_jobs WHERE request_id='"+requestID+"'),(SELECT count(*) FROM public.gui_certificate_generations WHERE request_id='"+requestID+"'),(SELECT count(*) FROM public.gui_certificate_applications WHERE device_id='"+client.settings.DeviceID+"'),(SELECT count(*) FROM public.audit_log WHERE target_device_id='"+client.settings.DeviceID+"' AND action='device.certificate_applied'),(SELECT count(*) FROM public.audit_log WHERE target_device_id='"+client.settings.DeviceID+"' AND action='device.certificate_renewal_queued')")
+			if string(counts) != "1|2|2|2|2|1" {
+				t.Fatal("renewal/reporting duplicated durable work or audits")
+			}
+			t.Log("Genuine host renewal passed original CSR/key, two distinct issued leaves, compiled authenticated generation delivery, discarded application response recovery, monotonic reports and exact durable job/generation/audit counts; schedule metadata was aged, no native installation")
+		}
+		order := fixtureSQL(t, binding, run, "SELECT checkpoint#>>'{order,finalize_url}' FROM public.gui_certificate_progress WHERE job_id=(SELECT id FROM public.gui_certificate_jobs WHERE request_id='"+requestID+"' ORDER BY generation DESC LIMIT 1)")
 		if !strings.HasPrefix(string(order), files.DirectoryURL[:strings.LastIndex(files.DirectoryURL, "/")]+"/") {
 			t.Fatal("host fixture order escaped configured CA")
 		}
@@ -254,6 +341,9 @@ func TestPebbleProtectedHostIssuer(t *testing.T) {
 		}
 		if status, _ := client.post("issued", issuedInput); status != 401 {
 			t.Fatal("removed client received retained issued material", status)
+		}
+		if status, _ := client.post("applied", lastReport); status != 401 {
+			t.Fatal("removed client acknowledged retained material", status)
 		}
 		t.Log("Protected host command passed genuine Compose database discovery, independent backup/account/trust/cleanup gates, stopped-timer refusal, exact CSR issuance and idle retry; actual device HTTP admission, no appliance application")
 		t.Log("Fresh compiled device enrollment, original CSR admission/initial queue, genuine CA issuance and authenticated original-key delivery passed with idempotent generation reads and removed-client denial; only initial admin/token authority was seeded")

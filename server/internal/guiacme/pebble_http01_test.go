@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -41,14 +42,31 @@ type PebbleHostFiles struct {
 }
 
 func RunPebbleHostFixture(t *testing.T, run func(PebbleHostFiles, *AccountStore, *http01.Publisher, *x509.CertPool, []byte, string) Order) {
-	RunPebbleIssuerFixture(t, func(account *AccountStore, publisher *http01.Publisher, roots *x509.CertPool, csr []byte, public string, _ func() *AccountStore) Order {
+	runPebbleHostFixture(t, 1, run)
+}
+
+// RunPebbleHostRenewalFixture requires exactly two real orders/finalizations;
+// ordinary recovery fixtures retain their independent one-order assertion.
+func RunPebbleHostRenewalFixture(t *testing.T, run func(PebbleHostFiles, *AccountStore, *http01.Publisher, *x509.CertPool, []byte, string) Order) {
+	runPebbleHostFixture(t, 2, run)
+}
+
+func runPebbleHostFixture(t *testing.T, generations int, run func(PebbleHostFiles, *AccountStore, *http01.Publisher, *x509.CertPool, []byte, string) Order) {
+	pebbleHTTP01Generations(t, true, generations, func(account *AccountStore, publisher *http01.Publisher, roots *x509.CertPool, csr []byte, public string, _ func() *AccountStore) Order {
 		stage := filepath.Dir(account.directory)
 		return run(PebbleHostFiles{stage, account.directory, account.config.DirectoryURL, filepath.Join(stage, "api-root.pem"), filepath.Join(stage, "issuing-root.pem")}, account, publisher, roots, csr, public)
 	})
 }
 
 func pebbleHTTP01Flow(t *testing.T, finalize bool, coordinator ...func(*AccountStore, *http01.Publisher, *x509.CertPool, []byte, string, func() *AccountStore) Order) {
+	pebbleHTTP01Generations(t, finalize, 1, coordinator...)
+}
+
+func pebbleHTTP01Generations(t *testing.T, finalize bool, generations int, coordinator ...func(*AccountStore, *http01.Publisher, *x509.CertPool, []byte, string, func() *AccountStore) Order) {
 	t.Helper()
+	if generations < 1 || generations > 2 || generations > 1 && len(coordinator) != 1 {
+		t.Fatal("invalid isolated generation fixture")
+	}
 	if os.Getenv("NETHUB_GUIACME_PEBBLE_IMAGE") == "" {
 		t.Skip("requires the isolated genuine ACME deployment harness")
 	}
@@ -234,10 +252,14 @@ func pebbleHTTP01Flow(t *testing.T, finalize bool, coordinator ...func(*AccountS
 		}
 		prefix := endpoint.Path[:strings.LastIndex(endpoint.Path, "/")+1]
 		log := string(p.docker("logs", p.containerID))
-		if !matched || prefix == "/" || strings.Count(log, "POST "+prefix+" -> calling handler()") != 1 || !strings.Contains(log, "There are now 1 orders in the db") || strings.Contains(log, "There are now 2 orders in the db") {
-			t.Fatal("coordinator did not preserve one real validated order and finalization")
+		if !matched || prefix == "/" || strings.Count(log, "POST "+prefix+" -> calling handler()") != generations || !strings.Contains(log, fmt.Sprintf("There are now %d orders in the db", generations)) || strings.Contains(log, fmt.Sprintf("There are now %d orders in the db", generations+1)) {
+			t.Fatal("coordinator did not preserve the exact real order/finalization count")
 		}
-		t.Log("Actual coordinator passed genuine CA-source HTTP validation, retired response, reopened-account recovery and one original order/finalize POST; native application not claimed")
+		if generations == 1 {
+			t.Log("Actual coordinator passed genuine CA-source HTTP validation, retired response, reopened-account recovery and one original order/finalize POST; native application not claimed")
+		} else {
+			t.Log("Actual renewal coordinator passed genuine CA-source HTTP validation, retired responses and exactly two original orders/finalize POSTs; native application not claimed")
+		}
 		return
 	}
 	order, err := p.store.CreateOrder(context.Background(), csr, orderHost, public)
