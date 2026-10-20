@@ -34,6 +34,19 @@ func RunPebbleIssuerFixture(t *testing.T, run func(*AccountStore, *http01.Publis
 	pebbleHTTP01Flow(t, true, run)
 }
 
+// PebbleHostFiles carries explicit test-only, independently provisioned public
+// trust and an already registered private account into host-command acceptance.
+type PebbleHostFiles struct {
+	Stage, AccountDirectory, DirectoryURL, APIRootsFile, CertificateRootsFile string
+}
+
+func RunPebbleHostFixture(t *testing.T, run func(PebbleHostFiles, *AccountStore, *http01.Publisher, *x509.CertPool, []byte, string) Order) {
+	RunPebbleIssuerFixture(t, func(account *AccountStore, publisher *http01.Publisher, roots *x509.CertPool, csr []byte, public string, _ func() *AccountStore) Order {
+		stage := filepath.Dir(account.directory)
+		return run(PebbleHostFiles{stage, account.directory, account.config.DirectoryURL, filepath.Join(stage, "api-root.pem"), filepath.Join(stage, "issuing-root.pem")}, account, publisher, roots, csr, public)
+	})
+}
+
 func pebbleHTTP01Flow(t *testing.T, finalize bool, coordinator ...func(*AccountStore, *http01.Publisher, *x509.CertPool, []byte, string, func() *AccountStore) Order) {
 	t.Helper()
 	if os.Getenv("NETHUB_GUIACME_PEBBLE_IMAGE") == "" {
@@ -53,7 +66,7 @@ func pebbleHTTP01Flow(t *testing.T, finalize bool, coordinator ...func(*AccountS
 		t.Fatal("proxy fixture identity already exists")
 	}
 	pub, private := filepath.Join(p.stage, "http-public"), filepath.Join(p.stage, "http-private")
-	publisher, err := http01.New(http01.Config{PublicDirectory: pub, StateDirectory: private, DeviceDomain: "devices.example.test"})
+	publisher, err := http01.New(http01.Config{PublicDirectory: pub, StateDirectory: private, DeviceDomain: "devices.example.test", ExcludedHosts: []string{"console.example.test"}})
 	if err != nil {
 		t.Fatal("isolated publisher initialization")
 	}
@@ -349,5 +362,8 @@ func pebbleIssuingRoots(t *testing.T, p *pebbleHarness) *x509.CertPool {
 	}
 	roots := x509.NewCertPool()
 	roots.AddCert(root)
+	if os.WriteFile(filepath.Join(p.stage, "issuing-root.pem"), data, 0600) != nil {
+		t.Fatal("out-of-band fixture issuing root")
+	}
 	return roots
 }

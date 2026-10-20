@@ -32,3 +32,21 @@ func TestCertificateCommandBoundaries(t *testing.T) {
 		t.Fatal("uninitialized cleanup accepted")
 	}
 }
+
+func TestGUIIssuerCommandBoundaries(t *testing.T) {
+	for _, args := range [][]string{{"--unknown"}, {"unexpected"}} {
+		var out, diagnostic bytes.Buffer
+		if runGUIIssuer(args, &out, &diagnostic) != 2 || out.Len() != 0 {
+			t.Fatal("unsafe GUI issuer invocation accepted")
+		}
+	}
+	var out, diagnostic bytes.Buffer
+	if runGUIIssuer([]string{"--help"}, &out, &diagnostic) != 0 || diagnostic.Len() == 0 {
+		t.Fatal("GUI issuer help unavailable")
+	}
+	out.Reset()
+	diagnostic.Reset()
+	if runGUIIssuer([]string{"--directory", t.TempDir()}, &out, &diagnostic) != 1 || out.Len() != 0 {
+		t.Fatal("uninitialized GUI issuer started")
+	}
+}

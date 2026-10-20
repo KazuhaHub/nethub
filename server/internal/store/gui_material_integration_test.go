@@ -52,6 +52,19 @@ func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, tenant string) {
 		t.Fatal(err)
 	}
 	adapter := &guiissuer.SQLStore{Run: issuerSQLInput, Domain: "devices.example.com", AllowsURL: account.AllowsURL}
+	if err := adapter.Ready(f.ctx); err != nil {
+		t.Fatal("host issuer schema/identity readiness failed")
+	}
+	if _, err := f.owner.ExecContext(f.ctx, `ALTER TABLE devices DISABLE TRIGGER devices_cancel_gui_jobs`); err != nil {
+		t.Fatal(err)
+	}
+	notReady := adapter.Ready(f.ctx)
+	if _, err := f.owner.ExecContext(f.ctx, `ALTER TABLE devices ENABLE TRIGGER devices_cancel_gui_jobs`); err != nil {
+		t.Fatal(err)
+	}
+	if notReady == nil {
+		t.Fatal("host issuer accepted a disabled cancellation guard")
+	}
 	claimed, err := adapter.Claim(f.ctx)
 	if err != nil {
 		t.Fatal("issued fixture claim failed")

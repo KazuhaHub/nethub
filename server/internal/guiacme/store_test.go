@@ -59,6 +59,9 @@ func TestDurableAccountOfflineInitializationAndIdentity(t *testing.T) {
 	if err != nil || before.URI != "" || !validKey(key) || f.counts().requests != 0 {
 		t.Fatal("offline initialization performed network work")
 	}
+	if s.Ready(context.Background()) != ErrState || f.counts().requests != 0 {
+		t.Fatal("unregistered readiness performed network work")
+	}
 	if encoded, _ := json.Marshal(s); string(encoded) != "{}" {
 		t.Fatal("private store exported through ordinary JSON")
 	}
@@ -72,6 +75,10 @@ func TestDurableAccountOfflineInitializationAndIdentity(t *testing.T) {
 	state, _, err := s.load()
 	if err != nil || state.Key != before.Key || state.URI != a.URI {
 		t.Fatal("private identity was not persisted with the same key")
+	}
+	countsBefore := f.counts()
+	if s.Ready(context.Background()) != nil || f.counts() != countsBefore {
+		t.Fatal("registered readiness contacted CA or failed")
 	}
 	info, _ := os.Stat(s.path("account.json"))
 	reopened, err := NewAccountStore(s.directory, config)

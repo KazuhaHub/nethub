@@ -28,6 +28,51 @@ type SQLStore struct {
 	Now       func() time.Time
 }
 
+// Ready checks the reserved identity and narrow executable schema before a host
+// command contacts a CA or claims work. It never repairs role/schema drift.
+func (s *SQLStore) Ready(ctx context.Context) error {
+	statement := `SELECT current_user='nethub_issuer' AND session_user='nethub_issuer'
+ AND EXISTS (SELECT FROM pg_roles r WHERE r.rolname=current_user AND NOT r.rolcanlogin
+  AND NOT r.rolsuper AND NOT r.rolinherit AND NOT r.rolcreatedb AND NOT r.rolcreaterole
+  AND NOT r.rolreplication AND NOT r.rolbypassrls
+  AND NOT EXISTS (SELECT FROM pg_auth_members WHERE roleid=r.oid OR member=r.oid))
+ AND has_schema_privilege(current_user,'public','USAGE')
+ AND NOT has_schema_privilege(current_user,'public','CREATE')
+ AND NOT has_function_privilege(current_user,'public.lookup_device_credential(uuid)','EXECUTE')
+ AND NOT EXISTS (SELECT FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+  WHERE CASE WHEN n.nspname='public' AND c.relkind IN ('r','p','v','m','f') THEN
+   has_table_privilege(current_user,c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
+    OR has_any_column_privilege(current_user,c.oid,'SELECT,INSERT,UPDATE,REFERENCES')
+   WHEN n.nspname='public' AND c.relkind='S' THEN has_sequence_privilege(current_user,c.oid,'SELECT,USAGE,UPDATE')
+   ELSE false END)
+ AND (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+  WHERE n.nspname='public' AND c.relname IN ('gui_certificate_requests','gui_certificate_jobs',
+   'gui_certificate_progress','gui_certificate_generations') AND c.relrowsecurity AND c.relforcerowsecurity)=4
+ AND NOT EXISTS (SELECT FROM (VALUES
+  ('public.claim_gui_certificate_job()'),('public.renew_gui_certificate_lease(uuid,uuid,bigint)'),
+  ('public.release_gui_certificate_lease(uuid,uuid,bigint,text)'),
+  ('public.read_gui_certificate_progress(uuid,uuid,bigint)'),
+  ('public.save_gui_certificate_progress(uuid,uuid,bigint,text,jsonb)'),
+  ('public.finish_gui_certificate_job(uuid,uuid,bigint,bytea,text,timestamptz,timestamptz,timestamptz,timestamptz)')) f(signature)
+  LEFT JOIN pg_proc p ON p.oid=to_regprocedure(f.signature)
+  WHERE p.oid IS NULL OR NOT p.prosecdef OR p.proowner<>'nethub_owner'::regrole
+   OR NOT has_function_privilege(current_user,p.oid,'EXECUTE'))
+ AND (SELECT count(*) FROM pg_trigger t WHERE NOT t.tgisinternal AND t.tgenabled IN ('O','A') AND
+  ((t.tgrelid='public.devices'::regclass AND t.tgname='devices_cancel_gui_jobs'
+     AND t.tgfoid='public.cancel_changed_gui_certificate_jobs()'::regprocedure)
+   OR (t.tgrelid='public.gui_certificate_jobs'::regclass AND t.tgname='gui_certificate_job_identity'
+     AND t.tgfoid='public.guard_gui_certificate_job_identity()'::regprocedure)
+   OR (t.tgrelid='public.gui_certificate_progress'::regclass AND t.tgname='gui_certificate_progress_identity'
+     AND t.tgfoid='public.guard_gui_certificate_progress_identity()'::regprocedure)
+   OR (t.tgrelid='public.gui_certificate_generations'::regclass AND t.tgname='gui_certificate_generation_immutable'
+     AND t.tgfoid='public.retain_gui_certificate_generation()'::regprocedure)))=4`
+	body, err := s.query(ctx, statement)
+	if err != nil || !bytes.Equal(body, []byte("t")) {
+		return ErrDatabase
+	}
+	return nil
+}
+
 func (s *SQLStore) now() time.Time {
 	if s.Now != nil {
 		return s.Now()

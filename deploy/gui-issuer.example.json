@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "account_directory": "/var/lib/nethub-gui-acme",
+  "directory_url": "https://acme.example.test/directory",
+  "contact_email": "issuer@example.test",
+  "additional_origins": [],
+  "api_roots_file": "",
+  "certificate_roots_file": "",
+  "http01_policy_file": "/etc/nethub/http01.json",
+  "cleanup_timer": "nethub-http01-cleanup.timer"
+}

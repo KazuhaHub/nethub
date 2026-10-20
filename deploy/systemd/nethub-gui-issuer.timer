@@ -1,0 +1,12 @@
+[Unit]
+Description=Periodically advance queued NetHub router GUI certificate work
+
+[Timer]
+OnCalendar=*-*-* *:*:20
+RandomizedDelaySec=5
+AccuracySec=1s
+Persistent=true
+Unit=nethub-gui-issuer.service
+
+[Install]
+WantedBy=timers.target

@@ -333,8 +333,9 @@ func pebbleAPIFixtureTLS(t *testing.T, stage string, address net.IP) *x509.CertP
 		t.Fatal(err)
 	}
 	for name, value := range map[string][]byte{
-		"cert.pem": pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: leafDER}),
-		"key.pem":  pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: private}),
+		"api-root.pem": pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: rootDER}),
+		"cert.pem":     pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: leafDER}),
+		"key.pem":      pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: private}),
 	} {
 		if os.WriteFile(filepath.Join(stage, name), value, 0600) != nil {
 			t.Fatal("isolated API TLS fixture")
