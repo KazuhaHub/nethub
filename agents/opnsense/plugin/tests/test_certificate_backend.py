@@ -116,7 +116,10 @@ def tls_server(case, message, status=200):
                             return
                         value += piece
                     requests.append(value)
-                    peer.sendall(('HTTP/1.1 ' + str(status) + ' Fixture\r\nContent-Length: 0\r\nConnection: close\r\n\r\n').encode())
+                    # Match the native method restriction: a HEAD probe would
+                    # reject a healthy GUI, while GET confirms its login page.
+                    response_status = 403 if value.startswith(b'HEAD ') else status
+                    peer.sendall(('HTTP/1.1 ' + str(response_status) + ' Fixture\r\nContent-Length: 0\r\nConnection: close\r\n\r\n').encode())
         except (OSError, ssl.SSLError):
             pass
 
@@ -130,7 +133,7 @@ def tls_server(case, message, status=200):
         assert not thread.is_alive(), 'Private TLS fixture did not stop'
 
 
-@pytest.mark.parametrize('failure', [None, 'comments', 'fingerprint', 'untrusted', 'hostname', 'http'])
+@pytest.mark.parametrize('failure', [None, 'comments', 'fingerprint', 'untrusted', 'hostname', 'http', 'forbidden'])
 def test_probe_requires_independent_chain_hostname_fingerprint_and_http(chain, failure):
     message = chain.issue()
     root = chain.ca
@@ -142,11 +145,12 @@ def test_probe_requires_independent_chain_hostname_fingerprint_and_http(chain, f
                       '-days', '2', '-subj', '/CN=Unrelated TLS probe root', '-keyout', chain.root / 'other-private.pem',
                       '-out', root, '-addext', 'basicConstraints=critical,CA:TRUE')
     backend = NativeGuiBackend(chain.key, root)
-    with tls_server(chain, message, status=503 if failure == 'http' else 200) as (port, requests):
+    status = 503 if failure == 'http' else 403 if failure == 'forbidden' else 200
+    with tls_server(chain, message, status=status) as (port, requests):
         metadata = {'selected': True, 'host': 'ijklmnop.devices.example.test' if failure == 'hostname' else HOST,
                     'port': port, 'leaf_fingerprint': 'f' * 64 if failure == 'fingerprint' else message['issued']['leaf_fingerprint']}
         with mock.patch.object(backend, '_call', return_value=metadata):
             assert backend.probe(dict(IDENTITY, port=port)) is (failure in (None, 'comments'))
         if failure in (None, 'comments'):
-            assert requests and requests[0].startswith(('HEAD / HTTP/1.1\r\nHost: ' + HOST + ':' + str(port)).encode())
+            assert requests and requests[0].startswith(('GET / HTTP/1.1\r\nHost: ' + HOST + ':' + str(port)).encode())
             assert b'Authorization' not in requests[0] and b'Cookie' not in requests[0]
