@@ -148,6 +148,10 @@ func (s *GUIRequestStore) Settings(ctx context.Context, credential device.Creden
 // bytes conflict, even if they request the same name with the same public key.
 // No database transaction remains open across CA or other network operations.
 func (s *GUIRequestStore) Admit(ctx context.Context, credential device.Credential, id string, encoded []byte) (GUIRequest, error) {
+	return s.admit(ctx, credential, id, encoded, false)
+}
+
+func (s *GUIRequestStore) admit(ctx context.Context, credential device.Credential, id string, encoded []byte, queueInitial bool) (GUIRequest, error) {
 	tx, host, key, err := s.lock(ctx, credential, id)
 	if err != nil {
 		return GUIRequest{}, err
@@ -178,6 +182,11 @@ func (s *GUIRequestStore) Admit(ctx context.Context, credential device.Credentia
 		}
 		if _, err := tx.ExecContext(ctx, `SELECT append_audit('device',$1,'device.certificate_requested',$1,$2::jsonb)`, id, string(data)); err != nil {
 			return GUIRequest{}, device.ErrUnavailable
+		}
+	}
+	if queueInitial {
+		if _, err := enqueueGUIRequest(ctx, tx, result.ID); err != nil {
+			return GUIRequest{}, err
 		}
 	}
 	if tx.Commit() != nil {

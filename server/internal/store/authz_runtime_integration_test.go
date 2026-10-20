@@ -274,6 +274,10 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 	if status, _ := certificatePost("settings", protocol.Identity{AgentProtocolVersion: protocol.Version, DeviceID: result.DeviceID}); status != 401 {
 		t.Fatal("compiled certificate API returned data after revocation")
 	}
+	var cancelled int
+	if err := f.owner.QueryRowContext(f.ctx, `SELECT count(*) FROM gui_certificate_jobs WHERE device_id=$1 AND generation=1 AND state='cancelled' AND lease_token IS NULL`, result.DeviceID).Scan(&cancelled); err != nil || cancelled != 1 {
+		t.Fatal("compiled admission's queued work survived device revocation", err)
+	}
 	sendHook(hookAddress, "Login", login, true, 200)
 	sendHook(hookAddress, "NewProxy", proxy, true, 200)
 	_ = command.Process.Signal(syscall.SIGTERM)
