@@ -6,12 +6,16 @@ import os
 from pathlib import Path
 import stat
 import subprocess
+import sys
 import tempfile
 
 from certificate_key import CertificateKeyError
 from certificate_protocol import _chain_encoding, delivery
 from certificate_request import CertificateRequestError, RequestStore, _der, _take
 from protocol import ProtocolError
+
+
+SYSTEM_CA_FILE = Path('/usr/local/etc/ssl/cert.pem')
 
 
 class CertificateChainError(Exception):
@@ -126,13 +130,17 @@ def _leaf_profile(value, host, public):
 class ChainVerifier:
     """The caller holds reconcile.lock; verification never applies a certificate.
 
-    An optional CA file is independently provisioned by the local operator. The
-    default uses native OpenSSL system trust. Response certificates are always
+    An optional CA file is independently provisioned by the local operator.
+    OPNsense uses its managed public trust bundle, explicitly excluding compiled
+    default directories that can differ between base OpenSSL and Python's SSL.
+    Other test platforms use native OpenSSL defaults. Response certificates are
     untrusted input and can never supply their own trusted root.
     """
 
     def __init__(self, key_store, trusted_ca_file=None):
         self.key_store = key_store
+        if trusted_ca_file is None and sys.platform.startswith('freebsd'):
+            trusted_ca_file = SYSTEM_CA_FILE
         self.trusted_ca_file = Path(trusted_ca_file) if trusted_ca_file is not None else None
 
     def _verify(self, arguments, expected):
