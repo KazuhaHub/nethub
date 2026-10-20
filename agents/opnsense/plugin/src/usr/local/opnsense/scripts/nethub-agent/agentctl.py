@@ -214,7 +214,7 @@ class Agent:
         return model
 
     def certificate_result(self, result):
-        public = {key: result[key] for key in ('success', 'action', 'phase', 'message', 'generation', 'valid_until') if key in result}
+        public = {key: result[key] for key in ('success', 'action', 'phase', 'message', 'generation', 'valid_until', 'confirmed', 'accepted_at') if key in result}
         public['updated_at'] = datetime.now(timezone.utc).isoformat()
         self.atomic(self.state / 'certificate.json', (json.dumps(public) + '\n').encode())
         return public
@@ -249,6 +249,21 @@ class Agent:
         except (CertificateKeyError, OSError, ValueError, KeyError, TypeError):
             raise AgentError('GUI certificate candidate needs local review') from None
         result['valid_until'] = value['issued']['valid_until']
+        if result.get('phase') == 'applied':
+            from certificate_protocol import report_applied, supports_application_reports
+            from protocol import ProtocolError
+            result['confirmed'] = False
+            if not supports_application_reports(value['agent_protocol_version']):
+                result.update(phase='applied_unconfirmed', message='GUI certificate verified locally; upgrade the console to confirm installation')
+            else:
+                try:
+                    reply = report_applied(model.findtext('console_url'), model.findtext('device_secret'),
+                                           model.findtext('device_id'), value['request'], value['issued'])
+                    result.update(confirmed=True, accepted_at=reply['accepted_at'], message='GUI certificate verified locally and confirmed by the server')
+                except (ProtocolError, OSError, ValueError):
+                    # The applied journal is already durable. A later cycle
+                    # rechecks it and retries reporting, without reinstalling.
+                    result.update(phase='applied_unconfirmed', message='GUI certificate verified locally; server confirmation will retry')
         return result
 
     def certificate_locked(self):

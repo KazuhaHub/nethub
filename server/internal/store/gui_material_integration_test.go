@@ -18,6 +18,7 @@ import (
 
 	"github.com/KazuhaHub/nethub/server/internal/device"
 	"github.com/KazuhaHub/nethub/server/internal/guiacme"
+	"github.com/KazuhaHub/nethub/server/internal/guicert"
 	"github.com/KazuhaHub/nethub/server/internal/guiissuer"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -195,7 +196,13 @@ func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, tenant string) {
 		if _, expired, err := queue.Issued(f.ctx, credential, a.ID, request.ID, request.Fingerprint); err != nil || expired != nil {
 			t.Fatal("expired public material was delivered", err)
 		}
+		report := guicert.ApplicationReport{DeviceID: a.ID, RequestID: request.ID, RequestFingerprint: request.Fingerprint,
+			GenerationID: delivered.ID, Generation: delivered.Generation, Fingerprint: delivered.Fingerprint}
+		if _, err := queue.Acknowledge(f.ctx, credential, report); !errors.Is(err, device.ErrDenied) {
+			t.Fatal("expired generation was acknowledged", err)
+		}
 	}()
+	application := testGUIApplicationReports(t, f, queue, credential, request, delivered)
 	for _, wrong := range []struct{ id, fingerprint string }{
 		{"00000000-0000-0000-0000-000000000000", request.Fingerprint},
 		{request.ID, strings.Repeat("0", 64)},
@@ -240,9 +247,7 @@ func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, tenant string) {
 			t.Fatal("issued material raw table exposed", err)
 		}
 	}
-	if _, err := f.owner.ExecContext(f.ctx, `UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id=$1`, a.ID); err != nil {
-		t.Fatal(err)
-	}
+	testRevocationFencesGUIApplication(t, f, queue, credential, application)
 	if _, _, err := queue.Issued(f.ctx, credential, a.ID, request.ID, request.Fingerprint); !errors.Is(err, device.ErrDenied) {
 		t.Fatal("revoked device received retained issued material", err)
 	}

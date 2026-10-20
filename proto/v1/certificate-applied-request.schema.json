@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.com/nethub/v1/certificate-applied-request.schema.json",
+  "type": "object",
+  "properties": {
+    "agent_protocol_version": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        {
+          "pattern": "^1\\.(?:[4-9]|[1-9][0-9]+)\\."
+        }
+      ]
+    },
+    "device_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "request_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "csr_fingerprint": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "generation_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "leaf_fingerprint": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    }
+  },
+  "required": [
+    "agent_protocol_version",
+    "device_id",
+    "request_id",
+    "csr_fingerprint",
+    "generation_id",
+    "generation",
+    "leaf_fingerprint"
+  ],
+  "additionalProperties": true,
+  "maxProperties": 23
+}

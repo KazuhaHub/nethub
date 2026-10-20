@@ -32,8 +32,13 @@ HTTPS acceptance. Native 0.0.7 source now schedules bounded CSR synchronization,
 independent native chain verification and monotonic public staging, separately
 from tunnel reconciliation; see
 [the native synchronization contract](../agents/opnsense/plugin/tests/certificate-sync-progress.md).
-It does not apply a GUI certificate. Renewal jobs, native installation/rollback and trust transitions
-remain required. No public
+Native 0.0.10 subsequently passed actual Core import/served TLS, injected
+confirmation rollback and interrupted prepared-transaction boot recovery under
+an external private test CA; the isolated VM was restored to its original
+configuration/package. See the native apply progress record. Protocol 1.4 now
+adds exact, authenticated application reports after local verification, immutable
+monotonic history and audit, and retries without reinstalling. Renewal jobs,
+the combined public/native pipeline and trust transitions remain required. No public
 CA account or order has been created. See the issuer and HTTP-01 contracts.
 
 The account client foundation directly reuses `golang.org/x/crypto/acme` and

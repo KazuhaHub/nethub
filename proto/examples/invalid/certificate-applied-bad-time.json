@@ -1,0 +1,11 @@
+{
+  "agent_protocol_version": "1.4.0",
+  "device_id": "12345678-1234-1234-1234-123456789abc",
+  "request_id": "23456789-2345-2345-2345-23456789abcd",
+  "csr_fingerprint": "5bffb834dadbd6b9e0543552b6132057e72ca88edf0873a797379f343a797bc7",
+  "generation_id": "3456789a-3456-3456-3456-3456789abcde",
+  "generation": 1,
+  "leaf_fingerprint": "047f572750abbd15040df9887e5f6b8eb8a99daf6bbdfc438064832ef6fc0032",
+  "accepted": true,
+  "accepted_at": "2026-10-20T00:00:00Z"
+}

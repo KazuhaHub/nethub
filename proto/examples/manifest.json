@@ -193,5 +193,50 @@
     "path": "valid/certificate-issued-pending-response.json",
     "schema": "certificate-issued-response.schema.json",
     "valid": true
+  },
+  {
+    "path": "valid/certificate-applied-request.json",
+    "schema": "certificate-applied-request.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/certificate-applied-response.json",
+    "schema": "certificate-applied-response.schema.json",
+    "valid": true
+  },
+  {
+    "path": "invalid/certificate-applied-old-minor.json",
+    "schema": "certificate-applied-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/certificate-applied-zero-generation.json",
+    "schema": "certificate-applied-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/certificate-applied-fractional-generation.json",
+    "schema": "certificate-applied-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/certificate-applied-bad-fingerprint.json",
+    "schema": "certificate-applied-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/certificate-applied-null-request.json",
+    "schema": "certificate-applied-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/certificate-applied-not-accepted.json",
+    "schema": "certificate-applied-response.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/certificate-applied-bad-time.json",
+    "schema": "certificate-applied-response.schema.json",
+    "valid": false
   }
 ]

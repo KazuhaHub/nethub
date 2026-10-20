@@ -163,3 +163,46 @@ def request_issued(origin, secret, device_id, subdomain, key_fingerprint, origin
     body = dict(identity(device_id), request_id=original['request_id'], csr_fingerprint=original['csr_fingerprint'])
     value = request_json(origin, '/api/v1/devices/gui-certificate/issued', body, secret=secret, context=context)
     return delivery(value, device_id, subdomain, key_fingerprint, original)
+
+
+def supports_application_reports(version):
+    return (isinstance(version, str) and len(version) <= 64 and _SEMVER.fullmatch(version) is not None
+            and version.split('.')[0] == '1' and version.split('.')[1] not in ('0', '1', '2', '3'))
+
+
+def build_application_report(device_id, original, issued):
+    if (not isinstance(original, dict) or not isinstance(original.get('request_id'), str)
+            or not _UUID.fullmatch(original['request_id']) or not isinstance(original.get('csr_fingerprint'), str)
+            or not re.fullmatch('[a-f0-9]{64}', original['csr_fingerprint'])
+            or hashlib.sha256(_csr(original.get('csr_der'))).hexdigest() != original['csr_fingerprint']
+            or not isinstance(issued, dict) or not isinstance(issued.get('generation_id'), str)
+            or not _UUID.fullmatch(issued['generation_id']) or type(issued.get('generation')) is not int
+            or not 1 <= issued['generation'] <= 2147483647 or not isinstance(issued.get('leaf_fingerprint'), str)
+            or not re.fullmatch('[a-f0-9]{64}', issued['leaf_fingerprint'])):
+        _fail()
+    return dict(identity(device_id), request_id=original['request_id'], csr_fingerprint=original['csr_fingerprint'],
+                generation_id=issued['generation_id'], generation=issued['generation'], leaf_fingerprint=issued['leaf_fingerprint'])
+
+
+def application_response(value, expected):
+    fields = set(expected) | {'accepted', 'accepted_at'}
+    if (not isinstance(value, dict) or not fields <= value.keys() or len(value) > len(fields) + 16
+            or not supports_application_reports(value['agent_protocol_version']) or value['accepted'] is not True
+            or any(type(value[key]) is not type(expected[key]) or value[key] != expected[key]
+                   for key in expected if key != 'agent_protocol_version')
+            or not isinstance(value['accepted_at'], str) or len(value['accepted_at']) != 27):
+        _fail()
+    try:
+        stamp = datetime.strptime(value['accepted_at'], '%Y-%m-%dT%H:%M:%S.%fZ')
+        if stamp.strftime('%Y-%m-%dT%H:%M:%S.%fZ') != value['accepted_at']:
+            _fail()
+    except ValueError:
+        _fail()
+    return {key: value[key] for key in fields}
+
+
+def report_applied(origin, secret, device_id, original, issued, context=None):
+    # Only the native coordinator calls this after served-certificate verification.
+    body = build_application_report(device_id, original, issued)
+    value = request_json(origin, '/api/v1/devices/gui-certificate/applied', body, secret=secret, context=context)
+    return application_response(value, body)

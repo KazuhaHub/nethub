@@ -38,3 +38,15 @@ connected to reconcile or a configd action. Durable issuer jobs, account policy,
 HTTP-01 publication, certificate delivery, protected local-cache recovery and
 native GUI installation/rollback remain separate integration work. No CA is
 contacted and no private device key is uploaded by these routes.
+
+
+Protocol 1.4 adds authenticated `POST /api/v1/devices/gui-certificate/applied`.
+It uses the same lifecycle authentication/rate limit and private dependency
+errors. The response contains only the seven public request fields plus accepted
+and its original server timestamp. The repository holds the current credential,
+tenant and assignment lock through generation correlation, immutable report and
+audit commit. A newer issued generation does not make the still-valid installed
+one obsolete; a newer confirmed application prevents older reports. Retried
+receipts never duplicate history or audits. No report schedules issuance or
+changes relay online state. This is authenticated device reporting; independent
+native served-certificate verification happens before the agent sends it.

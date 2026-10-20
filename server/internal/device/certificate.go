@@ -17,6 +17,31 @@ type CertificateRepository interface {
 	Settings(context.Context, Credential, string) (guicert.Assignment, *guicert.StoredRequest, error)
 	Admit(context.Context, Credential, string, []byte) (guicert.StoredRequest, error)
 	Issued(context.Context, Credential, string, string, string) (guicert.StoredRequest, *guicert.IssuedCertificate, error)
+	Acknowledge(context.Context, Credential, guicert.ApplicationReport) (time.Time, error)
+}
+
+func (s *CertificateService) Applied(ctx context.Context, input protocol.CertificateAppliedRequest, secret string, ip netip.Addr) (protocol.CertificateAppliedResponse, error) {
+	if err := input.Validate(); err != nil {
+		return protocol.CertificateAppliedResponse{}, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	_, credential, release, err := s.lifecycle.authenticateDevice(ctx, input.Identity, secret, ip)
+	if err != nil {
+		return protocol.CertificateAppliedResponse{}, err
+	}
+	defer release()
+	accepted, err := s.repository.Acknowledge(ctx, credential, guicert.ApplicationReport{DeviceID: input.DeviceID, RequestID: input.RequestID,
+		RequestFingerprint: input.CSRFingerprint, GenerationID: input.GenerationID, Generation: input.Generation, Fingerprint: input.LeafFingerprint})
+	if err != nil {
+		return protocol.CertificateAppliedResponse{}, err
+	}
+	input.AgentProtocolVersion = protocol.Version
+	result := protocol.CertificateAppliedResponse{CertificateAppliedRequest: input, Accepted: true, AcceptedAt: accepted.UTC().Format(protocol.CertificateTimeLayout)}
+	if accepted.IsZero() || result.Validate() != nil {
+		return protocol.CertificateAppliedResponse{}, ErrUnavailable
+	}
+	return result, nil
 }
 
 // CertificateService shares lifecycle authentication and its bounded Argon2 pool.
