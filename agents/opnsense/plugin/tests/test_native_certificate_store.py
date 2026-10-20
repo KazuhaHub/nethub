@@ -159,6 +159,24 @@ def test_actual_php_first_install_rollback_removes_only_its_owned_entry(store):
     assert ET.tostring(ET.fromstring(baseline)) == ET.tostring(root)
 
 
+def test_actual_php_primary_native_hostname_needs_no_redundant_alias_or_security_change(store):
+    journal, backend, value, _, _ = store
+    root = ET.parse(backend.configuration)
+    gui = root.find('system/webgui')
+    gui.remove(gui.find('althostnames'))
+    system = root.find('system')
+    ET.SubElement(system, 'hostname').text = HOST.split('.')[0]
+    ET.SubElement(system, 'domain').text = HOST.split('.', 1)[1]
+    root.write(backend.configuration)
+    before = backend.unrelated()
+    assert apply(journal, backend, value)['phase'] == 'applied'
+    assert backend.unrelated() == before
+    current = ET.parse(backend.configuration)
+    assert current.find('system/webgui/althostnames') is None
+    assert current.find('system/webgui/nodnsrebindcheck') is None
+    assert current.find('system/webgui/nohttpreferercheck') is None
+
+
 def test_actual_php_renewal_failure_restores_the_previous_owned_native_certificate(store):
     journal, backend, value, chain, _ = store
     apply(journal, backend, value)

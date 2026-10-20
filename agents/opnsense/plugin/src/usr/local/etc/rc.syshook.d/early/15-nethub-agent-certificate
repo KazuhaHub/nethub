@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+umask 077
+install -d -m 0700 /var/db/nethub-agent /var/log/nethub-agent
+touch /var/log/nethub-agent/scheduler.log
+chmod 0600 /var/log/nethub-agent/scheduler.log
+# Recovery does not use network, create keys or start the GUI before core boot.
+/usr/bin/timeout -k 2 20 /usr/bin/lockf -sk -t 0 /var/db/nethub-agent/reconcile.lock /usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/certificate_recover.py --locked >> /var/log/nethub-agent/scheduler.log 2>&1

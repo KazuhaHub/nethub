@@ -15,6 +15,16 @@ class CertificateTransactionError(Exception):
     """A fixed diagnostic without native snapshots or child-process output."""
 
 
+class CertificatePreparationRequired(CertificateTransactionError):
+    """A local prerequisite selected from a closed set of public messages."""
+
+    def __init__(self, code):
+        if code != 'alternate_hostname_required':
+            raise ValueError('Unknown certificate prerequisite')
+        self.code = code
+        super().__init__('Add the assigned host to native Alternate Hostnames before applying a GUI certificate')
+
+
 class CertificateTransaction:
     """The caller holds reconcile.lock and has independently verified delivery.
 
@@ -55,7 +65,7 @@ class CertificateTransaction:
     def _validate(cls, value):
         if (not isinstance(value, dict) or set(value) != cls.FIELDS or not cls._identity(value)
                 or type(value['version']) is not int or value['version'] != 1
-                or value['phase'] not in ('prepared', 'written', 'applied', 'rolled_back')
+                or value['phase'] not in ('prepared', 'written', 'applied', 'rolled_back', 'removing')
                 or not cls._hex(value['nonce'], 32) or not cls._hex(value['snapshot_sha256'], 64)
                 or type(value['port']) is not int or not 1 <= value['port'] <= 65535
                 or type(value['attempts']) is not int or not 1 <= value['attempts'] <= 3
@@ -172,6 +182,49 @@ class CertificateTransaction:
         except Exception:
             raise CertificateTransactionError('GUI certificate application needs local recovery; tunnel configuration was retained') from None
 
+    def forget(self):
+        """Clear known runtime snapshots after native enrollment fields are cleared.
+
+        A durable removing marker makes deletion retryable after any unlink.
+        The installed independent native certificate/key is never removed.
+        """
+        try:
+            self.recover()
+            value = self._read()
+            if value is None:
+                if self.directory.exists() or self.directory.is_symlink():
+                    self._directory()
+                    if any(self.directory.iterdir()):
+                        raise ValueError('Unknown runtime artifacts need review')
+                    self.directory.rmdir()
+                    self.files._sync(self.directory.parent)
+                return
+            references = [{'nonce': value['nonce'], 'sha256': value['snapshot_sha256']}, *value['retired']]
+            known = {'transaction.json', *(('snapshot-' + item['nonce'] + '.json') for item in references)}
+            if {path.name for path in self.directory.iterdir()} - known:
+                raise ValueError('Unknown runtime artifacts need review')
+            if value['phase'] != 'removing':
+                for item in references:
+                    path = self.directory / ('snapshot-' + item['nonce'] + '.json')
+                    if path.exists() or path.is_symlink():
+                        self._snapshot({'nonce': item['nonce'], 'snapshot_sha256': item['sha256']})
+                value = dict(value, phase='removing')
+                self._write(value)
+            for item in references:
+                path = self.directory / ('snapshot-' + item['nonce'] + '.json')
+                if path.exists() or path.is_symlink():
+                    self._snapshot({'nonce': item['nonce'], 'snapshot_sha256': item['sha256']})
+                    path.unlink()
+                    self.files._sync(self.directory)
+            if self._read() != value:
+                raise ValueError('Runtime removal journal changed')
+            self.path.unlink()
+            self.files._sync(self.directory)
+            self.directory.rmdir()
+            self.files._sync(self.directory.parent)
+        except Exception:
+            raise CertificateTransactionError('GUI certificate runtime cleanup needs local review; native certificates were retained') from None
+
     def apply(self, verified):
         """Apply an already verified, protected staged delivery through a backend."""
         prepared = False
@@ -188,6 +241,8 @@ class CertificateTransaction:
             material = hashlib.sha256(KeyStore._encoded(issued)).hexdigest()
             previous = self._read()
             if previous is not None:
+                if previous['phase'] == 'removing':
+                    raise ValueError('Runtime removal must finish before applying a certificate')
                 previous = self._prune(previous)
                 if previous['device_id'] != verified['device_id']:
                     raise ValueError('Apply ownership belongs to another enrollment')
@@ -235,6 +290,11 @@ class CertificateTransaction:
             value = dict(value, phase='applied')
             self._write(value)
             return self._public(value)
+        except CertificatePreparationRequired as error:
+            if prepared:
+                self.recover()
+                raise CertificateTransactionError('GUI certificate application failed; inspect the separate certificate status') from None
+            raise CertificatePreparationRequired(error.code) from None
         except CertificateTransactionError:
             raise CertificateTransactionError('GUI certificate application needs local recovery; tunnel configuration was retained') from None
         except Exception:
