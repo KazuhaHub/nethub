@@ -246,6 +246,7 @@ func TestRelayTrustValidationAndCanonicalPEM(t *testing.T) {
 		func(c *RelayConfig) { c.CAPEM = "untrusted junk" + c.CAPEM },
 		func(c *RelayConfig) { c.CAPEM = "-----BEGIN CERTIFICATE-----\ninvalid\n" + c.CAPEM },
 		func(c *RelayConfig) { c.CAPEM += c.CAPEM + c.CAPEM },
+		func(c *RelayConfig) { c.CAPEM += c.CAPEM },
 		func(c *RelayConfig) { c.ServerName = "relay.example.com\nvalue" },
 		func(c *RelayConfig) { c.Address = "fe80::1%interface" },
 		func(c *RelayConfig) { c.Port = 0 },

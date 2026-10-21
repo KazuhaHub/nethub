@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/pem"
 	"errors"
 	"io"
 	"net/netip"
@@ -21,6 +20,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/claim"
 	"github.com/KazuhaHub/nethub/server/internal/guicert"
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
+	"github.com/KazuhaHub/nethub/server/internal/relaytrust"
 )
 
 var ErrDenied = errors.New("enrollment failed")
@@ -134,40 +134,15 @@ func New(repository Repository, signer *claim.Keyring, relay RelayConfig) (*Serv
 	if err != nil || len(token) != 32 || hex.EncodeToString(token) != relay.FRPToken {
 		return nil, ErrUnavailable
 	}
-	var certs []*x509.Certificate
-	var canonicalPEM strings.Builder
-	rest := strings.TrimSpace(relay.CAPEM)
-	for rest != "" {
-		if !strings.HasPrefix(rest, "-----BEGIN CERTIFICATE-----") || len(certs) >= 2 {
-			return nil, ErrUnavailable
-		}
-		const endMarker = "-----END CERTIFICATE-----"
-		end := strings.Index(rest, endMarker)
-		if end < 0 {
-			return nil, ErrUnavailable
-		}
-		chunk, remaining := rest[:end+len(endMarker)], rest[end+len(endMarker):]
-		if strings.Count(chunk, "-----BEGIN ") != 1 {
-			return nil, ErrUnavailable
-		}
-		block, trailing := pem.Decode([]byte(chunk))
-		if block == nil || block.Type != "CERTIFICATE" || len(block.Headers) != 0 || strings.TrimSpace(string(trailing)) != "" {
-			return nil, ErrUnavailable
-		}
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil || !cert.BasicConstraintsValid || !cert.IsCA ||
-			len(cert.UnhandledCriticalExtensions) != 0 ||
-			(cert.KeyUsage != 0 && cert.KeyUsage&x509.KeyUsageCertSign == 0) || cert.CheckSignatureFrom(cert) != nil {
-			return nil, ErrUnavailable
-		}
-		certs = append(certs, cert)
-		canonicalPEM.Write(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
-		rest = strings.TrimSpace(remaining)
-	}
-	if len(certs) == 0 || canonicalPEM.Len() > 32768 {
+	bundle, err := relaytrust.Parse(relay.CAPEM, time.Now())
+	if err != nil {
 		return nil, ErrUnavailable
 	}
-	relay.CAPEM = canonicalPEM.String()
+	certs, err := bundle.Certificates()
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	relay.CAPEM = bundle.PEM()
 	dummy, err := auth.HashPassword("device-authentication-timing-probe")
 	if err != nil {
 		return nil, ErrUnavailable
