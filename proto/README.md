@@ -1,6 +1,6 @@
 # Device protocol
 
-The shared device protocol is version **1.1.0**, recorded in `VERSION`.
+The shared device protocol is version **1.2.0**, recorded in `VERSION`.
 `v1/*.schema.json` are JSON Schema draft 2020-12 documents used by Go and Python
 contract tests. Enrollment, signed claims and native OPNsense enrollment are
 implemented. Authenticated status/removal and native appliance lifecycle behavior
@@ -17,6 +17,8 @@ credential rotation remain separate work.
 | status-request / status-response | Bounded health report and acknowledgement; online state comes from relay observation |
 | rotate-request / rotate-response | Authenticated identity request and replacement credentials/trust; operational rotation is W7 work |
 | unenroll-request / unenroll-response | Authenticated removal request and confirmed revocation |
+| certificate-settings-request / certificate-settings-response | Live assigned GUI hostname, enrollment key fingerprint and original public CSR, when present |
+| certificate-submit-request / certificate-submit-response | Enrollment-bound signed CSR admission and exact durable readback |
 
 The public device endpoints are `/api/v1/devices/{enroll,status,rotate,unenroll}`
 under the administrator-selected HTTPS console origin. Enrollment carries its
@@ -25,6 +27,24 @@ secret as `Authorization: Bearer <device_secret>`, with the device ID in the bod
 Never put credentials in query strings, redirects, command arguments or logs.
 Authentication, one-use consumption, transaction scope and rate limits belong to
 handlers; schema validity does not authenticate a request.
+
+Protocol 1.2 adds optional authenticated POST endpoints
+`/api/v1/devices/gui-certificate/{settings,request}`. They are exposed only when
+authz is configured with its trusted `--device-domain` suffix; the console origin
+must be outside that suffix. Both require a major-1 client with minor >= 2.
+Existing major-1 enrollment, health and removal behavior remains compatible with
+1.1 agents; existing response field sets are unchanged.
+
+CSR transport uses canonical padded standard Base64 DER, limited to 4096 decoded
+bytes. Settings returns the exact live assignment and either `request: null` or
+the original request ID, DER, SHA256 fingerprint and microsecond UTC creation
+time. Upload returns that original record on identical retries; changed signed
+bytes conflict. A response is not an issuance grant or proof of GUI installation.
+Schemas bound shape; runtime validation additionally checks canonical encoding,
+CSR signature, single assigned DNS SAN and the enrollment-bound P-256 key.
+The agent wire helper checks its expected device/subdomain/key fingerprint and
+record hash. Cache restoration must still verify the CSR against the protected
+local key; wire parsing alone does not authorize persistence or key creation.
 
 An enroll response includes `server_name` and `relay_ca_pem`. The agent must
 verify console HTTPS before accepting them, validate certificates and the relay

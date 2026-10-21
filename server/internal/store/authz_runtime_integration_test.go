@@ -2,6 +2,11 @@ package store
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -79,6 +84,7 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 		"--listen", address, "--claim-key-id", "integration", "--claim-key-file", filepath.Join(directory, "claim_key"),
 		"--frp-token-file", filepath.Join(directory, "frp_token"), "--relay-ca-file", filepath.Join(directory, "relay_ca.pem"),
 		"--relay-addr", relay.ServerAddr, "--relay-server-name", relay.ServerName,
+		"--device-domain", "devices.example.com",
 		"--hook-listen", hookAddress, "--hook-peer", "127.0.0.1",
 		"--frps-admin-origin", admin.URL, "--frps-admin-user-file", filepath.Join(directory, "frps_admin_user"),
 		"--frps-admin-password-file", filepath.Join(directory, "frps_admin_password"))
@@ -138,6 +144,15 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 	_, token, actor := f.fresh(t, tenant)
 	input := f.input
 	input.EnrollToken = token
+	certificateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	public, err := x509.MarshalPKIXPublicKey(&certificateKey.PublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input.GUIPublicKey = base64.RawURLEncoding.EncodeToString(public)
 	data, err = json.Marshal(input)
 	if err != nil {
 		t.Fatal(err)
@@ -170,6 +185,7 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 	if err := f.owner.QueryRowContext(f.ctx, `SELECT owner_user_id FROM devices WHERE id=$1 AND tenant_id=$2`, result.DeviceID, tenant).Scan(&storedActor); err != nil || storedActor != actor {
 		t.Fatal("runtime did not register with the token's owner and tenant")
 	}
+	certificatePost := testRuntimeCertificateRequest(t, f, client, address, result, certificateKey)
 	observation, err := json.Marshal(map[string]any{"proxies": []map[string]any{{"name": relayhook.ProxyName(result.DeviceID), "status": "online",
 		"conf": map[string]string{"name": relayhook.ProxyName(result.DeviceID), "type": "https", "subdomain": result.Subdomain}}}})
 	if err != nil {
@@ -254,6 +270,9 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 	}
 	if _, err := f.owner.ExecContext(f.ctx, `UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id=$1`, result.DeviceID); err != nil {
 		t.Fatal(err)
+	}
+	if status, _ := certificatePost("settings", protocol.Identity{AgentProtocolVersion: protocol.Version, DeviceID: result.DeviceID}); status != 401 {
+		t.Fatal("compiled certificate API returned data after revocation")
 	}
 	sendHook(hookAddress, "Login", login, true, 200)
 	sendHook(hookAddress, "NewProxy", proxy, true, 200)
