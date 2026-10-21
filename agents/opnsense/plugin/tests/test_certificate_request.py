@@ -187,6 +187,19 @@ def test_failure_before_publication_leaves_no_partial_request(store):
     assert not list(request.directory.parent.glob('.gui-csr-*'))
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='Creation modes require POSIX')
+def test_restrictive_umask_preserves_required_initial_modes(store):
+    request, identity = store
+    old = os.umask(0o777)
+    try:
+        pem = ensure(request, identity)
+    finally:
+        os.umask(old)
+    assert request.directory.stat().st_mode & 0o777 == 0o700
+    assert (request.directory / 'request.json').stat().st_mode & 0o777 == 0o600
+    assert ensure(request, identity) == pem
+
+
 @pytest.mark.skipif(os.name == 'nt', reason='Production ownership and link checks require POSIX')
 @pytest.mark.parametrize('mutation', ['mode', 'link', 'unknown'])
 def test_unsafe_request_storage_is_preserved(store, mutation):

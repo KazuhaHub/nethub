@@ -145,6 +145,8 @@ class RequestStore:
                     raise ValueError('Ambiguous request record')
                 return self._validate(value, host, key)
             temporary = Path(tempfile.mkdtemp(prefix='.gui-csr-', dir=self.directory.parent))
+            temporary.chmod(0o700)
+            self.key_store._protected(temporary, directory=True)
             information = self._information(host, key['public_key'])
             signature = self._command(['dgst', '-sha256', '-sign', str(self.key_store.directory / 'key.pem'),
                                        '-passin', 'pass:'], information)
@@ -154,9 +156,11 @@ class RequestStore:
             pem = self._validate(value, host, key)
             descriptor = os.open(temporary / 'request.json', os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             with os.fdopen(descriptor, 'wb') as output:
+                os.chmod(temporary / 'request.json', 0o600)
                 output.write(self._encoded(value))
                 output.flush()
                 os.fsync(output.fileno())
+            self.key_store._protected(temporary / 'request.json')
             self.key_store._sync(temporary)
             temporary.rename(self.directory)
             temporary = None
