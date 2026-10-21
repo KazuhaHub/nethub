@@ -56,3 +56,9 @@ install any GUI certificate. The private-CA provisioning fixture additionally
 proves real certificate issuance through the protected host using the recovered
 account. It does not register a public account, accept public terms for an
 operator, establish an off-host backup or prove native router installation.
+
+Deployment CI requires the exact protected account-provisioning test as well as
+the initial issuance and renewal tests. Its receipt reports
+`account_provisioning_verified` only after all three tests and their required
+evidence pass. Missing, skipped or incomplete provisioning evidence fails the
+entire protected host acceptance; existing issuance success cannot replace it.
