@@ -68,6 +68,66 @@ func TestAccountOfflineBackupRestoreAndRegisteredRecovery(t *testing.T) {
 	}
 }
 
+func TestRegisteredBackupRequiresCurrentIdentityRecoveryBeforeVerification(t *testing.T) {
+	s, f, config := storeFixture(t)
+	ctx := context.Background()
+	beforeRegistration := filepath.Join(t.TempDir(), "before-registration")
+	registered := filepath.Join(t.TempDir(), "registered")
+	if err := s.Backup(ctx, beforeRegistration); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.EnsureAccount(ctx, true, f.terms); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Backup(ctx, registered); err != nil {
+		t.Fatal(err)
+	}
+	recovered, err := NewAccountStore(filepath.Join(t.TempDir(), "recovered"), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := recovered.Restore(ctx, beforeRegistration); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(recovered.path("account.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	requests := f.counts().requests
+	if err := recovered.VerifyBackup(ctx, registered); err != ErrState {
+		t.Fatal("newer backup identity was ignored before registration admission", err)
+	}
+	after, err := os.ReadFile(recovered.path("account.json"))
+	if err != nil || !bytes.Equal(before, after) || f.counts().requests != requests {
+		t.Fatal("verification changed state or contacted CA", err)
+	}
+	account, err := recovered.EnsureAccount(ctx, false, "")
+	if err != nil || account.URI != f.accountURI || f.counts().creates != 1 {
+		t.Fatal("creation-disabled lookup did not recover original account", err)
+	}
+	// Loss of only the public orders identity must not bypass the same fence.
+	state, _, err := recovered.load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	state.OrdersURL = ""
+	if err := recovered.save(state); err != nil {
+		t.Fatal(err)
+	}
+	requests = f.counts().requests
+	if err := recovered.VerifyBackup(ctx, registered); err != ErrState || f.counts().requests != requests {
+		t.Fatal("missing current orders identity accepted newer backup", err)
+	}
+	if _, err := recovered.EnsureAccount(ctx, false, ""); err != nil || f.counts().creates != 1 {
+		t.Fatal("orders identity recovery created another account", err)
+	}
+	for _, backup := range []string{registered, beforeRegistration} {
+		if err := recovered.VerifyBackup(ctx, backup); err != nil {
+			t.Fatal("recovered identity rejected its matching backup", err)
+		}
+	}
+}
+
 func TestAccountBackupRefusesForeignPartialPolicyAndCancelledState(t *testing.T) {
 	s, f, config := storeFixture(t)
 	ctx := context.Background()
