@@ -18,6 +18,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/clientip"
 	"github.com/KazuhaHub/nethub/server/internal/guicert"
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
+	"github.com/KazuhaHub/nethub/server/internal/relaytrust"
 )
 
 const enrollPath = "/api/v1/devices/enroll"
@@ -27,6 +28,7 @@ type HTTPConfig struct {
 	TrustedProxies []netip.Prefix
 	Logger         *slog.Logger
 	Certificates   *CertificateService
+	RelayTrust     *RelayTrustService
 }
 
 type HTTPServer struct {
@@ -36,6 +38,7 @@ type HTTPServer struct {
 	logger       *slog.Logger
 	host         string
 	certificates *CertificateService
+	relayTrust   *RelayTrustService
 }
 
 func NewHTTP(config HTTPConfig, service *Service) (*HTTPServer, error) {
@@ -43,6 +46,9 @@ func NewHTTP(config HTTPConfig, service *Service) (*HTTPServer, error) {
 		return nil, errors.New("device service and logger are required")
 	}
 	if config.Certificates != nil && config.Certificates.lifecycle != service {
+		return nil, ErrUnavailable
+	}
+	if config.RelayTrust != nil && config.RelayTrust.lifecycle != service {
 		return nil, ErrUnavailable
 	}
 	origin, err := auth.NewOriginPolicy(config.Origin)
@@ -54,7 +60,7 @@ func NewHTTP(config HTTPConfig, service *Service) (*HTTPServer, error) {
 		return nil, err
 	}
 	u, _ := url.Parse(config.Origin)
-	return &HTTPServer{service: service, certificates: config.Certificates, origin: origin, clientIP: resolver,
+	return &HTTPServer{service: service, certificates: config.Certificates, relayTrust: config.RelayTrust, origin: origin, clientIP: resolver,
 		logger: config.Logger, host: strings.TrimSuffix(strings.ToLower(u.Host), ":443")}, nil
 }
 
@@ -75,7 +81,7 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			deviceError(w, r, 400, "invalid_request", "Invalid health request")
 			return
 		}
-		if err := s.service.Health(r.Context()); err != nil || s.certificates != nil && s.certificates.Health(r.Context()) != nil {
+		if err := s.service.Health(r.Context()); err != nil || s.certificates != nil && s.certificates.Health(r.Context()) != nil || s.relayTrust != nil && s.relayTrust.Health(r.Context()) != nil {
 			deviceError(w, r, 503, "unavailable", "Device service unavailable")
 			return
 		}
@@ -91,7 +97,8 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	lifecycle := r.URL.Path == "/api/v1/devices/status" || r.URL.Path == "/api/v1/devices/unenroll"
 	certificate := s.certificates != nil && (r.URL.Path == "/api/v1/devices/gui-certificate/settings" || r.URL.Path == "/api/v1/devices/gui-certificate/request" || r.URL.Path == "/api/v1/devices/gui-certificate/issued" || r.URL.Path == "/api/v1/devices/gui-certificate/applied")
-	if r.URL.EscapedPath() != r.URL.Path || r.URL.Path != enrollPath && !lifecycle && !certificate {
+	trust := s.relayTrust != nil && (r.URL.Path == "/api/v1/devices/relay-trust/settings" || r.URL.Path == "/api/v1/devices/relay-trust/applied")
+	if r.URL.EscapedPath() != r.URL.Path || r.URL.Path != enrollPath && !lifecycle && !certificate && !trust {
 		deviceError(w, r, 404, "not_found", "Not found")
 		return
 	}
@@ -134,6 +141,10 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		deviceError(w, r, 400, "invalid_request", "Invalid request body")
 		return
 	}
+	if trust {
+		s.trust(w, r, data, ip)
+		return
+	}
 	if certificate {
 		s.certificate(w, r, data, ip)
 		return
@@ -156,6 +167,43 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusCreated)
 	// A lost response does not authorize replay of the consumed enrollment token.
+	_ = json.NewEncoder(w).Encode(result)
+}
+
+func (s *HTTPServer) trust(w http.ResponseWriter, r *http.Request, data []byte, ip netip.Addr) {
+	values := r.Header.Values("Authorization")
+	if len(values) != 1 || !strings.HasPrefix(values[0], "Bearer ") || !protocol.ValidDeviceSecret(strings.TrimPrefix(values[0], "Bearer ")) {
+		deviceError(w, r, 401, "device_authentication_failed", "Device authentication failed")
+		return
+	}
+	secret := strings.TrimPrefix(values[0], "Bearer ")
+	var result any
+	var err error
+	if r.URL.Path == "/api/v1/devices/relay-trust/settings" {
+		var identity protocol.Identity
+		identity, err = protocol.DecodeRelayTrustSettings(bytes.NewReader(data))
+		if err == nil {
+			result, err = s.relayTrust.Settings(r.Context(), identity, secret, ip)
+		}
+	} else {
+		var input protocol.RelayTrustAppliedRequest
+		input, err = protocol.DecodeRelayTrustApplied(bytes.NewReader(data))
+		if err == nil {
+			result, err = s.relayTrust.Applied(r.Context(), input, secret, ip)
+		}
+	}
+	if errors.Is(err, ErrDenied) {
+		deviceError(w, r, 401, "device_authentication_failed", "Device authentication failed")
+		return
+	}
+	if errors.Is(err, relaytrust.ErrChanged) {
+		deviceError(w, r, 409, "relay_trust_changed", "Relay trust changed; fetch current trust before reporting")
+		return
+	}
+	if err != nil {
+		s.failure(w, r, err)
+		return
+	}
 	_ = json.NewEncoder(w).Encode(result)
 }
 
@@ -241,6 +289,8 @@ func (s *HTTPServer) lifecycle(w http.ResponseWriter, r *http.Request, data []by
 
 func (s *HTTPServer) failure(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, protocol.ErrRelayTrustVersion):
+		deviceError(w, r, 400, "incompatible_protocol", "Relay trust operations require protocol 1.5 or later within major 1")
 	case errors.Is(err, protocol.ErrCertificateApplicationVersion):
 		deviceError(w, r, 400, "incompatible_protocol", "Certificate application reports require protocol 1.4 or later within major 1")
 	case errors.Is(err, protocol.ErrCertificateDeliveryVersion):

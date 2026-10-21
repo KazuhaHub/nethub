@@ -27,8 +27,8 @@ func schemas(t *testing.T) map[string]*jsonschema.Schema {
 	compiler := jsonschema.NewCompiler()
 	compiler.AssertFormat()
 	files, err := filepath.Glob(filepath.Join(protocolRoot(t), "v1", "*.schema.json"))
-	if err != nil || len(files) != 18 {
-		t.Fatalf("expected eighteen shared schemas, got %d: %v", len(files), err)
+	if err != nil || len(files) != 22 {
+		t.Fatalf("expected twenty-two shared schemas, got %d: %v", len(files), err)
 	}
 	for _, path := range files {
 		data, err := os.ReadFile(path)

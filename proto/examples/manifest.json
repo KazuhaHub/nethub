@@ -238,5 +238,70 @@
     "path": "invalid/certificate-applied-bad-time.json",
     "schema": "certificate-applied-response.schema.json",
     "valid": false
+  },
+  {
+    "path": "valid/relay-trust-settings-request.json",
+    "schema": "relay-trust-settings-request.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/relay-trust-settings-response.json",
+    "schema": "relay-trust-settings-response.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/relay-trust-settings-pending.json",
+    "schema": "relay-trust-settings-response.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/relay-trust-applied-request.json",
+    "schema": "relay-trust-applied-request.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/relay-trust-applied-response.json",
+    "schema": "relay-trust-applied-response.schema.json",
+    "valid": true
+  },
+  {
+    "path": "invalid/relay-trust-old-peer.json",
+    "schema": "relay-trust-settings-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/relay-trust-null-desired-missing.json",
+    "schema": "relay-trust-settings-response.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/relay-trust-zero-generation.json",
+    "schema": "relay-trust-applied-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/relay-trust-fractional-generation.json",
+    "schema": "relay-trust-applied-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/relay-trust-zero-id.json",
+    "schema": "relay-trust-applied-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/relay-trust-bad-digest.json",
+    "schema": "relay-trust-applied-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/relay-trust-not-accepted.json",
+    "schema": "relay-trust-applied-response.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/relay-trust-bad-time.json",
+    "schema": "relay-trust-applied-response.schema.json",
+    "valid": false
   }
 ]

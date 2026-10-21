@@ -47,10 +47,12 @@ func TestCertificateAppliedHTTPAuthenticatesAndCorrelatesExactPublicReport(t *te
 		return w
 	}
 	var previous protocol.CertificateAppliedResponse
+	expected := input
+	expected.AgentProtocolVersion = protocol.Version
 	for range 2 {
 		w := post(input, secret)
 		var result protocol.CertificateAppliedResponse
-		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &result) != nil || result.Validate() != nil || result.CertificateAppliedRequest != input {
+		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &result) != nil || result.Validate() != nil || result.CertificateAppliedRequest != expected {
 			t.Fatal("exact authenticated report failed", w.Code)
 		}
 		if previous.AcceptedAt != "" && previous != result {
