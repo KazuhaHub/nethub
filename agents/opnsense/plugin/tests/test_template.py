@@ -57,7 +57,10 @@ def test_tls_name_is_independent_of_connection_address():
 @pytest.mark.skipif(not sys.platform.startswith('freebsd'), reason='Requires the native OPNsense template engine')
 def test_native_wildcard_boot_reload_skips_candidate_but_explicit_reconcile_renders_it(tmp_path, monkeypatch):
     monkeypatch.syspath_prepend('/usr/local/opnsense/service')
-    from modules.template import Template
+    from modules import template as native_template
+    errors = []
+    monkeypatch.setattr(native_template, 'syslog_error', errors.append)
+    monkeypatch.setattr(native_template, 'syslog_notice', lambda message: None)
 
     templates = tmp_path / 'templates'
     module = templates / 'OPNsense/NetHubAgent'
@@ -67,7 +70,7 @@ def test_native_wildcard_boot_reload_skips_candidate_but_explicit_reconcile_rend
     output = tmp_path / 'output'
     parent = output / 'usr/local/etc/nethub-agent'
     parent.mkdir(parents=True, mode=0o700)
-    engine = Template(target_root_directory=str(output))
+    engine = native_template.Template(target_root_directory=str(output))
     engine._template_dir = str(templates) + '/'
     engine._j2_env.loader = jinja2.FileSystemLoader(str(templates))
     engine.set_config({'OPNsense': {'NetHubAgent': {'enabled': '0'}}, 'system': {'webgui': {'port': '443'}}})
@@ -75,9 +78,9 @@ def test_native_wildcard_boot_reload_skips_candidate_but_explicit_reconcile_rend
 
     assert engine.generate('*') is None
     assert not candidate.exists()
-    assert engine.generate('OPNsense.NetHubAgent') == [str(candidate)]
+    assert engine.generate('OPNsense/NetHubAgent') == [str(candidate)], errors
     assert tomllib.loads(candidate.read_text()) == {}
     assert candidate.stat().st_mode & 0o777 == 0o600
     candidate.write_text('retain a pending candidate')
-    assert engine.generate('OPNsense.*') is None
+    assert engine.generate('OPNsense/*') is None
     assert candidate.read_text() == 'retain a pending candidate'
