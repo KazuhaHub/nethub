@@ -27,12 +27,14 @@ http01_test_image="$project-http01-test:local"
 http01_binary_holder="$project-http01-binary"
 guiacme_test_image="$project-guiacme-test:local"
 guiacme_binary_holder="$project-guiacme-binary"
+guiissuer_test_image="$project-guiissuer-test:local"
+guiissuer_binary_holder="$project-guiissuer-binary"
 pebble_image='ghcr.io/letsencrypt/pebble@sha256:5080492187bea12909c053d7a2b90a9e95104ef1c82381828e7823db71ce7e54'
 compose() { docker compose -p "$project" -f "$stage/deployment/docker-compose.yml" -f "$stage/deployment/docker-compose.override.yml" -f "$stage/test.yml" "$@"; }
 cleanup() {
     status=$?
     if [ "$status" -ne 0 ]; then
-        for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log" "$stage/frps-build.log" "$stage/http01-build.log" "$stage/guiacme-build.log"; do
+        for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log" "$stage/frps-build.log" "$stage/http01-build.log" "$stage/guiacme-build.log" "$stage/guiissuer-build.log"; do
             if [ -f "$log" ]; then tail -n 60 "$log" >&2; fi
         done
     fi
@@ -41,6 +43,8 @@ cleanup() {
     docker image rm "$http01_test_image" >/dev/null 2>&1 || true
     docker rm -f "$guiacme_binary_holder" >/dev/null 2>&1 || true
     docker image rm "$guiacme_test_image" >/dev/null 2>&1 || true
+    docker rm -f "$guiissuer_binary_holder" >/dev/null 2>&1 || true
+    docker image rm "$guiissuer_test_image" >/dev/null 2>&1 || true
     if [ -f "$stage/test.yml" ]; then
         compose logs --no-color > "$stage/runtime-final.log" 2>&1 || true
         compose down -v --remove-orphans >/dev/null 2>&1 || true
@@ -82,6 +86,11 @@ docker cp "$guiacme_binary_holder:/guiacme.test" "$stage/guiacme.test"
 docker rm "$guiacme_binary_holder" >/dev/null
 chmod 0700 "$stage/guiacme.test"
 NETHUB_GUIACME_PEBBLE_IMAGE="$pebble_image" NETHUB_GUIACME_CADDY_IMAGE="$caddy_image" "$stage/guiacme.test" -test.v -test.run '^TestPebble(OrderAdmission|HTTP01Validation|CertificateIssuance|CoordinatorRecovery)$' -test.timeout=180s
+docker build --target guiissuer-acceptance -f "$root/deploy/Dockerfile" -t "$guiissuer_test_image" "$root" > "$stage/guiissuer-build.log" 2>&1
+docker create --name "$guiissuer_binary_holder" --network none "$guiissuer_test_image" /guiissuer.test >/dev/null
+docker cp "$guiissuer_binary_holder:/guiissuer.test" "$stage/guiissuer.test"
+docker rm "$guiissuer_binary_holder" >/dev/null
+chmod 0700 "$stage/guiissuer.test"
 if [ "${NETHUB_SCAN_IMAGES:-0}" = 1 ]; then
     mkdir "$stage/scans"
     scan_image() {
@@ -239,6 +248,14 @@ for path in (s/'deployment/secrets').rglob('*'):
     if path.is_file() and path.stat().st_size==65:assert path.read_text().strip() not in log
 print('Enrolled credentials, claims and deployment secrets are absent from runtime logs')
 PY
+# Exercise the privileged host adapter against the live disposable database.
+# Missing fixture identity must fail here rather than silently skip the test.
+database_id=$(compose ps -q postgres)
+[ -n "$database_id" ]
+database_image_id=$(docker image inspect --format '{{.Id}}' "$postgres_image")
+NETHUB_TEST_GUI_SQL_CONTAINER="$database_id" NETHUB_TEST_GUI_SQL_IMAGE="$database_image_id" \
+NETHUB_TEST_GUI_SQL_PROJECT="$project" "$stage/guiissuer.test" -test.v \
+    -test.run '^TestNativeDockerSQLRunner$' -test.timeout=60s
 compose down -v --remove-orphans > "$stage/down.log" 2>&1
 python3 "$root/server/tests/external-proxy.py" "$stage" "$root" "$image" "$postgres_image" "$caddy_image" "$frps_image"
 cat > "$stage/failure.yml" <<'YAML'

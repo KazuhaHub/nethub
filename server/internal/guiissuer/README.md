@@ -132,3 +132,9 @@ the device lock, polling/failure budgets, revocation and a 33-device locked
 prefix. The compiled HTTP device suite remains part of that acceptance. Private
 snapshot tests additionally reject mismatched domains/keys/CSRs and ambiguous
 metadata while checking ordinary JSON exclusion.
+
+Compose acceptance builds the issuer test binary with the pinned compiler and
+runs `TestNativeDockerSQLRunner` as the host root against the still-running
+disposable database before teardown. Missing container identity fails the shell
+gate. The test checks the real local-socket issuer identity, raw-table denial
+without returned diagnostics, and rejection of a changed project binding.
