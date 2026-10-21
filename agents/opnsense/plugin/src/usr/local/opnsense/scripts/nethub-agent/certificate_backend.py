@@ -125,7 +125,10 @@ class NativeGuiBackend:
                 with context.wrap_socket(raw, server_hostname=host) as peer:
                     if hashlib.sha256(peer.getpeercert(binary_form=True)).hexdigest() != fingerprint:
                         return False
-                    peer.sendall(('HEAD / HTTP/1.1\r\nHost: ' + authority + '\r\nConnection: close\r\n\r\n').encode('ascii'))
+                    # The native GUI accepts GET but rejects HEAD with 403.
+                    # Read only the bounded status line; never follow redirects
+                    # or retain the login response body/cookies.
+                    peer.sendall(('GET / HTTP/1.1\r\nHost: ' + authority + '\r\nConnection: close\r\n\r\n').encode('ascii'))
                     with peer.makefile('rb') as response:
                         first = response.readline(4097)
                     return (len(first) <= 4096 and re.fullmatch(
