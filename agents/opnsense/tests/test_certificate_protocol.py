@@ -10,7 +10,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'agents/opnsense/plugin/src/usr/local/opnsense/scripts/nethub-agent'))
 import certificate_protocol as CLIENT
-from protocol import ProtocolError
+from protocol import ProtocolError, VERSION
 
 
 def example(name):
@@ -24,6 +24,7 @@ def parse(value):
 
 def test_actual_agent_builder_and_parser_match_shared_examples():
     request = example('certificate-submit-request')
+    request['agent_protocol_version'] = VERSION
     assert CLIENT.build_request(request['device_id'], request['csr_der']) == request
     for name in ['certificate-settings-response', 'certificate-submit-response']:
         value = example(name)

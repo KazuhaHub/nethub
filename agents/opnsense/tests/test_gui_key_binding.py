@@ -16,7 +16,7 @@ def test_bound_request_and_fingerprint_match_shared_examples():
     actual = wire.AGENT.build_enroll_request(BOUND['enroll_token'], BOUND['platform_version'],
                                             BOUND['agent_version'], BOUND['hostname'],
                                             gui_public_key=BOUND['gui_public_key'])
-    assert actual == BOUND
+    assert actual == dict(BOUND, agent_protocol_version=wire.AGENT.VERSION)
     assert wire.AGENT.gui_key_fingerprint(BOUND['gui_public_key']) == RESPONSE['gui_key_fingerprint']
     wire.validator('enroll-request.schema.json').validate(actual)
 

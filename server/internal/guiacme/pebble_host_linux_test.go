@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +17,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/guicert"
 	"github.com/KazuhaHub/nethub/server/internal/guiissuer"
 	"github.com/KazuhaHub/nethub/server/internal/http01"
+	"github.com/KazuhaHub/nethub/server/internal/protocol"
 	"github.com/KazuhaHub/nethub/server/internal/setup"
 )
 
@@ -178,18 +177,14 @@ func TestPebbleProtectedHostIssuer(t *testing.T) {
 			t.Fatal("issuer accepted a stopped independent cleanup timer")
 		}
 		must(nil, "/usr/bin/systemctl", "start", timer+".timer")
-		request, err := guicert.ValidateBoundCSR(csr, "abcdefgh.devices.example.test", public)
-		if err != nil {
-			t.Fatal(err)
-		}
-		const requestID = "b4444444-4444-4444-4444-444444444444"
-		fixtureSQL(t, binding, run, fmt.Sprintf(`BEGIN;
-INSERT INTO public.tenants(id,name) VALUES('b1111111-1111-1111-1111-111111111111','Isolated host fixture');
-INSERT INTO public.users(id,tenant_id,email,role) VALUES('b2222222-2222-2222-2222-222222222222','b1111111-1111-1111-1111-111111111111','host@example.test','member');
-INSERT INTO public.devices(id,tenant_id,owner_user_id,platform,device_secret_hash,subdomain,agent_protocol_version,gui_public_key) VALUES('b3333333-3333-3333-3333-333333333333','b1111111-1111-1111-1111-111111111111','b2222222-2222-2222-2222-222222222222','opnsense','fixture-not-a-credential','abcdefgh','1.2.0','%s');
-INSERT INTO public.gui_certificate_requests(id,tenant_id,device_id,assigned_host,gui_public_key,csr_der) VALUES('%s','b1111111-1111-1111-1111-111111111111','b3333333-3333-3333-3333-333333333333','abcdefgh.devices.example.test','%s',decode('%s','hex'));COMMIT`, public, requestID, public, hex.EncodeToString(request.DER)))
-		if _, err := run(context.Background(), []byte("SET SESSION AUTHORIZATION nethub_issuer;SELECT public.enqueue_gui_certificate_request('"+requestID+"');")); err != nil {
-			t.Fatal("host fixture initial queue")
+		client := enrollHostDevice(t, directory, nonce, binding, run, must)
+		requestID, host := client.settings.Request.RequestID, client.settings.AssignedHost
+		csr = client.csr
+		issuedInput := protocol.CertificateIssuedRequest{Identity: client.settings.Identity, RequestID: requestID, CSRFingerprint: client.settings.Request.CSRFingerprint}
+		status, body := client.post("issued", issuedInput)
+		var pending protocol.CertificateDelivery
+		if status != 200 || json.Unmarshal(body, &pending) != nil || pending.Validate() != nil || pending.Issued != nil {
+			t.Fatal("fresh enrolled request did not start with pending delivery", status)
 		}
 		unitBytes, err := os.ReadFile(os.Getenv("NETHUB_HOST_ISSUER_UNIT"))
 		if err != nil {
@@ -235,19 +230,36 @@ INSERT INTO public.gui_certificate_requests(id,tenant_id,device_id,assigned_host
 			fixtureSQL(t, binding, run, "UPDATE public.gui_certificate_jobs SET next_attempt_at=clock_timestamp() WHERE request_id='"+requestID+"' AND state='retry_wait'")
 			time.Sleep(100 * time.Millisecond)
 		}
-		chainHex := fixtureSQL(t, binding, run, "SELECT encode(chain_pem,'hex') FROM public.gui_certificate_generations WHERE request_id='"+requestID+"'")
-		chain, err := hex.DecodeString(string(chainHex))
-		if err != nil {
-			t.Fatal("host issued material encoding")
+		var first protocol.CertificateDelivery
+		for attempt := 0; attempt < 2; attempt++ {
+			status, body = client.post("issued", issuedInput)
+			var delivered protocol.CertificateDelivery
+			if status != 200 || json.Unmarshal(body, &delivered) != nil || delivered.Validate() != nil || delivered.Issued == nil || delivered.Request.RequestID != requestID || delivered.Request.CSRDER != client.settings.Request.CSRDER {
+				t.Fatal("authenticated exact-generation delivery failed", status)
+			}
+			if _, err := guicert.ValidateChain([]byte(delivered.Issued.ChainPEM), csr, host, roots, time.Now()); err != nil {
+				t.Fatal("delivered chain failed independent original-key trust verification")
+			}
+			if attempt > 0 && *first.Issued != *delivered.Issued {
+				t.Fatal("delivery retry changed issued public generation")
+			}
+			first = delivered
 		}
-		if _, err := guicert.ValidateChain(chain, csr, "abcdefgh.devices.example.test", roots, time.Now()); err != nil || invoke().State != "idle" {
-			t.Fatal("host chain binding or post-issuance idempotence")
+		if invoke().State != "idle" {
+			t.Fatal("host issued work was not idempotent")
 		}
 		order := fixtureSQL(t, binding, run, "SELECT checkpoint#>>'{order,finalize_url}' FROM public.gui_certificate_progress WHERE job_id=(SELECT id FROM public.gui_certificate_jobs WHERE request_id='"+requestID+"')")
 		if !strings.HasPrefix(string(order), files.DirectoryURL[:strings.LastIndex(files.DirectoryURL, "/")]+"/") {
 			t.Fatal("host fixture order escaped configured CA")
 		}
-		t.Log("Protected host command passed genuine Compose database discovery, independent backup/account/trust/cleanup gates, stopped-timer refusal, exact CSR issuance and idle retry; seeded public metadata, no appliance application")
-		return guiacme.Order{FinalizeURL: string(order)}
+		if status, _ := client.post("unenroll", client.settings.Identity); status != 200 {
+			t.Fatal("fresh client removal failed", status)
+		}
+		if status, _ := client.post("issued", issuedInput); status != 401 {
+			t.Fatal("removed client received retained issued material", status)
+		}
+		t.Log("Protected host command passed genuine Compose database discovery, independent backup/account/trust/cleanup gates, stopped-timer refusal, exact CSR issuance and idle retry; actual device HTTP admission, no appliance application")
+		t.Log("Fresh compiled device enrollment, original CSR admission/initial queue, genuine CA issuance and authenticated original-key delivery passed with idempotent generation reads and removed-client denial; only initial admin/token authority was seeded")
+		return guiacme.Order{Host: host, FinalizeURL: string(order)}
 	})
 }

@@ -21,8 +21,15 @@ committed replies recover the same order/CSR; expired leases cannot regain work,
 and one generation/audit/finalize POST is retained. The fixture deliberately
 advances lease/retry clocks and seeds public device metadata; it does not measure
 production recovery time or replace enrollment acceptance. Protected host
-configuration/scheduling, independent proof expiry cleanup, renewal jobs,
-authenticated delivery and native GUI installation remain required. No public
+configuration/scheduling and independent proof expiry cleanup now have guarded
+native evidence. Authenticated original-request delivery is implemented in
+protocol 1.3; the combined host fixture now enrolls a fresh logical device through
+compiled HTTP, submits its client-held-key CSR, issues through genuine private
+ACME/Caddy and downloads the exact certificate, then verifies removal denial.
+Only initial admin/token authority is seeded in that fixture. This is private
+HTTP transport with a logical client, not native GUI installation or public
+HTTPS acceptance. Renewal jobs, native installation/rollback and trust transitions
+remain required. No public
 CA account or order has been created. See the issuer and HTTP-01 contracts.
 
 The account client foundation directly reuses `golang.org/x/crypto/acme` and

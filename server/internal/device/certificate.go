@@ -16,6 +16,7 @@ type CertificateRepository interface {
 	Health(context.Context) error
 	Settings(context.Context, Credential, string) (guicert.Assignment, *guicert.StoredRequest, error)
 	Admit(context.Context, Credential, string, []byte) (guicert.StoredRequest, error)
+	Issued(context.Context, Credential, string, string, string) (guicert.StoredRequest, *guicert.IssuedCertificate, error)
 }
 
 // CertificateService shares lifecycle authentication and its bounded Argon2 pool.
@@ -101,4 +102,42 @@ func (s *CertificateService) Submit(ctx context.Context, input protocol.Certific
 		return protocol.CertificateSettings{}, ErrUnavailable
 	}
 	return certificateResponse(input.Identity, guicert.Assignment{Host: record.AssignedHost, KeyFingerprint: bound.Fingerprint}, &record)
+}
+
+func (s *CertificateService) Issued(ctx context.Context, input protocol.CertificateIssuedRequest, secret string, ip netip.Addr) (protocol.CertificateDelivery, error) {
+	if err := input.Validate(); err != nil {
+		return protocol.CertificateDelivery{}, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	_, credential, release, err := s.lifecycle.authenticateDevice(ctx, input.Identity, secret, ip)
+	if err != nil {
+		return protocol.CertificateDelivery{}, err
+	}
+	defer release()
+	record, generation, err := s.repository.Issued(ctx, credential, input.DeviceID, input.RequestID, input.CSRFingerprint)
+	if err != nil {
+		return protocol.CertificateDelivery{}, err
+	}
+	if record.ID != input.RequestID || record.Fingerprint != input.CSRFingerprint {
+		return protocol.CertificateDelivery{}, ErrUnavailable
+	}
+	key, err := guicert.ValidatePublicKey(record.PublicKey)
+	if err != nil {
+		return protocol.CertificateDelivery{}, ErrUnavailable
+	}
+	settings, err := certificateResponse(input.Identity, guicert.Assignment{Host: record.AssignedHost, KeyFingerprint: key.Fingerprint}, &record)
+	if err != nil {
+		return protocol.CertificateDelivery{}, err
+	}
+	result := protocol.CertificateDelivery{CertificateSettings: settings}
+	if generation != nil {
+		result.Issued = &protocol.CertificateGeneration{ID: generation.ID, Generation: generation.Generation, ChainPEM: string(generation.PEM), LeafFingerprint: generation.Fingerprint,
+			NotBefore: generation.NotBefore.UTC().Format(protocol.CertificateTimeLayout), NotAfter: generation.NotAfter.UTC().Format(protocol.CertificateTimeLayout),
+			ValidUntil: generation.ValidUntil.UTC().Format(protocol.CertificateTimeLayout), RenewAfter: generation.RenewAfter.UTC().Format(protocol.CertificateTimeLayout)}
+	}
+	if result.Validate() != nil {
+		return protocol.CertificateDelivery{}, ErrUnavailable
+	}
+	return result, nil
 }

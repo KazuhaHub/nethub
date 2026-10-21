@@ -40,10 +40,31 @@ func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, tenant string) {
 		t.Fatal(err)
 	}
 	credential := device.Credential{TenantID: tenant, Hash: r.SecretHash}
-	if _, err := requests.Admit(f.ctx, credential, a.ID, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER})); err != nil {
+	request, err := requests.Admit(f.ctx, credential, a.ID, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER}))
+	if err != nil {
 		t.Fatal(err)
 	}
-	id, err := (&GUIJobQueue{Requests: requests}).Enqueue(f.ctx, credential, a.ID)
+	queue := &GUIJobQueue{Requests: requests}
+	if err := queue.Health(f.ctx); err != nil {
+		t.Fatal("delivery authorization readiness", err)
+	}
+	func() {
+		if _, err := f.owner.ExecContext(f.ctx, `ALTER FUNCTION read_issued_gui_certificate(uuid,uuid,text,text) SECURITY INVOKER`); err != nil {
+			t.Fatal("delivery function guard fault", err)
+		}
+		defer func() {
+			if _, err := f.owner.ExecContext(f.ctx, `ALTER FUNCTION read_issued_gui_certificate(uuid,uuid,text,text) SECURITY DEFINER`); err != nil {
+				t.Error("delivery function guard restore", err)
+			}
+		}()
+		if queue.Health(f.ctx) == nil {
+			t.Fatal("delivery ready with altered function identity")
+		}
+	}()
+	if _, pending, err := queue.Issued(f.ctx, credential, a.ID, request.ID, request.Fingerprint); err != nil || pending != nil {
+		t.Fatal("admitted request should have pending delivery", err)
+	}
+	id, err := queue.Enqueue(f.ctx, credential, a.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,6 +151,69 @@ func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, tenant string) {
 	if finish(work, material) != generation {
 		t.Fatal("lost completion reply could not recover the same generation")
 	}
+	read, delivered, err := queue.Issued(f.ctx, credential, a.ID, request.ID, request.Fingerprint)
+	if err != nil || delivered == nil || read.ID != request.ID || delivered.ID != generation || delivered.Generation != 1 || !bytes.Equal(delivered.PEM, material.PEM) {
+		t.Fatal("authorized original request did not receive exact issued public material", err)
+	}
+	func() {
+		// Change only this disposable generation's clock metadata, with the
+		// immutable guard restored before any reader runs. No host clock changes.
+		var issuedAt time.Time
+		if err := f.owner.QueryRowContext(f.ctx, `SELECT issued_at FROM gui_certificate_generations WHERE id=$1`, generation).Scan(&issuedAt); err != nil {
+			t.Fatal(err)
+		}
+		setTimes := func(until, renew, issued time.Time) error {
+			tx, err := f.owner.BeginTx(f.ctx, nil)
+			if err != nil {
+				return err
+			}
+			defer tx.Rollback()
+			if _, err := tx.ExecContext(f.ctx, `ALTER TABLE gui_certificate_generations DISABLE TRIGGER gui_certificate_generation_immutable`); err != nil {
+				return err
+			}
+			result, err := tx.ExecContext(f.ctx, `UPDATE gui_certificate_generations SET valid_until=$2,renew_after=$3,issued_at=$4 WHERE id=$1`, generation, until, renew, issued)
+			if err != nil {
+				return err
+			}
+			if count, err := result.RowsAffected(); err != nil || count != 1 {
+				return errors.New("owned expiry fixture changed no exact generation")
+			}
+			if _, err := tx.ExecContext(f.ctx, `ALTER TABLE gui_certificate_generations ENABLE TRIGGER gui_certificate_generation_immutable`); err != nil {
+				return err
+			}
+			return tx.Commit()
+		}
+		clock := time.Now().UTC()
+		if err := setTimes(clock.Add(-time.Second), clock.Add(-2*time.Second), clock.Add(-3*time.Second)); err != nil {
+			t.Fatal("disposable generation expiry fault", err)
+		}
+		defer func() {
+			if err := setTimes(delivered.ValidUntil, delivered.RenewAfter, issuedAt); err != nil {
+				t.Error("disposable expiry restoration", err)
+			}
+		}()
+		if _, expired, err := queue.Issued(f.ctx, credential, a.ID, request.ID, request.Fingerprint); err != nil || expired != nil {
+			t.Fatal("expired public material was delivered", err)
+		}
+	}()
+	for _, wrong := range []struct{ id, fingerprint string }{
+		{"00000000-0000-0000-0000-000000000000", request.Fingerprint},
+		{request.ID, strings.Repeat("0", 64)},
+	} {
+		if _, _, err := queue.Issued(f.ctx, credential, a.ID, wrong.id, wrong.fingerprint); !errors.Is(err, device.ErrDenied) {
+			t.Fatal("delivery accepted a different request binding", err)
+		}
+	}
+	foreign := credential
+	foreign.TenantID = "00000000-0000-0000-0000-000000000000"
+	if _, _, err := queue.Issued(f.ctx, foreign, a.ID, request.ID, request.Fingerprint); !errors.Is(err, device.ErrDenied) {
+		t.Fatal("cross-tenant delivery accepted", err)
+	}
+	wrongSecret := credential
+	wrongSecret.Hash += "changed"
+	if _, _, err := queue.Issued(f.ctx, wrongSecret, a.ID, request.ID, request.Fingerprint); !errors.Is(err, device.ErrDenied) {
+		t.Fatal("changed credential received public material", err)
+	}
 	changed := material
 	changed.PEM = append(bytes.Clone(material.PEM), []byte("changed")...)
 	if finish(work, changed) != "null" {
@@ -159,6 +243,9 @@ func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, tenant string) {
 	if _, err := f.owner.ExecContext(f.ctx, `UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id=$1`, a.ID); err != nil {
 		t.Fatal(err)
 	}
+	if _, _, err := queue.Issued(f.ctx, credential, a.ID, request.ID, request.Fingerprint); !errors.Is(err, device.ErrDenied) {
+		t.Fatal("revoked device received retained issued material", err)
+	}
 	if finish(work, material) != "null" {
 		t.Fatal("revoked assignment recovered completion material")
 	}
@@ -170,4 +257,5 @@ func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, tenant string) {
 	}
 	t.Log("Independently validated original-key issued chain, lease CAS, exact lost-reply completion, immutable generation/audit, private grants and revoked retention passed; native application not claimed")
 	t.Log("Private SQL adapter claim/renew/read/save/finish, lost-reply and stale-version recovery passed against the real issuer identity")
+	t.Log("Authenticated public generation delivery passed pending/exact-original material, expiry filtering, changed-function readiness, wrong request/fingerprint/tenant/credential refusal and revoked retention without raw table grants")
 }

@@ -200,6 +200,10 @@ func pebbleHTTP01Flow(t *testing.T, finalize bool, coordinator ...func(*AccountS
 			}
 			return reopened
 		})
+		validatedHost := orderHost
+		if order.Host != "" {
+			validatedHost = order.Host
+		}
 		matched := false
 		for _, line := range strings.Split(string(p.docker("logs", cid)), "\n") {
 			var entry struct {
@@ -216,10 +220,10 @@ func pebbleHTTP01Flow(t *testing.T, finalize bool, coordinator ...func(*AccountS
 			if value, port, err := net.SplitHostPort(host); err == nil && port == "80" {
 				host = value
 			}
-			if host != orderHost {
+			if host != validatedHost {
 				continue
 			}
-			if status, _, err := fetch(orderHost, entry.Request.URI); err != nil || status != 404 {
+			if status, _, err := fetch(validatedHost, entry.Request.URI); err != nil || status != 404 {
 				t.Fatal("coordinator did not retire validated proof")
 			}
 			matched = true

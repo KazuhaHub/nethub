@@ -1,0 +1,22 @@
+{
+  "agent_protocol_version": "1.3.0",
+  "device_id": "12345678-1234-1234-1234-123456789abc",
+  "assigned_host": "abcd1234.devices.example.com",
+  "gui_key_fingerprint": "c8a07280e4f98bf6904cc54386bb9febc3bb786edf9a85f24c3a8aa57018126a",
+  "request": {
+    "request_id": "23456789-2345-2345-2345-23456789abcd",
+    "csr_der": "MIH1MIGcAgEAMAAwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQBNlVMIGs9MbbSrF8oS9QD18hgpcL2HXmQ1PJ3nsnNMvgCxXSqC1wmrjNz86cq+dIFz6S4D3RPaSiDx5NnFMhBoDowOAYJKoZIhvcNAQkOMSswKTAnBgNVHREEIDAeghxhYmNkMTIzNC5kZXZpY2VzLmV4YW1wbGUuY29tMAoGCCqGSM49BAMCA0gAMEUCIQCFQ/n4Lo2NlQ9lVKbRYcWCywvitt9Bk317VZnJ9qQsGQIgcjH2XRJQcMB52PO+uQiRvZovd8q1TRpITrcFqrbtyPI=",
+    "csr_fingerprint": "5bffb834dadbd6b9e0543552b6132057e72ca88edf0873a797379f343a797bc7",
+    "created_at": "2026-10-19T00:00:00.000000Z"
+  },
+  "issued": {
+    "generation_id": "3456789a-3456-3456-3456-3456789abcde",
+    "generation": 1,
+    "chain_pem": "-----BEGIN CERTIFICATE-----\nMIIBcjCCARigAwIBAgIBRzAKBggqhkjOPQQDAjAlMSMwIQYDVQQDDBpQdWJsaWMg\ncHJvdG9jb2wgZml4dHVyZSBDQTAeFw0yNjAxMDEwMDAwMDBaFw0zNjAxMDEwMDAw\nMDBaMAAwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQBNlVMIGs9MbbSrF8oS9QD\n18hgpcL2HXmQ1PJ3nsnNMvgCxXSqC1wmrjNz86cq+dIFz6S4D3RPaSiDx5NnFMhB\no14wXDAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggr\nBgEFBQcDATAnBgNVHREEIDAeghxhYmNkMTIzNC5kZXZpY2VzLmV4YW1wbGUuY29t\nMAoGCCqGSM49BAMCA0gAMEUCIQCY+Vukg+aktpAwkl6xbXhrD985FKvzQAV7SW3p\n9XBnmgIgLHhoDXUdBk/wmrNsDwyLYhcLSseWRElhBuizhPsMF0A=\n-----END CERTIFICATE-----\n",
+    "leaf_fingerprint": "047f572750abbd15040df9887e5f6b8eb8a99daf6bbdfc438064832ef6fc0032",
+    "not_before": "2026-01-01T00:00:00.000000Z",
+    "not_after": "2036-01-01T00:00:00.000000Z",
+    "valid_until": "2036-01-01T00:00:00.000000Z",
+    "renew_after": "2027-01-01T00:00:00.000000Z"
+  }
+}

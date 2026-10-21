@@ -188,9 +188,11 @@ def run(args):
         for suffix in (".timer", ".service"):
             assert command(["systemctl", "show", guard + suffix, "--property=ActiveState", "--value"]).stdout.strip() in (b"inactive", b"failed")
     log = (args.evidence / "test.log").read_text()
+    delivery = "Fresh compiled device enrollment, original CSR admission/initial queue, genuine CA issuance and authenticated original-key delivery passed" in log
     passed = (code == 0 and failure is None and "--- PASS: TestPebbleProtectedHostIssuer" in log
-              and "Protected host command passed genuine Compose database discovery" in log)
+              and "Protected host command passed genuine Compose database discovery" in log and delivery)
     result = {"passed": passed, "failure_type": failure, "tested_files_sha256": hashes,
+              "authenticated_delivery_verified": passed and delivery,
               **json.loads((control / "cleanup.json").read_text()), "guard_stopped_after_cleanup": True}
     (args.evidence / "result.json").write_text(json.dumps(result, indent=2))
     assert control.resolve() == control and control.parent == Path("/run")

@@ -94,6 +94,24 @@ func TestValidateIssuedRouterChain(t *testing.T) {
 	}
 }
 
+func TestPublicChainInspectionDoesNotSupplyTrust(t *testing.T) {
+	f := newChainFixture(t)
+	encoded := append(bytes.Clone(f.leafPEM), f.caPEM...)
+	inspected, err := InspectChain(encoded, f.csr, certificateHost, f.now)
+	if err != nil || inspected.Fingerprint == [32]byte{} {
+		t.Fatal("valid public chain inspection failed", err)
+	}
+	if _, err := ValidateChain(encoded, f.csr, certificateHost, x509.NewCertPool(), f.now); err == nil {
+		t.Fatal("publicly supplied chain became its own trusted anchor")
+	}
+	if _, err := ValidateChain(encoded, f.csr, certificateHost, nil, f.now); err == nil {
+		t.Fatal("missing independent roots accepted")
+	}
+	if _, err := InspectChain(encoded, f.csr, "wrong.router.example.com", f.now); err == nil {
+		t.Fatal("inspection lost exact signed name binding")
+	}
+}
+
 func TestIssuerExpiryBoundsRouterValidity(t *testing.T) {
 	f := newChainFixture(t)
 	f.issuer.NotAfter = f.now.Add(time.Hour)
