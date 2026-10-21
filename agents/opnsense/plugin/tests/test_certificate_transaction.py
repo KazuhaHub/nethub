@@ -11,7 +11,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src/usr/local/opnsense/scripts/nethub-agent'))
 from certificate_key import KeyStore
-from certificate_transaction import CertificateTransaction, CertificateTransactionError
+from certificate_transaction import CertificatePreparationRequired, CertificateTransaction, CertificateTransactionError
 
 
 class Interrupted(BaseException):
@@ -227,6 +227,15 @@ def test_failed_journal_replacement_cannot_change_native_config(transaction):
     assert not list(journal.directory.glob('.transaction-*'))
 
 
+def test_known_preparation_requirement_is_actionable_before_native_changes(transaction):
+    journal, model, value, _ = transaction
+    with mock.patch.object(model, 'prepare', side_effect=CertificatePreparationRequired('alternate_hostname_required')):
+        with pytest.raises(CertificatePreparationRequired) as error:
+            journal.apply(value)
+    assert error.value.code == 'alternate_hostname_required' and 'Alternate Hostnames' in str(error.value)
+    assert not journal.path.exists() and model.events == [] and model.native['ref'] == 'original'
+
+
 def test_successful_renewal_records_the_previous_applied_native_identity(transaction):
     journal, model, value, _ = transaction
     journal.apply(value)
@@ -282,3 +291,73 @@ def test_candidate_symlink_is_not_followed(transaction):
     with pytest.raises(CertificateTransactionError):
         journal.apply(value)
     assert target.read_bytes() == KeyStore._encoded(value) and model.events == []
+
+
+def test_runtime_forget_preserves_the_installed_native_entry_and_is_idempotent(transaction):
+    journal, model, value, _ = transaction
+    journal.apply(value)
+    installed = copy.deepcopy(model.native)
+    journal.forget()
+    journal.forget()
+    assert not journal.directory.exists() and model.native == installed
+
+
+def test_runtime_forget_recovers_pending_changes_before_erasing_the_snapshot(transaction):
+    journal, model, value, _ = transaction
+    model.crash_after_install = True
+    with pytest.raises(Interrupted):
+        journal.apply(value)
+    journal.forget()
+    assert model.native['ref'] == 'original' and model.native['owned'] is None
+    assert not journal.directory.exists()
+
+
+def test_runtime_forget_retries_after_snapshot_deletion_and_blocks_new_apply(transaction):
+    journal, model, value, _ = transaction
+    journal.apply(value)
+    installed = copy.deepcopy(model.native)
+    unlink = Path.unlink
+
+    def fail_journal(path, *args, **kwargs):
+        if path == journal.path:
+            raise OSError('Private unlink diagnostic')
+        return unlink(path, *args, **kwargs)
+
+    with mock.patch.object(Path, 'unlink', fail_journal), pytest.raises(CertificateTransactionError):
+        journal.forget()
+    assert journal._read()['phase'] == 'removing'
+    assert not list(journal.directory.glob('snapshot-*.json'))
+    with pytest.raises(CertificateTransactionError):
+        journal.apply(value)
+    assert model.native == installed
+    journal.forget()
+    assert not journal.directory.exists() and model.native == installed
+
+
+def test_runtime_forget_retains_unknown_private_remnants_for_review(transaction):
+    journal, model, value, _ = transaction
+    journal.apply(value)
+    unknown = journal.directory / 'operator-retained'
+    unknown.write_bytes(b'Unknown material')
+    before = journal.path.read_bytes()
+    with pytest.raises(CertificateTransactionError):
+        journal.forget()
+    assert journal.path.read_bytes() == before and unknown.exists()
+
+
+def test_runtime_forget_retries_after_journal_removal_but_before_directory_removal(transaction):
+    journal, model, value, _ = transaction
+    journal.apply(value)
+    installed = copy.deepcopy(model.native)
+    remove = Path.rmdir
+
+    def fail_directory(path, *args, **kwargs):
+        if path == journal.directory:
+            raise OSError('Private directory diagnostic')
+        return remove(path, *args, **kwargs)
+
+    with mock.patch.object(Path, 'rmdir', fail_directory), pytest.raises(CertificateTransactionError):
+        journal.forget()
+    assert journal.directory.exists() and not list(journal.directory.iterdir())
+    journal.forget()
+    assert not journal.directory.exists() and model.native == installed

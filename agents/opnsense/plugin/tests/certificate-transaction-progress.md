@@ -38,5 +38,6 @@ POSIX permission/symlink checks. These are transaction and filesystem proofs,
 not native import, GUI reload, reboot or public HTTPS acceptance. A separate PHP
 store now implements the native configuration operations and private CLI boundary;
 see native-certificate-store-progress.md. Bounded GUI reload/TLS probing, the early
-boot hook, scoped lab watcher extension and guarded live installation still need
-implementation and evidence.
+boot hook, scoped lab watcher extension and guarded live installation need their
+own evidence. The next 0.0.9 source connects the bounded backend, early recovery
+and retryable cleanup; see native-certificate-apply-progress.md.

@@ -32,7 +32,7 @@ def test_package_cron_uses_system_format_and_absolute_commands():
         if index == 3:
             assert command[:3] == ['/bin/sleep', '40', '&&']
             command = command[3:]
-            assert command[:5] == ['/usr/bin/timeout', '-k', '2', '25', '/usr/bin/lockf']
+            assert command[:5] == ['/usr/bin/timeout', '-k', '2', '45', '/usr/bin/lockf']
             command = command[4:]
             assert command[-5:-3] == ['--locked', 'certificate']
         assert command[:6] == ['/usr/bin/lockf', '-sk', '-t', '0', LOCK, '/usr/local/bin/python3.13']

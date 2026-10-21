@@ -6,6 +6,7 @@ import pytest
 
 from test_lifecycle_agent import case
 from certificate_sync import CertificateSyncError
+from certificate_transaction import CertificateTransactionError
 
 
 @pytest.mark.parametrize('marker', ['disabled', 'stopped', 'revoked', 'uninstalling'])
@@ -48,7 +49,8 @@ def test_certificate_status_exposes_only_fixed_public_fields(case):
     result = {'success': True, 'action': 'certificate', 'phase': 'verified', 'message': 'Verified',
               'generation': 2, 'valid_until': '2027-01-01T00:00:00.000000Z',
               'chain_pem': 'not returned', 'device_secret': 'not returned'}
-    with mock.patch('certificate_sync.CertificateSynchronizer.sync', return_value=result):
+    with mock.patch('certificate_sync.CertificateSynchronizer.sync', return_value=result), \
+            mock.patch.object(case.agent, 'apply_gui_certificate', return_value=result):
         saved = case.agent.apply('certificate')
     assert 'chain_pem' not in saved and 'device_secret' not in saved
     assert case.agent.status()['gui_certificate'] == saved
@@ -63,4 +65,34 @@ def test_certificate_action_obeys_the_shared_lock(case):
         with mock.patch('certificate_sync.CertificateSynchronizer.sync') as sync:
             assert case.agent.apply('certificate')['action'] == 'busy'
     sync.assert_not_called()
+    assert case.active and not case.mutations()
+
+
+def test_pending_recovery_runs_before_disabled_intent_without_new_synchronization(case):
+    case.set_enabled(False)
+    transaction = mock.Mock()
+    with mock.patch.object(case.agent, 'gui_transaction', return_value=transaction), \
+            mock.patch('certificate_sync.CertificateSynchronizer.sync') as sync:
+        assert case.agent.apply('certificate')['phase'] == 'inactive'
+    transaction.recover.assert_called_once_with()
+    sync.assert_not_called()
+    assert case.active and not case.mutations()
+
+
+def test_unconfirmed_recovery_prevents_new_download_and_keeps_tunnel_state(case):
+    transaction = mock.Mock()
+    transaction.recover.side_effect = CertificateTransactionError('GUI certificate application needs local recovery; tunnel configuration was retained')
+    with mock.patch.object(case.agent, 'gui_transaction', return_value=transaction), \
+            mock.patch('certificate_sync.CertificateSynchronizer.sync') as sync:
+        assert case.agent.apply('certificate')['phase'] == 'error'
+    sync.assert_not_called()
+    assert case.active and not case.mutations()
+
+
+def test_pending_issuance_never_enters_native_application(case):
+    with mock.patch('certificate_sync.CertificateSynchronizer.sync', return_value={
+            'success': True, 'action': 'certificate', 'phase': 'pending', 'message': 'Pending'}), \
+            mock.patch.object(case.agent, 'apply_gui_certificate') as apply:
+        assert case.agent.apply('certificate')['phase'] == 'pending'
+    apply.assert_not_called()
     assert case.active and not case.mutations()

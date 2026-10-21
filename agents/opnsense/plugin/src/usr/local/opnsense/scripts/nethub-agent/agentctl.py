@@ -140,6 +140,9 @@ class Agent:
             model = tree.find('OPNsense/NetHubAgent')
             if model is not None and model.findtext('device_id'):
                 return {'success': True, 'enrolled': True}
+            remnants = [self.config / name for name in ('gui-apply', 'gui-request', 'gui-certificate.json')]
+            if any(path.exists() or path.is_symlink() for path in remnants):
+                raise AgentError('Previous enrollment runtime cleanup is incomplete; retry Remove enrollment before enrolling')
             version = self.command(['/usr/local/sbin/opnsense-version', '-v'], timeout=5)
             self.checked(version, 'Could not read the platform version')
             product = json.loads((self.root / 'usr/local/opnsense/version/nethub-agent').read_text())
@@ -216,9 +219,47 @@ class Agent:
         self.atomic(self.state / 'certificate.json', (json.dumps(public) + '\n').encode())
         return public
 
+    def gui_transaction(self):
+        from certificate_backend import NativeGuiBackend
+        from certificate_key import KeyStore
+        from certificate_transaction import CertificateTransaction
+        return CertificateTransaction(self.config / 'gui-apply', NativeGuiBackend(KeyStore(self.config / 'gui-key')))
+
+    def apply_gui_certificate(self, transaction):
+        from certificate_chain import CertificateChainError, ChainVerifier
+        from certificate_key import CertificateKeyError, KeyStore
+        from certificate_transaction import CertificateTransactionError
+        files = KeyStore(self.config / 'gui-key')
+        path = self.config / 'gui-certificate.json'
+        try:
+            info = files._protected(path)
+            if not 1 <= info.st_size <= 65536:
+                raise ValueError('Invalid candidate size')
+            raw = path.read_bytes()
+            value = json.loads(raw)
+            if KeyStore._encoded(value) != raw:
+                raise ValueError('Ambiguous candidate')
+            model = self.lifecycle_model()
+            value = ChainVerifier(files).verify(value, model.findtext('device_id'), model.findtext('subdomain'), value['request'])
+            if value['issued'] is None:
+                raise ValueError('Pending material cannot be applied')
+            result = transaction.apply(value)
+        except (CertificateChainError, CertificateTransactionError) as error:
+            raise AgentError(str(error)) from None
+        except (CertificateKeyError, OSError, ValueError, KeyError, TypeError):
+            raise AgentError('GUI certificate candidate needs local review') from None
+        result['valid_until'] = value['issued']['valid_until']
+        return result
+
     def certificate_locked(self):
         from certificate_key import KeyStore
         from certificate_sync import CertificateSyncError, CertificateSynchronizer
+        from certificate_transaction import CertificateTransactionError
+        transaction = self.gui_transaction()
+        try:
+            transaction.recover()
+        except CertificateTransactionError as error:
+            raise AgentError(str(error)) from None
         if (any((self.state / marker).exists() for marker in ['disabled', 'stopped', 'revoked', 'uninstalling'])
                 or not self.enabled()):
             return self.certificate_result({'success': True, 'action': 'certificate', 'phase': 'inactive', 'message': 'GUI certificate synchronization is inactive'})
@@ -230,6 +271,8 @@ class Agent:
                 model.findtext('console_url'), model.findtext('device_secret'), model.findtext('device_id'), model.findtext('subdomain'))
         except CertificateSyncError:
             raise AgentError('GUI certificate synchronization failed; tunnel and native GUI settings were retained') from None
+        if result.get('phase') == 'verified':
+            result = self.apply_gui_certificate(transaction)
         return self.certificate_result(result)
 
     def stop_revoked(self):
@@ -288,15 +331,17 @@ class Agent:
     def forget_locked(self):
         from certificate_key import CertificateKeyError, KeyStore
         from certificate_sync import CertificateSynchronizer
+        from certificate_transaction import CertificateTransactionError
         model = self.lifecycle_model()
         if model.findtext('enabled') == '1' or any(model.findtext(key) for key in ('device_id', 'device_secret', 'frp_token', 'domain_claim')):
             raise AgentError('Native configuration must be cleared before removing runtime credentials')
         self.stop_revoked()
         try:
+            self.gui_transaction().forget()
             keys = KeyStore(self.config / 'gui-key')
             CertificateSynchronizer(keys).forget()
             keys.forget()
-        except CertificateKeyError as error:
+        except (CertificateKeyError, CertificateTransactionError) as error:
             raise AgentError(str(error)) from None
         paths = [self.live, self.candidate, self.backup, self.config / 'relay-ca.pem']
         paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'certificate.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
@@ -422,7 +467,7 @@ def main():
         def timed_out(signum, frame):
             raise AgentError('Device operation timed out; inspect status before retrying')
         previous = signal.signal(signal.SIGALRM, timed_out)
-        signal.setitimer(signal.ITIMER_REAL, 20 if action == 'certificate' else 25)
+        signal.setitimer(signal.ITIMER_REAL, 35 if action == 'certificate' else 25)
         try:
             result = Agent().apply(action, locked=arguments.locked)
         finally:

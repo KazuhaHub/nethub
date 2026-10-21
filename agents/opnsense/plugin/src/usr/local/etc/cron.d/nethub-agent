@@ -5,4 +5,4 @@
 # Report after reconcile, under the same lock and with a separate process deadline.
 * * * * * root /bin/sleep 20 && /usr/bin/timeout -k 2 35 /usr/bin/lockf -sk -t 0 /var/db/nethub-agent/reconcile.lock /usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/agentctl.py --locked report >> /var/log/nethub-agent/scheduler.log 2>&1
 # Fetch and verify public GUI material separately from tunnel reconciliation.
-* * * * * root /bin/sleep 40 && /usr/bin/timeout -k 2 25 /usr/bin/lockf -sk -t 0 /var/db/nethub-agent/reconcile.lock /usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/agentctl.py --locked certificate >> /var/log/nethub-agent/scheduler.log 2>&1
+* * * * * root /bin/sleep 40 && /usr/bin/timeout -k 2 45 /usr/bin/lockf -sk -t 0 /var/db/nethub-agent/reconcile.lock /usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/agentctl.py --locked certificate >> /var/log/nethub-agent/scheduler.log 2>&1

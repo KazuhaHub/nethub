@@ -235,7 +235,10 @@ final class NativeGuiCertificateStore
         }
         $this->active($root, ['device_id' => $device, 'host' => $host]);
         $alternates = preg_split('/\s+/', trim((string)$root->system->webgui->althostnames));
-        if (!in_array($host, array_map('strtolower', $alternates), true)) {
+        $primary = (string)$root->system->hostname . '.' . (string)$root->system->domain;
+        // Native DNS/referer checks already allow the configured primary name.
+        // Other assigned names still require an exact manually configured alias.
+        if (!in_array($host, array_map('strtolower', [$primary, ...$alternates]), true)) {
             throw new NativeGuiCertificatePrerequisite('alternate_hostname_required');
         }
         $beforeRef = $this->selected($root);

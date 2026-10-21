@@ -1,9 +1,15 @@
 #!/bin/sh
 set -eu
+umask 077
 if [ -x /usr/local/etc/rc.d/nethub_agent_frpc ]; then
-    install -d -m 0700 /var/db/nethub-agent
+    install -d -m 0700 /var/db/nethub-agent /var/log/nethub-agent
+    touch /var/log/nethub-agent/scheduler.log
+    chmod 0600 /var/log/nethub-agent/scheduler.log
     touch /var/db/nethub-agent/uninstalling
-    /usr/bin/lockf -k -t 30 /var/db/nethub-agent/reconcile.lock /bin/sh -c '
+    /usr/bin/lockf -k -t 30 /var/db/nethub-agent/reconcile.lock /bin/sh -ec '
+        if [ -f /usr/local/opnsense/scripts/nethub-agent/certificate_recover.py ]; then
+            /usr/bin/timeout -k 2 25 /usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/certificate_recover.py --locked --running >> /var/log/nethub-agent/scheduler.log 2>&1
+        fi
         if service nethub_agent_frpc onestatus >/dev/null 2>&1; then
             service nethub_agent_frpc onestop
         fi

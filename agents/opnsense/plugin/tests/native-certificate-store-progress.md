@@ -46,7 +46,9 @@ CLI input. PHP XML extensions are explicit CI dependencies on Ubuntu 24.04/PHP
 object, paths and owner are injected; the production CLI fixes all of these to
 native locations and root ownership.
 
-The model probe is a test flag. These results do not establish actual Core
+The store-model probe is a test flag. The next 0.0.9 source adds real TLS probing,
+coordination, recovery and cleanup; see native-certificate-apply-progress.md.
+These model results do not establish actual Core
 integration, GUI reload, a served TLS chain or reboot recovery. Next, add the
 bounded native backend/probe, early boot recovery and removal handling; extend
 the lab watcher before enabling/installing the GUI-changing flow, then validate

@@ -104,3 +104,19 @@ def test_runtime_key_removal_requires_cleared_fields_and_preserves_native_certif
     assert (case.root / 'conf/config.xml').read_bytes() == original
     assert native.read_text() == 'native certificate store is independent'
     assert case.agent.apply('forget')['success'] is True
+
+
+@pytest.mark.parametrize('name', ['gui-apply', 'gui-request', 'gui-certificate.json'])
+def test_reenrollment_waits_for_incomplete_former_runtime_cleanup(case, name):
+    path = request_file(case)
+    remnant = case.agent.config / name
+    if name.endswith('.json'):
+        remnant.write_text('Retain until removal cleanup')
+    else:
+        remnant.mkdir(mode=0o700)
+    with mock.patch('enrollment.request_enrollment') as network, mock.patch.object(KeyStore, 'ensure') as key:
+        result = case.agent.enroll(path)
+    assert result['success'] is False and 'cleanup is incomplete' in result['message']
+    network.assert_not_called()
+    key.assert_not_called()
+    assert remnant.exists()
