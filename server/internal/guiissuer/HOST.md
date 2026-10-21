@@ -120,3 +120,20 @@ device CSR admission and atomic queueing, failure rollback, duplicate audit/job
 refusal and cancellation after revocation. Production recovery timing, renewal
 authorization, native GUI installation/rollback and staged trust transitions
 remain required before W4 certificate automation is complete.
+
+## Hosted acceptance
+
+Compose acceptance invokes the compiled `TestPebbleProtectedHostIssuer` fixture
+through `server/tests/gui-issuer-host.py`. A unique operation identity fences
+container names, full image identities, ownership labels and temporary units.
+An independently armed systemd recovery program lives outside the checkout and
+stops the exact test process group before removing owned resources and temporary
+keys. A missing test or skipped fixture cannot satisfy the required pass markers.
+Private test logs and cleanup receipts stay in the optional Compose evidence
+archive; ordinary CI output contains only bounded result counters.
+
+The delivery stage additionally requires the compiled enrollment-to-CA download
+marker before reporting `authenticated_delivery_verified`. Its client uses a
+private HTTP bridge, not an appliance or a public HTTPS session. The fixture
+checks repeated exact-generation downloads and refusal after device removal;
+it does not acknowledge installation or authorize renewal.
