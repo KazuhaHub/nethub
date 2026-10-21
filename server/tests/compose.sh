@@ -81,7 +81,7 @@ docker create --name "$guiacme_binary_holder" --network none "$guiacme_test_imag
 docker cp "$guiacme_binary_holder:/guiacme.test" "$stage/guiacme.test"
 docker rm "$guiacme_binary_holder" >/dev/null
 chmod 0700 "$stage/guiacme.test"
-NETHUB_GUIACME_PEBBLE_IMAGE="$pebble_image" NETHUB_GUIACME_CADDY_IMAGE="$caddy_image" "$stage/guiacme.test" -test.v -test.run '^TestPebble(OrderAdmission|HTTP01Validation|CertificateIssuance)$' -test.timeout=180s
+NETHUB_GUIACME_PEBBLE_IMAGE="$pebble_image" NETHUB_GUIACME_CADDY_IMAGE="$caddy_image" "$stage/guiacme.test" -test.v -test.run '^TestPebble(OrderAdmission|HTTP01Validation|CertificateIssuance|CoordinatorRecovery)$' -test.timeout=180s
 if [ "${NETHUB_SCAN_IMAGES:-0}" = 1 ]; then
     mkdir "$stage/scans"
     scan_image() {

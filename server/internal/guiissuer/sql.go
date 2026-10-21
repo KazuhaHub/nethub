@@ -41,7 +41,7 @@ func (s *SQLStore) query(ctx context.Context, statement string) ([]byte, error) 
 	}
 	// These settings precede private input and role reduction in every new
 	// session. An external administrator's logging/proxy policy is still trusted.
-	prefix := "SET log_statement=none; SET log_min_duration_statement=-1; SET log_min_duration_sample=-1; SET log_statement_sample_rate=0; SET log_min_error_statement=panic; SET standard_conforming_strings=on; SET SESSION AUTHORIZATION nethub_issuer;\n"
+	prefix := "SET log_statement=none; SET log_min_duration_statement=-1; SET log_min_duration_sample=-1; SET log_statement_sample_rate=0; SET log_min_error_statement=panic; SET statement_timeout='10s'; SET lock_timeout='5s'; SET idle_in_transaction_session_timeout='10s'; SET standard_conforming_strings=on; SET SESSION AUTHORIZATION nethub_issuer;\n"
 	bounded, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	body, err := s.Run(bounded, []byte(prefix+statement+";\n"))

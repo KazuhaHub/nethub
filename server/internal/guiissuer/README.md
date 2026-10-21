@@ -78,10 +78,35 @@ failure/poll release and immutable completion/recovery, including the existing
 revocation, stale-version and retry-budget checks. No mocked database response
 is used to claim those boundaries.
 
-These foundations do not configure an account, start a scheduler/host adapter,
-call a CA, deliver a chain or change a device. The actual CA coordinator and
-recovery fixture are not connected yet. Verified native application and retrying
-deployment of the same issued generation remain separate integration work.
+`Coordinator.Step` connects these pieces to the registered ACME account and
+HTTP-01 publisher. It renews the fenced current assignment before every remote
+operation, persists creation/publication/acceptance/finalizing intent before its
+side effect, retires only the exact publication generation and independently
+validates the resulting original-key chain before completion. Steps have a
+110-second ceiling; SDK and SQL operations retain their narrower limits. Waiting
+and transient errors use the durable queue budgets. Missing save replies stop the
+invocation and require recovery from current persisted state.
+
+A recovered creation intent without an order URI is terminal indeterminate work,
+including the conservative case where no remote order was actually created.
+Known orders retain their URI and request. Acceptance recovery re-observes the
+same challenge; the SDK avoids POST for processing/valid challenges. Finalizing
+recovery fetches the already valid order's chain rather than submitting another
+CSR. Expired proofs are removed and rejected. An independent expiry cleanup
+mechanism is still required before enabling static publication in production.
+
+Unit recovery tests inject committed-but-lost replies at each checkpoint and
+verify one original order, finalization and issued generation. They additionally
+cover ambiguous creation, revoked work and expired publication cleanup. The
+genuine CA fixture recreates account/worker handles after lost published-proof
+and issued-order replies using file-backed test checkpoints; it checks actual
+CA-source HTTP fetches, retired responses and one original order/finalize POST.
+Its file-backed store does not claim combined PostgreSQL/CA acceptance.
+
+These components do not configure an account, start a scheduler/host adapter,
+deliver a chain or change a device. Combined host/PostgreSQL/CA recovery, verified
+native application and retrying deployment of the same issued generation remain
+separate integration work.
 
 Fresh bootstrap creates the reserved no-login role. Migration remains compatible
 with a disabled legacy deployment where that role is absent; enabling an issuer
