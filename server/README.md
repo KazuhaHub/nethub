@@ -34,7 +34,7 @@ is in [deployment validation](../deploy/validation-w3.md).
 
 ## Technology stack
 
-- **Go 1.26.9** — pinned in `.go-version`, CI, and the Docker builder. The
+- **Go 1.26.10** — pinned in `.go-version`, CI, and the Docker builder. The
   module's `go 1.26.0` line remains its language compatibility floor, not a
   deployment compiler recommendation. This uses the same toolchain line as the organisation's other Go
   repositories. The control plane is a **single binary, `nethub`**, with
