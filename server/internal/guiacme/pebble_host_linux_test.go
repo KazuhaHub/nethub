@@ -40,6 +40,9 @@ func TestPebbleProtectedHostIssuer(t *testing.T) {
 	command := func(input []byte, program string, args ...string) ([]byte, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
+		if program == "/usr/bin/docker" {
+			args = append([]string{"--host", "unix:///var/run/docker.sock"}, args...)
+		}
 		c := exec.CommandContext(ctx, program, args...)
 		c.Env = []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "HOME=/root", "LANG=C", "LC_ALL=C"}
 		c.Stdin = bytes.NewReader(input)
