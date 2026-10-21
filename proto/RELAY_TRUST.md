@@ -5,8 +5,9 @@ The verified console HTTPS origin serves two authenticated POST operations:
 They require major 1, minor 5 or later. Older major-1 agents keep their existing
 enrollment/status/certificate behavior; the new operations explicitly refuse old
 minors. A response advertises the server's current version, not an echo of the
-request's minor. Native source version 0.0.12 includes the wire builders; it does
-not yet automatically apply or report these trust generations.
+request's minor. Native source version 0.0.12 includes independent validation,
+journaled application and a separate scheduled trust action with receipt retries.
+Live package, reboot and actual frp root-transition acceptance remain required.
 
 Settings takes protocol/device identity and returns `desired: null` before host
 publication, or the exact current generation ID/number, expected server name,
@@ -39,14 +40,14 @@ isolated native OpenSSL trust. It rejects unknown critical extensions and strips
 bounded future response fields. Verification uses disposable public scratch files;
 it installs no trust, sends no request and does not assert that a native writer ran.
 Receipt parsing correlates the exact report while allowing a newer server minor.
-A native adapter must
-persist and verify the actual managed trust before calling the applied operation.
+A native adapter must persist and verify the actual managed trust before calling
+the applied operation.
 It must correlate the exact response, retry a lost receipt without reinstalling,
 preserve monotonic generations, and keep the tunnel/source-IP/lifecycle safeguards.
 
 This API does not publish trust, switch relay signing authority, solve bootstrap
-expiry/startup migration, quarantine an offline device or implement native
-reconciliation. Those remain separate rollout gates. Application reports are
+expiry/startup migration or quarantine an offline device. Those remain separate
+rollout gates. Native reconciliation uses the journaled adapter below. Reports are
 authenticated device assertions, not an independent server observation of the
 device filesystem. No new signing key or device client certificate is introduced.
 
