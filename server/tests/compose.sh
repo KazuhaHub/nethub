@@ -245,16 +245,17 @@ for path in (s/'deployment/secrets').rglob('*'):
     if path.is_file() and path.stat().st_size==65:assert path.read_text().strip() not in log
 print('Enrolled credentials, claims and deployment secrets are absent from runtime logs')
 PY
-compose down -v --remove-orphans > "$stage/down.log" 2>&1
-python3 "$root/server/tests/external-proxy.py" "$stage" "$root" "$image" "$postgres_image" "$caddy_image" "$frps_image"
 # The administrative fixture creates a separate tenant. Run it only after the
 # single-tenant bootstrap/browser/relay acceptance and before final teardown.
 database_id=$(compose ps -q postgres)
+[ -n "$database_id" ] || { echo "Required GUI issuer database fixture is missing" >&2; exit 1; }
 database_image_id=$(docker image inspect --format '{{.Id}}' "$postgres_image")
 NETHUB_GUIACME_PEBBLE_IMAGE="$pebble_image" NETHUB_GUIACME_CADDY_IMAGE="$caddy_image" \
 NETHUB_TEST_GUI_SQL_CONTAINER="$database_id" NETHUB_TEST_GUI_SQL_IMAGE="$database_image_id" \
 NETHUB_TEST_GUI_SQL_PROJECT="$project" "$stage/guiacme.test" -test.v \
     -test.run '^TestPebbleCoordinatorDatabaseRecovery$' -test.timeout=120s
+compose down -v --remove-orphans > "$stage/down.log" 2>&1
+python3 "$root/server/tests/external-proxy.py" "$stage" "$root" "$image" "$postgres_image" "$caddy_image" "$frps_image"
 cat > "$stage/failure.yml" <<'YAML'
 services:
   migrate:
