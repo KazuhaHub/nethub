@@ -75,6 +75,7 @@ type orderBehavior struct {
 	authValid       bool
 	challengeStatus string
 	loseAccept      bool
+	finalization    func(http.ResponseWriter, *http.Request, []byte) bool
 }
 
 func orderFixture(t *testing.T) (*AccountStore, *accountFixture, *orderBehavior) {
@@ -90,6 +91,9 @@ func orderFixture(t *testing.T) (*AccountStore, *accountFixture, *orderBehavior)
 		body, valid := verifyOrderMessage(f, r)
 		if !valid {
 			w.WriteHeader(400)
+			return
+		}
+		if b.finalization != nil && b.finalization(w, r, body) {
 			return
 		}
 		challenge := func() map[string]any {

@@ -36,9 +36,10 @@ type pebbleHarness struct {
 	docker                                   func(...string) []byte
 	network, name, nonce, stage, containerID string
 	address                                  netip.Addr
+	httpClient                               *http.Client
 }
 
-func newPebbleHarness(t *testing.T) *pebbleHarness {
+func newPebbleHarness(t *testing.T, management ...bool) *pebbleHarness {
 	t.Helper()
 	image := os.Getenv("NETHUB_GUIACME_PEBBLE_IMAGE")
 	if image == "" {
@@ -181,8 +182,12 @@ func newPebbleHarness(t *testing.T) *pebbleHarness {
 	}
 	stage := t.TempDir()
 	roots := pebbleAPIFixtureTLS(t, stage, net.ParseIP(address.String()))
+	managementAddress := ""
+	if len(management) == 1 && management[0] {
+		managementAddress = "0.0.0.0:15000"
+	}
 	configuration := map[string]any{"pebble": map[string]any{
-		"listenAddress": "0.0.0.0:14000", "managementListenAddress": "", "certificate": "/fixture/cert.pem", "privateKey": "/fixture/key.pem",
+		"listenAddress": "0.0.0.0:14000", "managementListenAddress": managementAddress, "certificate": "/fixture/cert.pem", "privateKey": "/fixture/key.pem",
 		"httpPort": 80, "tlsPort": 5001, "externalAccountBindingRequired": false,
 		"profiles": map[string]any{"standard": map[string]any{"description": "isolated order test", "validityPeriod": 7776000}},
 	}}
@@ -230,7 +235,7 @@ func newPebbleHarness(t *testing.T) *pebbleHarness {
 	}
 	origin := "https://" + net.JoinHostPort(address.String(), "14000")
 	transport := &http.Transport{Proxy: nil, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}}
-	defer transport.CloseIdleConnections()
+	t.Cleanup(transport.CloseIdleConnections)
 	httpClient := &http.Client{Transport: transport, Timeout: time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return ErrRemote }}
 	deadline := time.Now().Add(15 * time.Second)
 	var terms string
@@ -268,7 +273,7 @@ func newPebbleHarness(t *testing.T) *pebbleHarness {
 	if _, err := store.EnsureAccount(context.Background(), true, terms); err != nil {
 		t.Fatalf("explicit isolated CA account registration: %v", err)
 	}
-	return &pebbleHarness{store: store, docker: docker, network: network, name: name, nonce: nonce, stage: stage, containerID: containerID, address: address}
+	return &pebbleHarness{store: store, docker: docker, network: network, name: name, nonce: nonce, stage: stage, containerID: containerID, address: address, httpClient: httpClient}
 }
 
 func TestPebbleOrderAdmission(t *testing.T) {

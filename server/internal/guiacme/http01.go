@@ -81,17 +81,11 @@ func (s *AccountStore) knownOrder(ctx context.Context, saved Order, csr []byte, 
 }
 
 func (session *orderSession) http01(saved Order) (HTTP01, error) {
-	raw, err := session.sdk.GetOrder(session.ctx, saved.URI)
-	if err != nil {
-		return HTTP01{}, remoteError(session.ctx)
-	}
-	order, err := session.result(raw, saved.URI, saved.Host)
+	order, _, err := session.savedOrder(saved)
 	if err != nil {
 		return HTTP01{}, err
 	}
-	if order.RequestFingerprint != saved.RequestFingerprint || order.Profile != saved.Profile ||
-		order.AuthorizationURL != saved.AuthorizationURL || order.FinalizeURL != saved.FinalizeURL ||
-		(order.Status != acme.StatusPending && order.Status != acme.StatusReady) {
+	if order.Status != acme.StatusPending && order.Status != acme.StatusReady {
 		return HTTP01{}, ErrOrder
 	}
 	auth, err := session.sdk.GetAuthorization(session.ctx, order.AuthorizationURL)

@@ -49,3 +49,10 @@ The later HTTP-01 fixture extends this harness with the exact deployment Caddy
 image and the production isolated publisher. It proves a real CA-source fetch,
 the same order reaching ready, valid-authorization recovery and response retirement.
 See [HTTP-01 evidence and limits](HTTP01.md). It does not finalize a certificate.
+
+A separate opt-in issuance fixture completes finalization and verifies the exact
+chain under independently configured test roots, then reopens the account and
+recovers the same issued material without another CSR submission. See
+[finalization evidence and remaining work](FINALIZATION.md). Only this fixture
+enables private management access for the public root; ordinary order/validation
+fixtures keep it disabled.
