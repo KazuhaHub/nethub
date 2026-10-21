@@ -140,7 +140,14 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 
 公网端口一共三个：**443**（控制台和设备 enroll 接口）、**7000**（设备到 frps 的控制通道）、**8443**（浏览器到设备）。
 
-### 1.4 现在的状态（2026-10-17）
+### 1.4 Initial state (2026-10-17; historical)
+
+Current update (2026-10-21): Kazuha explicitly requested public visibility.
+The repository is public; authenticated and anonymous GitHub API checks agree.
+Main protection now requires a PR and all six current CI jobs, including for
+administrators. W4 certificate automation and W5-W7 acceptance remain incomplete;
+public visibility does not establish release readiness. See HANDOFF_PROMPT.md
+and the stage validation records for implementation evidence.
 
 - 只有文档和一套验证工具，**一行产品代码都没有**；
 - GitHub 仓库 <https://github.com/KazuhaHub/nethub> 已于 2026-10-17 建好，**私有**。第一次提交 `f529e1d`（包含全部现有文档）和之后的状态更新都已推送到 `main`；`main` 还没有分支保护和 CI；
@@ -175,7 +182,7 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 | 编号 | 问题 | 最晚什么时候定 | 卡住哪个阶段 | 推荐（来源） | 状态 |
 |---|---|---|---|---|---|
 | D1 | 许可证：NetHub 已定 Apache-2.0，但组织里另有"产品用 AGPL、库和节点用 Apache"的分层规则，NetHub 要不要按这条改？（DESIGN §14 Q0） | 第一次公开 commit 之前 | P0 | 保持 Apache-2.0（DESIGN）；作为分层规则的例外写进决策记录（本计划建议） | 已确认（2026-10-17）：保持 Apache-2.0，作为组织分层规则的例外，继续 P0 |
-| D2 | GitHub 仓库 `KazuhaHub/nethub` 什么时候建、一开始私有还是公开；谁做第一次提交 | P0 开始 | P0 | 先建私有仓库，W7 公开（本计划建议） | 部分完成（2026-10-17）：Kazuha 做了第一次提交，仓库已建为私有并推送；2026-10-17 Kazuha 确认先保持私有，到 W7 再决定公开 |
+| D2 | GitHub 仓库 `KazuhaHub/nethub` 什么时候建、一开始私有还是公开；谁做第一次提交 | P0 开始 | P0 | 先建私有仓库，W7 公开（本计划建议） | Updated 2026-10-21: Kazuha explicitly requested public visibility. GitHub authenticated and anonymous API checks confirmed public visibility. This supersedes the earlier private-until-W7 decision; release and disclosure review remain separate W7 gates. |
 | D3 | 测试资源由谁准备、费用谁出：一台公网 VPS、一个能配泛解析的域名、一台 OPNsense 测试机，以及测试机上要装好 `os-frp`（W2 共存测试用）；两家不同运营商的 4G/5G 网络（RUNBOOK ④ 要求至少两家） | W0 开始前 | W0 及以后 | 见第 5.2 节 | 部分决定（2026-10-17）：Local Windows OPNsense NAT client and remote LXC server/relay selected. OPNsense 26.7.7, dedicated SSH, outbound TLS, and bounded NAT transport preparation passed; complete mobile GUI ① and hook experiments ②/③ now pass. Windows restart and WHPX readiness passed. Native Hyper-V now passes complete local/public GUI diagnostics using a verified copy of the restored disk at 1 GiB; Kazuha approved the recorded 1 GiB resource exception; W0 accepted by Kazuha on 2026-10-18. A/B samples from two mobile carriers pass; Kazuha explicitly waived company/campus sampling. Relay SSH and wildcard DNS verified; temporary port windows authorized. The earlier packaging host retains its co-hosting exception |
 | D4 | frp 从 0.71.0 升到 0.71.1 的时机。要同时改打包仓库里 `os-frp` 的版本，那是 Kazuha 的仓库 | W2 开始前 | W2 | W2 之前三处一起升（DESIGN §5） | Confirmed 2026-10-18: upgrade os-frp, NetHub frpc, and frps together to 0.71.1 before W2 integration. |
 | D5 | 8443 端口在受限网络下不好用的话，要不要把浏览器入口也放到 443（DESIGN §14 Q2） | W0 第 ④ 项结果出来后 | W5、W7 | 按 Q2 的数据规则判断（DESIGN） | Confirmed 2026-10-18: retain 8443; measured A/B networks did not trigger Q2. |
@@ -544,6 +551,18 @@ jobs:
 新建 `.github/dependabot.yml`，先只配 `github-actions`（每周一次）。Go 和 npm 的配置等 W3 有代码了再加。可以参考 authcore 的 `.github/dependabot.yml`。
 
 **P0-6 仓库保护规则（Kazuha 做）。**
+**Completed 2026-10-21:** after the owner requested public visibility, the main
+protection API accepted the policy and readback confirmed it. PRs and strict
+up-to-date checks are required for administrators as well. The required jobs are
+`Control plane checks`, `Go vulnerability checks`, `Deployment checks`,
+`OPNsense plugin checks`, `weekend0 kit checks`, and `workflow lint`.
+Force pushes and branch deletion are disabled; review conversations must be
+resolved. Required approving reviews are zero for this single-owner repository;
+this is not an independent-review claim. No direct-push negative test was used.
+PR #106 then merged normally after all six exact-head jobs and their logs were
+inspected; its main [run](https://github.com/KazuhaHub/nethub/actions/runs/39571062527)
+also passed all six jobs. The earlier platform limitation below is historical.
+
 **进度（2026-10-17）：** 查询 `repos/KazuhaHub/nethub/rules/branches/main` 返回 HTTP 403：`Upgrade to GitHub Pro or make this repository public to enable this feature.` 仓库保持私有；升级套餐或其他处理方式由 Kazuha 决定，不把这项标为已完成。CI 配置中的检查名为 `weekend0 kit checks` 与 `workflow lint`。
 
 请 Kazuha 按组织里其他仓库的规则，给 `main` 开保护：禁止直推、必须走 PR、必须 CI 通过。
@@ -556,8 +575,7 @@ jobs:
   `git log --format='%an <%ae>%n%cn <%ce>%n%B' | grep -niE 'co-authored-by|generated with'`
 - [x] CI 在 PR 上能跑，绿；故意改坏时会红（[pass](https://github.com/KazuhaHub/nethub/actions/runs/39025182708)、[expected failure](https://github.com/KazuhaHub/nethub/actions/runs/39025232350)、[restored](https://github.com/KazuhaHub/nethub/actions/runs/39025309568)）
 - [x] Dependabot 配置已合并（PR #1，`6612cdb`；Kazuha approved the merge on 2026-10-17）
-- [ ] `main` 已受保护。不要用"直推一次试试"来验证（那违反红线第 5 条，规则没配好时还会真的推上去）。
-  请 Kazuha 截图确认，或者运行 `gh api repos/KazuhaHub/nethub/rules/branches/main` 查看生效的规则，贴输出
+- [x] Main protection was verified on 2026-10-21 through `gh api repos/KazuhaHub/nethub/branches/main/protection`: strict six-job checks, required PRs, administrator enforcement, resolved conversations, and no force pushes or branch deletion. Do not test protection by pushing directly to main.
 
 ### 常见坑
 

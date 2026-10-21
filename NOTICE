@@ -17,7 +17,7 @@ Third-party components
 
 Deployment helper images rebuild Caddy 2.11.7 (Apache-2.0) with its standard
 modules and golang.org/x/net 0.60.0, and gosu 1.19 (Apache-2.0) from upstream
-commit 6456aaa0f3c854d199d0f037f068eb97515b7513. Both use Go 1.26.9.
+commit 6456aaa0f3c854d199d0f037f068eb97515b7513. Both use Go 1.26.10.
 Caddy's upstream copyright is Copyright 2015 Matthew Holt and The Caddy Authors.
 The linked module versions are recorded in deploy/images/*/go.mod and go.sum.
 Their license and notice files, together with the Go license, are collected
@@ -37,6 +37,11 @@ frp (fast reverse proxy)
   agent plugin), and to run `frps` as the relay/server component of the
   NetHub control plane. frp is intended to be used unmodified, with only
   NetHub-specific configuration; no changes to frp's own source are planned.
+  The appliance client is rebuilt with the compiler in server/.go-version and
+  the dependency locks in agents/opnsense/plugin/frpc-build. The upstream frp
+  source version is unchanged. Its linked-module notices and the Go license
+  accompany the packaged client in frpc-licenses; FRP_BUILD.json records the
+  compiler, target, lock hashes and resulting binary hash.
   Its full license text is available at
   https://github.com/fatedier/frp/blob/master/LICENSE and is reproduced in
   full in the Apache License, Version 2.0 referenced above.
