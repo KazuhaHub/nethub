@@ -19,8 +19,43 @@ from relay_trust_protocol import _invalid, _response, _stamp, applied_request
 _FIELDS = {'generation_id', 'generation', 'server_name', 'ca_pem', 'bundle_fingerprint', 'published_at', 'not_before', 'valid_until'}
 _PEM = re.compile(r'-----BEGIN CERTIFICATE-----\n([A-Za-z0-9+/=\n]+)-----END CERTIFICATE-----\n', re.ASCII)
 _SIGNATURES = {bytes.fromhex(value) for value in (
-    '2a864886f70d01010b', '2a864886f70d01010c', '2a864886f70d01010d', '2a864886f70d01010a',
+    '2a864886f70d01010b', '2a864886f70d01010c', '2a864886f70d01010d',
     '2a8648ce3d040302', '2a8648ce3d040303', '2a8648ce3d040304', '2b6570')}
+
+
+def _hash_algorithm(encoded):
+    algorithm, tail = _take(encoded, 0x30)
+    oid, parameters = _take(algorithm, 6)
+    lengths = {bytes.fromhex('608648016503040201'): 32, bytes.fromhex('608648016503040202'): 48,
+               bytes.fromhex('608648016503040203'): 64}
+    if tail or parameters not in (b'', b'\x05\x00') or oid not in lengths:
+        _invalid()
+    return oid, lengths[oid]
+
+
+def _signature(algorithm):
+    oid, parameters = _take(algorithm, 6)
+    if oid in _SIGNATURES:
+        return
+    if oid != bytes.fromhex('2a864886f70d01010a'):
+        _invalid()
+    # PSS's omitted parameters default to SHA-1; its OID alone is insufficient.
+    sequence, tail = _take(parameters, 0x30)
+    hash_algorithm, sequence = _take(sequence, 0xa0)
+    digest, length = _hash_algorithm(hash_algorithm)
+    mask, sequence = _take(sequence, 0xa1)
+    mask, extra = _take(mask, 0x30)
+    mask_oid, mask_hash = _take(mask, 6)
+    if tail or extra or mask_oid != bytes.fromhex('2a864886f70d010108') or _hash_algorithm(mask_hash)[0] != digest:
+        _invalid()
+    salt, sequence = _take(sequence, 0xa2)
+    salt, extra = _take(salt, 2)
+    if extra or salt != bytes([length]):
+        _invalid()
+    if sequence:
+        trailer, sequence = _take(sequence, 0xa3)
+        if trailer != b'\x02\x01\x01' or sequence:
+            _invalid()
 
 
 def _root(der):
@@ -30,9 +65,7 @@ def _root(der):
     body, _ = _take(der, 0x30)
     _, body = _take(body, 0x30)
     algorithm, _ = _take(body, 0x30)
-    oid, _ = _take(algorithm, 6)
-    if oid not in _SIGNATURES:
-        _invalid()
+    _signature(algorithm)
     constraints, tail = _take(value['extensions'][bytes.fromhex('551d13')], 0x30)
     ca, constraints = _take(constraints, 1)
     if ca != b'\xff' or tail:

@@ -165,7 +165,7 @@ def authority(tmp_path):
     directory = tmp_path/'fixture'; directory.mkdir(mode=0o700)
     binary = shutil.which('openssl')
 
-    def create(index, constraints='critical,CA:TRUE', usage='critical,keyCertSign,cRLSign', extra=None):
+    def create(index, constraints='critical,CA:TRUE', usage='critical,keyCertSign,cRLSign', extra=None, pss_hash=None, pss_options=()):
         path = directory/('root'+str(index)+'.pem')
         args = [binary, 'req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-noenc',
                 '-days', '2', '-subj', '/CN=Private relay trust fixture', '-keyout', str(directory/('key'+str(index))),
@@ -173,6 +173,12 @@ def authority(tmp_path):
         if extra:
             for oid, specification in extra.items():
                 args.extend(['-addext', oid+'='+specification])
+        if pss_hash:
+            start = args.index('ec')
+            args[start:start+3] = ['rsa:2048']
+            args.extend(['-sigopt', 'rsa_padding_mode:pss', '-'+pss_hash])
+            for option in pss_options:
+                args.extend(['-sigopt', option])
         result = subprocess.run(args, capture_output=True, timeout=5)
         assert result.returncode == 0, 'Private root fixture creation failed'
         pem = path.read_text()
@@ -225,4 +231,19 @@ def test_self_signed_leaf_nonsigning_ca_and_unknown_critical_are_refused(tmp_pat
     scratch = tmp_path/'scratch'; scratch.mkdir(mode=0o700)
     with pytest.raises(ProtocolError):
         verify(value, scratch, now=now)
+    assert list(scratch.iterdir()) == []
+
+
+@pytest.mark.parametrize('digest,options,accepted', [('sha256', (), True), ('sha384', (), True), ('sha512', (), True),
+    ('sha1', (), False), ('sha256', ('rsa_mgf1_md:sha1',), False), ('sha256', ('rsa_pss_saltlen:20',), False)])
+def test_actual_pss_parameters_cannot_default_to_weak_hash(tmp_path, authority, digest, options, accepted):
+    value = bundle(example(), [authority(1, pss_hash=digest, pss_options=options)])
+    now = datetime.now(timezone.utc)
+    value['desired']['published_at'] = now.strftime(LAYOUT)
+    scratch = tmp_path/'scratch'; scratch.mkdir(mode=0o700)
+    if accepted:
+        assert verify(value, scratch, now=now) == value
+    else:
+        with pytest.raises(ProtocolError):
+            verify(value, scratch, now=now)
     assert list(scratch.iterdir()) == []
