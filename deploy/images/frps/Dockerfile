@@ -1,4 +1,4 @@
-FROM golang:1.26.9-bookworm@sha256:d9c68c2c51161e12fd77e4c6320687c9cd86e1af1e3ad6e6cd63ff970641453c AS build
+FROM golang:1.26.10-bookworm@sha256:fe3da92a5cb2881e4aa75e625cb0b7c50571632fb4cf340cbe53e6ccdcffdd51 AS build
 WORKDIR /src
 ENV GOWORK=off CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-tags=frps,noweb
 COPY server/.go-version ./
