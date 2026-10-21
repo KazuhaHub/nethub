@@ -5,7 +5,7 @@ RUN npm ci --ignore-scripts
 COPY server/web/ ./
 RUN npm run build
 
-FROM golang:1.26.9-bookworm@sha256:d9c68c2c51161e12fd77e4c6320687c9cd86e1af1e3ad6e6cd63ff970641453c AS build
+FROM golang:1.26.10-bookworm@sha256:fe3da92a5cb2881e4aa75e625cb0b7c50571632fb4cf340cbe53e6ccdcffdd51 AS build
 WORKDIR /src/server
 ENV GOWORK=off CGO_ENABLED=0 GOTOOLCHAIN=local
 COPY server/go.mod server/go.sum server/.go-version ./
@@ -27,6 +27,12 @@ RUN go test -c -o /out/guiacme.test ./internal/guiacme
 
 FROM scratch AS guiacme-acceptance
 COPY --from=guiacme-tests-build /out/guiacme.test /guiacme.test
+
+FROM build AS guiissuer-tests-build
+RUN go test -c -o /out/guiissuer.test ./internal/guiissuer
+
+FROM scratch AS guiissuer-acceptance
+COPY --from=guiissuer-tests-build /out/guiissuer.test /guiissuer.test
 
 FROM gcr.io/distroless/static-debian13:nonroot@sha256:e2e927ec666bae08560abb3c55d0659eceabb657f56b6782ab500a9fc7f555e3
 COPY --from=build /out/nethub /nethub

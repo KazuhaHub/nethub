@@ -49,5 +49,5 @@ keys before cancelling the guard. Original public services remained running.
 
 No native GUI certificate was installed. Durable jobs, live assignment/API wiring,
 authenticated delivery, renewal scheduling and native application/rollback remain
-open. GitHub-hosted checks currently cannot start because of account billing/
-spending restrictions; local proof does not replace the six exact-head merge gate.
+open. Local proof does not replace the six required exact-head hosted checks
+and inspection of their actual logs.
