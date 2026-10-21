@@ -21,6 +21,15 @@ from relay_trust_recover import recover_pending, startup_allowed
 pytestmark = pytest.mark.skipif(os.name == 'nt', reason='Native model ownership contracts require POSIX PHP')
 
 
+@pytest.fixture
+def privileged_backend(monkeypatch):
+    from types import SimpleNamespace
+    import relay_trust_backend as backend_module
+    # Model the privileged helper call while retaining the fixture's file owner.
+    boundary = SimpleNamespace(**dict(vars(os), geteuid=lambda: 0))
+    monkeypatch.setattr(backend_module, 'os', boundary)
+
+
 class PhpTrust:
     def __init__(self, parent):
         self.parent = parent
@@ -186,7 +195,7 @@ def test_native_file_hardlink_is_refused(native):
     with pytest.raises(ValueError): native.call('install', request)
 
 
-def test_real_python_backend_and_php_writer_round_trip(native):
+def test_real_python_backend_and_php_writer_round_trip(native, privileged_backend):
     def run(arguments, input, **kwargs):
         value = json.loads(input)
         result = native.call(value['action'], value['request'])
@@ -200,7 +209,7 @@ def test_real_python_backend_and_php_writer_round_trip(native):
 
 
 @pytest.fixture
-def native_transaction(native):
+def native_transaction(native, privileged_backend):
     config = native.parent/'plugin'; config.mkdir(mode=0o700)
     calls = []
     def run(arguments, input, **kwargs):
