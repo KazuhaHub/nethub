@@ -30,6 +30,29 @@ func storeFixture(t *testing.T) (*AccountStore, *accountFixture, Config) {
 	return s, f, config
 }
 
+func TestSavedURLPolicyDoesNotOpenOrInitializeAccountState(t *testing.T) {
+	config := Config{DirectoryURL: "https://acme.example.test/directory", AdditionalOrigins: []string{"https://certs.example.test"}, ContactEmail: "issuer@example.com"}
+	directory := filepath.Join(t.TempDir(), "not-initialized")
+	store, err := NewAccountStore(directory, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.AdditionalOrigins[0] = "https://external.example.test"
+	for _, value := range []string{"https://acme.example.test/order/original", "https://certs.example.test/certificate/original"} {
+		if !store.AllowsURL(value) {
+			t.Fatal("protected saved-order origin rejected")
+		}
+	}
+	for _, value := range []string{"https://external.example.test/order", "http://acme.example.test/order", "https://user@acme.example.test/order", "https://acme.example.test/order#fragment", "data:text/plain,order"} {
+		if store.AllowsURL(value) {
+			t.Fatal("saved checkpoint escaped immutable origin policy")
+		}
+	}
+	if _, err := os.Lstat(directory); !os.IsNotExist(err) {
+		t.Fatal("metadata policy created/read account key state")
+	}
+}
+
 func TestDurableAccountOfflineInitializationAndIdentity(t *testing.T) {
 	s, f, config := storeFixture(t)
 	before, key, err := s.load()

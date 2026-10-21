@@ -25,7 +25,7 @@ import (
 
 func issuerSQL(ctx context.Context, statement string) ([]byte, error) {
 	command := exec.CommandContext(ctx, "psql", "-X", "-qAt", "--host", "/var/run/postgresql", "--username", "postgres", "--dbname", "nethub", "--set", "ON_ERROR_STOP=1", "--set", "VERBOSITY=sqlstate")
-	command.Stdin = strings.NewReader("SET SESSION AUTHORIZATION nethub_issuer;\n" + statement + ";\n")
+	command.Stdin = strings.NewReader("SET standard_conforming_strings=on; SET SESSION AUTHORIZATION nethub_issuer;\n" + statement + ";\n")
 	return command.CombinedOutput()
 }
 
@@ -197,6 +197,7 @@ func testGUIJobs(t *testing.T, f *enrollmentFixture, web *sql.DB, tenantA, tenan
 	if claim() != nil {
 		t.Fatal("live lease was claimed twice")
 	}
+	work = testGUIProgress(t, f, work)
 	advanced := renew(work)
 	if advanced == nil || advanced.Lease.Version <= work.Lease.Version || advanced.Lease.Token != work.Lease.Token {
 		t.Fatal("lease renewal failed")
