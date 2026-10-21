@@ -31,7 +31,8 @@ func (s *AccountStore) Restore(ctx context.Context, backup string) error {
 
 // VerifyBackup reads both protected namespaces under their leases. Registration
 // may have added public account metadata since an offline pre-registration
-// backup; the policy/key must match, and known account identities cannot differ.
+// backup. A newer backup cannot supply identity that the current namespace has
+// not recovered; registration must not discard that known identity.
 func (s *AccountStore) VerifyBackup(ctx context.Context, directory string) error {
 	backup, err := s.independentStore(directory)
 	if err != nil {
@@ -62,8 +63,8 @@ func (s *AccountStore) VerifyBackup(ctx context.Context, directory string) error
 		return ErrCancelled
 	}
 	if a.Policy != b.Policy || a.Key != b.Key ||
-		a.URI != "" && b.URI != "" && a.URI != b.URI ||
-		a.OrdersURL != "" && b.OrdersURL != "" && a.OrdersURL != b.OrdersURL {
+		b.URI != "" && a.URI != b.URI ||
+		b.OrdersURL != "" && a.OrdersURL != b.OrdersURL {
 		return ErrState
 	}
 	return nil

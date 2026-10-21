@@ -17,6 +17,9 @@ import (
 )
 
 func runCertificates(args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "account" {
+		return runGUIAccount(args[1:], stdout, stderr)
+	}
 	if len(args) > 0 && args[0] == "issue-gui" {
 		return runGUIIssuer(args[1:], stdout, stderr)
 	}
@@ -24,7 +27,7 @@ func runCertificates(args []string, stdout, stderr io.Writer) int {
 		return runHTTP01Cleanup(args[1:], stdout, stderr)
 	}
 	if len(args) == 0 || args[0] != "maintain-relay" {
-		fmt.Fprintln(stderr, "Usage: nethub certificates maintain-relay --directory PATH --project-name NAME | issue-gui --directory PATH --config-file PATH | cleanup-http01 --config-file PATH")
+		fmt.Fprintln(stderr, "Usage: nethub certificates maintain-relay --directory PATH --project-name NAME | issue-gui --directory PATH --config-file PATH | cleanup-http01 --config-file PATH | account ACTION --config-file PATH")
 		return 2
 	}
 	flags := flag.NewFlagSet("certificates maintain-relay", flag.ContinueOnError)

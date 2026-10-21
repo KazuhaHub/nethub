@@ -133,18 +133,22 @@ def restore(control):
 
 
 def acceptance_evidence(code, failure, log):
-    completed = re.findall(r"^--- PASS: (TestPebbleProtectedHostIssuer(?:Renewal)?) \([0-9]+(?:\.[0-9]+)?s\)$", log, re.MULTILINE)
+    completed = re.findall(r"^--- PASS: (TestPebbleProtectedHost(?:Issuer(?:Renewal)?|AccountProvisioning)) \([0-9]+(?:\.[0-9]+)?s\)$", log, re.MULTILINE)
     initial = (completed.count("TestPebbleProtectedHostIssuer") == 1 and
                "one original order/finalize POST; native application not claimed" in log)
     renewal = (completed.count("TestPebbleProtectedHostIssuerRenewal") == 1 and
                "Genuine host renewal passed original CSR/key, two distinct issued leaves" in log and
                "exactly two original orders/finalize POSTs; native application not claimed" in log)
     delivery = "Fresh compiled device enrollment, original CSR admission/initial queue, genuine CA issuance and authenticated original-key delivery passed" in log
-    passed = (code == 0 and failure is None and initial and renewal and delivery and
+    provisioning = (completed.count("TestPebbleProtectedHostAccountProvisioning") == 1 and
+                    "Protected account commands passed offline initialization, verified immutable backup" in log and
+                    "fresh terms review, outdated/missing-backup consent refusal, explicit private-CA registration retry and original-account recovery from pre-registration backup" in log)
+    passed = (code == 0 and failure is None and initial and renewal and delivery and provisioning and
               "Protected host command passed genuine Compose database discovery" in log)
     return {"passed": passed, "initial_issuance_verified": passed and initial,
             "authenticated_delivery_verified": passed and delivery,
-            "renewal_verified": passed and renewal}
+            "renewal_verified": passed and renewal,
+            "account_provisioning_verified": passed and provisioning}
 
 
 def run(args):
@@ -190,7 +194,7 @@ def run(args):
     try:
         with (args.evidence / "test.log").open("wb") as output:
             process = subprocess.Popen([str(control / "guiacme.test"), "-test.v",
-                                        "-test.run=^TestPebbleProtectedHostIssuer(Renewal)?$", "-test.timeout=180s"],
+                                        "-test.run=^TestPebbleProtectedHost(Issuer(Renewal)?|AccountProvisioning)$", "-test.timeout=180s"],
                                        env=env, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
             start = (Path("/proc") / str(process.pid) / "stat").read_text().split()[21]
             (control / "process.json").write_text(json.dumps({"pid": process.pid, "start": start}))

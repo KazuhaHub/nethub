@@ -40,8 +40,12 @@ issuance acceptance. No live public account is created and no deployment route o
 timer is installed.
 
 The separate `AccountStore` implements protected key/account persistence and
-recovery; see [its contract](STORE.md). Deployment wiring, current-assignment
-authorization, durable order jobs, HTTP-01 execution, authenticated delivery and
-native GUI installation remain required before issuing router certificates.
+recovery; see [its contract](STORE.md). Explicit root-host account commands require
+verified backup and current-terms consent; see [the workflow](PROVISIONING.md).
+`CurrentTerms` performs fresh bounded directory discovery without lookup,
+registration, key initialization or fetching/rendering the agreement itself.
+Issuance authorization, durable jobs, HTTP-01 execution and authenticated delivery
+have separate integration evidence; combined native/public application acceptance
+remains outstanding.
 The existing `guicert` and `http01` packages provide separate request,
 chain and publication checks; none of those checks alone authorize issuance.
