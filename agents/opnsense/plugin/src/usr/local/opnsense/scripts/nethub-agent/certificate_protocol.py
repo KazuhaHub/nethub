@@ -87,7 +87,7 @@ def _chain_encoding(value, fingerprint):
     blocks = re.findall(r'-----BEGIN CERTIFICATE-----\n([A-Za-z0-9+/=\n]+)-----END CERTIFICATE-----\n', value)
     if not 1 <= len(blocks) <= 5:
         _fail()
-    canonical, seen = '', set()
+    canonical, seen, decoded = '', set(), []
     for index, body in enumerate(blocks):
         try:
             der = base64.b64decode(body.replace('\n', ''), validate=True)
@@ -96,6 +96,7 @@ def _chain_encoding(value, fingerprint):
         if not 128 <= len(der) <= 32768 or der in seen:
             _fail()
         seen.add(der)
+        decoded.append(der)
         encoded = base64.b64encode(der).decode('ascii')
         canonical += ('-----BEGIN CERTIFICATE-----\n'
                       + ''.join(encoded[i:i + 64] + '\n' for i in range(0, len(encoded), 64))
@@ -104,6 +105,7 @@ def _chain_encoding(value, fingerprint):
             _fail()
     if canonical != value:
         _fail()
+    return decoded
 
 
 def delivery(value, device_id, subdomain, key_fingerprint, original, now=None):

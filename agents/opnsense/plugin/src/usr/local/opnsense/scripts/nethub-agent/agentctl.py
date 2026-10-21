@@ -210,6 +210,28 @@ class Agent:
             raise AgentError('Enrollment configuration is unavailable')
         return model
 
+    def certificate_result(self, result):
+        public = {key: result[key] for key in ('success', 'action', 'phase', 'message', 'generation', 'valid_until') if key in result}
+        public['updated_at'] = datetime.now(timezone.utc).isoformat()
+        self.atomic(self.state / 'certificate.json', (json.dumps(public) + '\n').encode())
+        return public
+
+    def certificate_locked(self):
+        from certificate_key import KeyStore
+        from certificate_sync import CertificateSyncError, CertificateSynchronizer
+        if (any((self.state / marker).exists() for marker in ['disabled', 'stopped', 'revoked', 'uninstalling'])
+                or not self.enabled()):
+            return self.certificate_result({'success': True, 'action': 'certificate', 'phase': 'inactive', 'message': 'GUI certificate synchronization is inactive'})
+        model = self.lifecycle_model()
+        if not model.findtext('device_id') or not model.findtext('console_url'):
+            return self.certificate_result({'success': True, 'action': 'certificate', 'phase': 'inactive', 'message': 'No enrollment for GUI certificate synchronization'})
+        try:
+            result = CertificateSynchronizer(KeyStore(self.config / 'gui-key')).sync(
+                model.findtext('console_url'), model.findtext('device_secret'), model.findtext('device_id'), model.findtext('subdomain'))
+        except CertificateSyncError:
+            raise AgentError('GUI certificate synchronization failed; tunnel and native GUI settings were retained') from None
+        return self.certificate_result(result)
+
     def stop_revoked(self):
         self.atomic(self.state / 'revoked', b'Enrollment inactive\n')
         self.rc_enable(False)
@@ -265,16 +287,19 @@ class Agent:
 
     def forget_locked(self):
         from certificate_key import CertificateKeyError, KeyStore
+        from certificate_sync import CertificateSynchronizer
         model = self.lifecycle_model()
         if model.findtext('enabled') == '1' or any(model.findtext(key) for key in ('device_id', 'device_secret', 'frp_token', 'domain_claim')):
             raise AgentError('Native configuration must be cleared before removing runtime credentials')
         self.stop_revoked()
         try:
-            KeyStore(self.config / 'gui-key').forget()
+            keys = KeyStore(self.config / 'gui-key')
+            CertificateSynchronizer(keys).forget()
+            keys.forget()
         except CertificateKeyError as error:
             raise AgentError(str(error)) from None
         paths = [self.live, self.candidate, self.backup, self.config / 'relay-ca.pem']
-        paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
+        paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'certificate.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
         for path in paths:
             if path.is_symlink():
                 raise AgentError('Runtime credential path needs local review')
@@ -295,6 +320,8 @@ class Agent:
             try:
                 if action == 'report':
                     return self.report_locked()
+                if action == 'certificate':
+                    return self.certificate_locked()
                 if action == 'unenroll':
                     return self.unenroll_locked()
                 if action == 'forget':
@@ -305,10 +332,14 @@ class Agent:
                     (self.state / 'stopped').unlink(missing_ok=True)
                 return self.reconcile_locked(force=action == 'restart')
             except AgentError as error:
+                if action == 'certificate':
+                    return self.certificate_result({'success': False, 'action': action, 'phase': 'error', 'message': str(error)})
                 if action in ('report', 'unenroll', 'forget'):
                     return self.lifecycle_result({'success': False, 'message': str(error), 'action': action})
                 return self.record(False, str(error), 'error')
             except (OSError, ValueError, ET.ParseError, subprocess.SubprocessError):
+                if action == 'certificate':
+                    return self.certificate_result({'success': False, 'action': action, 'phase': 'error', 'message': 'GUI certificate synchronization failed; tunnel and native GUI settings were retained'})
                 if action in ('report', 'unenroll', 'forget'):
                     return self.lifecycle_result({'success': False, 'message': 'Device operation failed; local settings were retained', 'action': action})
                 # Child output can include credentials or complete configuration lines.
@@ -324,11 +355,16 @@ class Agent:
             health = {key: value for key, value in health.items() if key in ('success', 'message', 'action', 'revoked', 'updated_at')}
         except (OSError, ValueError, AttributeError):
             health = None
+        try:
+            certificate = json.loads((self.state / 'certificate.json').read_text())
+            certificate = {key: value for key, value in certificate.items() if key in ('success', 'action', 'phase', 'message', 'generation', 'valid_until', 'updated_at')}
+        except (OSError, ValueError, AttributeError):
+            certificate = None
         return {'status': 'running' if self.running() else 'stopped', 'last_reconcile': state,
                 'log': self.log_tail(),
                 'disabled': (self.state / 'disabled').exists(),
                 'revoked': (self.state / 'revoked').exists(),
-                'operator_stopped': (self.state / 'stopped').exists(), 'last_report': health}
+                'operator_stopped': (self.state / 'stopped').exists(), 'last_report': health, 'gui_certificate': certificate}
 
     def log_tail(self):
         try:
@@ -365,7 +401,7 @@ def main():
     parser.add_argument('--locked', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--request-file', help=argparse.SUPPRESS)
     parser.add_argument('action', choices=['reconcile', 'status', 'start', 'stop', 'restart',
-                                          'enroll', 'unenroll', 'report', 'forget', 'rotate'])
+                                          'enroll', 'unenroll', 'report', 'certificate', 'forget', 'rotate'])
     arguments = parser.parse_args()
     action = arguments.action
     if action == 'enroll':
@@ -382,11 +418,11 @@ def main():
             finally:
                 signal.setitimer(signal.ITIMER_REAL, 0)
                 signal.signal(signal.SIGALRM, previous)
-    elif action in ('report', 'unenroll'):
+    elif action in ('report', 'unenroll', 'certificate'):
         def timed_out(signum, frame):
             raise AgentError('Device operation timed out; inspect status before retrying')
         previous = signal.signal(signal.SIGALRM, timed_out)
-        signal.setitimer(signal.ITIMER_REAL, 25)
+        signal.setitimer(signal.ITIMER_REAL, 20 if action == 'certificate' else 25)
         try:
             result = Agent().apply(action, locked=arguments.locked)
         finally:

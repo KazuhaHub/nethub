@@ -16,7 +16,7 @@ LOCK = '/var/db/nethub-agent/reconcile.lock'
 def test_package_cron_uses_system_format_and_absolute_commands():
     cron = ROOT / 'src/usr/local/etc/cron.d/nethub-agent'
     lines = [line for line in cron.read_text().splitlines() if line and not line.startswith('#')]
-    assert len(lines) == 3
+    assert len(lines) == 4
     for index, line in enumerate(lines):
         fields = shlex.split(line)
         assert fields[:6] == ['*/5' if index == 1 else '*', '*', '*', '*', '*', 'root']
@@ -29,6 +29,12 @@ def test_package_cron_uses_system_format_and_absolute_commands():
             command = command[3:]
             assert command[:5] == ['/usr/bin/timeout', '-k', '2', '35', '/usr/bin/lockf']
             command = command[4:]
+        if index == 3:
+            assert command[:3] == ['/bin/sleep', '40', '&&']
+            command = command[3:]
+            assert command[:5] == ['/usr/bin/timeout', '-k', '2', '25', '/usr/bin/lockf']
+            command = command[4:]
+            assert command[-5:-3] == ['--locked', 'certificate']
         assert command[:6] == ['/usr/bin/lockf', '-sk', '-t', '0', LOCK, '/usr/local/bin/python3.13']
         assert command[6].startswith('/usr/local/opnsense/scripts/nethub-agent/')
         assert '--locked' in fields

@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-VERSION=0.0.6
+VERSION=0.0.7
 if [ "$(uname -s)" != FreeBSD ]; then
     echo 'Build this unsigned development package on FreeBSD/OPNsense.' >&2
     exit 1

@@ -28,7 +28,11 @@ compiled HTTP, submits its client-held-key CSR, issues through genuine private
 ACME/Caddy and downloads the exact certificate, then verifies removal denial.
 Only initial admin/token authority is seeded in that fixture. This is private
 HTTP transport with a logical client, not native GUI installation or public
-HTTPS acceptance. Renewal jobs, native installation/rollback and trust transitions
+HTTPS acceptance. Native 0.0.7 source now schedules bounded CSR synchronization,
+independent native chain verification and monotonic public staging, separately
+from tunnel reconciliation; see
+[the native synchronization contract](../agents/opnsense/plugin/tests/certificate-sync-progress.md).
+It does not apply a GUI certificate. Renewal jobs, native installation/rollback and trust transitions
 remain required. No public
 CA account or order has been created. See the issuer and HTTP-01 contracts.
 
@@ -189,9 +193,9 @@ arbitrary application-provided validation responses. Keep account keys, PEM and
 private metadata outside that directory. Explicit HTTP routing must return 404
 for unmatched hosts/paths, prevent traversal and remove expired records, without
 causing the proxy to request device GUI certificates itself. Existing host
-proxies need an equivalent reviewed port-80 route. This routing and a local
-ACME integration are still unimplemented; protocol inspection is not issuance
-evidence.
+proxies need an equivalent reviewed port-80 route. The optional bundled route
+and local private-CA integration have genuine guarded fixture evidence; they
+do not enable production HTTP-01 automatically.
 
 The control plane must authorize the current device, tenant and hostname assignment
 before issuance or deployment; neither a pasted hostname nor a signed claim
@@ -212,8 +216,8 @@ writes cannot replace this binding; rotations need proof from the previous key.
 CSR validation alone does not establish that binding. The chain validator now
 checks the returned leaf against the exact signed CSR and independently supplied
 roots, including identity, server usage, ordered chain and current validity.
-Authenticated CSR/chain transport, device key persistence and installation
-remain pending; never send keys through command
+Authenticated CSR/chain transport and device key persistence are implemented;
+native GUI installation remains pending. Never send keys through command
 arguments, logs, ordinary console status or audit payloads.
 
 Persist issued material separately from deployment state, retry deployment
