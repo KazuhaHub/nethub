@@ -56,6 +56,10 @@ report is refused. A repeated current report preserves its original timestamp
 and one audit. Receipt insertion and audit commit atomically; existing history
 cannot be updated or deleted.
 
+Concurrency acceptance observes PostgreSQL lock waits on the exact blocking
+transaction before releasing publication or revocation. A fixed sleep alone is
+not evidence that the competing enrollment or report reached that lock.
+
 `DecodeGeneration` independently reparses public material from SQL and compares
 the configured relay name, canonical PEM/root identities, fingerprint and actual
 validity window. An SQL row or response alone cannot bypass X.509 validation.

@@ -13,6 +13,31 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/relaytrust"
 )
 
+func waitForRelayTrustTransaction(t *testing.T, f *enrollmentFixture, blocker *sql.Tx, result <-chan error, operation string) {
+	t.Helper()
+	var transaction string
+	if err := blocker.QueryRowContext(f.ctx, `SELECT pg_current_xact_id()::text`).Scan(&transaction); err != nil {
+		t.Fatal(err)
+	}
+	for range 100 {
+		var count int
+		if err := f.owner.QueryRowContext(f.ctx, `SELECT count(*) FROM pg_locks WHERE locktype='transactionid' AND NOT granted AND transactionid::text=$1`, transaction).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count > 0 {
+			t.Log(operation, "waited for the exact blocking transaction")
+			return
+		}
+		select {
+		case err := <-result:
+			t.Fatal(operation, "returned before its lock wait was observed", err)
+		default:
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal(operation, "did not wait for the exact blocking transaction")
+}
+
 func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tenant string) {
 	t.Helper()
 	publisher := &relaytrust.Publisher{Run: issuerSQLInput, ServerName: "relay.example.test"}
@@ -168,11 +193,7 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 	defer cancel()
 	waiting := make(chan error, 1)
 	go func() { _, err := store.Acknowledge(ctx, credential, assigned.ID, current); waiting <- err }()
-	select {
-	case err := <-waiting:
-		t.Fatal("report bypassed locked revocation", err)
-	case <-time.After(100 * time.Millisecond):
-	}
+	waitForRelayTrustTransaction(t, f, blocker, waiting, "trust report during revocation")
 	if err := blocker.Commit(); err != nil {
 		t.Fatal(err)
 	}
@@ -192,11 +213,8 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 	newRecord, _, _ := f.fresh(t, tenant)
 	enrolled := make(chan error, 1)
 	go func() { _, err := f.repository.Register(f.ctx, newRecord, f.issue); enrolled <- err }()
-	select {
-	case err := <-enrolled:
-		t.Fatal("enrollment bypassed publication fence", err)
-	case <-time.After(100 * time.Millisecond):
-	}
+	waitForRelayTrustTransaction(t, f, headLock, enrolled, "enrollment during trust publication")
+	f.unused(t, newRecord)
 	if err := headLock.Rollback(); err != nil {
 		t.Fatal(err)
 	}
