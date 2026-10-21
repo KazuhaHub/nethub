@@ -61,8 +61,20 @@ the configured relay name, canonical PEM/root identities, fingerprint and actual
 validity window. An SQL row or response alone cannot bypass X.509 validation.
 SQL encoding/identity checks do not replace the host's signature validation.
 
-This component is not wired into an HTTP route, startup publication, enrollment
-delivery or the native adapter yet. Repository tests simulate authenticated
+New enrollment now takes a shared head lock before user/token/device locks and
+reads the current validated trust inside that admission transaction. The protected
+server configuration supplies the expected relay name; client metadata cannot
+select it. The signer checks any returned trust before commit. Existing enrollment
+response fields carry that exact bundle, without another fetch after consuming
+the token. With no published head, the configured bootstrap bundle remains the
+fallback. Wrong current relay identity fails before consuming the token, and
+readiness refuses a disabled enrollment fence.
+
+The configured bootstrap CA must still be valid for service construction/health
+and the existing signing checks. Startup authority migration and expiry recovery
+remain separate work; current enrollment delivery alone does not complete root
+rotation. There is no trust settings/applied HTTP route, startup publication or
+native reconciliation yet. Repository tests simulate authenticated
 application reports; they do not establish an appliance applied trust. The
 all-reported retirement test advances database public metadata, not relay
 certificates or the protected deployment authority. Public delivery/protocol,

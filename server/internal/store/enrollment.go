@@ -9,6 +9,7 @@ import (
 
 	"github.com/KazuhaHub/nethub/server/internal/claim"
 	"github.com/KazuhaHub/nethub/server/internal/device"
+	"github.com/KazuhaHub/nethub/server/internal/relaytrust"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -25,6 +26,11 @@ func (s *EnrollmentStore) Health(ctx context.Context) error {
 	err := s.DB.QueryRowContext(ctx, `SELECT current_user='nethub_authz' AND NOT rolsuper AND NOT rolbypassrls
  AND has_function_privilege(current_user,'public.consume_enroll_token(bytea)','EXECUTE')
  AND has_function_privilege(current_user,'public.lookup_device_credential(uuid)','EXECUTE')
+ AND has_function_privilege(current_user,'public.lock_relay_trust_head()','EXECUTE')
+ AND has_function_privilege(current_user,'public.read_current_relay_trust(text)','EXECUTE')
+ AND EXISTS (SELECT FROM pg_trigger WHERE tgrelid='public.devices'::regclass
+   AND tgname='devices_relay_trust_enrollment' AND NOT tgisinternal AND tgenabled IN ('O','A')
+   AND tgfoid='public.guard_enrollment_relay_trust()'::regprocedure)
  AND has_column_privilege(current_user,'public.devices','gui_public_key','INSERT')
  AND EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.devices'::regclass
   AND tgname='devices_gui_key_binding' AND NOT tgisinternal AND tgenabled IN ('O','A')
@@ -49,6 +55,26 @@ func (s *EnrollmentStore) Register(ctx context.Context, record device.Registrati
 	}
 	defer tx.Rollback()
 	var result device.Assignment
+	// Fence publication before user/token/device locks. Keep the same snapshot
+	// through admission, signing and commit; a later fetch cannot repair a stale
+	// enrollment response after consuming a one-use token.
+	var trustHead bool
+	if err := tx.QueryRowContext(ctx, `SELECT lock_relay_trust_head()`).Scan(&trustHead); err != nil || !trustHead {
+		return device.Assignment{}, device.ErrUnavailable
+	}
+	if record.RelayServerName != "" {
+		var data []byte
+		if err := tx.QueryRowContext(ctx, `SELECT coalesce(read_current_relay_trust($1),'null'::jsonb)`, record.RelayServerName).Scan(&data); err != nil {
+			return device.Assignment{}, device.ErrUnavailable
+		}
+		if string(data) != "null" {
+			generation, err := relaytrust.DecodeGeneration(data, record.RelayServerName, time.Now())
+			if err != nil {
+				return device.Assignment{}, device.ErrUnavailable
+			}
+			result.RelayCAPEM = generation.Bundle().PEM()
+		}
+	}
 	if err = tx.QueryRowContext(ctx, `SELECT tenant_id,created_by_user_id FROM consume_enroll_token($1)`, record.TokenHash[:]).Scan(&result.TenantID, &result.OwnerID); errors.Is(err, sql.ErrNoRows) {
 		return device.Assignment{}, device.ErrDenied
 	} else if err != nil {

@@ -3,12 +3,17 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"net/netip"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/device"
+	"github.com/KazuhaHub/nethub/server/internal/protocol"
 	"github.com/KazuhaHub/nethub/server/internal/relaycert"
 	"github.com/KazuhaHub/nethub/server/internal/relaytrust"
 )
@@ -36,6 +41,9 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 				t.Error(err)
 			}
 		}()
+		if f.repository.Health(f.ctx) == nil {
+			t.Fatal("enrollment readiness accepted disabled trust fence")
+		}
 		if _, err := publisher.Publish(f.ctx, "", string(old.CA)); err == nil {
 			t.Fatal("publication accepted disabled enrollment fence")
 		}
@@ -190,13 +198,33 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 		t.Fatal(err)
 	}
 	newRecord, _, _ := f.fresh(t, tenant)
+	var blockingTransaction string
+	if err := headLock.QueryRowContext(f.ctx, `SELECT pg_current_xact_id()::text`).Scan(&blockingTransaction); err != nil {
+		t.Fatal(err)
+	}
 	enrolled := make(chan error, 1)
 	go func() { _, err := f.repository.Register(f.ctx, newRecord, f.issue); enrolled <- err }()
-	select {
-	case err := <-enrolled:
-		t.Fatal("enrollment bypassed publication fence", err)
-	case <-time.After(100 * time.Millisecond):
+	observed := false
+	for range 100 {
+		var count int
+		if err := f.owner.QueryRowContext(f.ctx, `SELECT count(*) FROM pg_locks WHERE locktype='transactionid' AND NOT granted AND transactionid::text=$1`, blockingTransaction).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count > 0 {
+			observed = true
+			break
+		}
+		select {
+		case err := <-enrolled:
+			t.Fatal("enrollment bypassed publication fence", err)
+		default:
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
+	if !observed {
+		t.Fatal("enrollment did not wait for the exact publisher transaction")
+	}
+	f.unused(t, newRecord)
 	if err := headLock.Rollback(); err != nil {
 		t.Fatal(err)
 	}
@@ -246,5 +274,34 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 	if retry, err := publisher.Publish(f.ctx, overlap.ID, string(next.CA)); err != nil || retry.ID != final.ID {
 		t.Fatal("retirement reply loss duplicated generation", err)
 	}
+	// Exercise the production enrollment service after publication using the
+	// existing response fields. The new assignment must carry the transaction's
+	// current public trust, not the service's older bootstrap trust snapshot.
+	data, err := os.ReadFile(filepath.Join(f.root, "examples/valid/enroll-response.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var bootstrap protocol.EnrollResponse
+	if json.Unmarshal(data, &bootstrap) != nil {
+		t.Fatal("bootstrap enrollment fixture")
+	}
+	service, err := device.New(f.repository, f.signer, device.RelayConfig{Address: bootstrap.ServerAddr, ServerName: "relay.example.test", Port: bootstrap.ServerPort, FRPToken: bootstrap.FRPToken, CAPEM: bootstrap.RelayCAPEM})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, token, _ := f.fresh(t, tenant)
+	input := f.input
+	input.EnrollToken = token
+	response, err := service.Enroll(f.ctx, input, netip.MustParseAddr("192.0.2.1"))
+	if err != nil || response.RelayCAPEM != final.Bundle().PEM() || response.RelayCAPEM == bootstrap.RelayCAPEM || response.ServerName != "relay.example.test" {
+		t.Fatal("enrollment delivered stale bootstrap trust", err)
+	}
+	bad, _, _ := f.fresh(t, tenant)
+	bad.RelayServerName = "different.example.test"
+	if _, err := f.repository.Register(f.ctx, bad, f.issue); err != device.ErrUnavailable {
+		t.Fatal("different trust identity admitted enrollment", err)
+	}
+	f.unused(t, bad)
+	t.Log("Published relay trust enrollment passed current bundle delivery under the admission transaction and wrong-relay refusal before consuming the token; existing wire fields and bootstrap startup requirements retained")
 	t.Log("Durable relay trust history passed host-only publication CAS, overlap, unapplied retirement barrier, authenticated current-head reports, eight concurrent retries, private grants, immutable history and revoked waiting report refusal; no device delivery or root switch")
 }
