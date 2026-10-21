@@ -59,6 +59,9 @@ func runHTTP01Cleanup(args []string, stdout, stderr io.Writer) int {
 			return 0
 		}
 		if err != nil || result.CycleComplete {
+			if recordErr := publisher.RecordCleanup(total, err == nil, time.Now()); recordErr != nil {
+				err = recordErr
+			}
 			if json.NewEncoder(stdout).Encode(total) != nil {
 				return 1
 			}

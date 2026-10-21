@@ -88,7 +88,7 @@ func (p *Publisher) sweepExpired(ctx context.Context, limit int) (SweepResult, e
 			entries, readErr := directory.ReadDir(128)
 			for _, entry := range entries {
 				name := entry.Name()
-				if name == "namespace.json" || name == "sweep.json" {
+				if name == "namespace.json" || name == "sweep.json" || name == "cleanup.json" {
 					continue
 				}
 				if !p.validHost(name) || !entry.IsDir() || entry.Type()&os.ModeSymlink != 0 {

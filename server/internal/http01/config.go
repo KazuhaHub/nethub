@@ -18,6 +18,20 @@ type FileConfig struct {
 	ExcludedHosts   []string `json:"excluded_hosts"`
 }
 
+// MatchesPolicy compares cleanup policy with independent deployment identity.
+// Additional exclusions can restrict publication but cannot widen it.
+func (p *Publisher) MatchesPolicy(domain string, protectedHosts []string) bool {
+	if p == nil || p.domain != domain {
+		return false
+	}
+	for _, host := range protectedHosts {
+		if !p.excluded[host] {
+			return false
+		}
+	}
+	return true
+}
+
 // OpenExistingFile loads protected publisher policy without initializing or
 // repairing a missing namespace. Cleanup needs no account, database or signer.
 func OpenExistingFile(path string) (*Publisher, error) {

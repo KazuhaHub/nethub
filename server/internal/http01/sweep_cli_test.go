@@ -51,6 +51,9 @@ func TestNativeHTTP01CleanupCLI(t *testing.T) {
 	if !missing(expiredPath) || missing(livePath) {
 		t.Fatal("real CLI deleted live data or retained expired proof")
 	}
+	if err := p.CleanupReady(time.Now()); err != nil {
+		t.Fatal("real CLI did not retain its successful namespace observation")
+	}
 	command = exec.CommandContext(ctx, binary, "certificates", "cleanup-http01", "--config-file", path)
 	output, err = command.Output()
 	if err != nil || json.Unmarshal(output, &result) != nil || result.Retired != 0 {

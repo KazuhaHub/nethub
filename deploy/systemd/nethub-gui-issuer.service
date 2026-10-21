@@ -1,0 +1,28 @@
+[Unit]
+Description=Advance one NetHub router GUI certificate job
+After=network-online.target docker.service nethub-http01-cleanup.service
+Wants=network-online.target
+Requires=docker.service nethub-http01-cleanup.timer
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+ExecStart=/usr/local/libexec/nethub certificates issue-gui --directory /srv/nethub-deployment --project-name nethub --config-file /etc/nethub/gui-issuer.json
+TimeoutStartSec=190
+TimeoutStopSec=10
+RuntimeMaxSec=195
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_DAC_OVERRIDE
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/srv/nethub-deployment/runtime /var/lib/nethub-gui-acme /srv/nethub-http01 /var/lib/nethub-http01

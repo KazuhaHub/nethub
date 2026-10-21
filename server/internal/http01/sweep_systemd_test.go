@@ -88,6 +88,9 @@ func TestNativeHTTP01CleanupTimer(t *testing.T) {
 	if missing(livePath) {
 		t.Fatal("actual timer deleted unexpired proof")
 	}
+	if err := p.CleanupReady(time.Now()); err != nil {
+		t.Fatal("actual timer did not record a fresh complete namespace-bound observation")
+	}
 	if strings.TrimSpace(string(command("show", name+".service", "--property=Result", "--value"))) != "success" {
 		t.Fatal("cleanup service result failed")
 	}

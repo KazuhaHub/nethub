@@ -90,6 +90,9 @@ docker cp "$guiacme_binary_holder:/guiacme.test" "$stage/guiacme.test"
 docker rm "$guiacme_binary_holder" >/dev/null
 chmod 0700 "$stage/guiacme.test"
 NETHUB_GUIACME_PEBBLE_IMAGE="$pebble_image" NETHUB_GUIACME_CADDY_IMAGE="$caddy_image" "$stage/guiacme.test" -test.v -test.run '^TestPebble(OrderAdmission|HTTP01Validation|CertificateIssuance|CoordinatorRecovery)$' -test.timeout=180s
+python3 "$root/server/tests/test_gui_issuer_host.py"
+python3 "$root/server/tests/gui-issuer-host.py" "$root" "$stage/http01-nethub" \
+    "$stage/guiacme.test" "$stage/gui-issuer-host" "$postgres_image" "$caddy_image" "$pebble_image"
 docker build --target guiissuer-acceptance -f "$root/deploy/Dockerfile" -t "$guiissuer_test_image" "$root" > "$stage/guiissuer-build.log" 2>&1
 docker create --name "$guiissuer_binary_holder" --network none "$guiissuer_test_image" /guiissuer.test >/dev/null
 docker cp "$guiissuer_binary_holder:/guiissuer.test" "$stage/guiissuer.test"

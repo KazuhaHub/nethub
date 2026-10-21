@@ -78,6 +78,24 @@ func (s *AccountStore) AllowsURL(value string) bool {
 	return ok && s.origins[u.Scheme+"://"+u.Host]
 }
 
+// Ready checks existing protected account state without network access or key
+// initialization. Explicit registration/recovery must precede ordinary jobs.
+func (s *AccountStore) Ready(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ErrCancelled
+	}
+	lease, err := s.lease(false)
+	if err != nil {
+		return err
+	}
+	defer accountRelease(lease)
+	state, _, err := s.load()
+	if err != nil || !s.AllowsURL(state.URI) || !s.AllowsURL(state.OrdersURL) {
+		return ErrState
+	}
+	return nil
+}
+
 func (s *AccountStore) path(name string) string { return filepath.Join(s.directory, name) }
 
 func (s *AccountStore) checkParent() error {
