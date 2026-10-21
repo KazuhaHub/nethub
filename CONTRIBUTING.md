@@ -170,7 +170,7 @@ and its environment acceptance limit are recorded in
 | Tool | Version | Used for | Check |
 |---|---|---|---|
 | Git and the GitHub CLI | any recent | everything | `git --version`, `gh --version` |
-| Go | 1.26.9 (the build pin in `server/.go-version`; `go.mod` declares the compatibility floor) | the control plane in `server/` | `go version` |
+| Go | 1.26.10 (the build pin in `server/.go-version`; `go.mod` declares the compatibility floor) | the control plane in `server/` | `go version` |
 | Node.js | 24.14.0, matching CI and the Docker builder | the console source in `server/web/` | `node -v` |
 | Docker and Docker Compose | Compose 2.24.4 or later; tested Engine/Compose versions are in the quickstart | console deployment and isolated database/deployment tests; relay integration remains W4 | `docker version`, `docker compose version` |
 | Python | 3.13.x on OPNsense 26.7; 3.11 or newer for host-side checks | agent, packaging helpers, deployment checks and Weekend 0 tools | `python3.13 --version` |

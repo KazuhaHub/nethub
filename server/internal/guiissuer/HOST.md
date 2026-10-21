@@ -114,3 +114,14 @@ refusal and cancellation after revocation. These remain separate from combined
 enrollment-to-issuance acceptance, production recovery timing, renewal authorization, issued-chain
 delivery, native GUI installation/rollback, or staged trust transitions. Those
 remain required before W4 certificate automation is complete.
+
+## Hosted acceptance
+
+Compose acceptance invokes the compiled `TestPebbleProtectedHostIssuer` fixture
+through `server/tests/gui-issuer-host.py`. A unique operation identity fences
+container names, full image identities, ownership labels and temporary units.
+An independently armed systemd recovery program lives outside the checkout and
+stops the exact test process group before removing owned resources and temporary
+keys. A missing test or skipped fixture cannot satisfy the required pass markers.
+Private test logs and cleanup receipts stay in the optional Compose evidence
+archive; ordinary CI output contains only bounded result counters.
