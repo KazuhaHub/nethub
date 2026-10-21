@@ -89,7 +89,8 @@ def restore(control):
                 if not candidate.name.isdecimal():
                     continue
                 try:
-                    group = int(candidate.joinpath("stat").read_text().split()[4])
+                    fields = candidate.joinpath("stat").read_text().rpartition(")")[2].split()
+                    group = int(fields[2])
                     executable = os.readlink(candidate / "exe")
                     if group == identity["pid"] and executable in owned:
                         os.killpg(group, signal.SIGKILL)
