@@ -49,3 +49,12 @@ expiry/startup migration, quarantine an offline device or implement native
 reconciliation. Those remain separate rollout gates. Application reports are
 authenticated device assertions, not an independent server observation of the
 device filesystem. No new signing key or device client certificate is introduced.
+
+The native model boundary separately supports compare-and-swap of public CA and
+generation metadata under the Core configuration lock. It fences enrollment
+identity, exact before/after nodes, activation intent and immutable generations;
+reads back the saved XML and preserves unrelated fields and Core file ownership.
+Exact retries also flush the saved configuration. This boundary alone does not
+update the managed CA file, reload frpc or record application. Its root caller
+must independently verify a candidate and retain a durable recovery journal
+before requesting a model change. Ordinary settings cannot edit trust metadata.
