@@ -7,6 +7,9 @@ if [ -x /usr/local/etc/rc.d/nethub_agent_frpc ]; then
     chmod 0600 /var/log/nethub-agent/scheduler.log
     touch /var/db/nethub-agent/uninstalling
     /usr/bin/lockf -k -t 30 /var/db/nethub-agent/reconcile.lock /bin/sh -ec '
+        if [ -f /usr/local/opnsense/scripts/nethub-agent/relay_trust_recover.py ]; then
+            /usr/bin/timeout -k 2 35 /usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/relay_trust_recover.py --locked >> /var/log/nethub-agent/scheduler.log 2>&1
+        fi
         if [ -f /usr/local/opnsense/scripts/nethub-agent/certificate_recover.py ]; then
             /usr/bin/timeout -k 2 25 /usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/certificate_recover.py --locked --running >> /var/log/nethub-agent/scheduler.log 2>&1
         fi

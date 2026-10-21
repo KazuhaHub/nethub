@@ -294,3 +294,21 @@ class TrustTransaction:
             return self._public(dict(value, receipt=receipt))
         except Exception:
             raise TrustTransactionError('Relay trust confirmation failed; applied trust was retained') from None
+
+    def forget(self):
+        """Delete only a terminal public journal after native enrollment clearing."""
+        try:
+            value = self.read()
+            if value is not None:
+                if value['phase'] in ('prepared', 'written'):
+                    raise ValueError('Pending trust must recover before enrollment clearing')
+                self.path.unlink()
+                self._sync(self.directory)
+            if self.directory.exists() or self.directory.is_symlink():
+                self._directory()
+                if any(self.directory.iterdir()):
+                    raise ValueError('Unknown trust artifacts')
+                self.directory.rmdir()
+                self._sync(self.config)
+        except Exception:
+            raise TrustTransactionError('Relay trust runtime cleanup needs local review') from None

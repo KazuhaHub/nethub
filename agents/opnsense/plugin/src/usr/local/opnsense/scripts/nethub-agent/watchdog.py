@@ -124,11 +124,44 @@ class Watchdog:
         except (OSError, ValueError, TypeError, KeyError, UnicodeError):
             return False
 
+    def trust_transaction_terminal(self):
+        directory = self.config/'relay-trust'
+        if not directory.exists() and not directory.is_symlink():
+            return True
+        try:
+            for path, mode, is_directory in ((self.config, 0o700, True), (directory, 0o700, True)):
+                info = path.lstat()
+                if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.geteuid()
+                        or stat.S_IMODE(info.st_mode) != mode or path.resolve() != path):
+                    return False
+            if not any(directory.iterdir()):
+                return True
+            if {path.name for path in directory.iterdir()} != {'transaction.json'}:
+                return False
+            path = directory/'transaction.json'
+            info = path.lstat()
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or info.st_nlink != 1
+                    or stat.S_IMODE(info.st_mode) != 0o600 or not 1 <= info.st_size <= 196608):
+                return False
+            with path.open('rb') as stream:
+                opened = os.fstat(stream.fileno())
+                if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
+                    return False
+                raw = stream.read(196609)
+            value = json.loads(raw)
+            fields = {'version', 'phase', 'binding', 'snapshot', 'before', 'after', 'before_ca', 'attempts', 'retry_after', 'receipt'}
+            return (isinstance(value, dict) and set(value) == fields and type(value['version']) is int
+                    and value['version'] == 1 and value['phase'] in ('applied', 'rolled_back')
+                    and (json.dumps(value, sort_keys=True, separators=(',', ':'))+'\n').encode('ascii') == raw)
+        except (OSError, ValueError, TypeError, KeyError, UnicodeError):
+            return False
+
     def recover(self):
         model = ET.parse(self.root / 'conf/config.xml').find('OPNsense/NetHubAgent')
         inactive = model is None or model.findtext('enabled') != '1'
         inactive = inactive or any((self.state / marker).exists() for marker in ['disabled', 'stopped', 'revoked', 'uninstalling'])
         inactive = inactive or not self.managed_trust_current(model)
+        inactive = inactive or not self.trust_transaction_terminal()
         running = self.service('onestatus').returncode == 0
         if inactive:
             rc = self.root / 'etc/rc.conf.d'

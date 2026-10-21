@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+umask 077
+install -d -m 0700 /var/db/nethub-agent /var/log/nethub-agent
+touch /var/log/nethub-agent/scheduler.log
+chmod 0600 /var/log/nethub-agent/scheduler.log
+# Restore public model/file state without network or starting the tunnel.
+/usr/bin/timeout -k 2 35 /usr/bin/lockf -sk -t 0 /var/db/nethub-agent/reconcile.lock /usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/relay_trust_recover.py --locked >> /var/log/nethub-agent/scheduler.log 2>&1

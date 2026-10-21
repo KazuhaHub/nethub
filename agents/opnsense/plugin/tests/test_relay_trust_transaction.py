@@ -286,3 +286,22 @@ def test_symlink_and_unsafe_journal_permissions_are_refused(transaction):
     transaction.path.chmod(0o644)
     with pytest.raises(TrustTransactionError): transaction.read()
     assert transaction.path.read_bytes() == saved
+
+
+def test_terminal_journal_cleanup_keeps_managed_ca_and_is_retryable(transaction):
+    transaction.apply(example()); ca = transaction.ca.read_bytes()
+    transaction.forget()
+    assert not transaction.directory.exists() and transaction.ca.read_bytes() == ca
+    transaction.forget()
+
+
+def test_pending_or_unknown_artifacts_cannot_be_forgotten(transaction):
+    transaction.backend.fault = 'power_loss'
+    with pytest.raises(SimulatedPowerLoss): transaction.apply(example())
+    original = transaction.path.read_bytes()
+    with pytest.raises(TrustTransactionError): transaction.forget()
+    assert transaction.path.read_bytes() == original
+    transaction.backend.fault = None; transaction.recover()
+    (transaction.directory/'retain').write_text('unknown')
+    with pytest.raises(TrustTransactionError): transaction.forget()
+    assert transaction.path.exists() and (transaction.directory/'retain').exists()

@@ -37,7 +37,10 @@ class Agent:
         return self.run([str(arg) for arg in args], capture_output=True, text=True, timeout=timeout)
 
     def service(self, verb):
-        return self.command(['/usr/sbin/service', 'nethub_agent_frpc', verb])
+        command = ['/usr/sbin/service']
+        if getattr(self, '_trust_reload', False) and verb in ('onestart', 'onerestart'):
+            command += ['-E', 'NETHUB_TRUST_APPLY_ONCE=1']
+        return self.command(command + ['nethub_agent_frpc', verb])
 
     def running(self):
         return self.service('onestatus').returncode == 0
@@ -152,7 +155,7 @@ class Agent:
             model = tree.find('OPNsense/NetHubAgent')
             if model is not None and model.findtext('device_id'):
                 return {'success': True, 'enrolled': True}
-            remnants = [self.config / name for name in ('gui-apply', 'gui-request', 'gui-certificate.json')]
+            remnants = [self.config / name for name in ('gui-apply', 'gui-request', 'gui-certificate.json', 'relay-trust')]
             if any(path.exists() or path.is_symlink() for path in remnants):
                 raise AgentError('Previous enrollment runtime cleanup is incomplete; retry Remove enrollment before enrolling')
             version = self.command(['/usr/local/sbin/opnsense-version', '-v'], timeout=5)
@@ -172,7 +175,9 @@ class Agent:
         except (OSError, ValueError, ET.ParseError, subprocess.SubprocessError):
             return {'success': False, 'message': 'Enrollment failed; no local configuration was changed'}
 
-    def reconcile_locked(self, force=False):
+    def reconcile_locked(self, force=False, trust_recovery=True):
+        if trust_recovery:
+            self.recover_trust()
         if (any((self.state / marker).exists() for marker in ['disabled', 'stopped', 'revoked', 'uninstalling'])
                 or not self.enabled()):
             self.rc_enable(False)
@@ -229,6 +234,56 @@ class Agent:
         if model is None:
             raise AgentError('Enrollment configuration is unavailable')
         return model
+
+    def trust_transaction(self):
+        from relay_trust_backend import NativeTrustBackend
+        from relay_trust_transaction import TrustTransaction
+        def quiesce():
+            self.rc_enable(False)
+            if self.running():
+                self.checked(self.service('onestop'), 'Could not stop the tunnel for trust recovery')
+            return not self.running()
+        def reload():
+            self._trust_reload = True
+            try:
+                return self.reconcile_locked(trust_recovery=False).get('success') is True
+            finally:
+                self._trust_reload = False
+        return TrustTransaction(self.config, NativeTrustBackend(run=self.run, configuration=self.root/'conf/config.xml'),
+                                quiesce, reload)
+
+    def recover_trust(self):
+        directory = self.config/'relay-trust'
+        if not directory.exists() and not directory.is_symlink():
+            return None
+        from relay_trust_transaction import TrustTransactionError
+        try:
+            return self.trust_transaction().recover()
+        except TrustTransactionError:
+            raise AgentError('Pending relay trust recovery failed; tunnel startup is blocked') from None
+
+    def trust_result(self, result):
+        fields = ('success', 'phase', 'generation', 'confirmed', 'message')
+        public = {key: result[key] for key in fields if key in result}
+        public['action'] = 'trust'
+        public['updated_at'] = datetime.now(timezone.utc).isoformat()
+        self.atomic(self.state/'trust.json', (json.dumps(public)+'\n').encode())
+        return public
+
+    def trust_locked(self):
+        from relay_trust_sync import TrustSynchronizer, TrustSyncError
+        self.recover_trust()
+        model = self.lifecycle_model()
+        inactive = model.findtext('enabled') != '1' or any((self.state/name).exists()
+            for name in ('disabled', 'stopped', 'revoked', 'uninstalling'))
+        if inactive or not model.findtext('device_id') or not model.findtext('console_url'):
+            return self.trust_result({'success': True, 'phase': 'inactive', 'confirmed': False})
+        try:
+            result = TrustSynchronizer(self.trust_transaction()).sync(model.findtext('console_url'),
+                model.findtext('device_secret'), model.findtext('device_id'), model.findtext('server_name'))
+        except TrustSyncError:
+            raise AgentError('Relay trust synchronization failed; inspect trust and recovery status') from None
+        return self.trust_result(result)
 
     def certificate_result(self, result):
         public = {key: result[key] for key in ('success', 'action', 'phase', 'message', 'generation', 'valid_until', 'confirmed', 'accepted_at') if key in result}
@@ -350,9 +405,12 @@ class Agent:
         model = self.lifecycle_model()
         device_id = model.findtext('device_id')
         if not device_id:
+            self.recover_trust()
             return {'success': True, 'action': 'unenroll', 'device_id': '', 'revoked': True}
         # Stop first and retain credentials until the server confirms removal, allowing retry.
         self.stop_revoked()
+        # Rollback permits the stop/revocation marker and needs the old binding.
+        self.recover_trust()
         try:
             request_removal(model.findtext('console_url'), model.findtext('device_secret'), device_id)
         except ProtocolError:
@@ -364,19 +422,23 @@ class Agent:
         from certificate_key import CertificateKeyError, KeyStore
         from certificate_sync import CertificateSynchronizer
         from certificate_transaction import CertificateTransactionError
+        from relay_trust_transaction import TrustTransactionError
         model = self.lifecycle_model()
         if model.findtext('enabled') == '1' or any(model.findtext(key) for key in ('device_id', 'device_secret', 'frp_token', 'domain_claim')):
             raise AgentError('Native configuration must be cleared before removing runtime credentials')
         self.stop_revoked()
         try:
+            directory = self.config/'relay-trust'
+            if directory.exists() or directory.is_symlink():
+                self.trust_transaction().forget()
             self.gui_transaction().forget()
             keys = KeyStore(self.config / 'gui-key')
             CertificateSynchronizer(keys).forget()
             keys.forget()
-        except (CertificateKeyError, CertificateTransactionError) as error:
+        except (CertificateKeyError, CertificateTransactionError, TrustTransactionError) as error:
             raise AgentError(str(error)) from None
         paths = [self.live, self.candidate, self.backup, self.config / 'relay-ca.pem']
-        paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'certificate.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
+        paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'certificate.json', 'trust.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
         for path in paths:
             if path.is_symlink():
                 raise AgentError('Runtime credential path needs local review')
@@ -399,6 +461,8 @@ class Agent:
                     return self.report_locked()
                 if action == 'certificate':
                     return self.certificate_locked()
+                if action == 'trust':
+                    return self.trust_locked()
                 if action == 'unenroll':
                     return self.unenroll_locked()
                 if action == 'forget':
@@ -409,12 +473,16 @@ class Agent:
                     (self.state / 'stopped').unlink(missing_ok=True)
                 return self.reconcile_locked(force=action == 'restart')
             except AgentError as error:
+                if action == 'trust':
+                    return self.trust_result({'success': False, 'phase': 'error', 'message': str(error)})
                 if action == 'certificate':
                     return self.certificate_result({'success': False, 'action': action, 'phase': 'error', 'message': str(error)})
                 if action in ('report', 'unenroll', 'forget'):
                     return self.lifecycle_result({'success': False, 'message': str(error), 'action': action})
                 return self.record(False, str(error), 'error')
             except (OSError, ValueError, ET.ParseError, subprocess.SubprocessError):
+                if action == 'trust':
+                    return self.trust_result({'success': False, 'phase': 'error', 'message': 'Relay trust operation failed; inspect local recovery status'})
                 if action == 'certificate':
                     return self.certificate_result({'success': False, 'action': action, 'phase': 'error', 'message': 'GUI certificate synchronization failed; tunnel and native GUI settings were retained'})
                 if action in ('report', 'unenroll', 'forget'):
@@ -437,11 +505,18 @@ class Agent:
             certificate = {key: value for key, value in certificate.items() if key in ('success', 'action', 'phase', 'message', 'generation', 'valid_until', 'updated_at')}
         except (OSError, ValueError, AttributeError):
             certificate = None
+        try:
+            trust = json.loads((self.state/'trust.json').read_text())
+            trust = {key: value for key, value in trust.items()
+                     if key in ('success', 'action', 'phase', 'message', 'generation', 'confirmed', 'updated_at')}
+        except (OSError, ValueError, AttributeError):
+            trust = None
         return {'status': 'running' if self.running() else 'stopped', 'last_reconcile': state,
                 'log': self.log_tail(),
                 'disabled': (self.state / 'disabled').exists(),
                 'revoked': (self.state / 'revoked').exists(),
-                'operator_stopped': (self.state / 'stopped').exists(), 'last_report': health, 'gui_certificate': certificate}
+                'operator_stopped': (self.state / 'stopped').exists(), 'last_report': health, 'gui_certificate': certificate,
+                'relay_trust': trust}
 
     def log_tail(self):
         try:
@@ -478,7 +553,7 @@ def main():
     parser.add_argument('--locked', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--request-file', help=argparse.SUPPRESS)
     parser.add_argument('action', choices=['reconcile', 'status', 'start', 'stop', 'restart',
-                                          'enroll', 'unenroll', 'report', 'certificate', 'forget', 'rotate'])
+                                          'enroll', 'unenroll', 'report', 'certificate', 'trust', 'forget', 'rotate'])
     arguments = parser.parse_args()
     action = arguments.action
     if action == 'enroll':
@@ -495,11 +570,11 @@ def main():
             finally:
                 signal.setitimer(signal.ITIMER_REAL, 0)
                 signal.signal(signal.SIGALRM, previous)
-    elif action in ('report', 'unenroll', 'certificate'):
+    elif action in ('report', 'unenroll', 'certificate', 'trust'):
         def timed_out(signum, frame):
             raise AgentError('Device operation timed out; inspect status before retrying')
         previous = signal.signal(signal.SIGALRM, timed_out)
-        signal.setitimer(signal.ITIMER_REAL, 35 if action == 'certificate' else 25)
+        signal.setitimer(signal.ITIMER_REAL, 85 if action == 'trust' else 35 if action == 'certificate' else 25)
         try:
             result = Agent().apply(action, locked=arguments.locked)
         finally:

@@ -84,8 +84,21 @@ report retry. It binds the fetch to the native enrollment identity, and reports
 only after local application. A rejected/stale/lost report reply preserves good
 local trust and retries after a fresh fetch. Confirmed retries retain the original
 server receipt timestamp; a compatible server version change does not reinstall.
-Both components remain disconnected from production scheduling until boot/direct
-startup/watchdog pending-state fencing and removal recovery are integrated.
+The native trust action runs separately from lifecycle reporting and GUI issuance,
+under the common mutation lock with an internal deadline and an outer process
+deadline. A failed trust poll cannot suppress the independent revocation report.
+Ordinary reconcile and removal recover pending trust before rendering or clearing
+native enrollment. Forget removes only terminal known public runtime state;
+enrollment refuses leftover transaction directories before consuming a token.
+
+A packaged early hook restores pending trust locally before normal startup.
+Direct rc startup independently checks protected journal/model/CA state; only an
+explicit controlled written-phase reload can cross a pending transaction, and it
+still verifies exact binding and current trust. Prepared/corrupt/conflicting state
+is refused even with the override. The independent watchdog stops a pending or
+corrupt transaction and cannot restore an old backup around it. Package removal
+recovers pending trust before deleting its recovery code. These code paths still
+require live appliance/package/reboot and actual frp transition acceptance.
 
 The shared HTTPS transport permits only the exact lifecycle, GUI certificate and
 relay trust paths. Real TLS tests exercise those paths through the transport,

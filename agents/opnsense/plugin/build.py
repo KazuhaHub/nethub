@@ -54,6 +54,7 @@ def build(version):
             path.chmod(0o755 if path.is_dir() else 0o644)
         frpc.chmod(0o755)
         for name in ['usr/local/etc/rc.d/nethub_agent_frpc',
+                     'usr/local/etc/rc.syshook.d/early/14-nethub-agent-trust',
                      'usr/local/etc/rc.syshook.d/early/15-nethub-agent-certificate',
                      'usr/local/etc/rc.syshook.d/start/20-nethub-agent']:
             path = stage / name
