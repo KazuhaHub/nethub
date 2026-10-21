@@ -47,10 +47,10 @@ psql -X --set ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname nethub <<'SQL
 DO $issuer_privileges$
 BEGIN
     IF has_schema_privilege('nethub_issuer','public','CREATE')
-       OR CASE WHEN to_regprocedure('public.lookup_device_credential(uuid)') IS NULL THEN false
-          ELSE has_function_privilege('nethub_issuer',to_regprocedure('public.lookup_device_credential(uuid)')::oid,'EXECUTE') END
-       OR CASE WHEN to_regprocedure('public.consume_enroll_token(bytea)') IS NULL THEN false
-          ELSE has_function_privilege('nethub_issuer',to_regprocedure('public.consume_enroll_token(bytea)')::oid,'EXECUTE') END THEN
+       OR (CASE WHEN to_regprocedure('public.lookup_device_credential(uuid)') IS NULL THEN false
+          ELSE has_function_privilege('nethub_issuer',to_regprocedure('public.lookup_device_credential(uuid)')::oid,'EXECUTE') END)
+       OR (CASE WHEN to_regprocedure('public.consume_enroll_token(bytea)') IS NULL THEN false
+          ELSE has_function_privilege('nethub_issuer',to_regprocedure('public.consume_enroll_token(bytea)')::oid,'EXECUTE') END) THEN
         RAISE EXCEPTION 'Issuer schema or credential-function privileges need operator review';
     END IF;
     -- CASE fences type-specific ACL calls; WHERE predicates can be reordered.
