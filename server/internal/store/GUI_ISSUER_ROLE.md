@@ -3,9 +3,11 @@
 The PostgreSQL bootstrap reserves `nethub_issuer` as NOLOGIN, NOINHERIT,
 NOSUPERUSER, NOCREATEDB, NOCREATEROLE, NOREPLICATION and NOBYPASSRLS. It has public
 schema usage, no table/credential-function access and no role memberships in
-either direction. Existing unexpected flags, memberships or direct public-schema
-table/column/sequence privileges stop bootstrap for
-operator review; they are not silently repaired. Bootstrap remains idempotent.
+either direction. Existing unexpected flags, memberships, permission to create
+objects in public, credential-function execution, or direct table/column/sequence
+privileges stop bootstrap for operator review; they are not silently repaired.
+Missing credential functions during fresh initialization are allowed; the guard
+also checks existing deployments after migrations. Bootstrap remains idempotent.
 
 This role is for the privileged host's one-shot issuer boundary, following the
 existing host maintenance model. No database password or login endpoint is
