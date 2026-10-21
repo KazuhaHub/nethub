@@ -5,11 +5,28 @@ import (
 	"database/sql"
 
 	"github.com/KazuhaHub/nethub/server/internal/device"
+	"github.com/KazuhaHub/nethub/server/internal/guicert"
 )
 
 // GUIJobQueue admits initial work only for an authenticated live assignment.
 // It does not create an account, perform CA operations or enable background work.
 type GUIJobQueue struct{ Requests *GUIRequestStore }
+
+func (s *GUIJobQueue) Settings(ctx context.Context, credential device.Credential, id string) (guicert.Assignment, *GUIRequest, error) {
+	if s == nil || s.Requests == nil {
+		return guicert.Assignment{}, nil, device.ErrUnavailable
+	}
+	return s.Requests.Settings(ctx, credential, id)
+}
+
+// Admit commits the original signed request, initial job and their audits in
+// one assignment-locked transaction. An identical retry retains generation one.
+func (s *GUIJobQueue) Admit(ctx context.Context, credential device.Credential, id string, encoded []byte) (GUIRequest, error) {
+	if s == nil || s.Requests == nil {
+		return GUIRequest{}, device.ErrUnavailable
+	}
+	return s.Requests.admit(ctx, credential, id, encoded, true)
+}
 
 func (s *GUIJobQueue) Health(ctx context.Context) error {
 	if s == nil || s.Requests == nil || s.Requests.Health(ctx) != nil {
@@ -49,15 +66,23 @@ func (s *GUIJobQueue) Enqueue(ctx context.Context, credential device.Credential,
 	if !found {
 		return "", device.ErrDenied
 	}
+	job, err := enqueueGUIRequest(ctx, tx, request.ID)
+	if err != nil {
+		return "", err
+	}
+	if tx.Commit() != nil {
+		return "", device.ErrUnavailable
+	}
+	return job, nil
+}
+
+func enqueueGUIRequest(ctx context.Context, tx *sql.Tx, requestID string) (string, error) {
 	var job sql.NullString
-	if err := tx.QueryRowContext(ctx, `SELECT enqueue_gui_certificate_request($1)`, request.ID).Scan(&job); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT enqueue_gui_certificate_request($1)`, requestID).Scan(&job); err != nil {
 		return "", device.ErrUnavailable
 	}
 	if !job.Valid {
 		return "", device.ErrDenied
-	}
-	if tx.Commit() != nil {
-		return "", device.ErrUnavailable
 	}
 	return job.String, nil
 }

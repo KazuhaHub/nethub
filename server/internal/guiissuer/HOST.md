@@ -30,6 +30,23 @@ the exact data volume and its project labels. The SQL runner rechecks the exact
 portless, nonprivileged running database before each stdin-only SQL operation.
 This does not confine a compromised root account or Docker daemon.
 
+## Authenticated initial queue
+
+The authz server's certificate endpoint uses `GUIJobQueue` when configured with
+the device domain. A successful signed-request submission commits the immutable
+CSR, generation-one job and requested/queued audits in one device-locked
+transaction. A queue error rolls all of them back. Identical submissions return
+the same public request and retain the same initial job; changed signed bytes
+still conflict. No issuer job ID or internal checkpoint enters the public reply.
+Settings reads stay read-only. A previously admitted metadata-only request is
+queued on its next identical submission, without replacing that request.
+
+Initial admission does not create a CA account or start a worker. The explicitly
+provisioned host command must satisfy the prerequisites above. Device revocation
+cancels its queued work in the same database transaction and the certificate API
+denies later reads. Renewals require separate generation/due authorization;
+retrying initial admission never authorizes a renewal.
+
 ## Explicit policy and invocation
 
 Adapt `deploy/gui-issuer.example.json` to the deployment and install it as
@@ -91,8 +108,10 @@ fixture paths/project and read-only home access instead of masked home, retainin
 its strict system filesystem, privilege restrictions and explicit writable paths.
 Public CSR metadata is administratively
 seeded only in this labelled disposable database, and retry time is advanced
-only there. This does not replace authenticated initial upload acceptance,
-production recovery timing, scheduled renewal authorization, issued-chain
+only there. The separate compiled HTTP/database fixture checks actual enrolled
+device CSR admission and atomic queueing, failure rollback, duplicate audit/job
+refusal and cancellation after revocation. These remain separate from combined
+enrollment-to-issuance acceptance, production recovery timing, renewal authorization, issued-chain
 delivery, native GUI installation/rollback, or staged trust transitions. Those
 remain required before W4 certificate automation is complete.
 

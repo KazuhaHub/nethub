@@ -148,7 +148,8 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "Console origin must be outside the device certificate domain")
 			return 1
 		}
-		certificates, err = device.NewCertificates(service, &store.GUIRequestStore{Enrollment: repository, DeviceDomain: *deviceDomain})
+		requests := &store.GUIRequestStore{Enrollment: repository, DeviceDomain: *deviceDomain}
+		certificates, err = device.NewCertificates(service, &store.GUIJobQueue{Requests: requests})
 		if err != nil || certificates.Health(startup) != nil {
 			fmt.Fprintln(stderr, "Certificate admission domain or database authorization is invalid")
 			return 1

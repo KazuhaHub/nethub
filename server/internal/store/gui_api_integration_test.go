@@ -51,6 +51,28 @@ func testRuntimeCertificateRequest(t *testing.T, f *enrollmentFixture, client *h
 		t.Fatal(err)
 	}
 	submit := protocol.CertificateSubmit{Identity: identity, CSRDER: base64.StdEncoding.EncodeToString(der)}
+	// Fail after signed-request/audit insertion, inside the same transaction.
+	// The explicitly disposable fixture restores its original grant immediately.
+	func() {
+		if _, err := f.owner.ExecContext(f.ctx, `REVOKE EXECUTE ON FUNCTION enqueue_gui_certificate_request(uuid) FROM nethub_authz`); err != nil {
+			t.Fatal("fixture queue grant fault", err)
+		}
+		defer func() {
+			if _, err := f.owner.ExecContext(f.ctx, `GRANT EXECUTE ON FUNCTION enqueue_gui_certificate_request(uuid) TO nethub_authz`); err != nil {
+				t.Error("fixture queue grant restoration", err)
+			}
+		}()
+		if status, _ := post("request", submit); status != 503 {
+			t.Fatal("compiled admission acknowledged unqueued work", status)
+		}
+		var requests, jobs, audits int
+		if err := f.owner.QueryRowContext(f.ctx, `SELECT
+ (SELECT count(*) FROM gui_certificate_requests WHERE device_id=$1),
+ (SELECT count(*) FROM gui_certificate_jobs WHERE device_id=$1),
+ (SELECT count(*) FROM audit_log WHERE target_device_id=$1 AND action IN ('device.certificate_requested','device.certificate_queued'))`, enrollment.DeviceID).Scan(&requests, &jobs, &audits); err != nil || requests != 0 || jobs != 0 || audits != 0 {
+			t.Fatal("queue failure left a committed request, job or audit", err)
+		}
+	}()
 	status, body = post("request", submit)
 	if status != 200 || json.Unmarshal(body, &settings) != nil || settings.Validate() != nil || settings.Request == nil || settings.Request.CSRDER != submit.CSRDER {
 		t.Fatal("compiled CSR admission failed", status)
@@ -88,6 +110,15 @@ func testRuntimeCertificateRequest(t *testing.T, f *enrollmentFixture, client *h
 	if err := f.owner.QueryRowContext(f.ctx, `SELECT csr_der FROM gui_certificate_requests WHERE device_id=$1`, enrollment.DeviceID).Scan(&stored); err != nil || !bytes.Equal(stored, der) {
 		t.Fatal("compiled public response differs from committed CSR", err)
 	}
+	var jobs, generations, requests, queued int
+	if err := f.owner.QueryRowContext(f.ctx, `SELECT
+ (SELECT count(*) FROM gui_certificate_jobs WHERE request_id=$1 AND generation=1 AND state='queued'),
+ (SELECT count(*) FROM gui_certificate_jobs WHERE request_id=$1),
+ (SELECT count(*) FROM audit_log WHERE target_device_id=$2 AND action='device.certificate_requested'),
+ (SELECT count(*) FROM audit_log WHERE target_device_id=$2 AND action='device.certificate_queued')`, saved.RequestID, enrollment.DeviceID).Scan(&jobs, &generations, &requests, &queued); err != nil || jobs != 1 || generations != 1 || requests != 1 || queued != 1 {
+		t.Fatal("compiled retries duplicated initial work or audit", err)
+	}
+	t.Log("Compiled authenticated CSR admission and initial queue committed atomically; queue-grant failure rolled back request/job/audits and exact retries retained one generation and audit pair")
 	t.Log("Compiled authz certificate settings, bound CSR submission, exact retries/recovery, conflict and wrong-SAN checks passed against genuine PostgreSQL")
 	return post
 }
