@@ -109,6 +109,26 @@ func testGUIIssuerRole(t *testing.T, ctx context.Context, owner, web, authz *sql
 				t.Fatal("bootstrap silently repaired unexpected data grant", err)
 			}
 		}()
+		for _, permission := range []struct{ grant, revoke, probe string }{
+			{`GRANT CREATE ON SCHEMA public TO nethub_issuer`, `REVOKE CREATE ON SCHEMA public FROM nethub_issuer`,
+				`SELECT has_schema_privilege('nethub_issuer','public','CREATE')`},
+			{`GRANT EXECUTE ON FUNCTION public.lookup_device_credential(uuid) TO nethub_issuer`,
+				`REVOKE EXECUTE ON FUNCTION public.lookup_device_credential(uuid) FROM nethub_issuer`,
+				`SELECT has_function_privilege('nethub_issuer','public.lookup_device_credential(uuid)','EXECUTE')`},
+			{`GRANT EXECUTE ON FUNCTION public.consume_enroll_token(bytea) TO nethub_issuer`,
+				`REVOKE EXECUTE ON FUNCTION public.consume_enroll_token(bytea) FROM nethub_issuer`,
+				`SELECT has_function_privilege('nethub_issuer','public.consume_enroll_token(bytea)','EXECUTE')`},
+		} {
+			admin(permission.grant)
+			func() {
+				defer admin(permission.revoke)
+				bootstrap(true)
+				var remains bool
+				if err := owner.QueryRowContext(ctx, permission.probe).Scan(&remains); err != nil || !remains {
+					t.Fatal("bootstrap silently repaired unexpected schema or credential-function privilege", err)
+				}
+			}()
+		}
 		bootstrap(false)
 	})
 	t.Log("No-login issuer identity, zero inherited/data/credential authority, application role refusal and actual restricted SQL queries passed")
