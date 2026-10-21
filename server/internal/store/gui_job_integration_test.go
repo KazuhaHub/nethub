@@ -13,19 +13,24 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
-	"strings"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/device"
+	"github.com/KazuhaHub/nethub/server/internal/guiacme"
 	"github.com/KazuhaHub/nethub/server/internal/guiissuer"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func issuerSQL(ctx context.Context, statement string) ([]byte, error) {
+	return issuerSQLInput(ctx, []byte("SET standard_conforming_strings=on; SET SESSION AUTHORIZATION nethub_issuer;\n"+statement+";\n"))
+}
+
+func issuerSQLInput(ctx context.Context, input []byte) ([]byte, error) {
 	command := exec.CommandContext(ctx, "psql", "-X", "-qAt", "--host", "/var/run/postgresql", "--username", "postgres", "--dbname", "nethub", "--set", "ON_ERROR_STOP=1", "--set", "VERBOSITY=sqlstate")
-	command.Stdin = strings.NewReader("SET standard_conforming_strings=on; SET SESSION AUTHORIZATION nethub_issuer;\n" + statement + ";\n")
+	command.Stdin = bytes.NewReader(input)
 	return command.CombinedOutput()
 }
 
@@ -105,10 +110,14 @@ func testGUIJobs(t *testing.T, f *enrollmentFixture, web *sql.DB, tenantA, tenan
 		}
 		return &next
 	}
+	account, err := guiacme.NewAccountStore(filepath.Join(t.TempDir(), "account"), guiacme.Config{DirectoryURL: "https://acme.example.test/directory", ContactEmail: "issuer@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	adapter := &guiissuer.SQLStore{Run: issuerSQLInput, Domain: "devices.example.com", AllowsURL: account.AllowsURL}
 	release := func(work *guiissuer.Snapshot, reason string) bool {
 		t.Helper()
-		l := work.Lease
-		return string(query(fmt.Sprintf(`SELECT public.release_gui_certificate_lease('%s','%s',%d,'%s')`, l.ID, l.Token, l.Version, reason))) == "t"
+		return adapter.Release(f.ctx, *work, reason) == nil
 	}
 	a, c, request := newRequest(tenantA)
 	var group sync.WaitGroup

@@ -62,6 +62,22 @@ issuance interval rejects material too near expiry to schedule safely, avoiding
 an immediate short-lifetime renewal loop. These are issuance states, not verified
 device application or an assertion that a router is serving the new leaf.
 
+`SQLStore` connects private queue/progress/completion functions through a bounded
+stdin-only SQL runner. Every fresh session suppresses statement/error text before
+selecting the no-login issuer identity. Canonical identifiers and hex-encoded
+checkpoint/material fields avoid accepting arbitrary SQL text. Renew/save must
+return the exact original tenant/device/request/key/CSR identity and the next
+version; missing, oversized, stale or ambiguous responses stop the operation.
+Errors never return runner diagnostics. A lost completion reply keeps its exact
+token/version/material for recovery. The runner contract requires bounded output,
+discarded stderr and a trusted local administrator socket; the privileged host
+and administrator logging policy remain trusted.
+
+The real PostgreSQL acceptance uses this adapter for claim/renew/read/save,
+failure/poll release and immutable completion/recovery, including the existing
+revocation, stale-version and retry-budget checks. No mocked database response
+is used to claim those boundaries.
+
 These foundations do not configure an account, start a scheduler/host adapter,
 call a CA, deliver a chain or change a device. The actual CA coordinator and
 recovery fixture are not connected yet. Verified native application and retrying

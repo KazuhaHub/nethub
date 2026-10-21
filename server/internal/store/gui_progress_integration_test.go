@@ -22,14 +22,10 @@ func testGUIProgress(t *testing.T, f *enrollmentFixture, work *guiissuer.Snapsho
 	if err != nil {
 		t.Fatal(err)
 	}
+	adapter := &guiissuer.SQLStore{Run: issuerSQLInput, Domain: "devices.example.com", AllowsURL: account.AllowsURL}
 	read := func(w *guiissuer.Snapshot) guiissuer.Progress {
 		t.Helper()
-		l := w.Lease
-		data, err := issuerSQL(f.ctx, fmt.Sprintf(`SELECT coalesce(public.read_gui_certificate_progress('%s','%s',%d),'null'::jsonb)`, l.ID, l.Token, l.Version))
-		if err != nil {
-			t.Fatal("private progress read failed")
-		}
-		p, err := guiissuer.DecodeProgress(bytes.TrimSpace(data), *w, account.AllowsURL)
+		p, err := adapter.Read(f.ctx, *w)
 		if err != nil {
 			t.Fatal("persisted progress could not recover", err)
 		}
@@ -37,6 +33,16 @@ func testGUIProgress(t *testing.T, f *enrollmentFixture, work *guiissuer.Snapsho
 	}
 	save := func(w *guiissuer.Snapshot, p guiissuer.Progress, wantError bool) *guiissuer.Snapshot {
 		t.Helper()
+		if !wantError {
+			next, err := adapter.Save(f.ctx, *w, p)
+			if errors.Is(err, guiissuer.ErrDatabase) {
+				return nil
+			}
+			if err != nil {
+				t.Fatal("private checkpoint adapter failed", err)
+			}
+			return &next
+		}
 		checkpoint, err := guiissuer.EncodeProgress(p, *w, account.AllowsURL)
 		if err != nil {
 			t.Fatal(err)
@@ -44,24 +50,11 @@ func testGUIProgress(t *testing.T, f *enrollmentFixture, work *guiissuer.Snapsho
 		l := w.Lease
 		statement := fmt.Sprintf(`SELECT coalesce(public.save_gui_certificate_progress('%s','%s',%d,'%s','%s'::jsonb),'null'::jsonb)`, l.ID, l.Token, l.Version, p.Phase, strings.ReplaceAll(string(checkpoint), "'", "''"))
 		data, err := issuerSQL(f.ctx, statement)
-		if wantError {
-			var exit *exec.ExitError
-			if !errors.As(err, &exit) || exit.ExitCode() != 3 || !bytes.Contains(data, []byte("23514")) {
-				t.Fatal("unsafe checkpoint update did not fail")
-			}
-			return nil
+		var exit *exec.ExitError
+		if !errors.As(err, &exit) || exit.ExitCode() != 3 || !bytes.Contains(data, []byte("23514")) {
+			t.Fatal("unsafe checkpoint update did not fail")
 		}
-		if err != nil {
-			t.Fatal("private progress save failed")
-		}
-		if string(bytes.TrimSpace(data)) == "null" {
-			return nil
-		}
-		next, err := guiissuer.DecodeSnapshot(bytes.TrimSpace(data), "devices.example.com", nil, time.Now())
-		if err != nil {
-			t.Fatal(err)
-		}
-		return &next
+		return nil
 	}
 	if read(work).Phase != "new" {
 		t.Fatal("new job already has a remote order")
