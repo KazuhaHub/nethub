@@ -44,3 +44,8 @@ Pebble is a test-only MPL-2.0 dependency; it is not copied into the product or
 shipped in a runtime image. Its process loses CA state on restart and its roots
 must never be installed for ordinary browsing or production use. Current-head
 CI and the genuine deployment run remain merge gates.
+
+The later HTTP-01 fixture extends this harness with the exact deployment Caddy
+image and the production isolated publisher. It proves a real CA-source fetch,
+the same order reaching ready, valid-authorization recovery and response retirement.
+See [HTTP-01 evidence and limits](HTTP01.md). It does not finalize a certificate.

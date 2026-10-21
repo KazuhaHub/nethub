@@ -64,10 +64,17 @@ func verifyOrderMessage(f *accountFixture, r *http.Request) ([]byte, bool) {
 }
 
 type orderBehavior struct {
-	mutate func(map[string]any)
-	locate string
-	lose   bool
-	polls  int
+	mutate          func(map[string]any)
+	authMutate      func(map[string]any)
+	acceptMutate    func(map[string]any)
+	locate          string
+	lose            bool
+	polls           int
+	authReads       int
+	accepts         int
+	authValid       bool
+	challengeStatus string
+	loseAccept      bool
 }
 
 func orderFixture(t *testing.T) (*AccountStore, *accountFixture, *orderBehavior) {
@@ -83,6 +90,41 @@ func orderFixture(t *testing.T) (*AccountStore, *accountFixture, *orderBehavior)
 		body, valid := verifyOrderMessage(f, r)
 		if !valid {
 			w.WriteHeader(400)
+			return
+		}
+		challenge := func() map[string]any {
+			status := b.challengeStatus
+			if status == "" {
+				status = "pending"
+			}
+			return map[string]any{"type": "http-01", "url": f.server.URL + "/challenge/one", "token": strings.Repeat("A", 43), "status": status}
+		}
+		if r.URL.Path == "/authz/one" && len(body) == 0 {
+			b.authReads++
+			status := "pending"
+			if b.authValid {
+				status = "valid"
+			}
+			response := map[string]any{"status": status, "identifier": map[string]string{"type": "dns", "value": orderHost}, "expires": expires, "challenges": []any{challenge()}}
+			if b.authMutate != nil {
+				b.authMutate(response)
+			}
+			_ = json.NewEncoder(w).Encode(response)
+			return
+		}
+		if r.URL.Path == "/challenge/one" && string(body) == "{}" {
+			b.accepts++
+			b.challengeStatus = "processing"
+			if b.loseAccept {
+				w.WriteHeader(503)
+				_, _ = w.Write([]byte("private ambiguous challenge response"))
+				return
+			}
+			response := challenge()
+			if b.acceptMutate != nil {
+				b.acceptMutate(response)
+			}
+			_ = json.NewEncoder(w).Encode(response)
 			return
 		}
 		if r.URL.Path == "/new-order" {
