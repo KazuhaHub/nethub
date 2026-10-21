@@ -73,6 +73,17 @@ token/version/material for recovery. The runner contract requires bounded output
 discarded stderr and a trusted local administrator socket; the privileged host
 and administrator logging policy remain trusted.
 
+`NewDockerSQLRunner` supplies the Linux root adapter for an independently
+verified full container/image/project binding. It fixes the local Docker Unix
+socket and executable, scrubs inherited daemon/database/proxy environment,
+rechecks the exact running private PostgreSQL identity before each invocation,
+and rejects privileged, published-port, host/shared or unrelated network
+configurations. SQL travels only on stdin to passwordless local-socket psql;
+stdout is bounded and stderr is discarded. This runner never starts a container,
+changes its configuration or reads an application database password. The root
+host, daemon and independently selected immutable deployment identity remain
+trusted. Selecting a container from its labels alone is insufficient.
+
 The real PostgreSQL acceptance uses this adapter for claim/renew/read/save,
 failure/poll release and immutable completion/recovery, including the existing
 revocation, stale-version and retry-budget checks. No mocked database response
@@ -121,3 +132,9 @@ the device lock, polling/failure budgets, revocation and a 33-device locked
 prefix. The compiled HTTP device suite remains part of that acceptance. Private
 snapshot tests additionally reject mismatched domains/keys/CSRs and ambiguous
 metadata while checking ordinary JSON exclusion.
+
+Compose acceptance builds the issuer test binary with the pinned compiler and
+runs `TestNativeDockerSQLRunner` as the host root against the still-running
+disposable database before teardown. Missing container identity fails the shell
+gate. The test checks the real local-socket issuer identity, raw-table denial
+without returned diagnostics, and rejection of a changed project binding.
