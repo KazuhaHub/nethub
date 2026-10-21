@@ -7,7 +7,7 @@ The dialog keeps keyboard focus within its controls, supports Escape, and return
 focus to its opener. CSS and scripts are local files; no inline styles, remote
 fonts, analytics, or external requests are required.
 
-Run from this directory with Node 24.14.0 and Go 1.26.9. The OpenSSL CLI is
+Run from this directory with Node 24.14.0 and Go 1.26.10. The OpenSSL CLI is
 required for disposable certificate-rejection tests; NETHUB_OPENSSL_BINARY can
 select its path on Windows.
 
