@@ -176,8 +176,10 @@ def test_unknown_ca_bytes_block_recovery_and_are_retained(transaction):
     transaction.backend.fault = 'power_loss'
     with pytest.raises(SimulatedPowerLoss): transaction.apply(value)
     transaction.ca.write_bytes(b'unrelated local material'); transaction.ca.chmod(0o600)
+    model = transaction.backend.read()
     with pytest.raises(TrustTransactionError): transaction.recover()
     assert transaction.ca.read_bytes() == b'unrelated local material'
+    assert transaction.backend.read() == model
     assert transaction.read()['phase'] == 'prepared'
 
 

@@ -202,6 +202,9 @@ class TrustTransaction:
             value = self.read()
             if value is None or value['phase'] not in ('prepared', 'written'):
                 return None
+            before_ca = base64.b64decode(value['before_ca']) if value['before_ca'] is not None else None
+            if self._ca_bytes() not in (before_ca, value['snapshot']['desired']['ca_pem'].encode('ascii')):
+                raise ValueError('Managed trust changed before recovery')
             if value['before_ca'] != value['after']['relay_ca'] and self.quiesce() is not True:
                 raise ValueError('Owned tunnel stop was not confirmed')
             self.backend.replace(value['binding'], value['before'], value['after'], rollback=True)
