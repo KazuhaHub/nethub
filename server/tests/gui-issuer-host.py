@@ -132,6 +132,21 @@ def restore(control):
                                                          "temporary_keys_removed": not temporary.exists()}))
 
 
+def acceptance_evidence(code, failure, log):
+    completed = re.findall(r"^--- PASS: (TestPebbleProtectedHostIssuer(?:Renewal)?) \([0-9]+(?:\.[0-9]+)?s\)$", log, re.MULTILINE)
+    initial = (completed.count("TestPebbleProtectedHostIssuer") == 1 and
+               "one original order/finalize POST; native application not claimed" in log)
+    renewal = (completed.count("TestPebbleProtectedHostIssuerRenewal") == 1 and
+               "Genuine host renewal passed original CSR/key, two distinct issued leaves" in log and
+               "exactly two original orders/finalize POSTs; native application not claimed" in log)
+    delivery = "Fresh compiled device enrollment, original CSR admission/initial queue, genuine CA issuance and authenticated original-key delivery passed" in log
+    passed = (code == 0 and failure is None and initial and renewal and delivery and
+              "Protected host command passed genuine Compose database discovery" in log)
+    return {"passed": passed, "initial_issuance_verified": passed and initial,
+            "authenticated_delivery_verified": passed and delivery,
+            "renewal_verified": passed and renewal}
+
+
 def run(args):
     assert os.geteuid() == 0 and Path("/run/systemd/system").is_dir()
     args.evidence.mkdir(mode=0o700, parents=True, exist_ok=False)
@@ -175,7 +190,7 @@ def run(args):
     try:
         with (args.evidence / "test.log").open("wb") as output:
             process = subprocess.Popen([str(control / "guiacme.test"), "-test.v",
-                                        "-test.run=^TestPebbleProtectedHostIssuer$", "-test.timeout=180s"],
+                                        "-test.run=^TestPebbleProtectedHostIssuer(Renewal)?$", "-test.timeout=180s"],
                                        env=env, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
             start = (Path("/proc") / str(process.pid) / "stat").read_text().split()[21]
             (control / "process.json").write_text(json.dumps({"pid": process.pid, "start": start}))
@@ -188,17 +203,14 @@ def run(args):
         for suffix in (".timer", ".service"):
             assert command(["systemctl", "show", guard + suffix, "--property=ActiveState", "--value"]).stdout.strip() in (b"inactive", b"failed")
     log = (args.evidence / "test.log").read_text()
-    delivery = "Fresh compiled device enrollment, original CSR admission/initial queue, genuine CA issuance and authenticated original-key delivery passed" in log
-    passed = (code == 0 and failure is None and "--- PASS: TestPebbleProtectedHostIssuer" in log
-              and "Protected host command passed genuine Compose database discovery" in log and delivery)
-    result = {"passed": passed, "failure_type": failure, "tested_files_sha256": hashes,
-              "authenticated_delivery_verified": passed and delivery,
+    evidence = acceptance_evidence(code, failure, log)
+    result = {**evidence, "failure_type": failure, "tested_files_sha256": hashes,
               **json.loads((control / "cleanup.json").read_text()), "guard_stopped_after_cleanup": True}
     (args.evidence / "result.json").write_text(json.dumps(result, indent=2))
     assert control.resolve() == control and control.parent == Path("/run")
     shutil.rmtree(control)
     print(json.dumps({key: value for key, value in result.items() if key != "tested_files_sha256"}))
-    if not passed:
+    if not evidence["passed"]:
         raise SystemExit("Protected host issuance acceptance failed; private evidence retained")
 
 
