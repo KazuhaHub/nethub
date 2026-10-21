@@ -70,7 +70,7 @@ def test_native_wildcard_boot_reload_skips_candidate_but_explicit_reconcile_rend
     engine = Template(target_root_directory=str(output))
     engine._template_dir = str(templates) + '/'
     engine._j2_env.loader = jinja2.FileSystemLoader(str(templates))
-    engine.set_config({'OPNsense': {'NetHubAgent': {'enabled': '0'}}})
+    engine.set_config({'OPNsense': {'NetHubAgent': {'enabled': '0'}}, 'system': {'webgui': {'port': '443'}}})
     candidate = parent / 'frpc.toml.candidate'
 
     assert engine.generate('*') is None
