@@ -131,3 +131,16 @@ def test_common_mutation_lock_excludes_trust_action(case):
         with mock.patch('relay_trust_sync.TrustSynchronizer.sync') as network:
             assert case.agent.apply('trust')['action'] == 'busy'
             network.assert_not_called()
+
+
+def test_residual_native_trust_metadata_blocks_forget(case):
+    path = case.root/'conf/config.xml'; tree = ET.parse(path)
+    model = tree.find('OPNsense/NetHubAgent')
+    for key in ('device_id', 'device_secret', 'frp_token', 'domain_claim'):
+        model.find(key).text = ''
+    model.find('enabled').text = '0'
+    ET.SubElement(model, 'relay_trust_state').text = 'retain-for-review'
+    tree.write(path)
+    with mock.patch.object(case.agent, 'trust_transaction') as transaction:
+        assert case.agent.apply('forget')['success'] is False
+    transaction.assert_not_called()

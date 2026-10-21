@@ -155,6 +155,8 @@ class Agent:
             model = tree.find('OPNsense/NetHubAgent')
             if model is not None and model.findtext('device_id'):
                 return {'success': True, 'enrolled': True}
+            if model is not None and model.findtext('relay_trust_state'):
+                raise AgentError('Former relay trust metadata cleanup is incomplete; retry removal first')
             remnants = [self.config / name for name in ('gui-apply', 'gui-request', 'gui-certificate.json', 'relay-trust')]
             if any(path.exists() or path.is_symlink() for path in remnants):
                 raise AgentError('Previous enrollment runtime cleanup is incomplete; retry Remove enrollment before enrolling')
@@ -424,7 +426,7 @@ class Agent:
         from certificate_transaction import CertificateTransactionError
         from relay_trust_transaction import TrustTransactionError
         model = self.lifecycle_model()
-        if model.findtext('enabled') == '1' or any(model.findtext(key) for key in ('device_id', 'device_secret', 'frp_token', 'domain_claim')):
+        if model.findtext('enabled') == '1' or any(model.findtext(key) for key in ('device_id', 'device_secret', 'frp_token', 'domain_claim', 'relay_trust_state')):
             raise AgentError('Native configuration must be cleared before removing runtime credentials')
         self.stop_revoked()
         try:

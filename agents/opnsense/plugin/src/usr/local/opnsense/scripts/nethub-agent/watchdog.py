@@ -121,7 +121,7 @@ class Watchdog:
             roots = context.get_ca_certs()
             return (1 <= len(roots) <= 2 and max(ssl.cert_time_to_seconds(c['notBefore']) for c in roots) == stamps[0].timestamp()
                     and min(ssl.cert_time_to_seconds(c['notAfter']) for c in roots) == stamps[1].timestamp())
-        except (OSError, ValueError, TypeError, KeyError, UnicodeError):
+        except (OSError, ValueError, TypeError, KeyError, UnicodeError, RecursionError):
             return False
 
     def trust_transaction_terminal(self):
@@ -153,7 +153,7 @@ class Watchdog:
             return (isinstance(value, dict) and set(value) == fields and type(value['version']) is int
                     and value['version'] == 1 and value['phase'] in ('applied', 'rolled_back')
                     and (json.dumps(value, sort_keys=True, separators=(',', ':'))+'\n').encode('ascii') == raw)
-        except (OSError, ValueError, TypeError, KeyError, UnicodeError):
+        except (OSError, ValueError, TypeError, KeyError, UnicodeError, RecursionError):
             return False
 
     def recover(self):

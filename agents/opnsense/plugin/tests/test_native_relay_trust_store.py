@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'src/usr/local/opnsense/scripts/nethub-agent'))
 from relay_trust_backend import NativeTrustBackend, model_nodes
 from relay_trust_transaction import TrustTransaction, TrustTransactionError
+from relay_trust_recover import recover_pending, startup_allowed
 
 pytestmark = pytest.mark.skipif(os.name == 'nt', reason='Native model ownership contracts require POSIX PHP')
 
@@ -268,3 +269,29 @@ def test_native_model_and_ca_restore_after_process_death(native_transaction):
     assert transaction.recover()['phase'] == 'rolled_back'
     assert native.call('read', []) == before
     assert not transaction.ca.exists() and calls == ['stop']
+
+
+def test_real_php_pending_guard_and_independent_boot_recovery(native_transaction):
+    native, transaction, calls = native_transaction
+    before = native.call('read', [])
+    class PowerLoss(BaseException): pass
+    write = transaction._write
+    def die(value):
+        write(value)
+        if value['phase'] == 'written': raise PowerLoss()
+    transaction._write = die
+    with pytest.raises(PowerLoss): transaction.apply(native.desired)
+    args = (transaction.config, native.path)
+    options = {'backend': transaction.backend, 'openssl': transaction.openssl}
+    assert startup_allowed(*args, **options) is False
+    assert startup_allowed(*args, controlled=True, **options) is True
+    calls.clear()
+    assert recover_pending(transaction.config, native.state, transaction.backend, transaction.quiesce)['phase'] == 'recovered'
+    assert native.call('read', []) == before
+    assert not transaction.ca.exists() and calls == ['stop']
+    # The ordinary reconciler may restore this bootstrap CA, but boot recovery
+    # does not claim an absent managed file is already a startable connection.
+    assert startup_allowed(*args, **options) is False
+    transaction.ca.write_bytes(base64.b64decode(before['nodes']['relay_ca']))
+    transaction.ca.chmod(0o600)
+    assert startup_allowed(*args, **options) is True

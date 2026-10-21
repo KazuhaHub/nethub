@@ -119,6 +119,14 @@ def test_terminal_journal_does_not_disable_independent_watchdog(transaction, pha
     assert watcher.trust_transaction_terminal() is True
 
 
+def test_recursive_corrupt_journal_cannot_crash_the_independent_watchdog(transaction):
+    Watchdog = watchdog_class()
+    transaction.apply(example())
+    transaction.path.write_bytes(b'['*2000+b'0'+b']'*2000)
+    watcher = Watchdog(transaction.config); watcher.config = transaction.config
+    assert watcher.trust_transaction_terminal() is False
+
+
 @pytest.mark.skipif(os.name == 'nt', reason='Actual package hook shell is POSIX')
 @pytest.mark.parametrize('guard_exit', [0, 1])
 def test_actual_rc_prestart_guard_runs_before_frpc_validation(tmp_path, guard_exit):
