@@ -54,7 +54,7 @@ def test_tls_name_is_independent_of_connection_address():
     assert config['transport']['tls']['serverName'] == settings['server_name']
 
 
-@pytest.mark.skipif(sys.platform != 'freebsd', reason='Requires the native OPNsense template engine')
+@pytest.mark.skipif(not sys.platform.startswith('freebsd'), reason='Requires the native OPNsense template engine')
 def test_native_wildcard_boot_reload_skips_candidate_but_explicit_reconcile_renders_it(tmp_path, monkeypatch):
     monkeypatch.syspath_prepend('/usr/local/opnsense/service')
     from modules.template import Template
