@@ -37,6 +37,7 @@ func legacyIssuerRoleFixture(t *testing.T, ctx context.Context, owner *sql.DB) f
 		}
 		// This explicit fixture upgrade grants only the reviewed function boundary.
 		if _, err := owner.ExecContext(ctx, `GRANT EXECUTE ON FUNCTION public.enqueue_gui_certificate_request(uuid),
+ public.enqueue_due_gui_certificate_renewals(text,jsonb),
  public.claim_gui_certificate_job(),public.renew_gui_certificate_lease(uuid,uuid,bigint),
  public.release_gui_certificate_lease(uuid,uuid,bigint,text),
  public.read_gui_certificate_progress(uuid,uuid,bigint),

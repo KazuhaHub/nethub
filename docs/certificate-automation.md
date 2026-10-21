@@ -111,6 +111,19 @@ Do not mark a scheduled or delivered generation as applied without verification.
 
 ## Proposed renewal and application
 
+Router GUI renewal admission is now implemented separately from relay renewal.
+The protected host issuer processes existing work first. An idle invocation
+visits at most 32 due candidates and admits at most one next-generation job from
+the latest issued generation's actual `renew_after`. It rechecks the immutable
+CSR/key, exact configured domain/exclusions and current non-revoked assignment
+under the parent device lock. The original request is reused; device polling
+and applied-generation retries cannot start a new order. Existing active or
+terminal newer work suppresses another issuance. Expired material can be renewed
+without an application report, so an offline router does not block renewal.
+The queue and its audit commit together. Genuine renewed issuance and combined
+native/public installation remain separate acceptance work; administratively
+aged scheduling fixtures do not establish those outcomes.
+
 Suggested initial policy remains a ten-year root and one-year relay leaf, with
 renewal before expiry and a lifetime-relative bound for shorter certificates.
 Use the actual certificate dates; renewal must not repeatedly issue because a
