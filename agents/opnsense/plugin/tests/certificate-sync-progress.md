@@ -18,7 +18,9 @@ and chain against independently provisioned trust. Response certificates cannot
 provide their own trust anchor. Environment overrides for OpenSSL trust and
 configuration are removed from that verification process. An explicit protected
 public CA file is supported by the verifier for isolated tests; the scheduled
-action uses native system trust. The signed leaf must match the enrolled public
+action uses native system trust. The next 0.0.8 source explicitly selects the
+OPNsense-managed bundle on FreeBSD so base OpenSSL and later Python TLS probing
+share the same administrator-controlled trust. The signed leaf must match the enrolled public
 key and original CSR, one exact DNS SAN, server signing usage and the public
 validity metadata. Ordered, unique supplied certificates and effective expiry
 are checked. Verification at the last included effective-expiry second also

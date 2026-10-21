@@ -118,6 +118,25 @@ def test_environment_cannot_replace_native_trust_with_the_response_root(chain):
             ChainVerifier(chain.key).verify(message, DEVICE, HOST.split('.')[0], chain.original)
 
 
+def test_opnsense_defaults_select_the_independently_managed_trust_bundle(chain):
+    message = chain.issue()
+    if sys.platform.startswith('freebsd'):
+        native = ChainVerifier(chain.key)
+        assert native.trusted_ca_file == Path('/usr/local/etc/ssl/cert.pem')
+        assert b'-----BEGIN CERTIFICATE-----' in native._roots()
+    # The fixture substitutes a private local bundle; the real appliance trust
+    # store is never edited. Both positive and missing-store paths fail closed.
+    with mock.patch('certificate_chain.sys.platform', 'freebsd14'), \
+            mock.patch('certificate_chain.SYSTEM_CA_FILE', chain.ca):
+        verifier = ChainVerifier(chain.key)
+        assert verifier.trusted_ca_file == chain.ca
+        assert verifier.verify(message, DEVICE, HOST.split('.')[0], chain.original) == message
+    with mock.patch('certificate_chain.sys.platform', 'freebsd14'), \
+            mock.patch('certificate_chain.SYSTEM_CA_FILE', chain.root / 'missing-managed-roots.pem'):
+        with pytest.raises(CertificateChainError):
+            ChainVerifier(chain.key).verify(message, DEVICE, HOST.split('.')[0], chain.original)
+
+
 def test_repeated_response_certificate_is_refused(chain):
     message = chain.issue()
     message['issued']['chain_pem'] += chain.ca.read_text() * 2

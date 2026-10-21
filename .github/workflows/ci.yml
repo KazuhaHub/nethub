@@ -189,7 +189,7 @@ jobs:
 
   opnsense-plugin:
     name: OPNsense plugin checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -197,10 +197,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Install PHP filesystem contract dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php8.3-cli php8.3-xml
+
       - name: Install test runner
         run: python3 -m pip install pytest==8.3.5 jinja2==3.1.6 jsonschema==4.25.1
 
       - name: Validate plugin sources
+        env:
+          NETHUB_TEST_PHP: /usr/bin/php8.3
         run: python3 -m pytest -q agents/opnsense/plugin/tests agents/opnsense/tests
 
       - name: Verify official frp pins and os-frp version agreement
