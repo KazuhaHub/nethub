@@ -95,14 +95,25 @@ class Agent:
     def provision_enrollment_trust(self):
         model = ET.parse(self.root / 'conf/config.xml').find('OPNsense/NetHubAgent')
         encoded = model.findtext('relay_ca') if model is not None else None
-        if not encoded:
+        managed = model is not None and bool(model.findtext('relay_trust_state'))
+        if not encoded and not managed:
             return
         from enrollment import validate_ca
         from protocol import ProtocolError
         try:
             content = base64.b64decode(encoded, validate=True)
             validate_ca(content.decode('ascii'))
-        except (ValueError, UnicodeError, ProtocolError):
+            if managed:
+                from relay_trust import verify_settings
+                from relay_trust_backend import model_snapshot
+                snapshot = model_snapshot(model.findtext('device_id'),
+                    {'relay_ca': encoded, 'relay_trust_state': model.findtext('relay_trust_state')})
+                verify_settings(snapshot, model.findtext('device_id'), model.findtext('server_name'), self.config)
+        except (ValueError, UnicodeError, KeyError, TypeError, ProtocolError):
+            if managed:
+                self.rc_enable(False)
+                if self.running():
+                    self.checked(self.service('onestop'), 'Could not stop a tunnel with invalid managed trust')
             raise AgentError('Stored relay trust is invalid') from None
         path = self.config / 'relay-ca.pem'
         if path.is_symlink():
@@ -113,6 +124,7 @@ class Agent:
         if not path.exists():
             self.atomic(path, content)
         path.chmod(0o600)
+        return managed
 
     def enroll(self, request_file, locked=False):
         try:
@@ -168,10 +180,15 @@ class Agent:
                 self.checked(self.service('onestop'), 'Could not stop the tunnel')
             return self.record(True, 'Tunnel is disabled', 'stop')
         self.candidate.unlink(missing_ok=True)
-        self.provision_enrollment_trust()
+        managed_trust = self.provision_enrollment_trust()
         self.checked(self.command(['/usr/local/sbin/configctl', 'template', 'reload', 'OPNsense/NetHubAgent']),
                      'Template rendering failed; live configuration was retained')
         self.candidate.chmod(0o600)
+        if managed_trust:
+            # Include public CA identity in the existing desired/watchdog hash.
+            # frpc configuration verification ignores this fixed comment.
+            digest = hashlib.sha256((self.config / 'relay-ca.pem').read_bytes()).hexdigest()
+            self.atomic(self.candidate, ('# nethub-relay-ca-sha256: ' + digest + '\n').encode() + self.candidate.read_bytes())
         desired_hash = hashlib.sha256(self.candidate.read_bytes()).hexdigest()
         journal = self.state / 'recovery.json'
         if journal.exists():

@@ -8,7 +8,7 @@ import subprocess
 
 from enrollment import decode_json, _hostname, _UUID
 from certificate_key import KeyStore
-from protocol import ProtocolError
+from protocol import ProtocolError, VERSION
 
 
 class NativeTrustError(Exception):
@@ -36,6 +36,18 @@ def _nodes(value):
             raise ValueError('Invalid native trust encoding')
         result[key] = encoded
     return result
+
+
+def model_snapshot(device_id, nodes):
+    """Decode stored public metadata; independent trust verification is still required."""
+    nodes = _nodes(nodes)
+    raw = base64.b64decode(nodes['relay_trust_state'], validate=True)
+    metadata = json.loads(raw)
+    fields = {'generation_id', 'generation', 'server_name', 'bundle_fingerprint', 'published_at', 'not_before', 'valid_until'}
+    if not isinstance(metadata, dict) or set(metadata) != fields or KeyStore._encoded(metadata) != raw:
+        raise ValueError('Invalid stored trust metadata')
+    return {'agent_protocol_version': VERSION, 'device_id': device_id,
+            'desired': dict(metadata, ca_pem=base64.b64decode(nodes['relay_ca'], validate=True).decode('ascii'))}
 
 
 class NativeTrustBackend:

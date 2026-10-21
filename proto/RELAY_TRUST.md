@@ -58,3 +58,13 @@ Exact retries also flush the saved configuration. This boundary alone does not
 update the managed CA file, reload frpc or record application. Its root caller
 must independently verify a candidate and retain a durable recovery journal
 before requesting a model change. Ordinary settings cannot edit trust metadata.
+
+Once metadata is present, ordinary reconciliation independently validates stored
+trust and includes its public CA byte fingerprint in the desired configuration
+hash. A CA change therefore requires a reload even when the template text stays
+the same; an identical CA under a new generation does not restart a good tunnel.
+The independent watchdog checks the persisted effective window/content and refuses
+a last-good backup bound to another CA, including a legacy unbound backup after a
+managed generation. Invalid/expired managed trust stops the tunnel without marking
+it revoked. These checks do not replace the pending transaction's crash recovery,
+which must be installed before automatic trust application is enabled.

@@ -9,7 +9,7 @@ from unittest import mock
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'src/usr/local/opnsense/scripts/nethub-agent'))
-from relay_trust_backend import NativeTrustBackend, NativeTrustError, model_nodes
+from relay_trust_backend import NativeTrustBackend, NativeTrustError, model_nodes, model_snapshot
 
 
 @pytest.fixture
@@ -32,6 +32,15 @@ def test_bounded_native_read_sends_only_public_stdin(message):
     assert args[0] == ['/usr/local/bin/php', str(Path(__file__).resolve().parents[1]/'src/usr/local/opnsense/scripts/nethub-agent/relay_trust_model.php')]
     assert json.loads(kwargs['input']) == {'action': 'read', 'request': []}
     assert kwargs['timeout'] == 5 and kwargs['capture_output'] is True
+
+
+def test_public_model_encoding_round_trip_and_duplicate_metadata_refusal(message):
+    import base64
+    nodes = model_nodes(message)
+    assert model_snapshot(message['device_id'], nodes) == message
+    raw = base64.b64decode(nodes['relay_trust_state'])
+    nodes['relay_trust_state'] = base64.b64encode(raw.replace(b'{', b'{"generation":1,', 1)).decode()
+    with pytest.raises(ValueError): model_snapshot(message['device_id'], nodes)
 
 
 @pytest.mark.parametrize('reply', [{'success': False, 'message': 'private native diagnostic'},
