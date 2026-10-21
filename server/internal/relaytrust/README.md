@@ -74,6 +74,11 @@ the token. With no published head, the configured bootstrap bundle remains the
 fallback. Wrong current relay identity fails before consuming the token, and
 readiness refuses a disabled enrollment fence.
 
+The PostgreSQL fixture observes enrollment waiting on the exact publisher
+transaction, then checks the token with `FOR UPDATE NOWAIT`. Its unused value
+and immediately available row lock prove admission has not consumed or locked
+the token while waiting; an MVCC read of the value alone would not establish it.
+
 The configured bootstrap CA must still be valid for service construction/health
 and the existing signing checks. Startup authority migration and expiry recovery
 remain separate work; current enrollment delivery alone does not complete root

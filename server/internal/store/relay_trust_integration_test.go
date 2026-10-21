@@ -223,6 +223,13 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 	go func() { _, err := f.repository.Register(f.ctx, newRecord, f.issue); enrolled <- err }()
 	waitForRelayTrustTransaction(t, f, headLock, enrolled, "enrollment during trust publication")
 	f.unused(t, newRecord)
+	// MVCC alone could hide an uncommitted token update. NOWAIT also proves
+	// admission has not locked the one-use token while waiting on publication.
+	var tokenAvailable bool
+	if err := f.owner.QueryRowContext(f.ctx, `SELECT used_at IS NULL FROM enroll_tokens WHERE token_hash=$1 FOR UPDATE NOWAIT`, newRecord.TokenHash[:]).Scan(&tokenAvailable); err != nil || !tokenAvailable {
+		t.Fatal("publication wait locked or consumed enrollment token", err)
+	}
+	t.Log("Enrollment token remained unused and immediately lockable during publication wait")
 	if err := headLock.Rollback(); err != nil {
 		t.Fatal(err)
 	}
