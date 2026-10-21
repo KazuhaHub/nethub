@@ -28,8 +28,9 @@ try {
     }
     require_once('/usr/local/opnsense/mvc/script/load_phalcon.php');
     require_once(__DIR__ . '/gui_certificate_store.php');
+    $configIdentity = NativeGuiCertificateStore::configurationIdentity((string)(new \OPNsense\Core\AppConfig())->globals->owner);
     $store = new NativeGuiCertificateStore(\OPNsense\Core\Config::getInstance(),
-        '/usr/local/etc/nethub-agent/gui-apply', '/conf/config.xml');
+        '/usr/local/etc/nethub-agent/gui-apply', '/conf/config.xml', '/var/db/nethub-agent', 0, $configIdentity);
     $result = $store->dispatch($input['action'], $input['request']);
     echo json_encode(['success' => true, 'result' => $result], JSON_THROW_ON_ERROR);
 } catch (Throwable $error) {

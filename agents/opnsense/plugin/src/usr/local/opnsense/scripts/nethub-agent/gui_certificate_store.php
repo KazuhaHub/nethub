@@ -18,9 +18,15 @@ final class NativeGuiCertificateStore
         private string $directory,
         private string $configFile,
         private string $stateDirectory = '/var/db/nethub-agent',
-        private int $owner = 0
+        private int $owner = 0,
+        private ?array $configIdentity = null
     )
     {
+        if ($configIdentity !== null && (array_keys($configIdentity) !== ['uid', 'gid'] ||
+            !is_int($configIdentity['uid']) || !is_int($configIdentity['gid']) ||
+            $configIdentity['uid'] < 0 || $configIdentity['gid'] < 0)) {
+            throw new RuntimeException('Invalid native configuration identity');
+        }
         $this->protect(dirname($directory), true);
         $this->protect($directory, true);
         $resolved = realpath($configFile);
@@ -31,13 +37,57 @@ final class NativeGuiCertificateStore
         $this->protect($this->configFile, false, true);
     }
 
+    public static function configurationIdentity(string $ownership): array
+    {
+        // Core AppConfig supplies this value; no request or model field does.
+        if (!preg_match('/\A([a-z_][a-z0-9_-]{0,31}):([a-z_][a-z0-9_-]{0,31})\z/D', $ownership, $names)) {
+            throw new RuntimeException('Invalid native configuration ownership');
+        }
+        $identity = [];
+        foreach (['uid' => ['/etc/passwd', $names[1]], 'gid' => ['/etc/group', $names[2]]] as $field => [$path, $name]) {
+            clearstatcache(true, $path);
+            $info = lstat($path);
+            if ($info === false || ($info['mode'] & 0170000) !== 0100000 || $info['uid'] !== 0 ||
+                ($info['mode'] & 0022) !== 0 || $info['nlink'] !== 1 || $info['size'] > 1048576 || realpath($path) !== $path) {
+                throw new RuntimeException('Native account database needs local review');
+            }
+            $stream = fopen($path, 'rb');
+            try {
+                $opened = fstat($stream);
+                if ($opened['dev'] !== $info['dev'] || $opened['ino'] !== $info['ino']) {
+                    throw new RuntimeException('Native account database changed');
+                }
+                $raw = stream_get_contents($stream, 1048577);
+                if ($raw === false || strlen($raw) > 1048576) {
+                    throw new RuntimeException('Native account database exceeds its limit');
+                }
+            } finally { fclose($stream); }
+            $matches = [];
+            foreach (explode("\n", $raw) as $line) {
+                $entry = explode(':', $line);
+                if ($entry[0] === $name && isset($entry[2]) && ctype_digit($entry[2]) && (float)$entry[2] <= 2147483647) {
+                    $matches[] = (int)$entry[2];
+                }
+            }
+            if (count($matches) !== 1) {
+                throw new RuntimeException('Native configuration account is unavailable');
+            }
+            $identity[$field] = $matches[0];
+        }
+        return $identity;
+    }
+
     private function protect(string $path, bool $directory = false, bool $config = false): array
     {
         clearstatcache(true, $path);
         $info = lstat($path);
         $type = $directory ? 0040000 : 0100000;
         $modes = $directory ? [0700] : ($config ? [0600, 0640] : [0600]);
-        if ($info === false || ($info['mode'] & 0170000) !== $type || $info['uid'] !== $this->owner ||
+        $owned = $info !== false && $info['uid'] === $this->owner;
+        if ($config && $this->configIdentity !== null && $info !== false) {
+            $owned = ($owned || $info['uid'] === $this->configIdentity['uid']) && $info['gid'] === $this->configIdentity['gid'];
+        }
+        if ($info === false || ($info['mode'] & 0170000) !== $type || !$owned ||
             !in_array($info['mode'] & 0777, $modes, true) || (!$directory && $info['nlink'] !== 1) ||
             realpath($path) !== $path) {
             throw new RuntimeException('Native certificate storage needs local review');
