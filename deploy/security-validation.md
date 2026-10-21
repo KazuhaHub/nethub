@@ -10,6 +10,12 @@ suppressing the advisory or changing the module compatibility floor.
 The builder digest was resolved from the official `library/golang` OCI index
 for `1.26.10-bookworm` and checked against its response content hash. The Go
 release metadata and vulnerability database both identify 1.26.10 as fixed.
+The rebuilt PostgreSQL helper also updates `github.com/moby/sys/user` from
+v0.1.0 to v0.4.1 for [GO-2026-6686](https://pkg.go.dev/vuln/GO-2026-6686).
+The hosted helper scan identified a reachable path through gosu's user setup.
+The upstream gosu source revision remains pinned; its dependency graph is rebuilt
+with the fixed user lookup module.
+
 Current hosted source, helper and assembled-image checks must pass before merge.
 The earlier measurements below are historical and do not establish current
 vulnerability status.
