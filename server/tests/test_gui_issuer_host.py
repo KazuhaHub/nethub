@@ -18,6 +18,28 @@ with patch.dict(sys.modules, modules):
 
 
 class HostFixtureAdmission(unittest.TestCase):
+    def test_both_real_flows_and_their_order_counts_are_required(self):
+        lines = [
+            "--- PASS: TestPebbleProtectedHostIssuer (12.34s)",
+            "--- PASS: TestPebbleProtectedHostIssuerRenewal (23.45s)",
+            "Actual coordinator passed one original order/finalize POST; native application not claimed",
+            "Actual renewal coordinator passed exactly two original orders/finalize POSTs; native application not claimed",
+            "Genuine host renewal passed original CSR/key, two distinct issued leaves",
+            "Fresh compiled device enrollment, original CSR admission/initial queue, genuine CA issuance and authenticated original-key delivery passed",
+            "Protected host command passed genuine Compose database discovery",
+        ]
+        log = "\n".join(lines)
+        self.assertTrue(all(fixture.acceptance_evidence(0, None, log).values()))
+        for missing in lines:
+            with self.subTest(missing=missing):
+                self.assertFalse(any(fixture.acceptance_evidence(0, None, log.replace(missing, "")).values()))
+        for code, failure in ((1, None), (0, "TimeoutExpired")):
+            self.assertFalse(any(fixture.acceptance_evidence(code, failure, log).values()))
+        for replacement in ("--- SKIP: TestPebbleProtectedHostIssuer (12.34s)",
+                            "--- PASS: TestPebbleProtectedHostIssuerOther (12.34s)"):
+            self.assertFalse(fixture.acceptance_evidence(0, None, log.replace(lines[0], replacement))["passed"])
+        self.assertFalse(fixture.acceptance_evidence(0, None, log + "\n" + lines[1])["passed"])
+
     def test_alternate_daemon_and_credentials_do_not_enter_commands(self):
         with patch.dict(os.environ, {"DOCKER_HOST": "tcp://untrusted.example.test:2375",
                                      "PGPASSWORD": "fixture-private"}), patch.object(fixture.subprocess, "run") as run:
