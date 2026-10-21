@@ -51,8 +51,20 @@ without accepting terms again or registering another key. A missing account,
 changed known identity, TLS failure or unsupported CA policy needs operator
 review; ordinary work never silently replaces it.
 
+If the current namespace was restored from pre-registration state but the chosen
+backup contains a known registered identity, verification refuses until `lookup`
+recovers the matching account with creation disabled. A missing or different
+account then needs operator review; registration cannot ignore newer backup
+metadata and proceed as if no account identity were known.
+
 Registration success does not enable the issuer timer, authorize a device job or
 install any GUI certificate. The private-CA provisioning fixture additionally
 proves real certificate issuance through the protected host using the recovered
 account. It does not register a public account, accept public terms for an
 operator, establish an off-host backup or prove native router installation.
+
+Deployment CI requires the exact protected account-provisioning test as well as
+the initial issuance and renewal tests. Its receipt reports
+`account_provisioning_verified` only after all three tests and their required
+evidence pass. Missing, skipped or incomplete provisioning evidence fails the
+entire protected host acceptance; existing issuance success cannot replace it.
