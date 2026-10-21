@@ -29,10 +29,37 @@ first and checks current generation/content, so delayed cleanup cannot delete a
 newer operation. Completed records remain as private tombstones against stale
 publication. Empty public directories are retained; no recursive deletion occurs.
 
-The issuer recovery loop must invoke CleanupExpired for known active hosts.
-Ordinary static file serving has no per-request expiry check; resources remain
-available until that cleanup executes. This foundation does not install its own
-timer or enable HTTP routing in an existing deployment.
+`SweepExpired` scans up to 128 hosts per batch using a bounded-memory selection
+and durable lexical cursor. Busy/corrupt hosts advance the cursor rather than
+starving later hosts. Expired current generations use the same locked removal
+and retained tombstones as explicit retirement. Unknown files/links are reported
+without following or deleting them; other valid entries can still be cleaned.
+Only numeric counters enter status JSON. A caller can repeat batches until
+`cycle_complete`, resuming a timed-out invocation from its protected cursor.
+
+`nethub certificates cleanup-http01 --config-file /etc/nethub/http01.json` runs a
+30-second scan budget on the Linux root host without database/account/signer dependencies.
+The root-owned 0600 policy contains exactly the fields in
+`deploy/http01-policy.example.json`. Both namespace identities and their lease
+must already exist and match; cleanup never initializes a missing namespace or
+repairs existing permissions. Public/state roots must remain outside each other.
+
+The optional `deploy/systemd/nethub-http01-cleanup.{service,timer}` runs this
+command every minute and after boot, independently of the issuer. It uses private
+networking, masks conventional Docker/PostgreSQL sockets, drops capabilities and
+makes the filesystem read-only except the two publisher roots. The defaults are
+`/srv/nethub-http01` (0755 public) and `/var/lib/nethub-http01` (0700 private),
+with the CLI installed at `/usr/local/libexec/nethub`. Custom roots must match
+both the policy and unit's `ReadWritePaths`/`StateDirectory`. After initializing
+the issuer-owned namespace and installing the protected policy, install the two
+units, reload systemd, start the service once and enable the timer. Nothing here
+enables a timer or HTTP routing in an existing deployment automatically.
+
+Ordinary static file serving has no per-request expiry check. Responses remain
+available until a successful cleanup, including during busy/error conditions;
+the actual CA worker must separately reject expired proof/assignment/lease use.
+Publication must not be enabled before independent cleanup has been configured
+and verified. Protected host worker configuration/startup remains separate work.
 
 The Caddy snippet uses an HTTP-only catch-all with exact host/original-URI/method
 matching and fixed static files, without directory listing or templates. Existing

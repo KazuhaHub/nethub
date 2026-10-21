@@ -21,7 +21,7 @@ Commands:
   migrate      Apply database migrations
   init         Prepare deployment configuration and secrets
   doctor       Check deployment readiness
-  certificates Maintain relay certificate generations on the Linux host
+  certificates Manage host certificates and HTTP-01 expiry
   admin        Manage the initial administrator
   version      Print the build version
 

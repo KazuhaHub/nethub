@@ -1,0 +1,30 @@
+[Unit]
+Description=Retire expired NetHub HTTP-01 responses independently of the issuer
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+ExecStart=/usr/local/libexec/nethub certificates cleanup-http01 --config-file /etc/nethub/http01.json
+TimeoutStartSec=40
+TimeoutStopSec=10
+RuntimeMaxSec=45
+NoNewPrivileges=true
+CapabilityBoundingSet=
+PrivateTmp=true
+PrivateDevices=true
+PrivateNetwork=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX
+InaccessiblePaths=-/run/docker.sock -/var/run/docker.sock -/run/postgresql -/var/run/postgresql
+RestrictSUIDSGID=true
+LockPersonality=true
+StateDirectory=nethub-http01
+StateDirectoryMode=0700
+ReadWritePaths=/srv/nethub-http01 /var/lib/nethub-http01

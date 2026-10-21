@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "public_directory": "/srv/nethub-http01",
+  "state_directory": "/var/lib/nethub-http01",
+  "device_domain": "router.example.com",
+  "excluded_hosts": ["console.example.com"]
+}

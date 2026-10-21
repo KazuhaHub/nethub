@@ -1,0 +1,12 @@
+[Unit]
+Description=Check NetHub HTTP-01 response expiry every minute
+
+[Timer]
+OnCalendar=minutely
+OnBootSec=15s
+Persistent=true
+AccuracySec=1s
+Unit=nethub-http01-cleanup.service
+
+[Install]
+WantedBy=timers.target
