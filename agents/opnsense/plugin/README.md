@@ -51,7 +51,8 @@ Alternate Hostnames entry and both GUI security checks as required by D17.
 
 On the isolated OPNsense test guest, run `sh build.sh`, then install
 `dist/os-nethub-agent.pkg` with `pkg add`. Build requirements are FreeBSD, pkg,
-sha256, and Python 3.13. The installed agent and independent watchdog also use the existing Python runtime.
+sha256, Python 3.13, and the Go compiler pinned in `server/.go-version`.
+Go is a build dependency; the installed agent and independent watchdog use the existing Python runtime.
 The builder validates version agreement, stages source files, and checks the
 resulting package before publishing the local artifact. Release packaging and
 signing remain separate from this development build.
@@ -70,9 +71,18 @@ shared packaging files, or mirror scripts are incorporated.
 
 ## frp build prerequisite
 
-The W2 build stages official frpc 0.71.1 under
-`/usr/local/opnsense/nethub-agent/bin/`, separately from os-frp. The archive is
-downloaded during the build and checked against `frp-artifacts.json`; it is not
-committed to NetHub. `FRP_VERSION` accompanies the executable. The builder checks
-the FreeBSD amd64 ELF header and native `--version` before creating the package.
-Enrollment is implemented separately in W4.
+The development package builds upstream frpc 0.71.1 under
+`/usr/local/opnsense/nethub-agent/bin/`, separately from os-frp. The official
+release binary was compiled with Go 1.26.8 and is affected by newer advisories;
+the historical W2 archive checks do not establish its current security status.
+`frpc-build/go.mod` and `go.sum` lock the source and patched dependencies. The
+builder requires the exact shared Go compiler, uses `frpc,noweb`, disables CGO,
+checks the FreeBSD amd64 ELF/build identity and runs native `--version` before
+creating the package. It does not fall back to an official prebuilt binary.
+
+`FRP_VERSION`, `FRP_BUILD.json`, the upstream license and linked-module/Go licenses
+accompany the executable. No large binary is committed. CI scans both the
+FreeBSD source target and the actual rebuilt binary. Official release archives
+remain checksum-pinned interoperability fixtures; they are not the packaged
+client. Changes to the separate os-frp packaging repository and release signing
+still require the later release gate.
