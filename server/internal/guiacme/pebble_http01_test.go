@@ -220,7 +220,7 @@ func pebbleHTTP01Flow(t *testing.T, finalize bool, coordinator ...func(*AccountS
 		if !matched || prefix == "/" || strings.Count(log, "POST "+prefix+" -> calling handler()") != 1 || !strings.Contains(log, "There are now 1 orders in the db") || strings.Contains(log, "There are now 2 orders in the db") {
 			t.Fatal("coordinator did not preserve one real validated order and finalization")
 		}
-		t.Log("Actual coordinator passed genuine CA-source HTTP validation, retired response, reopened-account recovery and one original order/finalize POST; database/native application remain separate acceptance")
+		t.Log("Actual coordinator passed genuine CA-source HTTP validation, retired response, reopened-account recovery and one original order/finalize POST; native application not claimed")
 		return
 	}
 	order, err := p.store.CreateOrder(context.Background(), csr, orderHost, public)

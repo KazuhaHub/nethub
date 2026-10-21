@@ -14,9 +14,16 @@ manual-renewal proposal is superseded; it is not an accepted operational design.
 
 The HTTP-01 publication foundation now has an issuer-owned public file store and
 an optional HTTP-only Caddy route accepted by genuine proxy tests. It does not
-enable routing in existing deployments or place ACME orders. Current-assignment
-issuer authorization, issuance jobs, authenticated delivery and native GUI installation remain
-required. See the http01 package contract and genuine proxy test.
+enable routing in existing deployments. Durable initial jobs, current-assignment
+lease checks, immutable progress/issued generations and the CA coordinator now
+pass combined private PostgreSQL/host-runner/Pebble/Caddy recovery tests. Two lost
+committed replies recover the same order/CSR; expired leases cannot regain work,
+and one generation/audit/finalize POST is retained. The fixture deliberately
+advances lease/retry clocks and seeds public device metadata; it does not measure
+production recovery time or replace enrollment acceptance. Protected host
+configuration/scheduling, independent proof expiry cleanup, renewal jobs,
+authenticated delivery and native GUI installation remain required. No public
+CA account or order has been created. See the issuer and HTTP-01 contracts.
 
 The account client foundation directly reuses `golang.org/x/crypto/acme` and
 constrains every request to operator-approved HTTPS origins, verified TLS and
