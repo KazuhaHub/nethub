@@ -68,3 +68,26 @@ a last-good backup bound to another CA, including a legacy unbound backup after 
 managed generation. Invalid/expired managed trust stops the tunnel without marking
 it revoked. These checks do not replace the pending transaction's crash recovery,
 which must be installed before automatic trust application is enabled.
+
+The application component journals public before/after nodes and managed CA bytes
+before its first mutation. It quiesces a changed-CA tunnel, uses the native model
+CAS boundary, replaces only exact owned CA bytes, records the written phase and
+requires a confirmed reconcile before recording application. Pending recovery
+restores only the exact owned model/file values and leaves a changed-CA tunnel
+stopped. Unknown local changes require review. Recovery never requires network or
+claims expired old trust has restored connectivity. Retries retain the highest
+desired epoch, wait five minutes after rollback and stop after three attempts for
+the same snapshot; a new valid generation gets a fresh budget.
+
+The separate synchronizer always fetches authenticated desired state before a
+report retry. It binds the fetch to the native enrollment identity, and reports
+only after local application. A rejected/stale/lost report reply preserves good
+local trust and retries after a fresh fetch. Confirmed retries retain the original
+server receipt timestamp; a compatible server version change does not reinstall.
+Both components remain disconnected from production scheduling until boot/direct
+startup/watchdog pending-state fencing and removal recovery are integrated.
+
+The shared HTTPS transport permits only the exact lifecycle, GUI certificate and
+relay trust paths. Real TLS tests exercise those paths through the transport,
+including GUI settings and trust application/stale-report retry; helper mocks
+alone cannot prove a route is reachable.

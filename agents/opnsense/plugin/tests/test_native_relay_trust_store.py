@@ -8,12 +8,14 @@ import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'src/usr/local/opnsense/scripts/nethub-agent'))
 from relay_trust_backend import NativeTrustBackend, model_nodes
+from relay_trust_transaction import TrustTransaction, TrustTransactionError
 
 pytestmark = pytest.mark.skipif(os.name == 'nt', reason='Native model ownership contracts require POSIX PHP')
 
@@ -194,3 +196,75 @@ def test_real_python_backend_and_php_writer_round_trip(native):
     assert backend.replace(current['binding'], current['nodes'], after) is True
     assert backend.replace(current['binding'], current['nodes'], after) is False
     assert backend.replace(current['binding'], current['nodes'], after, rollback=True) is True
+
+
+@pytest.fixture
+def native_transaction(native):
+    config = native.parent/'plugin'; config.mkdir(mode=0o700)
+    calls = []
+    def run(arguments, input, **kwargs):
+        value = json.loads(input)
+        result = native.call(value['action'], value['request'])
+        return subprocess.CompletedProcess(arguments, 0, json.dumps({'success': True, 'result': result}).encode(), b'')
+    backend = NativeTrustBackend(run=run, configuration=native.path)
+    def stop(): calls.append('stop'); return True
+    def reload(): calls.append('reload'); return True
+    transaction = TrustTransaction(config, backend, stop, reload,
+        clock=lambda: datetime(2026, 10, 21, tzinfo=timezone.utc).timestamp(), openssl=shutil.which('openssl'))
+    return native, transaction, calls
+
+
+def test_real_php_and_durable_file_journal_apply_once(native_transaction):
+    native, transaction, calls = native_transaction
+    before = native.call('read', [])
+    assert transaction.apply(native.desired)['success'] is True
+    assert transaction.ca.read_text() == native.desired['desired']['ca_pem']
+    assert native.call('read', [])['nodes'] == model_nodes(native.desired)
+    assert transaction.apply(native.desired)['success'] is True
+    assert calls == ['stop', 'reload']
+    assert transaction.read()['phase'] == 'applied'
+    assert transaction.ca.stat().st_mode & 0o777 == 0o600
+    assert before['binding'] == native.call('read', [])['binding']
+
+
+def test_real_php_success_followed_by_reload_failure_rolls_back(native_transaction):
+    native, transaction, calls = native_transaction
+    before = native.call('read', [])
+    transaction.reload = lambda: False
+    with pytest.raises(TrustTransactionError): transaction.apply(native.desired)
+    assert native.call('read', []) == before
+    assert not transaction.ca.exists()
+    assert transaction.read()['phase'] == 'rolled_back'
+    assert calls == ['stop', 'stop']
+
+
+def test_actual_native_save_response_loss_is_recovered_by_journal(native_transaction):
+    native, transaction, calls = native_transaction
+    before = native.call('read', [])
+    original = native.call
+    def lose_once(action, request, fault=''):
+        return original(action, request, fault='lost_reply' if action == 'install' else fault)
+    native.call = lose_once
+    with pytest.raises(TrustTransactionError): transaction.apply(native.desired)
+    assert original('read', []) == before
+    assert transaction.read()['phase'] == 'rolled_back'
+    assert not transaction.ca.exists()
+
+
+def test_native_model_and_ca_restore_after_process_death(native_transaction):
+    native, transaction, calls = native_transaction
+    before = native.call('read', [])
+    class PowerLoss(BaseException): pass
+    original = transaction._write
+    def die_after_written(value):
+        original(value)
+        if value['phase'] == 'written': raise PowerLoss()
+    transaction._write = die_after_written
+    with pytest.raises(PowerLoss): transaction.apply(native.desired)
+    assert native.call('read', [])['nodes'] == model_nodes(native.desired)
+    assert transaction.ca.exists()
+    transaction._write = original
+    calls.clear()
+    assert transaction.recover()['phase'] == 'rolled_back'
+    assert native.call('read', []) == before
+    assert not transaction.ca.exists() and calls == ['stop']
