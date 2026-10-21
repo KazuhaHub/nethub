@@ -44,6 +44,5 @@ The nonroot read-only proxy mounted only public responses, its route and separat
 scratch directories; private publisher/account state was not mounted. Independent
 cleanup removed both containers, network and complete temporary-key namespace
 before cancelling its guard. Original public services stayed running. No
-certificate was finalized or installed. Current-head CI remains required;
-GitHub-hosted jobs are presently stopped before execution by account billing/
-spending restrictions, so this local/native proof does not authorize a merge.
+certificate was finalized or installed. This local/native proof does not replace
+the six required current-head hosted checks and inspection of their actual logs.
