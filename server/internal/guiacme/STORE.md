@@ -47,3 +47,36 @@ its directory in protected issuer state, outside web/authz/frps and HTTP-01 publ
 mounts, and include it in the eventual verified private backup/recovery procedure.
 Full deployment integration, issuance authorization, durable order jobs, native
 delivery and certificate application remain separate work.
+
+## Explicit private backup and recovery
+
+`Backup` copies the validated complete account record and a fresh empty lease to
+an independent protected directory. It holds the source lease, writes through the
+existing synced private-state codec, then loads the result to verify canonical
+encoding, policy, key consistency, ownership, mode and single-link files. The
+operation contacts no CA, generates no key and never changes source state.
+An existing exact backup is an idempotent retry; files and directories are synced
+again before success. A changed account record requires a new backup directory.
+The backup contains a private signing key and needs private storage and transport;
+filesystem protection does not encrypt it.
+
+`VerifyBackup` locks both stores and compares the same immutable key/policy. It
+permits a pre-registration backup to remain useful after registration adds public
+metadata, but conflicting known account or orders identities are refused. It
+neither looks up nor creates an account. This is a local readable-copy check, not
+evidence of an independent storage failure domain or an external archive upload.
+
+`Restore` is an explicit operation into a new protected namespace. It preserves
+the backed-up key and known account identity without contacting the CA. A later
+lookup with creation disabled can recover an account whose registration response
+was lost after that offline backup. An intact exact destination is idempotent;
+an existing different, incomplete, corrupt or foreign destination is never
+repaired or overwritten. Same, nested and parent account/backup namespaces are
+refused. Failed publications remain for operator review; no recursive cleanup
+or automatic adoption occurs.
+
+Backup/recovery follow the original Unix ownership and durability contract;
+Windows tests cover state logic only. These library operations do not enable a
+production account, accept Terms of Service, install a timer or wire an operator
+command. Explicit provisioning/current-terms consent and deployment acceptance
+remain separate work.
