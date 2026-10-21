@@ -64,7 +64,7 @@ def build(output):
         check_build_info(run([go, 'version', '-m', str(binary)]), compiler, version)
         host = dict(env, GOOS=run([go, 'env', 'GOHOSTOS']).strip(),
                     GOARCH=run([go, 'env', 'GOHOSTARCH']).strip(), GOFLAGS='-mod=readonly')
-        collector = work/('licenses.exe' if host['GOOS'] == 'windows' else 'licenses')
+        collector = work/('license-collector.exe' if host['GOOS'] == 'windows' else 'license-collector')
         run([go, 'build', '-p', '2', '-trimpath', '-o', str(collector),
              str(REPOSITORY/'deploy/images/licenses.go')], environment=host)
         licenses = work/'licenses'
