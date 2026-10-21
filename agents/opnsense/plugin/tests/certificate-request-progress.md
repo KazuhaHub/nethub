@@ -32,15 +32,24 @@ storage under umask 0777; the next read could not reuse that cache. Creation now
 establishes and validates the required modes. Existing unsafe storage is still
 rejected without permission repair.
 
-This is an initializer/cache component, not a certificate polling endpoint.
-There is no API/configd/cron integration, CSR upload, issuance authorization,
-certificate installation, cleanup integration or package upgrade in this change.
-Future job state must distinguish a first request from loss of an already
-submitted cache, recover the original job rather than initialize blindly, and
-remove only the owned cache after confirmed assignment removal. Different live
+`restore` accepts the original canonical public DER and hash from the authenticated
+settings response. It requires the intact existing bound key, reconstructs the
+same restricted request profile and verifies the signature before publication.
+It never invokes the signer or creates a key. Identical recovery reuses the same
+record; another existing signed request, corrupt storage or unsafe modes/links
+are preserved for review. A hash match alone is not sufficient. Atomic publication
+and fsync/mode checks are shared with initialization, including restrictive umask
+and retry after a committed rename followed by parent-fsync failure.
+
+This remains a cache component, not a certificate polling endpoint. Protocol 1.2
+has separate server admission/recovery routes and agent wire helpers, but these
+are not connected to configd/cron/reconcile or a package upgrade. Future job state
+must distinguish a proven fresh assignment from loss of an already submitted
+cache; a null server response alone does not authorize blind reinitialization.
+Remove only the owned cache after confirmed assignment removal. Different live
 assignments require an explicit transition, not automatic cache replacement.
 
-Local tests passed 24 cases with four POSIX-only skips, exercising real OpenSSL
+The original cache tests passed 24 local cases with four POSIX-only skips, exercising real OpenSSL
 signatures/reuse, maximum DNS length, invalid
 identities, changed bindings/assignments, a valid signature for another name,
 corrupt/ambiguous records, key loss, child failures, interruption boundaries and
@@ -50,3 +59,10 @@ without installing packages or changing appliance configuration. A generated
 native request also passed the production Go `ValidateBoundCSR` validator; wrong
 host and missing binding were rejected. Native temporary key material was removed.
 Current-head CI remains a merge gate. Full GUI certificate acceptance remains open.
+
+The recovery extension passed 33 Windows/OpenSSL cases with five POSIX skips and
+all 38 cases on native FreeBSD. It covers exact recovery without signing, another
+intact signature, wrong name/key/hash/encoding/signature, missing key preservation,
+restrictive-umask modes and post-publication retry. Native configuration remained
+unchanged, package 0.0.6 stayed installed, and temporary test keys were removed.
+The generated native request also passed production Go bound-CSR admission again.
