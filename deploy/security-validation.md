@@ -1,3 +1,39 @@
+# Go X.509 security update (2026-10-21)
+
+The appliance client also needs an independent artifact check. The checksum-pinned
+official FreeBSD frpc 0.71.1 reports Go 1.26.8; govulncheck v1.9.0 binary mode
+reported 14 advisories, including GO-2026-6809. Binary reachability can be broader
+than a source call graph; these results do not establish exploitation of every
+reported server or optional feature. They do establish that the earlier Linux
+server/helper scans did not cover the packaged client.
+
+The package now builds that same upstream client version from its own module lock,
+with the shared Go 1.26.10 pin and updated dependencies, using `frpc,noweb` and
+CGO disabled. The isolated FreeBSD-target source probe found no affected symbols
+or imported packages (one module-only advisory remains). CI must additionally
+build and scan the actual ELF artifact. Native execution/package lifecycle and
+full end-to-end W4 acceptance remain separate requirements; no release is claimed.
+
+Go 1.26.10 replaces 1.26.9 for the server and all rebuilt Go helpers. Advisory
+[GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809) requires distrusting compromised
+intermediate certificates in `crypto/x509`. The newly available hosted source
+scan reported a reachable standard-library finding with Go 1.26.9. The patch
+updates `.go-version` and all four Docker builder tags/digests together, without
+suppressing the advisory or changing the module compatibility floor.
+
+The builder digest was resolved from the official `library/golang` OCI index
+for `1.26.10-bookworm` and checked against its response content hash. The Go
+release metadata and vulnerability database both identify 1.26.10 as fixed.
+The rebuilt PostgreSQL helper also updates `github.com/moby/sys/user` from
+v0.1.0 to v0.4.1 for [GO-2026-6686](https://pkg.go.dev/vuln/GO-2026-6686).
+The hosted helper scan identified a reachable path through gosu's user setup.
+The upstream gosu source revision remains pinned; its dependency graph is rebuilt
+with the fixed user lookup module.
+
+Current hosted source, helper and assembled-image checks must pass before merge.
+The earlier measurements below are historical and do not establish current
+vulnerability status.
+
 # W3 security scan checkpoint (2026-10-18)
 
 The Linux/amd64, CGO-disabled source scan uses govulncheck v1.9.0 and the
