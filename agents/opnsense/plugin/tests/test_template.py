@@ -1,5 +1,7 @@
 """Check the actual template's TLS, heartbeat, and proxy structure."""
 from pathlib import Path
+import shutil
+import sys
 import tomllib
 
 import jinja2
@@ -50,3 +52,32 @@ def test_tls_name_is_independent_of_connection_address():
     config = tomllib.loads(rendered)
     assert config['serverAddr'] == settings['server_addr']
     assert config['transport']['tls']['serverName'] == settings['server_name']
+
+
+@pytest.mark.skipif(sys.platform != 'freebsd', reason='Requires the native OPNsense template engine')
+def test_native_wildcard_boot_reload_skips_candidate_but_explicit_reconcile_renders_it(tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend('/usr/local/opnsense/service')
+    from modules.template import Template
+
+    templates = tmp_path / 'templates'
+    module = templates / 'OPNsense/NetHubAgent'
+    module.mkdir(parents=True)
+    shutil.copy2(TEMPLATE, module / TEMPLATE.name)
+    shutil.copy2(TEMPLATE.with_name('+TARGETS'), module / '+TARGETS')
+    output = tmp_path / 'output'
+    parent = output / 'usr/local/etc/nethub-agent'
+    parent.mkdir(parents=True, mode=0o700)
+    engine = Template(target_root_directory=str(output))
+    engine._template_dir = str(templates) + '/'
+    engine._j2_env.loader = jinja2.FileSystemLoader(str(templates))
+    engine.set_config({'OPNsense': {'NetHubAgent': {'enabled': '0'}}})
+    candidate = parent / 'frpc.toml.candidate'
+
+    assert engine.generate('*') is None
+    assert not candidate.exists()
+    assert engine.generate('OPNsense.NetHubAgent') == [str(candidate)]
+    assert tomllib.loads(candidate.read_text()) == {}
+    assert candidate.stat().st_mode & 0o777 == 0o600
+    candidate.write_text('retain a pending candidate')
+    assert engine.generate('OPNsense.*') is None
+    assert candidate.read_text() == 'retain a pending candidate'
