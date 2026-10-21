@@ -27,6 +27,23 @@ type certificateRepository struct {
 	found          bool
 	calls          int
 	issued         *guicert.IssuedCertificate
+	appliedAt      time.Time
+}
+
+func (s *certificateRepository) Acknowledge(_ context.Context, c Credential, report guicert.ApplicationReport) (time.Time, error) {
+	s.calls++
+	if c != s.credential || !s.found || report.DeviceID != s.record.DeviceID || report.RequestID != s.record.ID ||
+		report.RequestFingerprint != s.record.Fingerprint || s.issued == nil || report.GenerationID != s.issued.ID ||
+		report.Generation != s.issued.Generation || report.Fingerprint != s.issued.Fingerprint {
+		return time.Time{}, ErrDenied
+	}
+	if s.err != nil {
+		return time.Time{}, s.err
+	}
+	if s.appliedAt.IsZero() {
+		s.appliedAt = time.Now().UTC().Truncate(time.Microsecond)
+	}
+	return s.appliedAt, nil
 }
 
 func (s *certificateRepository) Issued(_ context.Context, c Credential, id, requestID, fingerprint string) (guicert.StoredRequest, *guicert.IssuedCertificate, error) {

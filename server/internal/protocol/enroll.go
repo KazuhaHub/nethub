@@ -14,7 +14,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/guicert"
 )
 
-const Version = "1.3.0"
+const Version = "1.4.0"
 const MaxBodyBytes = boundedjson.MaxBytes
 
 var ErrInvalidRequest = errors.New("invalid device request")

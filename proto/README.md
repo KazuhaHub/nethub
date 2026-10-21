@@ -1,12 +1,14 @@
 # Device protocol
 
-The shared device protocol is version **1.3.0**, recorded in `VERSION`.
+The shared device protocol is version **1.4.0**, recorded in `VERSION`.
 `v1/*.schema.json` are JSON Schema draft 2020-12 documents used by Go and Python
 contract tests. Enrollment, signed claims and native OPNsense enrollment are
 implemented. Authenticated status/removal and native appliance lifecycle behavior
 have passed acceptance. GUI issuance and authenticated public-chain delivery are
-implemented; native installation/renewal, trust acknowledgements and credential
-rotation remain separate work.
+implemented. Native installation/rollback and interrupted boot recovery have
+private-CA appliance evidence; protocol 1.4 adds authenticated application reports.
+Renewals, trust acknowledgements, credential rotation and the combined public/native
+pipeline remain separate work.
 
 ## Messages
 
@@ -21,6 +23,7 @@ rotation remain separate work.
 | certificate-settings-request / certificate-settings-response | Live assigned GUI hostname, enrollment key fingerprint and original public CSR, when present |
 | certificate-submit-request / certificate-submit-response | Enrollment-bound signed CSR admission and exact durable readback |
 | certificate-issued-request / certificate-issued-response | Authenticated original-request pins and pending or issued public generation |
+| certificate-applied-request / certificate-applied-response | Authenticated verified-generation report and immutable server receipt |
 
 The public device endpoints are `/api/v1/devices/{enroll,status,rotate,unenroll}`
 under the administrator-selected HTTPS console origin. Enrollment carries its
@@ -55,6 +58,32 @@ request/assignment and either `issued: null` or an immutable public generation:
 generation ID/number, canonical certificate PEM, leaf SHA256 and microsecond UTC
 not-before/not-after/effective-validity/renewal times. A mismatch or revoked
 assignment is denied. Settings reads and delivery polls never enqueue renewals.
+
+Protocol 1.4 adds authenticated POST `/api/v1/devices/gui-certificate/applied`
+for major-1 clients with minor >= 4. Its seven bounded fields are protocol/device
+identity, original request ID/CSR fingerprint, generation ID/number and leaf
+fingerprint. No PEM, private key, client timestamp or host/path override is sent.
+The response echoes that identity with `accepted: true` and the original
+microsecond UTC `accepted_at` server receipt.
+
+The live credential and assignment remain locked through request/key/generation
+checks, immutable report insertion and one audit. Only valid issued material for
+the current tenant/device/key/host can be reported. A newer issuance alone does
+not invalidate an older valid installed generation. After application of a newer
+generation is confirmed, older reports are refused. Exact retries retain the
+first receipt and audit; revocation, changed credentials/assignment and expiry
+are rechecked even for retries. Reports grant no issuance authority or online
+state. They are authenticated device reporting, not independent server proof of
+what the GUI serves. Application roles have no raw report table/column access;
+only authz has the narrow function, with forced RLS and immutable history.
+
+The native coordinator reports only after its served CA/hostname/leaf/GET probe
+and durable applied journal succeed. A lost response keeps that certificate and
+retries against the same reverified generation, without reinstalling or issuing
+another one. A protocol-1.3 console remains usable for local installation, but
+status is `applied_unconfirmed` with an upgrade message and no unsupported POST.
+A console minor upgrade alone does not reinstall unchanged material. Reporting
+failures remain separate from tunnel health and do not roll back a valid GUI.
 
 The chain is at most 32768 bytes, with at most five canonical public certificates;
 the whole message remains limited to 65536 bytes. Leaf/key/exact-name/CSR and

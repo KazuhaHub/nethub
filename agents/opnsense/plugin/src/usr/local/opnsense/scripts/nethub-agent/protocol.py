@@ -3,7 +3,7 @@ import base64
 import hashlib
 import re
 
-VERSION = '1.3.0'
+VERSION = '1.4.0'
 MAX_BODY_BYTES = 65536
 _HOSTNAME = re.compile(r'[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*', re.ASCII)
 
