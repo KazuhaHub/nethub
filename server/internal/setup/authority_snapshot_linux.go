@@ -27,6 +27,7 @@ type RelayAuthoritySnapshotOptions struct {
 	CustodyFile        string                   `json:"custody_file"`
 	SuccessorBackup    string                   `json:"successor_backup"`
 	Request            relaytrust.SwitchRequest `json:"request"`
+	ServiceFingerprint string                   `json:"service_fingerprint,omitempty"`
 }
 
 type authoritySnapshotFile struct {

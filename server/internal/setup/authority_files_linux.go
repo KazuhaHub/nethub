@@ -36,12 +36,18 @@ func (h *RelayAuthoritySnapshotHost) Snapshot(ctx context.Context, operation str
 	if h == nil || h.Service == nil || r != h.Options.Request {
 		return "", ErrRelayAuthority
 	}
+	if h.checkServiceBinding() != nil {
+		return "", ErrRelayAuthority
+	}
 	return prepareAuthoritySnapshot(ctx, operation, h.Options)
 }
 
 func (h *RelayAuthoritySnapshotHost) snapshot(ctx context.Context, operation string, r relaytrust.SwitchRequest, expected string) (authoritySnapshot, error) {
 	var s authoritySnapshot
 	if h == nil || h.Service == nil || os.Geteuid() != 0 || ctx.Err() != nil || r != h.Options.Request || operation != filepath.Join(h.Options.Directory, "authority-transitions", r.ID) {
+		return s, ErrRelayAuthority
+	}
+	if h.checkServiceBinding() != nil {
 		return s, ErrRelayAuthority
 	}
 	actual, err := prepareAuthoritySnapshot(ctx, operation, h.Options)
@@ -53,6 +59,20 @@ func (h *RelayAuthoritySnapshotHost) snapshot(ctx context.Context, operation str
 		return s, ErrRelayAuthority
 	}
 	return s, nil
+}
+
+func (h *RelayAuthoritySnapshotHost) checkServiceBinding() error {
+	bound, ok := h.Service.(interface{ Fingerprint() string })
+	if !ok {
+		if h.Options.ServiceFingerprint == "" {
+			return nil
+		}
+		return ErrRelayAuthority
+	}
+	if !relayTrustDigest.MatchString(h.Options.ServiceFingerprint) || bound.Fingerprint() != h.Options.ServiceFingerprint {
+		return ErrRelayAuthority
+	}
+	return nil
 }
 
 func authorityReplace(path string, uid int, raw []byte) error {

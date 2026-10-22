@@ -44,3 +44,18 @@ discarded committed database reply. They do not exercise production authz/frps
 reload, per-write process termination or native appliance recovery. The protected
 service adapter, unattended unfenced-preparation abort/reprepare path and complete
 combined deployment acceptance remain required before exposing activation.
+
+The Linux `BoundRelayAuthorityService` binds protected Compose file hashes,
+merged configuration, exact local image IDs/environment and expected application
+commands. It checks actual container labels/work directory, private read-only
+mounts, nonroot user, capabilities, network and origin publication on every
+reload/observation. Initial binding requires running services and healthy authz;
+recovery of stopped or absent services requires the identical fingerprint from protected
+snapshot options. A production binding cannot be attached without that digest.
+
+Reload verifies active trust/authority, recreates only authz, waits for health,
+then recreates frps. It performs no build/pull/dependency startup. Observation
+requires both bound services and a fresh independent CA/name-verified control TLS
+connection. Tests of actual Docker reload use the unchanged authority; full
+database-fenced root migration, process termination and authenticated appliance
+recovery still need combined acceptance. No activation CLI is exposed.
