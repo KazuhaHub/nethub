@@ -717,7 +717,7 @@ func testProtectedAuthoritySnapshot(t *testing.T, directory, project, override, 
 	if _, err := setup.MaintainRelay(context.Background(), setup.MaintenanceOptions{Directory: directory, Project: project, ComposeFile: override}); err == nil {
 		t.Fatal("ordinary maintenance crossed staged transition")
 	}
-	for _, path := range []string{filepath.Join(opts.SuccessorBackup, "secrets/issuer/ca-key.pem"), filepath.Join(operation, "snapshot/before/secrets/authz/claim_key"), filepath.Join(operation, "snapshot/maintenance/retained.fixture")} {
+	for _, path := range []string{filepath.Join(opts.SuccessorBackup, "secrets/issuer/ca-key.pem"), filepath.Join(opts.SuccessorBackup, "setup.json"), filepath.Join(manifest.BackupDirectory, "setup.json"), filepath.Join(operation, "snapshot/before/secrets/authz/claim_key"), filepath.Join(operation, "snapshot/maintenance/retained.fixture")} {
 		if os.Rename(path, path+".unavailable") != nil {
 			t.Fatal("snapshot missing-copy fixture")
 		}

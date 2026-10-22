@@ -37,11 +37,12 @@ type authoritySnapshotFile struct {
 }
 
 type authoritySnapshot struct {
-	Version            int                           `json:"version"`
-	Options            RelayAuthoritySnapshotOptions `json:"options"`
-	Files              []authoritySnapshotFile       `json:"files"`
-	MaintenancePresent bool                          `json:"maintenance_present"`
-	Maintenance        []authorityTreeEntry          `json:"maintenance"`
+	Version                int                           `json:"version"`
+	Options                RelayAuthoritySnapshotOptions `json:"options"`
+	Files                  []authoritySnapshotFile       `json:"files"`
+	MaintenancePresent     bool                          `json:"maintenance_present"`
+	Maintenance            []authorityTreeEntry          `json:"maintenance"`
+	OriginalBackupManifest string                        `json:"original_backup_manifest_sha256"`
 }
 
 type authorityTreeEntry struct {
@@ -316,6 +317,11 @@ func prepareAuthoritySnapshot(ctx context.Context, operation string, o RelayAuth
 	}
 	slices.Sort(paths)
 	s := authoritySnapshot{Version: 1, Options: o}
+	backupManifest, err := authorityRead(filepath.Join(before.BackupDirectory, "setup.json"), 0, 32768)
+	if err != nil {
+		return "", ErrRelayAuthority
+	}
+	s.OriginalBackupManifest = authorityHash(backupManifest)
 	for _, path := range paths {
 		if ctx.Err() != nil {
 			return "", ErrRelayAuthority
@@ -491,6 +497,22 @@ func verifyAuthoritySnapshot(operation string, o RelayAuthoritySnapshotOptions) 
 		}
 	}
 	if VerifyBackup(filepath.Join(root, "before"), before.BackupDirectory) != nil || VerifyBackup(filepath.Join(root, "after"), o.SuccessorBackup) != nil {
+		return "", ErrRelayAuthority
+	}
+	backupManifest, err := authorityRead(filepath.Join(before.BackupDirectory, "setup.json"), 0, 32768)
+	if err != nil || authorityHash(backupManifest) != s.OriginalBackupManifest {
+		return "", ErrRelayAuthority
+	}
+	originalBackup, err := Load(before.BackupDirectory)
+	if err != nil || originalBackup.Config != before.Config || !bytes.Equal(authorityJSON(originalBackup.Files), authorityJSON(before.Files)) {
+		return "", ErrRelayAuthority
+	}
+	newBackupManifest, err := authorityRead(filepath.Join(o.SuccessorBackup, "setup.json"), 0, 32768)
+	if err != nil {
+		return "", ErrRelayAuthority
+	}
+	stagedManifest, err := authorityRead(filepath.Join(root, "after/setup.json"), 0, 32768)
+	if err != nil || !bytes.Equal(newBackupManifest, stagedManifest) {
 		return "", ErrRelayAuthority
 	}
 	tree, _, err := authorityTree(filepath.Join(root, "maintenance"))
