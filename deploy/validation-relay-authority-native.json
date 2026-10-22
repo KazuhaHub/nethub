@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "date": "2026-10-22",
+  "preceding_record": "validation-relay-trust-recovery.json",
+  "fixed_native_source": "79ea01ee3a7cd3c4bfdd979fc99fc41b984bbe50",
+  "unsigned_package_version": "0.0.13",
+  "unsigned_package_sha256": "a23dd037b3565e98d567e447f7e9480baf205d50fc87171b3f67ec7893a3e7ce",
+  "source_ci_run": 39868811152,
+  "fixture_administration": {
+    "off_relay_database_backup_and_24_table_restore_verified": true,
+    "audited_copy_rehearsal_verified": true,
+    "failed_identity_explicitly_retired": true,
+    "device_records_retained": 3,
+    "active_recoverable_identities": 2,
+    "genuine_prior_application_rows_preserved": 4,
+    "prior_audit_entries_and_other_tables_preserved": true,
+    "one_system_audit_appended": true,
+    "full_audit_hash_chain_verified": true,
+    "fabricated_acknowledgements": false,
+    "product_revocation_acceptance": false
+  },
+  "bound_authority_switch": {
+    "all_active_genuine_gen2_applications_verified": 2,
+    "actual_file_and_sql_transition_committed": true,
+    "retained_original_options_and_exact_resume_verified": true,
+    "actual_successor_tls_and_hostname_verified": true,
+    "original_root_client_rejects_successor_server": true,
+    "actual_native_https_proxy_reconnected": true,
+    "command_to_proxy_online_upper_bound_seconds": 16.81,
+    "same_native_pid_and_overlap_ca": true,
+    "unrelated_service_ids_credentials_applications_and_audit_preserved": true
+  },
+  "root_retirement": {
+    "generation": 3,
+    "published_roots": 1,
+    "all_active_predecessor_applications_verified": 2,
+    "runtime_authority_and_service_ids_unchanged_by_publication": true
+  },
+  "deadline_regression": {
+    "old_package": "0.0.12",
+    "confirmed_application_before_caller_finished": true,
+    "stock_timeout_waited_for_daemon_and_terminated_it": true,
+    "actual_freebsd_behavior_cases_passed": 5,
+    "native_cases_skipped": 0,
+    "ci_plugin_cases_passed": 710,
+    "ci_plugin_cases_skipped": 13,
+    "normal_command_hands_off_daemon": true,
+    "timeout_and_cancellation_clean_detached_stubborn_descendants": true
+  },
+  "manual_recovery": {
+    "retained_genuine_model_generation_before": 1,
+    "installed_generation": 3,
+    "installed_roots": 1,
+    "stale_root_tls_refused": true,
+    "fresh_successor_tls_accepted": true,
+    "package_cron_caller_excluded": true,
+    "actual_configd_first_application_seconds": 2.773,
+    "actual_configd_repeat_seconds": 1.265,
+    "same_pid_and_ca_after_repeat": true,
+    "stable_observation_seconds": 115.172,
+    "stable_observation_samples": 9,
+    "actual_frps_https_proxy_online": true
+  },
+  "scheduled_recovery": {
+    "retained_genuine_model_generation_before": 1,
+    "installed_generation": 3,
+    "installed_roots": 1,
+    "original_package_cron_unchanged": true,
+    "fresh_scheduled_confirmation_observed": true,
+    "manual_trust_invocation": false,
+    "stable_observation_seconds": 116.39,
+    "stable_observation_samples": 9,
+    "same_pid_and_ca_after_old_deadline": true,
+    "actual_frps_https_proxy_online": true
+  },
+  "backend_receipts": {
+    "gen3_application_existed_before_fixed_replay": true,
+    "application_rows_for_identity_and_gen3": 1,
+    "audit_rows_for_identity_and_gen3": 1,
+    "first_acceptance_preserved_in_both_replays": true,
+    "other_active_identity_gen2_application_retained": true
+  },
+  "restoration": {
+    "original_running_container_identities_verified": 14,
+    "original_443_and_8443_owners_and_configurations_restored": true,
+    "owned_test_services_stopped": true,
+    "database_and_new_authority_retained": true,
+    "original_native_package": "0.0.6",
+    "native_configuration_exact": true,
+    "native_operator_stop_preserved": true,
+    "native_memory_mib": 1024,
+    "original_cold_checkpoint_present": true
+  },
+  "not_established": [
+    "fresh_browser_enrollment_and_initial_sync_timing",
+    "complete_native_gui_certificate_pipeline",
+    "public_ca_account_or_order",
+    "formal_release_custody",
+    "product_revocation_acceptance",
+    "capacity_or_latency_slo",
+    "physical_host_power_loss",
+    "full_w4_acceptance",
+    "w5_w6_w7_acceptance"
+  ]
+}

@@ -83,3 +83,8 @@ retirement and the complete browser/GUI certificate pipeline remain separate
 acceptance. Initial cold-sync configd latency also remains unresolved. W5-W7
 are not completed by these measurements. Private assignments, operation IDs,
 hostnames, addresses, signing material and logs remain outside Git.
+
+The later [authority and deadline record](validation-relay-authority-native.md)
+documents explicit backed-up lab administration, the actual signer switch and
+root retirement, and corrected manual/scheduled native recovery. The state
+described above is the earlier measurement, before that administration.
