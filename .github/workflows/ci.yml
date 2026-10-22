@@ -199,8 +199,13 @@ jobs:
 
       - name: Install PHP filesystem contract dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y php8.3-cli php8.3-xml
+          # The runner's Azure HTTP mirror can stall while the HTTPS fallback works.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          apt_options=(-o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15)
+          sudo apt-get "${apt_options[@]}" --error-on=any update
+          sudo apt-get "${apt_options[@]}" install -y --no-install-recommends php8.3-cli php8.3-xml
 
       - name: Install test runner
         run: python3 -m pip install pytest==8.3.5 jinja2==3.1.6 jsonschema==4.25.1

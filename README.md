@@ -297,9 +297,12 @@ service TLS and eleven process-exit recovery checkpoints (PRs #119–#120).
 Prepared-operation cancellation passed real database/Compose acceptance in
 PR #121, including lost-admission recovery. PR #122 passed five actual preparation
 exits with retained partial files/backups and a permanent cancellation decision.
-Current-publication startup with an expired bootstrap CA is under validation.
-Offline recovery and
-authenticated native trust rollout remain separate gates. See the current
+PR #123 passed compiled-service startup with an expired bootstrap CA against
+the current PostgreSQL trust publication, including authenticated retrieval
+and revocation denial. The isolated appliance subsequently passed native enrollment,
+proxy registration and initial trust application, including a confirmed repeated
+poll with unchanged PID and CA bytes. See the [native validation record](deploy/validation-relay-trust-native.md).
+Overlap deployment, lost-report retry and offline recovery remain separate gates. See the current
 [handoff](docs/HANDOFF_PROMPT.md) for acceptance evidence and limits.
 
 ## Roadmap
