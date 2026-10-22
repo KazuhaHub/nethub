@@ -153,6 +153,16 @@ jobs:
         env:
           PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/nethub-deployment-browsers
         run: |
+          # Playwright invokes apt itself; bound those nested downloads as well.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          printf '%s\n' \
+            'Acquire::Retries "2";' \
+            'Acquire::http::Timeout "15";' \
+            'Acquire::https::Timeout "15";' \
+            'APT::Update::Error-Mode "any";' \
+            | sudo tee /etc/apt/apt.conf.d/80-nethub-ci >/dev/null
           npm ci --ignore-scripts
           npx playwright install --with-deps chromium
       - name: Verify clean Compose startup and migration failure
