@@ -45,4 +45,16 @@ This was an inactive, unenrolled baseline lifecycle test using the approved
 1 GiB lab exception. It does not prove live trust installation/report retry,
 root overlap/retirement, offline recovery, bootstrap authority migration,
 quarantine or the combined public/native GUI certificate flow. Those scenarios
-remain required. The package was neither signed nor published as a release.
+were outside this baseline measurement. The package was neither signed nor
+published as a release.
+
+Later [initial enrollment](../../../../deploy/validation-relay-trust-native.md),
+[overlap/report retry](../../../../deploy/validation-relay-trust-overlap.md) and
+[admission/offline recovery](../../../../deploy/validation-relay-trust-recovery.md)
+records establish their stated authenticated scopes.
+The [authority/deadline record](../../../../deploy/validation-relay-authority-native.md)
+adds the actual signer switch and root retirement. It also records a reproduced
+FreeBSD timeout defect and the rebuilt unsigned 0.0.13 fix: five native process
+controls, controlled configd recovery and untouched package-cron recovery with
+stable tunnels beyond the former deadline. Fresh browser enrollment and the
+complete native GUI certificate pipeline remain separate acceptance.
