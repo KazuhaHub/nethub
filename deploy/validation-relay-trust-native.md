@@ -53,8 +53,12 @@ untouched.
 
 ## Remaining acceptance
 
-Native retry after a lost successful report response, overlap deployment,
-authority switch, retirement barriers and offline recovery remain required.
+A later [native overlap and lost-response run](validation-relay-trust-overlap.md)
+verified generation-2 application and retry after one committed report response
+was lost. It used a separate retained LXC deployment and does not change this
+initial run's observations or limits.
+
+Authority switch, retirement barriers and offline recovery remain required.
 This run also leaves browser enrollment, automated GUI certificate issuance,
 installation and renewal, and the combined public GUI path unverified. No public
 CA account or order was created. W4 remains open; this evidence does not complete

@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "date": "2026-10-22",
+  "server_image_source": "9ffcb2dbf46c80a61978d3911f5ba54130295302",
+  "server_ci_run": 39828844165,
+  "unchanged_runtime_inputs_through": "3b2d7fccf64f6f248bc71056a7c36c9bec82f470",
+  "native_build_source": "e6ce45c6686200297b2b33918914b3ae5b6329e6",
+  "unsigned_package_sha256": "3af38de19479bf24203c4f97eae081ae9d4b26acf39e42255bd6f17dc93c7b19",
+  "environment": {
+    "router_memory_mib": 1024,
+    "relay_kind": "linux_lxc",
+    "relay_memory_mib": 4096,
+    "docker": "29.2.1",
+    "fixture_python": "3.11.2",
+    "frp": "0.71.1",
+    "go": "1.26.10",
+    "console_ca": "independent_private_fixture",
+    "sequential_genuine_enrollments_on_one_appliance": true
+  },
+  "receipts": {
+    "fixture_runtime": {
+      "actual_linux_root_tests_passed": 8,
+      "tests_skipped": 0
+    },
+    "retained_bootstrap": {
+      "database_and_initial_publication_preserved": true,
+      "authority_and_runtime_files_unchanged": true,
+      "existing_admin_and_proxy_reused": true,
+      "verified_public_console_https": true,
+      "public_control_tcp_connected": true,
+      "native_configd_enrollment_and_php_model_saved": true,
+      "private_assignment_exported": true,
+      "scheduled_generation_1_confirmed": true,
+      "actual_frps_https_proxy_online": true
+    },
+    "overlap_and_response_loss": {
+      "generation": 2,
+      "installed_root_count": 2,
+      "native_shared_lock_held": true,
+      "real_authenticated_report_forwarded": true,
+      "successful_backend_response_lost_once": true,
+      "backend_http_status_before_loss": 200,
+      "native_first_phase": "applied_unconfirmed",
+      "native_retry_phase": "applied",
+      "native_retry_confirmed": true,
+      "same_pid_and_ca_on_retry": true,
+      "application_rows_for_device_and_generation": 1,
+      "audit_rows_for_device_and_generation": 1,
+      "first_accepted_at_preserved": true,
+      "genuine_offline_generation_1_application_retained": true,
+      "actual_frps_https_proxy_online_after_both_samples": true,
+      "original_proxy_bytes_restored": true,
+      "owned_forwarder_stopped": true
+    },
+    "restored_model_configd_polls": {
+      "first_seconds": 1.775,
+      "repeat_seconds": 1.261,
+      "same_pid_and_ca_on_repeat": true,
+      "database_counts_and_first_accepted_at_preserved": true,
+      "initial_cold_sync_timeout_resolved": false
+    },
+    "final_restoration": {
+      "original_running_container_identities_verified": 14,
+      "original_443_and_8443_owners_and_configurations_restored": true,
+      "owned_stack_services_stopped": true,
+      "database_and_authority_retained": true,
+      "native_package_version": "0.0.6",
+      "native_configuration_exact": true,
+      "native_frpc_stopped": true,
+      "native_operator_stop_preserved": true
+    }
+  },
+  "not_established": [
+    "initial_cold_sync_configd_latency",
+    "active_authority_switch",
+    "old_root_retirement",
+    "all_active_device_retirement_barrier",
+    "offline_manual_recovery",
+    "browser_enrollment",
+    "public_gui_certificate_issuance_installation_and_renewal",
+    "combined_public_gui_flow",
+    "full_w4_acceptance"
+  ]
+}
