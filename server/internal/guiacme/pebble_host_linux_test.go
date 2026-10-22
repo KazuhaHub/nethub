@@ -548,4 +548,44 @@ func testProtectedRelayTrustCommands(t *testing.T, binary, directory, project, o
 		t.Fatal("refused publication changed current trust or authority/runtime")
 	}
 	t.Log("Protected relay trust commands passed pending read, explicit initialization, exact retry, overlap CAS, stale/unsafe refusal and unchanged authority/runtime")
+	oldKey, err := os.ReadFile(filepath.Join(directory, "secrets/issuer/ca-key.pem"))
+	if err != nil {
+		t.Fatal("fixture issuer unavailable")
+	}
+	previous, err := relaycert.AuthorityIdentity(old, oldKey)
+	if err != nil {
+		t.Fatal("fixture authority identity")
+	}
+	candidate := filepath.Join(filepath.Dir(directory), "offline-authority")
+	candidateBackup := filepath.Join(filepath.Dir(directory), "offline-authority-backup")
+	authority := func(action string, extra ...string) ([]byte, error) {
+		args := append([]string{"certificates", "relay-authority", action, "--directory", directory, "--candidate-directory", candidate}, extra...)
+		return command(nil, binary, args...)
+	}
+	if raw, err := authority("prepare", "--expected-root", strings.Repeat("0", 64)); err == nil || len(raw) != 0 {
+		t.Fatal("wrong original authority admitted")
+	}
+	if _, err := os.Lstat(candidate); !os.IsNotExist(err) {
+		t.Fatal("refused authority preparation created files")
+	}
+	raw, err := authority("prepare", "--expected-root", previous)
+	var prepared setup.RelayAuthorityResult
+	if err != nil || json.Unmarshal(raw, &prepared) != nil || prepared.Candidate.Previous != previous || prepared.Candidate.Next == previous || prepared.BackupVerified || bytes.Contains(raw, []byte("BEGIN")) {
+		t.Fatal("offline successor preparation failed")
+	}
+	if _, err := authority("prepare", "--expected-root", previous); err == nil {
+		t.Fatal("successor silently regenerated")
+	}
+	for _, action := range []string{"backup", "verify-backup"} {
+		raw, err := authority(action, "--backup-directory", candidateBackup)
+		var state setup.RelayAuthorityResult
+		if err != nil || json.Unmarshal(raw, &state) != nil || !state.BackupVerified || state.Candidate.Next != prepared.Candidate.Next {
+			t.Fatal("independent successor backup failed")
+		}
+	}
+	current = invoke("current")
+	if current.ID != second.ID || setup.CheckFiles(directory) != nil {
+		t.Fatal("offline preparation changed public head or active authority")
+	}
+	t.Log("Protected relay authority commands passed expected-root refusal, immutable preparation, independent backup verification and unchanged active authority/runtime/head")
 }

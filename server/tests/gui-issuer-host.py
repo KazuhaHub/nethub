@@ -144,13 +144,15 @@ def acceptance_evidence(code, failure, log):
                     "Protected account commands passed offline initialization, verified immutable backup" in log and
                     "fresh terms review, outdated/missing-backup consent refusal, explicit private-CA registration retry and original-account recovery from pre-registration backup" in log)
     publication = log.count("Protected relay trust commands passed pending read, explicit initialization, exact retry, overlap CAS, stale/unsafe refusal and unchanged authority/runtime") == 1
-    passed = (code == 0 and failure is None and initial and renewal and delivery and provisioning and publication and
+    authority = log.count("Protected relay authority commands passed expected-root refusal, immutable preparation, independent backup verification and unchanged active authority/runtime/head") == 1
+    passed = (code == 0 and failure is None and initial and renewal and delivery and provisioning and publication and authority and
               "Protected host command passed genuine Compose database discovery" in log)
     return {"passed": passed, "initial_issuance_verified": passed and initial,
             "authenticated_delivery_verified": passed and delivery,
             "renewal_verified": passed and renewal,
             "account_provisioning_verified": passed and provisioning,
-            "relay_trust_publication_verified": passed and publication}
+            "relay_trust_publication_verified": passed and publication,
+            "relay_authority_preparation_verified": passed and authority}
 
 
 def run(args):
