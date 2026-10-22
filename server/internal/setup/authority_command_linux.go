@@ -27,8 +27,23 @@ func authorityCommandPath(path string) bool {
 
 func decodeAuthorityCommandOptions(raw []byte) (RelayAuthoritySnapshotOptions, error) {
 	var o RelayAuthoritySnapshotOptions
-	if _, err := boundedjson.Object(bytes.NewReader(raw)); err != nil {
+	fields, err := boundedjson.Object(bytes.NewReader(raw))
+	if err != nil || len(fields) != 7 {
 		return o, ErrRelayAuthority
+	}
+	for _, name := range []string{"deployment", "candidate", "candidate_backup", "custody_file", "successor_backup", "request", "service_fingerprint"} {
+		if _, ok := fields[name]; !ok {
+			return o, ErrRelayAuthority
+		}
+	}
+	request, err := boundedjson.Object(bytes.NewReader(fields["request"]))
+	if err != nil || len(request) != 6 {
+		return o, ErrRelayAuthority
+	}
+	for _, name := range []string{"id", "trust_generation_id", "previous_root", "next_root", "previous_leaf", "next_leaf"} {
+		if _, ok := request[name]; !ok {
+			return o, ErrRelayAuthority
+		}
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()

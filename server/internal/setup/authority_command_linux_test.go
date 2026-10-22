@@ -37,6 +37,9 @@ func TestAuthorityCommandRejectsAmbiguousOriginalInput(t *testing.T) {
 		bytes.Replace(raw, []byte(`"previous_root":`), []byte(`"id":"duplicate","previous_root":`), 1),
 		bytes.Replace(raw, []byte(`"candidate":"/root/candidate"`), []byte(`"candidate":"relative"`), 1),
 		bytes.Replace(raw, []byte(record.Options.ServiceFingerprint), []byte(""), 1),
+		bytes.Replace(raw, []byte(`"deployment":`), []byte(`"DEPLOYMENT":`), 1),
+		bytes.Replace(raw, []byte(`"id":`), []byte(`"ID":`), 1),
+		bytes.Replace(raw, []byte(`"deployment":`), []byte(`"DEPLOYMENT":"/root/alias","deployment":`), 1),
 	} {
 		if _, err := decodeAuthorityCommandOptions(bad); err == nil {
 			t.Fatal("ambiguous or incomplete activation input admitted")
