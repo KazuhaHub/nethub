@@ -83,3 +83,8 @@ Browser enrollment, GUI certificate issuance/installation/renewal and the
 combined public GUI path remain unverified. The console used a private fixture
 CA; no public CA account or order is covered. W5 source-IP gating/revocation,
 W6 identity-provider integration and W7 release/operations remain separate.
+
+The later [admission and recovery record](validation-relay-trust-recovery.md)
+verifies refusal with unconfirmed enrollments and genuine scheduled recovery
+of the retained older identity. It does not establish signer activation or
+retirement.
