@@ -3,9 +3,15 @@ import http.client
 import http.server
 import io
 import json
+import hashlib
+import os
 from pathlib import Path
 import tempfile
+import socket
+import subprocess
+import sys
 import threading
+import time
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 
@@ -149,6 +155,53 @@ class FixtureOptions(unittest.TestCase):
                 fixture.validate_settings(dict(good, **change))
         with self.assertRaises(ValueError):
             json.loads('{"seconds":1,"seconds":600}', object_pairs_hook=fixture.unique_fields)
+
+
+@unittest.skipUnless(sys.platform == 'linux' and os.geteuid() == 0, 'Requires the real Linux root admission path')
+class LinuxEntrypoint(unittest.TestCase):
+    def configuration(self, directory):
+        ports = []
+        with socket.socket() as first, socket.socket() as second:
+            for listener in [first, second]:
+                listener.bind(('127.0.0.1', 0))
+                ports.append(listener.getsockname()[1])
+        value = {'device_id': DEVICE, 'generation': 2, 'backend_port': ports[0],
+                 'listen_port': ports[1], 'seconds': 1}
+        path = directory / 'config.json'
+        raw = json.dumps(value).encode()
+        path.write_bytes(raw)
+        path.chmod(0o600)
+        return value, hashlib.sha256(raw).hexdigest()
+
+    def command(self, directory):
+        return [sys.executable, '-I', str(Path(fixture.__file__).resolve()), '--directory', str(directory)]
+
+    def test_private_config_starts_and_process_exits_by_its_deadline(self):
+        with tempfile.TemporaryDirectory() as name:
+            directory = Path(name).resolve()
+            value, digest = self.configuration(directory)
+            process = subprocess.Popen(self.command(directory), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            try:
+                until = time.monotonic() + 4
+                while not (directory / 'ready.json').exists() and process.poll() is None and time.monotonic() < until:
+                    time.sleep(.02)
+                ready = json.loads((directory / 'ready.json').read_text())
+                self.assertEqual(ready, {'pid': process.pid, 'port': value['listen_port'], 'config_sha256': digest})
+                output, errors = process.communicate(timeout=4)
+                self.assertEqual((process.returncode, output, errors), (0, b'', b''))
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.communicate(timeout=4)
+
+    def test_readable_config_is_refused_before_readiness(self):
+        with tempfile.TemporaryDirectory() as name:
+            directory = Path(name).resolve()
+            self.configuration(directory)
+            (directory / 'config.json').chmod(0o644)
+            process = subprocess.run(self.command(directory), capture_output=True, timeout=4)
+            self.assertNotEqual(process.returncode, 0)
+            self.assertFalse((directory / 'ready.json').exists())
 
 
 if __name__ == '__main__':
