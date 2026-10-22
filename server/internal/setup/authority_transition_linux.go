@@ -20,8 +20,8 @@ var authorityOperationID = regexp.MustCompile(`^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]
 // journal and service adapter. The caller supplies an immutable operation ID,
 // current overlap identity, actual before/after leaf IDs and service fingerprint.
 // It does not publish/acknowledge trust or waive offline-device admission.
-// No public CLI invokes it until preparation cancellation and full recovery
-// acceptance are available.
+// The host command retains original input before invoking this adapter, including
+// when initialization stops before a complete recovery snapshot is available.
 func RunBoundRelayAuthorityTransition(ctx context.Context, o RelayAuthoritySnapshotOptions, project, composeFile string) (relayauthority.TransitionState, error) {
 	var state relayauthority.TransitionState
 	if os.Geteuid() != 0 || ctx.Err() != nil || !o.Request.Valid() || !relayTrustDigest.MatchString(o.ServiceFingerprint) || !filepath.IsAbs(o.Directory) || filepath.Clean(o.Directory) != o.Directory {

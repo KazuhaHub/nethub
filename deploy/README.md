@@ -78,6 +78,9 @@ clean-host provenance are separate claims; this script proves the former flows.
 
 Appliance enrollment and public relay acceptance remain W4; Open/revocation UI is W5; invitation and full
 OIDC/SAML flows are W6; scheduled backups and final operational acceptance are W7.
+Protected relay authority activation and retained-operation recovery commands
+are documented in [Relay authority operations](relay-authority-operations.md).
+
 The design authority remains [DESIGN](../docs/DESIGN.md), with confirmed deployment
 decisions in [the W3 record](../docs/w3-decisions.md). Existing W3 evidence is in
 [the validation record](validation-w3.md); it does not substitute for W4 acceptance.

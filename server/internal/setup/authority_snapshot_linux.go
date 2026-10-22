@@ -17,18 +17,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/hostlease"
 	"github.com/KazuhaHub/nethub/server/internal/relayauthority"
 	"github.com/KazuhaHub/nethub/server/internal/relaycert"
-	"github.com/KazuhaHub/nethub/server/internal/relaytrust"
 )
-
-type RelayAuthoritySnapshotOptions struct {
-	Directory          string                   `json:"deployment"`
-	CandidateDirectory string                   `json:"candidate"`
-	CandidateBackup    string                   `json:"candidate_backup"`
-	CustodyFile        string                   `json:"custody_file"`
-	SuccessorBackup    string                   `json:"successor_backup"`
-	Request            relaytrust.SwitchRequest `json:"request"`
-	ServiceFingerprint string                   `json:"service_fingerprint,omitempty"`
-}
 
 type authoritySnapshotFile struct {
 	Path   string `json:"path"`
