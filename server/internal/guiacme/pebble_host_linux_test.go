@@ -18,6 +18,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/guiissuer"
 	"github.com/KazuhaHub/nethub/server/internal/http01"
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
+	"github.com/KazuhaHub/nethub/server/internal/relaycert"
 	"github.com/KazuhaHub/nethub/server/internal/setup"
 )
 
@@ -447,8 +448,104 @@ func testPebbleProtectedHostIssuer(t *testing.T, renewal, provisionAccount bool)
 		if status, _ := client.post("applied", lastReport); status != 401 {
 			t.Fatal("removed client acknowledged retained material", status)
 		}
+		if !renewal && !provisionAccount {
+			testProtectedRelayTrustCommands(t, binary, directory, project, override, backup, command)
+		}
 		t.Log("Protected host command passed genuine Compose database discovery, independent backup/account/trust/cleanup gates, stopped-timer refusal, exact CSR issuance and idle retry; actual device HTTP admission, no appliance application")
 		t.Log("Fresh compiled device enrollment, original CSR admission/initial queue, genuine CA issuance and authenticated original-key delivery passed with idempotent generation reads and removed-client denial; only initial admin/token authority was seeded")
 		return guiacme.Order{Host: host, FinalizeURL: string(order)}
 	})
+}
+
+func testProtectedRelayTrustCommands(t *testing.T, binary, directory, project, override, backup string, command func([]byte, string, ...string) ([]byte, error)) {
+	t.Helper()
+	args := func(action string, extra ...string) []string {
+		return append([]string{"certificates", "relay-trust", action, "--directory", directory, "--project-name", project, "--compose-file", override}, extra...)
+	}
+	invoke := func(action string, extra ...string) setup.RelayTrustResult {
+		t.Helper()
+		raw, err := command(nil, binary, args(action, extra...)...)
+		if err != nil {
+			t.Fatal("protected public trust command failed")
+		}
+		var value setup.RelayTrustResult
+		if json.Unmarshal(raw, &value) != nil || bytes.Contains(raw, []byte("BEGIN")) {
+			t.Fatal("trust output was not bounded public metadata")
+		}
+		return value
+	}
+	refuse := func(action string, extra ...string) {
+		t.Helper()
+		raw, err := command(nil, binary, args(action, extra...)...)
+		if err == nil || len(raw) != 0 {
+			t.Fatal("unsafe trust operation accepted or exposed output")
+		}
+	}
+	initial := invoke("current")
+	if initial.State != "pending" || initial.ID != "" {
+		t.Fatal("fresh public trust unexpectedly initialized")
+	}
+	oldFile := filepath.Join(directory, "secrets/issuer/ca.pem")
+	old, err := os.ReadFile(oldFile)
+	if err != nil {
+		t.Fatal("fixture public authority unavailable")
+	}
+	first := invoke("publish", "--bundle-file", oldFile, "--initialize")
+	if first.State != "current" || first.Number != 1 || len(first.Roots) != 1 || first.PublishedAt == "" {
+		t.Fatal("initial public trust receipt")
+	}
+	retry := invoke("publish", "--bundle-file", oldFile, "--initialize")
+	if retry.ID != first.ID || retry.PublishedAt != first.PublishedAt {
+		t.Fatal("initial retry changed immutable identity")
+	}
+	next, err := relaycert.Create("console.example.test", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle := filepath.Join(filepath.Dir(directory), "public-overlap.pem")
+	if os.WriteFile(bundle, append(append([]byte{}, old...), next.CA...), 0600) != nil {
+		t.Fatal("overlap public fixture")
+	}
+	second := invoke("publish", "--bundle-file", bundle, "--expected-generation", first.ID)
+	if second.Number != 2 || len(second.Roots) != 2 || second.ID == first.ID {
+		t.Fatal("overlap CAS publication")
+	}
+	retry = invoke("publish", "--bundle-file", bundle, "--expected-generation", first.ID)
+	if retry.ID != second.ID || retry.PublishedAt != second.PublishedAt {
+		t.Fatal("exact overlap retry changed identity")
+	}
+	refuse("publish", "--bundle-file", oldFile, "--expected-generation", first.ID)
+	newFile := filepath.Join(filepath.Dir(directory), "public-new.pem")
+	if os.WriteFile(newFile, next.CA, 0600) != nil {
+		t.Fatal("new public fixture")
+	}
+	refuse("publish", "--bundle-file", newFile, "--expected-generation", second.ID)
+	alias := bundle + ".link"
+	if os.Link(bundle, alias) != nil {
+		t.Fatal("hardlink refusal fixture")
+	}
+	refuse("publish", "--bundle-file", bundle, "--expected-generation", second.ID)
+	if os.Remove(alias) != nil {
+		t.Fatal("owned alias cleanup")
+	}
+	if os.Symlink(bundle, alias) != nil {
+		t.Fatal("symlink refusal fixture")
+	}
+	refuse("publish", "--bundle-file", alias, "--expected-generation", second.ID)
+	if os.Remove(alias) != nil {
+		t.Fatal("owned symlink cleanup")
+	}
+	if os.Rename(backup, backup+".unavailable") != nil {
+		t.Fatal("backup refusal fixture")
+	}
+	_, operationErr := command(nil, binary, args("current")...)
+	restoreErr := os.Rename(backup+".unavailable", backup)
+	if operationErr == nil || restoreErr != nil {
+		t.Fatal("missing backup admitted or original backup not restored")
+	}
+	current := invoke("current")
+	if current.ID != second.ID || current.PublishedAt != second.PublishedAt || setup.CheckFiles(directory) != nil {
+		t.Fatal("refused publication changed current trust or authority/runtime")
+	}
+	t.Log("Protected relay trust commands passed pending read, explicit initialization, exact retry, overlap CAS, stale/unsafe refusal and unchanged authority/runtime")
 }

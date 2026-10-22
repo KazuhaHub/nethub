@@ -28,11 +28,14 @@ class HostFixtureAdmission(unittest.TestCase):
             "Genuine host renewal passed original CSR/key, two distinct issued leaves",
             "Fresh compiled device enrollment, original CSR admission/initial queue, genuine CA issuance and authenticated original-key delivery passed",
             "Protected host command passed genuine Compose database discovery",
+            "Protected relay trust commands passed pending read, explicit initialization, exact retry, overlap CAS, stale/unsafe refusal and unchanged authority/runtime",
             "Protected account commands passed offline initialization, verified immutable backup",
             "fresh terms review, outdated/missing-backup consent refusal, explicit private-CA registration retry and original-account recovery from pre-registration backup",
         ]
         log = "\n".join(lines)
         self.assertTrue(all(fixture.acceptance_evidence(0, None, log).values()))
+        publication = next(line for line in lines if line.startswith("Protected relay trust commands"))
+        self.assertFalse(fixture.acceptance_evidence(0, None, log + "\n" + publication)["passed"])
         for missing in lines:
             with self.subTest(missing=missing):
                 self.assertFalse(any(fixture.acceptance_evidence(0, None, log.replace(missing, "")).values()))
