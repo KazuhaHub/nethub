@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"net/http"
+	"net/http/httptest"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -455,7 +459,7 @@ func testPebbleProtectedHostIssuer(t *testing.T, renewal, provisionAccount bool)
 			t.Fatal("removed client acknowledged retained material", status)
 		}
 		if !renewal && !provisionAccount {
-			testProtectedRelayTrustCommands(t, binary, directory, project, override, backup, command)
+			testProtectedRelayTrustCommands(t, binary, directory, project, override, backup, command, run)
 		}
 		t.Log("Protected host command passed genuine Compose database discovery, independent backup/account/trust/cleanup gates, stopped-timer refusal, exact CSR issuance and idle retry; actual device HTTP admission, no appliance application")
 		t.Log("Fresh compiled device enrollment, original CSR admission/initial queue, genuine CA issuance and authenticated original-key delivery passed with idempotent generation reads and removed-client denial; only initial admin/token authority was seeded")
@@ -463,7 +467,7 @@ func testPebbleProtectedHostIssuer(t *testing.T, renewal, provisionAccount bool)
 	})
 }
 
-func testProtectedRelayTrustCommands(t *testing.T, binary, directory, project, override, backup string, command func([]byte, string, ...string) ([]byte, error)) {
+func testProtectedRelayTrustCommands(t *testing.T, binary, directory, project, override, backup string, command func([]byte, string, ...string) ([]byte, error), run guiissuer.SQLRunner) {
 	t.Helper()
 	args := func(action string, extra ...string) []string {
 		return append([]string{"certificates", "relay-trust", action, "--directory", directory, "--project-name", project, "--compose-file", override}, extra...)
@@ -656,10 +660,10 @@ func testProtectedRelayTrustCommands(t *testing.T, binary, directory, project, o
 		t.Fatal("authority did not recover after host lease release")
 	}
 	t.Log("Protected shared relay lease refused publication and offline authority during contention, skipped renewal, then recovered without changing authority/runtime/head")
-	testProtectedAuthoritySnapshot(t, directory, project, override, candidate, candidateBackup, custodyFile, second.ID)
+	testProtectedAuthoritySnapshot(t, directory, project, override, candidate, candidateBackup, custodyFile, second.ID, run)
 }
 
-func testProtectedAuthoritySnapshot(t *testing.T, directory, project, override, candidate, backup, custody, generation string) {
+func testProtectedAuthoritySnapshot(t *testing.T, directory, project, override, candidate, backup, custody, generation string, run guiissuer.SQLRunner) {
 	t.Helper()
 	c, err := relayauthority.Load(candidate, time.Now())
 	if err != nil {
@@ -693,6 +697,12 @@ func testProtectedAuthoritySnapshot(t *testing.T, directory, project, override, 
 		}
 		before[path] = raw
 	}
+	publisher := &relaytrust.Publisher{Run: relaytrust.SQLRunner(run), ServerName: manifest.Config.ConsoleHost}
+	current, err := publisher.Publish(context.Background(), generation, string(before["secrets/issuer/ca.pem"])+string(c.Material.CA))
+	if err != nil {
+		t.Fatal("candidate overlap fixture publication", err)
+	}
+	generation = current.ID
 	maintenance := filepath.Join(directory, "secrets/issuer/maintenance")
 	if os.MkdirAll(maintenance, 0700) != nil || os.WriteFile(filepath.Join(maintenance, "retained.fixture"), []byte("retained maintenance fixture\n"), 0600) != nil {
 		t.Fatal("retained journal fixture")
@@ -740,4 +750,131 @@ func testProtectedAuthoritySnapshot(t *testing.T, directory, project, override, 
 		t.Fatal("snapshot invalidated original confirmed authority")
 	}
 	t.Log("Protected authority snapshot preserved all active files, staged independent successor backup and refused damaged copies and unresolved maintenance")
+	service := &snapshotTLSFixture{t: t, directory: directory, name: manifest.Config.ConsoleHost, failReload: true}
+	defer service.close()
+	host := &setup.RelayAuthoritySnapshotHost{Options: opts, Service: service}
+	engine := relayauthority.Transition{Directory: directory, ServerName: manifest.Config.ConsoleHost, Request: opts.Request, Host: host, Trust: publisher}
+	state, err := engine.Run(context.Background())
+	if err == nil || state.Phase != "rolled_back" {
+		t.Fatal("injected service failure did not roll back real authority files", state.Phase, err)
+	}
+	receipt, err := publisher.ReadSwitch(context.Background(), opts.Request.ID)
+	if err != nil || receipt.Phase != "rolled_back" {
+		t.Fatal("actual database rollback receipt", err)
+	}
+	for _, path := range paths {
+		raw, err := os.ReadFile(filepath.Join(directory, filepath.FromSlash(path)))
+		if err != nil || !bytes.Equal(raw, before[path]) {
+			t.Fatal("rollback did not restore exact active bytes")
+		}
+	}
+	if relayauthority.CheckNoPendingTransition(directory) != nil {
+		t.Fatal("rolled-back journals did not reopen ordinary maintenance")
+	}
+	opts.Request.ID = "f9652489-7558-4752-8714-fee57e303f3b"
+	opts.SuccessorBackup = filepath.Join(filepath.Dir(directory), "committed-successor-full-backup")
+	host = &setup.RelayAuthoritySnapshotHost{Options: opts, Service: service}
+	trust := &lostSnapshotFinish{publisher: publisher, lose: true}
+	engine = relayauthority.Transition{Directory: directory, ServerName: manifest.Config.ConsoleHost, Request: opts.Request, Host: host, Trust: trust}
+	state, err = engine.Run(context.Background())
+	if err == nil || state.Phase != "committing" {
+		t.Fatal("lost real database commit reply lost durable host decision", state.Phase, err)
+	}
+	loads := service.loads
+	// A fresh adapter/engine recovers only from retained files and real SQL state.
+	engine.Host = &setup.RelayAuthoritySnapshotHost{Options: opts, Service: service}
+	engine.Trust = publisher
+	state, err = engine.Run(context.Background())
+	if err != nil || state.Phase != "committed" || service.loads != loads {
+		t.Fatal("commit recovery replayed host replacement/reload", state.Phase, err)
+	}
+	if setup.CheckFiles(directory) != nil || relayauthority.CheckNoPendingTransition(directory) != nil {
+		t.Fatal("committed authority/backup/journal did not validate")
+	}
+	for _, file := range manifest.Files {
+		if strings.HasPrefix(file.Path, "secrets/issuer/") {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(directory, filepath.FromSlash(file.Path)))
+		if err != nil || !bytes.Equal(raw, before[file.Path]) {
+			t.Fatal("authority migration changed unrelated credential")
+		}
+	}
+	if setup.VerifyBackup(filepath.Join(operation, "snapshot/before"), manifest.BackupDirectory) != nil {
+		t.Fatal("original independent backup was changed")
+	}
+	t.Log("Authority file recovery passed real PostgreSQL rollback and lost-commit recovery, exact manifests and backups, retained maintenance, unchanged credentials and independently verified fixture TLS; no authz/frps reload or native application")
+}
+
+type snapshotTLSFixture struct {
+	t               *testing.T
+	directory, name string
+	server          *httptest.Server
+	failReload      bool
+	loads           int
+}
+
+func (s *snapshotTLSFixture) close() {
+	if s.server != nil {
+		s.server.Close()
+		s.server = nil
+	}
+}
+func (s *snapshotTLSFixture) Reload(ctx context.Context, ca []byte) error {
+	s.loads++
+	cert, err := os.ReadFile(filepath.Join(s.directory, "runtime/relay/relay-cert.pem"))
+	if err != nil {
+		return err
+	}
+	key, err := os.ReadFile(filepath.Join(s.directory, "runtime/relay/relay-key.pem"))
+	if err != nil {
+		return err
+	}
+	if relaycert.Check(ca, cert, key, s.name, time.Now()) != nil {
+		return setup.ErrRelayAuthority
+	}
+	pair, err := tls.X509KeyPair(cert, key)
+	if err != nil {
+		return err
+	}
+	s.close()
+	s.server = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) }))
+	s.server.TLS = &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{pair}}
+	s.server.StartTLS()
+	if s.failReload {
+		s.failReload = false
+		return setup.ErrRelayAuthority
+	}
+	return nil
+}
+func (s *snapshotTLSFixture) Observe(ctx context.Context, ca []byte) (string, error) {
+	if s.server == nil {
+		return "", setup.ErrRelayAuthority
+	}
+	endpoint, err := netip.ParseAddrPort(s.server.Listener.Addr().String())
+	if err != nil {
+		return "", err
+	}
+	digest, err := relaycert.Observe(ctx, endpoint, s.name, ca)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(digest[:]), nil
+}
+
+type lostSnapshotFinish struct {
+	publisher *relaytrust.Publisher
+	lose      bool
+}
+
+func (s *lostSnapshotFinish) BeginSwitch(ctx context.Context, r relaytrust.SwitchRequest) (*relaytrust.Switch, error) {
+	return s.publisher.BeginSwitch(ctx, r)
+}
+func (s *lostSnapshotFinish) FinishSwitch(ctx context.Context, r relaytrust.SwitchRequest, phase, observed string) (*relaytrust.Switch, error) {
+	receipt, err := s.publisher.FinishSwitch(ctx, r, phase, observed)
+	if err == nil && s.lose {
+		s.lose = false
+		return nil, setup.ErrRelayAuthority
+	}
+	return receipt, err
 }

@@ -33,6 +33,7 @@ class HostFixtureAdmission(unittest.TestCase):
             "Protected shared relay lease refused publication and offline authority during contention, skipped renewal, then recovered without changing authority/runtime/head",
             "Protected relay authority custody required explicit acknowledgement, preserved exact retry timestamp and refused a missing independent backup without changing active authority/runtime/head",
             "Protected authority snapshot preserved all active files, staged independent successor backup and refused damaged copies and unresolved maintenance",
+            "Authority file recovery passed real PostgreSQL rollback and lost-commit recovery, exact manifests and backups, retained maintenance, unchanged credentials and independently verified fixture TLS; no authz/frps reload or native application",
             "Protected account commands passed offline initialization, verified immutable backup",
             "fresh terms review, outdated/missing-backup consent refusal, explicit private-CA registration retry and original-account recovery from pre-registration backup",
         ]
@@ -48,6 +49,8 @@ class HostFixtureAdmission(unittest.TestCase):
         self.assertFalse(fixture.acceptance_evidence(0, None, log + "\n" + custody)["passed"])
         snapshot = next(line for line in lines if line.startswith("Protected authority snapshot"))
         self.assertFalse(fixture.acceptance_evidence(0, None, log + "\n" + snapshot)["passed"])
+        recovery = next(line for line in lines if line.startswith("Authority file recovery"))
+        self.assertFalse(fixture.acceptance_evidence(0, None, log + "\n" + recovery)["passed"])
         for missing in lines:
             with self.subTest(missing=missing):
                 self.assertFalse(any(fixture.acceptance_evidence(0, None, log.replace(missing, "")).values()))

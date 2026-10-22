@@ -28,3 +28,19 @@ retry revalidates both staged copies and backups; partial output is not replaced
 Its unresolved operation blocks ordinary renewal even after the process exits.
 There is no snapshot/activate CLI. This does not replace live files, resolve a
 database switch fence, reload services or prove combined migration/TLS recovery.
+
+`RelayAuthoritySnapshotHost` attaches staged files to the durable transition
+coordinator. Before writing it validates every active file against the pinned
+before/after identities and original ownership. It archives the exact original
+maintenance journal with a reversible rename, replaces only known files using
+synced private temporaries, writes the manifest last and rechecks the complete
+authority/backup. Restore accepts a planned mixed state and returns the original
+journal without deleting a new or unexpected one. Unexpected bytes fail closed.
+
+The injected trusted service adapter must reload authz and frps and independently
+observe CA/name/served leaf. Current integration tests use genuine files and
+PostgreSQL with a local TLS fixture, including failed reload rollback and a
+discarded committed database reply. They do not exercise production authz/frps
+reload, per-write process termination or native appliance recovery. The protected
+service adapter, unattended unfenced-preparation abort/reprepare path and complete
+combined deployment acceptance remain required before exposing activation.
