@@ -3,8 +3,11 @@ package guiacme_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,6 +24,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
 	"github.com/KazuhaHub/nethub/server/internal/relayauthority"
 	"github.com/KazuhaHub/nethub/server/internal/relaycert"
+	"github.com/KazuhaHub/nethub/server/internal/relaytrust"
 	"github.com/KazuhaHub/nethub/server/internal/setup"
 )
 
@@ -652,4 +656,88 @@ func testProtectedRelayTrustCommands(t *testing.T, binary, directory, project, o
 		t.Fatal("authority did not recover after host lease release")
 	}
 	t.Log("Protected shared relay lease refused publication and offline authority during contention, skipped renewal, then recovered without changing authority/runtime/head")
+	testProtectedAuthoritySnapshot(t, directory, project, override, candidate, candidateBackup, custodyFile, second.ID)
+}
+
+func testProtectedAuthoritySnapshot(t *testing.T, directory, project, override, candidate, backup, custody, generation string) {
+	t.Helper()
+	c, err := relayauthority.Load(candidate, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	leaf, err := os.ReadFile(filepath.Join(directory, "runtime/relay/relay-cert.pem"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fingerprint := func(raw []byte) string {
+		block, _ := pem.Decode(raw)
+		if block == nil {
+			t.Fatal("fixture certificate")
+		}
+		sum := sha256.Sum256(block.Bytes)
+		return hex.EncodeToString(sum[:])
+	}
+	manifest, err := setup.Load(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths := []string{"setup.json", "runtime/relay/relay-cert.pem", "runtime/relay/relay-key.pem", "runtime/trust/relay-ca.pem"}
+	for _, file := range manifest.Files {
+		paths = append(paths, file.Path)
+	}
+	before := map[string][]byte{}
+	for _, path := range paths {
+		raw, err := os.ReadFile(filepath.Join(directory, filepath.FromSlash(path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		before[path] = raw
+	}
+	maintenance := filepath.Join(directory, "secrets/issuer/maintenance")
+	if os.MkdirAll(maintenance, 0700) != nil || os.WriteFile(filepath.Join(maintenance, "retained.fixture"), []byte("retained maintenance fixture\n"), 0600) != nil {
+		t.Fatal("retained journal fixture")
+	}
+	opts := setup.RelayAuthoritySnapshotOptions{Directory: directory, CandidateDirectory: candidate, CandidateBackup: backup, CustodyFile: custody,
+		SuccessorBackup: filepath.Join(filepath.Dir(directory), "successor-full-backup"), Request: relaytrust.SwitchRequest{ID: "e4267e95-7995-46ee-a8e4-1a5506d76362", GenerationID: generation,
+			PreviousRoot: c.Metadata.Previous, NextRoot: c.Metadata.Next, PreviousLeaf: fingerprint(leaf), NextLeaf: fingerprint(c.Material.Certificate)}}
+	digest, err := setup.PrepareRelayAuthoritySnapshot(context.Background(), opts)
+	if err != nil || len(digest) != 64 {
+		t.Fatal("protected successor snapshot preparation", err)
+	}
+	if retry, err := setup.PrepareRelayAuthoritySnapshot(context.Background(), opts); err != nil || retry != digest {
+		t.Fatal("snapshot retry changed identity", err)
+	}
+	operation := filepath.Join(directory, "authority-transitions", opts.Request.ID)
+	if setup.VerifyBackup(filepath.Join(operation, "snapshot/after"), opts.SuccessorBackup) != nil {
+		t.Fatal("successor full backup did not verify independently")
+	}
+	if relayauthority.CheckNoPendingTransition(directory) == nil {
+		t.Fatal("staged incomplete operation reopened maintenance")
+	}
+	if _, err := setup.MaintainRelay(context.Background(), setup.MaintenanceOptions{Directory: directory, Project: project, ComposeFile: override}); err == nil {
+		t.Fatal("ordinary maintenance crossed staged transition")
+	}
+	for _, path := range []string{filepath.Join(opts.SuccessorBackup, "secrets/issuer/ca-key.pem"), filepath.Join(opts.SuccessorBackup, "setup.json"), filepath.Join(manifest.BackupDirectory, "setup.json"), filepath.Join(operation, "snapshot/before/secrets/authz/claim_key"), filepath.Join(operation, "snapshot/maintenance/retained.fixture")} {
+		if os.Rename(path, path+".unavailable") != nil {
+			t.Fatal("snapshot missing-copy fixture")
+		}
+		_, denial := setup.PrepareRelayAuthoritySnapshot(context.Background(), opts)
+		restored := os.Rename(path+".unavailable", path)
+		if denial == nil || restored != nil {
+			t.Fatal("snapshot admitted damaged copy or failed restoration")
+		}
+	}
+	if retry, err := setup.PrepareRelayAuthoritySnapshot(context.Background(), opts); err != nil || retry != digest {
+		t.Fatal("exact snapshot did not recover after copy restoration", err)
+	}
+	for _, path := range paths {
+		raw, err := os.ReadFile(filepath.Join(directory, filepath.FromSlash(path)))
+		if err != nil || !bytes.Equal(raw, before[path]) {
+			t.Fatal("snapshot changed active deployment")
+		}
+	}
+	if setup.CheckFiles(directory) != nil {
+		t.Fatal("snapshot invalidated original confirmed authority")
+	}
+	t.Log("Protected authority snapshot preserved all active files, staged independent successor backup and refused damaged copies and unresolved maintenance")
 }

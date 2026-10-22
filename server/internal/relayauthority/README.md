@@ -109,6 +109,13 @@ adapter and genuine combined acceptance are still required before activation.
 
 ## Activation remains separate
 
+Ordinary relay maintenance checks retained transition journals both before and
+under the shared lease. Releasing a crashed process's lease does not reopen
+renewal: nonterminal, partial, missing or malformed intent/state blocks it.
+Only structurally valid committed/rolled-back records permit normal maintenance,
+which still performs its original authority/runtime checks. This prevents a timer
+from modifying a planned mixed deployment before recovery acquires the lease.
+
 There is deliberately no activate command in this component. Active deployment
 files, runtime mounts, setup manifest, database trust head and services remain
 unchanged. Complete activation still requires verified candidate custody,
