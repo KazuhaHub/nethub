@@ -44,6 +44,36 @@ deployment and its independent backup; candidates for another original authority
 or relay identity are refused. Output contains metadata, not keys or PEM. These
 commands do not require Docker and open no listeners.
 
+## Explicit backup acknowledgement
+
+After independently reviewing the candidate and backup, the operator can record
+that assertion in a new protected file outside both material directories:
+
+```sh
+nethub certificates relay-authority acknowledge-backup --directory /srv/nethub \
+  --candidate-directory /root/relay-offline/successor \
+  --backup-directory /root/relay-offline/successor-backup \
+  --custody-file /root/relay-offline/successor-custody.json \
+  --acknowledge 'I HAVE VERIFIED THE INDEPENDENT RELAY AUTHORITY BACKUP'
+nethub certificates relay-authority verify-custody --directory /srv/nethub \
+  --candidate-directory /root/relay-offline/successor \
+  --backup-directory /root/relay-offline/successor-backup \
+  --custody-file /root/relay-offline/successor-custody.json
+```
+
+The receipt binds canonical source/backup paths, original/successor root identity,
+the candidate metadata digest and first acknowledgement time. Creation is
+exclusive and synced. Exact retries recheck both material sets, preserve the
+first timestamp and sync the existing receipt again. Changed or partial receipts
+are not overwritten; a different backup cannot silently reuse the same receipt.
+Verification always revalidates both current independent copies. A receipt alone
+cannot authorize missing, expired, modified or aliased material.
+
+This records explicit operator intent, not independently observed off-host
+custody. Tests use disposable local fixtures and do not acknowledge operational
+material on the operator's behalf. No active signer, manifest, public generation
+or service changes during acknowledgement.
+
 ## Activation remains separate
 
 There is deliberately no activate command in this component. Active deployment

@@ -16,8 +16,8 @@ import (
 )
 
 func runRelayAuthority(args []string, stdout, stderr io.Writer) int {
-	if len(args) == 0 || args[0] != "prepare" && args[0] != "inspect" && args[0] != "backup" && args[0] != "verify-backup" {
-		fmt.Fprintln(stderr, "Usage: nethub certificates relay-authority prepare|inspect|backup|verify-backup --directory PATH --candidate-directory PATH [--expected-root SHA256|--backup-directory PATH]")
+	if len(args) == 0 || args[0] != "prepare" && args[0] != "inspect" && args[0] != "backup" && args[0] != "verify-backup" && args[0] != "acknowledge-backup" && args[0] != "verify-custody" {
+		fmt.Fprintln(stderr, "Usage: nethub certificates relay-authority prepare|inspect|backup|verify-backup|acknowledge-backup|verify-custody --directory PATH --candidate-directory PATH [--expected-root SHA256|--backup-directory PATH --custody-file PATH --acknowledge PHRASE]")
 		return 2
 	}
 	o := setup.RelayAuthorityOptions{Action: args[0]}
@@ -27,6 +27,8 @@ func runRelayAuthority(args []string, stdout, stderr io.Writer) int {
 	flags.StringVar(&o.CandidateDirectory, "candidate-directory", "", "Protected offline candidate outside deployment/runtime/backup")
 	flags.StringVar(&o.BackupDirectory, "backup-directory", "", "Independent offline backup directory")
 	flags.StringVar(&o.ExpectedRoot, "expected-root", "", "Exact current authority root SHA256 for explicit preparation")
+	flags.StringVar(&o.CustodyFile, "custody-file", "", "New protected acknowledgement receipt outside material directories")
+	flags.StringVar(&o.Acknowledgement, "acknowledge", "", "Exact independent-backup acknowledgement phrase")
 	if err := flags.Parse(args[1:]); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0

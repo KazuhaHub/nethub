@@ -12,7 +12,7 @@ func TestRelayAuthorityCommandRefusesImplicitActivation(t *testing.T) {
 			t.Fatal("invalid authority command admitted")
 		}
 	}
-	for _, action := range []string{"prepare", "inspect", "backup", "verify-backup"} {
+	for _, action := range []string{"prepare", "inspect", "backup", "verify-backup", "acknowledge-backup", "verify-custody"} {
 		var out, diagnostic bytes.Buffer
 		if runRelayAuthority([]string{action, "--help"}, &out, &diagnostic) != 0 || diagnostic.Len() == 0 {
 			t.Fatal("offline authority help unavailable")

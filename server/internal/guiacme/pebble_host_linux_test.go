@@ -19,6 +19,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/hostlease"
 	"github.com/KazuhaHub/nethub/server/internal/http01"
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
+	"github.com/KazuhaHub/nethub/server/internal/relayauthority"
 	"github.com/KazuhaHub/nethub/server/internal/relaycert"
 	"github.com/KazuhaHub/nethub/server/internal/setup"
 )
@@ -589,6 +590,45 @@ func testProtectedRelayTrustCommands(t *testing.T, binary, directory, project, o
 		t.Fatal("offline preparation changed public head or active authority")
 	}
 	t.Log("Protected relay authority commands passed expected-root refusal, immutable preparation, independent backup verification and unchanged active authority/runtime/head")
+	custodyFile := filepath.Join(filepath.Dir(directory), "offline-authority-custody.json")
+	custodyArgs := []string{"--backup-directory", candidateBackup, "--custody-file", custodyFile}
+	if raw, err := authority("acknowledge-backup", custodyArgs...); err == nil || len(raw) != 0 {
+		t.Fatal("implicit authority custody admitted")
+	}
+	if _, err := os.Lstat(custodyFile); !os.IsNotExist(err) {
+		t.Fatal("missing acknowledgement created a receipt")
+	}
+	var custody setup.RelayAuthorityResult
+	for _, action := range []string{"acknowledge-backup", "acknowledge-backup", "verify-custody"} {
+		args := append([]string{}, custodyArgs...)
+		if action == "acknowledge-backup" {
+			args = append(args, "--acknowledge", relayauthority.CustodyPhrase)
+		}
+		raw, err := authority(action, args...)
+		var nextState setup.RelayAuthorityResult
+		if err != nil || json.Unmarshal(raw, &nextState) != nil || !nextState.BackupVerified || nextState.CustodyAcknowledgedAt == "" || bytes.Contains(raw, []byte("BEGIN")) {
+			t.Fatal("authority custody verification failed")
+		}
+		if custody.CustodyAcknowledgedAt != "" && nextState.CustodyAcknowledgedAt != custody.CustodyAcknowledgedAt {
+			t.Fatal("authority custody retry changed first timestamp")
+		}
+		custody = nextState
+	}
+	if os.Rename(candidateBackup, candidateBackup+".unavailable") != nil {
+		t.Fatal("custody backup refusal fixture")
+	}
+	raw, err = authority("verify-custody", custodyArgs...)
+	restoreErr = os.Rename(candidateBackup+".unavailable", candidateBackup)
+	if err == nil || len(raw) != 0 || restoreErr != nil {
+		t.Fatal("stale receipt admitted missing backup or fixture restoration failed")
+	}
+	if _, err := authority("verify-custody", custodyArgs...); err != nil {
+		t.Fatal("custody verification failed after exact backup restoration")
+	}
+	if current = invoke("current"); current.ID != second.ID || setup.CheckFiles(directory) != nil {
+		t.Fatal("custody acknowledgement changed active authority or head")
+	}
+	t.Log("Protected relay authority custody required explicit acknowledgement, preserved exact retry timestamp and refused a missing independent backup without changing active authority/runtime/head")
 	lease, err := hostlease.Acquire(filepath.Join(directory, "relay-operation.lock"))
 	if err != nil {
 		t.Fatal("fixture shared host lease")
