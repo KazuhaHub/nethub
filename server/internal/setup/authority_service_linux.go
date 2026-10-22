@@ -64,7 +64,7 @@ func expectedAuthorityCommand(config Config, service string) []string {
 // Every later reload/observation rechecks this immutable configuration binding.
 // Empty expectedFingerprint requires both services running with healthy authz.
 // Recovery must pass the fingerprint from the protected operation's options;
-// only that exact binding may inspect unchanged stopped/unhealthy containers.
+// only that exact binding may recover stopped/unhealthy or absent containers.
 func BindRelayAuthorityService(ctx context.Context, directory, project, composeFile, expectedFingerprint string) (*BoundRelayAuthorityService, error) {
 	if os.Geteuid() != 0 || ctx.Err() != nil || !projectName.MatchString(project) || !filepath.IsAbs(directory) || filepath.Clean(directory) != directory {
 		return nil, ErrRelayAuthority
@@ -268,6 +268,12 @@ func (s *BoundRelayAuthorityService) configuration(ctx context.Context) error {
 func (s *BoundRelayAuthorityService) container(ctx context.Context, name string, running, healthy bool) error {
 	ids, err := s.command(ctx, append(append([]string{}, s.host.compose...), "ps", "--all", "--quiet", name)...)
 	id := string(bytes.TrimSpace(ids))
+	// Compose may have removed the old container before a process interruption.
+	// Only non-readiness recovery checks permit absence, after configuration and
+	// image binding have passed. Initial bind/Observe still require actual IDs.
+	if err == nil && id == "" && !running && !healthy {
+		return nil
+	}
 	if err != nil || !guiContainerID.MatchString(id) {
 		return ErrRelayAuthority
 	}

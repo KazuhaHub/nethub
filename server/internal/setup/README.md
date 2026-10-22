@@ -50,7 +50,7 @@ merged configuration, exact local image IDs/environment and expected application
 commands. It checks actual container labels/work directory, private read-only
 mounts, nonroot user, capabilities, network and origin publication on every
 reload/observation. Initial binding requires running services and healthy authz;
-recovery of stopped services requires the identical fingerprint from protected
+recovery of stopped or absent services requires the identical fingerprint from protected
 snapshot options. A production binding cannot be attached without that digest.
 
 Reload verifies active trust/authority, recreates only authz, waits for health,

@@ -79,6 +79,21 @@ func TestNativeRelayAuthorityService(t *testing.T) {
 			t.Fatal("refused reload changed a service", name)
 		}
 	}
+	// Remove only this disposable project's already-bound relay, modelling an
+	// interruption between Compose's remove/create phases. Initial binding must
+	// refuse it; the exact protected recovery binding may recreate that service.
+	remove := exec.CommandContext(ctx, "/usr/bin/docker", "--host", "unix:///var/run/docker.sock", "compose", "--project-name", project, "--file", filepath.Join(directory, "docker-compose.yml"), "--file", filepath.Join(directory, "docker-compose.override.yml"), "--file", override, "rm", "--stop", "--force", "frps")
+	remove.Env = []string{"PATH=/usr/bin:/bin", "HOME=/root", "LANG=C", "LC_ALL=C"}
+	if remove.Run() != nil {
+		t.Fatal("could not prepare exact owned missing-service fixture")
+	}
+	if _, err := setup.BindRelayAuthorityService(ctx, directory, project, override, ""); err == nil {
+		t.Fatal("initial binding accepted absent relay")
+	}
+	service, err = setup.BindRelayAuthorityService(ctx, directory, project, override, fingerprint)
+	if err != nil {
+		t.Fatal("exact recovery binding refused interrupted recreation", err)
+	}
 	if service.Reload(ctx, ca) != nil {
 		t.Fatal("bound authz/frps reload failed")
 	}

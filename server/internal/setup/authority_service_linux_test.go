@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"context"
 	"encoding/json"
 	"path/filepath"
 	"strings"
@@ -144,5 +145,16 @@ func TestProductionAuthorityHostRequiresPinnedServiceFingerprint(t *testing.T) {
 	service.binding.Project = "other"
 	if host.checkServiceBinding() == nil {
 		t.Fatal("rebound service attached to old operation")
+	}
+}
+
+func TestMissingAuthorityServiceIsRecoveryOnly(t *testing.T) {
+	s, _ := authorityServiceFixture(t, "frps", false)
+	s.command = func(context.Context, ...string) ([]byte, error) { return []byte("\n"), nil }
+	if s.container(context.Background(), "frps", false, false) != nil {
+		t.Fatal("interrupted recreation could not recover absent service")
+	}
+	if s.container(context.Background(), "frps", true, true) == nil {
+		t.Fatal("absent service accepted as ready")
 	}
 }
