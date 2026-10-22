@@ -371,7 +371,7 @@ func prepareAuthoritySnapshot(ctx context.Context, operation string, o RelayAuth
 }
 
 func verifyAuthoritySnapshot(operation string, o RelayAuthoritySnapshotOptions) (string, error) {
-	raw, err := authorityRead(filepath.Join(operation, "snapshot.json"), 0, 65536)
+	raw, err := authorityRead(filepath.Join(operation, "snapshot.json"), 0, 1048576)
 	var s authoritySnapshot
 	if err != nil || json.Unmarshal(raw, &s) != nil || !bytes.Equal(raw, authorityJSON(s)) || s.Version != 1 || s.Options != o || len(s.Files) != 26 {
 		return "", ErrRelayAuthority
