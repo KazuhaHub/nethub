@@ -82,6 +82,31 @@ func authorityReplace(path string, uid int, raw []byte) error {
 	return nil
 }
 
+func authoritySyncMaterial(path string, uid int) error {
+	if _, err := authorityRead(path, uid, 32768); err != nil {
+		return ErrRelayAuthority
+	}
+	before, err := os.Lstat(path)
+	if err != nil {
+		return ErrRelayAuthority
+	}
+	f, err := os.OpenFile(path, os.O_RDWR, 0)
+	if err != nil {
+		return ErrRelayAuthority
+	}
+	opened, err := f.Stat()
+	if err != nil || !os.SameFile(before, opened) {
+		f.Close()
+		return ErrRelayAuthority
+	}
+	syncErr := f.Sync()
+	closeErr := f.Close()
+	if syncErr != nil || closeErr != nil || authoritySyncDirectory(filepath.Dir(path)) != nil {
+		return ErrRelayAuthority
+	}
+	return nil
+}
+
 func authorityTreeMatches(path string, s authoritySnapshot) (bool, bool, error) {
 	entries, present, err := authorityTree(path)
 	if err != nil {
@@ -114,17 +139,11 @@ func moveAuthorityMaintenance(directory, operation string, s authoritySnapshot, 
 		return ErrRelayAuthority
 	}
 	if rollback {
-		if liveExists {
-			return nil
-		}
-		if os.Rename(archive, live) != nil {
+		if !liveExists && os.Rename(archive, live) != nil {
 			return ErrRelayAuthority
 		}
 	} else {
-		if archiveExists {
-			return nil
-		}
-		if os.Rename(live, archive) != nil {
+		if !archiveExists && os.Rename(live, archive) != nil {
 			return ErrRelayAuthority
 		}
 	}
@@ -171,6 +190,11 @@ func (h *RelayAuthoritySnapshotHost) write(ctx context.Context, operation string
 			return ErrRelayAuthority
 		}
 		if !bytes.Equal(raw, current) && authorityReplace(filepath.Join(h.Options.Directory, filepath.FromSlash(file.Path)), file.UID, raw) != nil {
+			return ErrRelayAuthority
+		}
+		// A prior rename may have succeeded before its directory sync failed.
+		// Re-sync exact already-present bytes as well as newly replaced files.
+		if authoritySyncMaterial(filepath.Join(h.Options.Directory, filepath.FromSlash(file.Path)), file.UID) != nil {
 			return ErrRelayAuthority
 		}
 		if h.checkpoint != nil {
