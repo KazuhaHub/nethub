@@ -29,12 +29,14 @@ guiacme_test_image="$project-guiacme-test:local"
 guiacme_binary_holder="$project-guiacme-binary"
 guiissuer_test_image="$project-guiissuer-test:local"
 guiissuer_binary_holder="$project-guiissuer-binary"
+setup_test_image="$project-setup-test:local"
+setup_binary_holder="$project-setup-binary"
 pebble_image='ghcr.io/letsencrypt/pebble@sha256:5080492187bea12909c053d7a2b90a9e95104ef1c82381828e7823db71ce7e54'
 compose() { docker compose -p "$project" -f "$stage/deployment/docker-compose.yml" -f "$stage/deployment/docker-compose.override.yml" -f "$stage/test.yml" "$@"; }
 cleanup() {
     status=$?
     if [ "$status" -ne 0 ]; then
-        for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log" "$stage/frps-build.log" "$stage/http01-build.log" "$stage/guiacme-build.log" "$stage/guiissuer-build.log"; do
+        for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log" "$stage/frps-build.log" "$stage/http01-build.log" "$stage/guiacme-build.log" "$stage/guiissuer-build.log" "$stage/setup-build.log"; do
             if [ -f "$log" ]; then tail -n 60 "$log" >&2; fi
         done
     fi
@@ -45,6 +47,8 @@ cleanup() {
     docker image rm "$guiacme_test_image" >/dev/null 2>&1 || true
     docker rm -f "$guiissuer_binary_holder" >/dev/null 2>&1 || true
     docker image rm "$guiissuer_test_image" >/dev/null 2>&1 || true
+    docker rm -f "$setup_binary_holder" >/dev/null 2>&1 || true
+    docker image rm "$setup_test_image" >/dev/null 2>&1 || true
     if [ -f "$stage/test.yml" ]; then
         compose logs --no-color > "$stage/runtime-final.log" 2>&1 || true
         compose down -v --remove-orphans >/dev/null 2>&1 || true
@@ -98,6 +102,11 @@ docker create --name "$guiissuer_binary_holder" --network none "$guiissuer_test_
 docker cp "$guiissuer_binary_holder:/guiissuer.test" "$stage/guiissuer.test"
 docker rm "$guiissuer_binary_holder" >/dev/null
 chmod 0700 "$stage/guiissuer.test"
+docker build --target setup-acceptance -f "$root/deploy/Dockerfile" -t "$setup_test_image" "$root" > "$stage/setup-build.log" 2>&1
+docker create --name "$setup_binary_holder" --network none "$setup_test_image" /setup.test >/dev/null
+docker cp "$setup_binary_holder:/setup.test" "$stage/setup.test"
+docker rm "$setup_binary_holder" >/dev/null
+chmod 0700 "$stage/setup.test"
 if [ "${NETHUB_SCAN_IMAGES:-0}" = 1 ]; then
     mkdir "$stage/scans"
     scan_image() {
@@ -266,6 +275,9 @@ NETHUB_TEST_GUI_SQL_CONTAINER="$database_id" NETHUB_TEST_GUI_SQL_IMAGE="$databas
 NETHUB_TEST_GUI_SQL_PROJECT="$project" NETHUB_TEST_AUTHORITY_DIRECTORY="$stage/deployment" \
 NETHUB_TEST_AUTHORITY_COMPOSE="$stage/test.yml" "$stage/guiissuer.test" -test.v \
     -test.run '^TestNative(DockerSQLRunner|RelayAuthorityService|RelayAuthorityTransition)$' -test.timeout=300s
+NETHUB_TEST_GUI_SQL_PROJECT="$project" NETHUB_TEST_AUTHORITY_DIRECTORY="$stage/deployment" \
+NETHUB_TEST_AUTHORITY_COMPOSE="$stage/test.yml" "$stage/setup.test" -test.v \
+    -test.run '^TestNativeAuthorityProcessRecovery$' -test.timeout=720s
 # The administrative fixture creates a separate tenant. Run it only after the
 # single-tenant bootstrap/browser/relay acceptance and before final teardown.
 database_id=$(compose ps -q postgres)

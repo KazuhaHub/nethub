@@ -75,3 +75,13 @@ operation and retires old trust. It verifies successor TLS and old-root refusal.
 These fixture reports are not native-router installation evidence. Process-kill
 recovery, safe cancellation of unfenced preparation and native reconnect/renewal
 remain required before enabling unattended activation or adding an activation CLI.
+
+An acceptance-only setup test binary exits its own child process at ten durable
+maintenance/file/manifest/reload checkpoints and once after a successful real SQL
+finish response. The parent waits for that exact exit, checks the original shared
+lease inode and database phase, then resumes from protected snapshot options.
+Rollback rounds require exact original files and maintenance bytes, independent
+old TLS, unchanged unrelated services and stable terminal retry timestamps. The
+committed-response round must adopt new state without replaying service reloads.
+These are process-termination tests, not physical host power-loss or native-router
+application evidence. The helper/fault hook is absent from production builds.
