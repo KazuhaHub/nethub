@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/hostlease"
+	"github.com/KazuhaHub/nethub/server/internal/relayauthority"
 	"github.com/KazuhaHub/nethub/server/internal/relaycert"
 	"github.com/KazuhaHub/nethub/server/internal/relaymaint"
 )
@@ -37,7 +38,7 @@ func MaintainRelay(ctx context.Context, options MaintenanceOptions) (relaymaint.
 		return relaymaint.State{}, relaymaint.ErrState
 	}
 	canonical, err := filepath.EvalSymlinks(directory)
-	if err != nil || canonical != directory || CheckAuthority(directory) != nil {
+	if err != nil || canonical != directory || relayauthority.CheckNoPendingTransition(directory) != nil || CheckAuthority(directory) != nil {
 		return relaymaint.State{}, relaymaint.ErrState
 	}
 	lease, err := hostlease.Acquire(filepath.Join(directory, "relay-operation.lock"))
@@ -48,7 +49,7 @@ func MaintainRelay(ctx context.Context, options MaintenanceOptions) (relaymaint.
 		return relaymaint.State{}, relaymaint.ErrState
 	}
 	defer lease.Close()
-	if ctx.Err() != nil || CheckAuthority(directory) != nil {
+	if ctx.Err() != nil || relayauthority.CheckNoPendingTransition(directory) != nil || CheckAuthority(directory) != nil {
 		return relaymaint.State{}, relaymaint.ErrState
 	}
 	manifest, err := Load(directory)
