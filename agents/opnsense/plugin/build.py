@@ -6,7 +6,8 @@ import subprocess
 import sys
 import tempfile
 
-from frp_artifact import fetch, read_lock
+from frp_artifact import read_lock
+from frpc_source import build as build_frpc
 
 
 def build(version):
@@ -25,10 +26,10 @@ def build(version):
         stage, meta = work / 'stage', work / 'metadata'
         shutil.copytree(source, stage, ignore=shutil.ignore_patterns('.DS_Store', '._*', '__pycache__'))
         frpc = stage / 'usr/local/opnsense/nethub-agent/bin/frpc'
-        fetch('freebsd_amd64', 'frpc', frpc)
+        build_frpc(frpc)
         expected = read_lock()['version']
         if subprocess.check_output([str(frpc), '--version'], text=True).strip() != expected:
-            raise ValueError('Downloaded frpc reports an unexpected version')
+            raise ValueError('Rebuilt frpc reports an unexpected version')
         (frpc.parent / 'FRP_VERSION').write_text(expected + '\n')
         meta.mkdir()
         abi = subprocess.check_output(['pkg', 'config', 'ABI'], text=True).strip()

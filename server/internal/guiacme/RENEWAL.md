@@ -26,6 +26,11 @@ denies subsequent delivery and reporting. The CA log independently requires
 exactly two original orders and two finalize POSTs. Existing single-order recovery
 fixtures retain their separate exactly-one assertions.
 
+Deployment CI selects both protected host tests under the independent guard.
+Its receipt requires each exact test to pass, the single-order and two-order
+CA proofs, and authenticated delivery/reporting evidence. Missing, skipped or
+partial logs fail acceptance; the receipt exposes `renewal_verified` explicitly.
+
 The independent outer guard owns the nonce-bound containers, networks, volume,
 units and temporary keys. Cleanup and original-service/authority checks are
 required even after a failing test. A periodic cleanup namespace-lock skip is

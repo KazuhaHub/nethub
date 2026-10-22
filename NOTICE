@@ -37,6 +37,11 @@ frp (fast reverse proxy)
   agent plugin), and to run `frps` as the relay/server component of the
   NetHub control plane. frp is intended to be used unmodified, with only
   NetHub-specific configuration; no changes to frp's own source are planned.
+  The appliance client is rebuilt with the compiler in server/.go-version and
+  the dependency locks in agents/opnsense/plugin/frpc-build. The upstream frp
+  source version is unchanged. Its linked-module notices and the Go license
+  accompany the packaged client in frpc-licenses; FRP_BUILD.json records the
+  compiler, target, lock hashes and resulting binary hash.
   Its full license text is available at
   https://github.com/fatedier/frp/blob/master/LICENSE and is reproduced in
   full in the Apache License, Version 2.0 referenced above.
