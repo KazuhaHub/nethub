@@ -17,6 +17,9 @@ import (
 )
 
 func runCertificates(args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "relay-authority" {
+		return runRelayAuthority(args[1:], stdout, stderr)
+	}
 	if len(args) > 0 && args[0] == "relay-trust" {
 		return runRelayTrust(args[1:], stdout, stderr)
 	}
@@ -30,7 +33,7 @@ func runCertificates(args []string, stdout, stderr io.Writer) int {
 		return runHTTP01Cleanup(args[1:], stdout, stderr)
 	}
 	if len(args) == 0 || args[0] != "maintain-relay" {
-		fmt.Fprintln(stderr, "Usage: nethub certificates maintain-relay --directory PATH --project-name NAME | relay-trust current|publish --directory PATH | issue-gui --directory PATH --config-file PATH | cleanup-http01 --config-file PATH | account ACTION --config-file PATH")
+		fmt.Fprintln(stderr, "Usage: nethub certificates maintain-relay --directory PATH --project-name NAME | relay-trust current|publish --directory PATH | relay-authority prepare|inspect|backup|verify-backup --directory PATH | issue-gui --directory PATH --config-file PATH | cleanup-http01 --config-file PATH | account ACTION --config-file PATH")
 		return 2
 	}
 	flags := flag.NewFlagSet("certificates maintain-relay", flag.ContinueOnError)
