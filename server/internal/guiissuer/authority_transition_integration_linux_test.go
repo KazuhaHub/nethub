@@ -182,18 +182,87 @@ func TestNativeRelayAuthorityTransition(t *testing.T) {
 	}
 	opts := setup.RelayAuthoritySnapshotOptions{Directory: directory, CandidateDirectory: candidate, CandidateBackup: backup, CustodyFile: custody, SuccessorBackup: filepath.Join(root, "successor-full-backup"), ServiceFingerprint: service.Fingerprint(),
 		Request: relaytrust.SwitchRequest{ID: "54dcc6c9-093f-4d76-8b4d-f27836cfaec5", GenerationID: overlap.ID, PreviousRoot: next.Metadata.Previous, NextRoot: next.Metadata.Next, PreviousLeaf: fingerprint(leaf), NextLeaf: fingerprint(next.Material.Certificate)}}
+	cli := os.Getenv("NETHUB_TEST_AUTHORITY_CLI")
+	if cli == "" {
+		t.Fatal("actual compiled authority command is required")
+	}
+	command := func(action string, success bool, extra ...string) setup.RelayAuthorityCommandResult {
+		t.Helper()
+		args := []string{"certificates", "relay-authority", action, "--directory", directory, "--project-name", project, "--compose-file", override}
+		cmd := exec.CommandContext(ctx, cli, append(args, extra...)...)
+		var out, diagnostic bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &out, &diagnostic
+		err := cmd.Run()
+		if success != (err == nil) || !success && out.Len() != 0 {
+			t.Fatal("compiled authority command outcome", action, err)
+		}
+		var result setup.RelayAuthorityCommandResult
+		if success && json.Unmarshal(out.Bytes(), &result) != nil {
+			t.Fatal("compiled authority metadata")
+		}
+		return result
+	}
+	input := func(options setup.RelayAuthoritySnapshotOptions) string {
+		t.Helper()
+		path := filepath.Join(root, "original-"+options.Request.ID+".json")
+		raw, err := json.Marshal(options)
+		if err != nil || os.WriteFile(path, raw, 0600) != nil {
+			t.Fatal("private explicit original command input")
+		}
+		return path
+	}
+	if command("binding", true).ServiceFingerprint != service.Fingerprint() {
+		t.Fatal("compiled read-only service binding differs")
+	}
+	// A pre-existing incomplete successor backup stops the real snapshot before
+	// snapshot.json exists. Cancellation must use the earlier retained command.
+	partialOpts := opts
+	partialOpts.Request.ID = "a325c6c9-093f-4d76-8b4d-f27836cfaec5"
+	partialOpts.SuccessorBackup = filepath.Join(root, "partial-command-backup")
+	if os.Mkdir(partialOpts.SuccessorBackup, 0700) != nil ||
+		os.WriteFile(filepath.Join(partialOpts.SuccessorBackup, "retained-partial"), []byte("unchanged partial backup\n"), 0600) != nil {
+		t.Fatal("private incomplete successor backup fixture")
+	}
+	command("activate", false, "--options-file", input(partialOpts))
+	partialOperation := filepath.Join(directory, "authority-transitions", partialOpts.Request.ID)
+	if _, err := os.Lstat(filepath.Join(partialOperation, "snapshot.json")); !os.IsNotExist(err) {
+		t.Fatal("partial initialization unexpectedly completed a snapshot")
+	}
+	entries, err := os.ReadDir(filepath.Join(partialOperation, "snapshot", "before"))
+	if err != nil || len(entries) == 0 {
+		t.Fatal("actual partial snapshot material was not retained", err)
+	}
+	partialCancelled := command("cancel-preparation", true, "--operation-id", partialOpts.Request.ID)
+	partialRetry := command("cancel-preparation", true, "--operation-id", partialOpts.Request.ID)
+	if partialCancelled.Transition == nil || partialCancelled.Transition.Phase != "aborted" ||
+		partialCancelled.Transition.Cancellation == nil || partialRetry.Transition == nil ||
+		!partialRetry.Transition.UpdatedAt.Equal(partialCancelled.Transition.UpdatedAt) ||
+		setup.CheckFiles(directory) != nil || relayauthority.CheckNoPendingTransition(directory) != nil ||
+		!bytes.Equal(read(filepath.Join(partialOpts.SuccessorBackup, "retained-partial")), []byte("unchanged partial backup\n")) {
+		t.Fatal("compiled partial-initialization cancellation changed retained state")
+	}
+	for path, raw := range before {
+		if !bytes.Equal(read(filepath.Join(directory, filepath.FromSlash(path))), raw) {
+			t.Fatal("compiled preparation cancellation changed original credentials")
+		}
+	}
 	// Without current application reports admission must refuse the prepared
 	// operation. Cancellation must preserve that history rather than erase it.
 	abortOpts := opts
 	abortOpts.Request.ID = "a12cfec0-5907-4e31-99ea-ab0061a01ac5"
 	abortOpts.SuccessorBackup = filepath.Join(root, "cancelled-successor-backup")
+	command("activate", false, "--options-file", input(abortOpts))
 	prepared, err := setup.RunBoundRelayAuthorityTransition(ctx, abortOpts, project, override)
 	if err == nil || prepared.Phase != "prepared" || relayauthority.CheckNoPendingTransition(directory) == nil {
 		t.Fatal("refused preparation did not retain maintenance exclusion", err)
 	}
+	abortCommand := command("abort", true, "--operation-id", abortOpts.Request.ID)
 	aborted, err := setup.AbortBoundRelayAuthorityTransition(ctx, directory, abortOpts.Request.ID, project, override)
 	if err != nil || aborted.Phase != "aborted" || aborted.Cancellation == nil || setup.CheckFiles(directory) != nil || relayauthority.CheckNoPendingTransition(directory) != nil {
 		t.Fatal("bound prepared-operation cancellation failed", err)
+	}
+	if abortCommand.Transition == nil || !abortCommand.Transition.UpdatedAt.Equal(aborted.UpdatedAt) {
+		t.Fatal("compiled abort did not preserve its first receipt")
 	}
 	cancellation, err := publisher.ReadCancellation(ctx, abortOpts.Request.ID)
 	if err != nil || cancellation.IntentDigest != aborted.IntentDigest || !cancellation.CancelledAt.Equal(aborted.Cancellation.CancelledAt) {
@@ -258,9 +327,13 @@ func TestNativeRelayAuthorityTransition(t *testing.T) {
 	if _, err := os.Lstat(filepath.Join(directory, "authority-transitions", opts.Request.ID)); !os.IsNotExist(err) {
 		t.Fatal("refused predecessor created a transition journal")
 	}
+	activated := command("activate", true, "--options-file", input(opts))
 	state, err := setup.RunBoundRelayAuthorityTransition(ctx, opts, project, override)
 	if err != nil || state.Phase != "committed" {
 		t.Fatal("combined bound authority transition failed", state.Phase, err)
+	}
+	if activated.Transition == nil || !activated.Transition.UpdatedAt.Equal(state.UpdatedAt) {
+		t.Fatal("compiled activation did not retain its original terminal receipt")
 	}
 	receipt, err := publisher.ReadSwitch(ctx, opts.Request.ID)
 	if err != nil || receipt.Phase != "committed" || receipt.ObservedLeaf == nil || *receipt.ObservedLeaf != opts.Request.NextLeaf {
@@ -280,9 +353,13 @@ func TestNativeRelayAuthorityTransition(t *testing.T) {
 			t.Fatal("combined transition changed unrelated credentials")
 		}
 	}
+	resumedCommand := command("resume", true, "--operation-id", opts.Request.ID)
 	resumed, err := setup.ResumeBoundRelayAuthorityTransition(ctx, directory, opts.Request.ID, project, override)
 	if err != nil || resumed.Phase != "committed" || !resumed.UpdatedAt.Equal(state.UpdatedAt) {
 		t.Fatal("completed operation did not resume exact retained identity", err)
+	}
+	if resumedCommand.Transition == nil || !resumedCommand.Transition.UpdatedAt.Equal(state.UpdatedAt) {
+		t.Fatal("compiled resume changed the retained terminal receipt")
 	}
 	final, err := publisher.Publish(ctx, overlap.ID, string(next.Material.CA))
 	if err != nil {
@@ -299,6 +376,7 @@ func TestNativeRelayAuthorityTransition(t *testing.T) {
 		t.Fatal("retired authority still accepted actual served relay")
 	}
 	t.Log("Combined authority transition passed authenticated compiled trust reports, real PostgreSQL fence, exact files/backups/maintenance, actual authz/frps reload, retained-request resume, successor TLS and retired-root refusal; no native trust application or per-write process termination")
+	t.Log("Compiled authority commands passed read-only binding, retained-input partial-initialization cancellation without snapshot.json, unapplied-overlap activation refusal, exact abort, successful activation and idempotent resume against real PostgreSQL, files and service TLS")
 	t.Log("Bound authority abort passed refused preparation, serialized cancellation, unchanged original files/TLS/services, exact retry and fresh-operation reprepare; no partial-initialization or expiry recovery")
 	t.Log("Lost admission recovery passed actual pending SQL decision, refused cancellation and retained-request rollback from aborting; no fresh admission or cancellation-by-absence")
 }
