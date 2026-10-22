@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -98,9 +99,18 @@ func authorityRead(path string, uid int, maximum int64) ([]byte, error) {
 	if !ok || stat.Nlink != 1 {
 		return nil, ErrRelayAuthority
 	}
-	raw, err := os.ReadFile(path)
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, ErrRelayAuthority
+	}
+	defer f.Close()
+	opened, err := f.Stat()
+	if err != nil || !os.SameFile(before, opened) {
+		return nil, ErrRelayAuthority
+	}
+	raw, err := io.ReadAll(io.LimitReader(f, maximum+1))
 	after, statErr := os.Lstat(path)
-	if err != nil || statErr != nil || !os.SameFile(before, after) || before.Size() != int64(len(raw)) || !before.ModTime().Equal(after.ModTime()) {
+	if err != nil || statErr != nil || !os.SameFile(before, after) || int64(len(raw)) > maximum || before.Size() != int64(len(raw)) || !before.ModTime().Equal(after.ModTime()) {
 		return nil, ErrRelayAuthority
 	}
 	return raw, nil
