@@ -176,7 +176,9 @@ def authority(tmp_path):
         if pss_hash:
             start = args.index('ec')
             args[start:start+3] = ['rsa:2048']
-            args.extend(['-sigopt', 'rsa_padding_mode:pss', '-'+pss_hash])
+            # OpenSSL releases differ in their default PSS salt length.
+            args.extend(['-sigopt', 'rsa_padding_mode:pss', '-sigopt', 'rsa_pss_saltlen:digest',
+                         '-sigopt', 'rsa_mgf1_md:'+pss_hash, '-'+pss_hash])
             for option in pss_options:
                 args.extend(['-sigopt', option])
         result = subprocess.run(args, capture_output=True, timeout=5)
