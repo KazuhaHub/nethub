@@ -185,7 +185,6 @@ func testAtomicEnrollment(t *testing.T, ctx context.Context, owner, authz, webRo
 	t.Run("fenced_gui_jobs", func(t *testing.T) { testGUIJobs(t, f, webRole, tenantA, tenantB) })
 	t.Run("immutable_issued_gui_material", func(t *testing.T) { testGUIIssuedMaterial(t, f, tenantA) })
 	t.Run("authorized_gui_renewal_admission", func(t *testing.T) { testGUIRenewalAdmission(t, f, webRole, tenantA) })
-	t.Run("durable_relay_trust_history", func(t *testing.T) { testRelayTrustHistory(t, f, webRole, tenantA) })
 	t.Run("readiness_requires_authz_role", func(t *testing.T) {
 		if err := f.service.Health(ctx); err != nil {
 			t.Fatal("migrated authz role did not pass readiness")
@@ -353,6 +352,7 @@ func testAtomicEnrollment(t *testing.T, ctx context.Context, owner, authz, webRo
 	})
 	t.Run("relay_identity_and_revocation", func(t *testing.T) { testRelayAuthorization(t, f, tenantA, tenantB) })
 	t.Run("relay_observation", func(t *testing.T) { testRelayObservation(t, f, webRole, tenantA, tenantB) })
+	t.Run("durable_relay_trust_history", func(t *testing.T) { testRelayTrustHistory(t, f, webRole, tenantA) })
 }
 
 func (f *enrollmentFixture) lockRace(t *testing.T, kind, tenant string) {

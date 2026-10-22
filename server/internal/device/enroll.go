@@ -55,11 +55,14 @@ type Registration struct {
 	SecretHash string   `json:"-"`
 	Candidates []string
 	SourceIP   netip.Addr
+	// RelayServerName comes from protected server configuration, never metadata.
+	RelayServerName string `json:"-"`
 }
 
 type Assignment struct {
 	ID, TenantID, OwnerID, Subdomain, Claim string
 	IssuedAt                                time.Time
+	RelayCAPEM                              string `json:"-"`
 }
 
 // Register must consume, insert, sign and append audit in one transaction.
@@ -258,7 +261,7 @@ func (s *Service) Enroll(ctx context.Context, request protocol.EnrollRequest, ip
 		return protocol.EnrollResponse{}, err
 	}
 	rawToken, _ := base64.RawURLEncoding.Strict().DecodeString(request.EnrollToken)
-	record := Registration{TokenHash: sha256.Sum256(rawToken), SecretHash: hash,
+	record := Registration{TokenHash: sha256.Sum256(rawToken), SecretHash: hash, RelayServerName: s.relay.ServerName,
 		Candidates: candidates, SourceIP: ip.Unmap(), Metadata: Metadata{
 			ProtocolVersion: request.AgentProtocolVersion, Platform: request.Platform,
 			PlatformVersion: request.PlatformVersion, AgentVersion: request.AgentVersion,
@@ -267,6 +270,11 @@ func (s *Service) Enroll(ctx context.Context, request protocol.EnrollRequest, ip
 	assigned, err := s.repository.Register(ctx, record, func(value Assignment) (string, error) {
 		if ctx.Err() != nil || !s.trustValid(s.now()) {
 			return "", ErrUnavailable
+		}
+		if value.RelayCAPEM != "" {
+			if _, err := relaytrust.Parse(value.RelayCAPEM, s.now()); err != nil {
+				return "", ErrUnavailable
+			}
 		}
 		return s.signer.Issue(value.ID, value.Subdomain, value.TenantID, value.IssuedAt)
 	})
@@ -281,8 +289,12 @@ func (s *Service) Enroll(ctx context.Context, request protocol.EnrollRequest, ip
 		key, _ := guicert.ValidatePublicKey(request.GUIPublicKey)
 		fingerprint = key.Fingerprint
 	}
+	publicTrust := s.relay.CAPEM
+	if assigned.RelayCAPEM != "" {
+		publicTrust = assigned.RelayCAPEM
+	}
 	return protocol.EnrollResponse{AgentProtocolVersion: protocol.Version, GUIKeyFingerprint: fingerprint,
 		DeviceID: assigned.ID, DeviceSecret: rawSecret, FRPToken: s.relay.FRPToken,
 		ServerAddr: s.relay.Address, ServerPort: s.relay.Port, ServerName: s.relay.ServerName,
-		Subdomain: assigned.Subdomain, DomainClaim: assigned.Claim, RelayCAPEM: s.relay.CAPEM}, nil
+		Subdomain: assigned.Subdomain, DomainClaim: assigned.Claim, RelayCAPEM: publicTrust}, nil
 }

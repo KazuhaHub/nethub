@@ -18,6 +18,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/auth"
 	"github.com/KazuhaHub/nethub/server/internal/claim"
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
+	"github.com/KazuhaHub/nethub/server/internal/relaycert"
 )
 
 type fakeRepository struct {
@@ -25,6 +26,7 @@ type fakeRepository struct {
 	record      Registration
 	failure     error
 	beforeIssue func()
+	publicTrust string
 }
 
 func (r *fakeRepository) Health(context.Context) error { return r.failure }
@@ -43,6 +45,7 @@ func (r *fakeRepository) Register(_ context.Context, record Registration, issue 
 	}
 	value := Assignment{ID: "11111111-1111-4111-8111-111111111111", TenantID: "22222222-2222-4222-8222-222222222222",
 		OwnerID: "33333333-3333-4333-8333-333333333333", Subdomain: record.Candidates[0], IssuedAt: time.Now().UTC().Truncate(time.Microsecond)}
+	value.RelayCAPEM = r.publicTrust
 	var err error
 	value.Claim, err = issue(value)
 	return value, err
@@ -135,6 +138,25 @@ func TestEnrollmentSeparatesOpaqueSecretsFromRegistration(t *testing.T) {
 	}
 	if repository.record.Platform != request.Platform || repository.record.SourceIP != netip.MustParseAddr("192.0.2.1") {
 		t.Fatal("metadata or source IP drifted")
+	}
+}
+
+func TestEnrollmentReturnsCurrentTransactionTrustAndRejectsInvalidSnapshot(t *testing.T) {
+	repository := &fakeRepository{}
+	service := fixtureService(t, repository)
+	material, err := relaycert.Create(service.relay.ServerName, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository.publicTrust = string(material.CA)
+	response, err := service.Enroll(context.Background(), fixtureRequest(t), netip.MustParseAddr("192.0.2.1"))
+	if err != nil || response.RelayCAPEM != repository.publicTrust || response.RelayCAPEM == service.relay.CAPEM || repository.record.RelayServerName != service.relay.ServerName {
+		t.Fatal("current assignment trust was not preserved", err)
+	}
+	repository.publicTrust = "invalid public trust"
+	response, err = service.Enroll(context.Background(), fixtureRequest(t), netip.MustParseAddr("192.0.2.1"))
+	if err != ErrUnavailable || response.DeviceSecret != "" {
+		t.Fatal("invalid transaction trust returned credentials", err)
 	}
 }
 
