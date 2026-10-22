@@ -519,5 +519,27 @@ func verifyAuthoritySnapshot(operation string, o RelayAuthoritySnapshotOptions) 
 	if err != nil || !bytes.Equal(authorityJSON(tree), authorityJSON(s.Maintenance)) || !s.MaintenancePresent && len(tree) != 0 {
 		return "", ErrRelayAuthority
 	}
+	// A completion write may have returned an fsync error after leaving exact
+	// bytes. Re-sync the validated marker and parent before an exact retry can
+	// promise a durable snapshot to the database transition coordinator.
+	path := filepath.Join(operation, "snapshot.json")
+	beforeSync, err := os.Lstat(path)
+	if err != nil {
+		return "", ErrRelayAuthority
+	}
+	f, err := os.OpenFile(path, os.O_RDWR, 0)
+	if err != nil {
+		return "", ErrRelayAuthority
+	}
+	opened, statErr := f.Stat()
+	if statErr != nil || !os.SameFile(beforeSync, opened) {
+		f.Close()
+		return "", ErrRelayAuthority
+	}
+	syncErr := f.Sync()
+	closeErr := f.Close()
+	if syncErr != nil || closeErr != nil || authoritySyncDirectory(operation) != nil {
+		return "", ErrRelayAuthority
+	}
 	return authorityHash(raw), nil
 }
