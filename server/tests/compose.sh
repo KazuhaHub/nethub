@@ -265,7 +265,7 @@ database_image_id=$(docker image inspect --format '{{.Id}}' "$postgres_image")
 NETHUB_TEST_GUI_SQL_CONTAINER="$database_id" NETHUB_TEST_GUI_SQL_IMAGE="$database_image_id" \
 NETHUB_TEST_GUI_SQL_PROJECT="$project" NETHUB_TEST_AUTHORITY_DIRECTORY="$stage/deployment" \
 NETHUB_TEST_AUTHORITY_COMPOSE="$stage/test.yml" "$stage/guiissuer.test" -test.v \
-    -test.run '^TestNative(DockerSQLRunner|RelayAuthorityService)$' -test.timeout=180s
+    -test.run '^TestNative(DockerSQLRunner|RelayAuthorityService|RelayAuthorityTransition)$' -test.timeout=300s
 # The administrative fixture creates a separate tenant. Run it only after the
 # single-tenant bootstrap/browser/relay acceptance and before final teardown.
 database_id=$(compose ps -q postgres)

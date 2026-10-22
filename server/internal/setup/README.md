@@ -59,3 +59,19 @@ requires both bound services and a fresh independent CA/name-verified control TL
 connection. Tests of actual Docker reload use the unchanged authority; full
 database-fenced root migration, process termination and authenticated appliance
 recovery still need combined acceptance. No activation CLI is exposed.
+
+`RunBoundRelayAuthorityTransition` composes the exact Compose database identity,
+restricted SQL publisher, snapshot host and bound authz/frps adapter under the
+shared transition lease. Inputs carry the explicit operation/current-overlap and
+before/after leaf identities plus service fingerprint; it never publishes trust
+or supplies device acknowledgements itself. `ResumeBoundRelayAuthorityTransition`
+loads original options from protected snapshot metadata, rather than deriving a
+new predecessor from live files that may already be partly changed.
+
+The opt-in combined deployment test publishes overlapping trust, validates and
+stores it in two authenticated fixture clients, reports through the compiled API,
+switches actual authority/files/backups/services, resumes the exact terminal
+operation and retires old trust. It verifies successor TLS and old-root refusal.
+These fixture reports are not native-router installation evidence. Process-kill
+recovery, safe cancellation of unfenced preparation and native reconnect/renewal
+remain required before enabling unattended activation or adding an activation CLI.
