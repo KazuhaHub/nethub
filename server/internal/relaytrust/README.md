@@ -1,5 +1,44 @@
 # Public relay trust bundles
 
+## Protected host commands
+
+On the initialized Linux Docker host, root can inspect or publish the public
+head without starting services or changing signing/runtime files:
+
+```sh
+nethub certificates relay-trust current --directory /srv/nethub --project-name nethub
+nethub certificates relay-trust publish --directory /srv/nethub --project-name nethub \
+  --bundle-file /root/nethub-trust/current.pem --initialize
+nethub certificates relay-trust publish --directory /srv/nethub --project-name nethub \
+  --bundle-file /root/nethub-trust/overlap.pem --expected-generation CURRENT_GENERATION_ID
+```
+
+The input is public CA PEM in a canonical absolute path: root-owned, mode 0600,
+single-linked and beneath a protected root-owned parent. Symlinks and private-key
+blocks are refused. Use `--compose-file` only for an additional protected override
+already used by this deployment. No database password or PEM enters arguments.
+
+Every operation requires the confirmed authority and its matching independent
+backup. Database selection verifies the exact Compose container/image, project,
+working directory and mounts before using the bounded local administrator socket
+and restricted SQL identity. Output contains public generation metadata, not PEM
+or private state. `current` returns `pending` before the first publication.
+
+Publication requires either explicit `--initialize` or a current generation ID.
+Exact material retries preserve their original identity/time; conflicting stale
+updates fail closed. Read the current head again and review the intended change.
+The database still enforces overlap and authenticated-application retirement
+barriers. Publishing a bundle does not acknowledge any device's application.
+
+The bundle must retain the configured, backed-up issuer root. Thus new-only
+publication remains refused while that issuer is old, even after devices report
+overlap. Public publication cannot silently replace expired authority or switch
+frps certificates. Protected signer/backup/manifest migration, automated rollout,
+offline quarantine/recovery and complete native application acceptance remain
+separate work.
+
+## Public material and history
+
 `Parse` validates one or two distinct currently valid, self-issued and self-signed
 CA certificates. It rejects unrelated PEM data, headers, nested/malformed blocks,
 unknown critical extensions, invalid signing usage and oversized bundles. This
