@@ -1,0 +1,31 @@
+title = "NetHub credential checks"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Exact public SPKI digests in protocol fixtures"
+condition = "AND"
+regexTarget = "line"
+paths = [
+  '''^proto/examples/valid/certificate-issued-response\.json$''',
+  '''^proto/examples/valid/certificate-issued-pending-response\.json$''',
+  '''^proto/examples/valid/certificate-settings-response\.json$''',
+  '''^proto/examples/valid/certificate-submit-response\.json$''',
+  '''^proto/examples/valid/enroll-bound-response\.json$''',
+  '''^proto/examples/invalid/certificate-settings-response-missing-device\.json$''',
+  '''^proto/examples/invalid/certificate-submit-response-missing-device\.json$''',
+]
+regexes = [
+  '''^\s*"gui_key_fingerprint":\s*"(?:5cd252fb0ce8932436faf8ccd1040981b89ee4ad6b9fe9e2a2b7e71aacb27cd3|c8a07280e4f98bf6904cc54386bb9febc3bb786edf9a85f24c3a8aa57018126a)",?\s*$''',
+]
+
+[[rules.allowlists]]
+description = "Exact public OPNsense release verification key checksum"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^weekend0/vm_preflight\.py$''']
+regexes = ['''^\s*KEY_SHA256 = "9f3b76ffef38fb6405595038b324b61043c9a2c375ae5c151d628508e9a845ce"\s*$''']
