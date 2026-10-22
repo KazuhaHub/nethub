@@ -26,6 +26,16 @@ type Generation struct {
 
 func (g *Generation) Bundle() *Bundle { return g.bundle }
 
+// Valid checks a retained typed generation against independent relay identity
+// and current time. Cached material cannot establish current database authority.
+func (g *Generation) Valid(serverName string, now time.Time) bool {
+	if g == nil || !validID(g.ID) || g.Number < 1 || g.Number > 2147483647 || !validServerName(strings.ToLower(serverName)) || g.ServerName != strings.ToLower(serverName) || now.IsZero() || g.PublishedAt.IsZero() || g.PublishedAt.After(now.Add(5*time.Second)) || g.bundle == nil || !g.bundle.ValidAt(now) {
+		return false
+	}
+	start, end := g.bundle.Window()
+	return !g.PublishedAt.Before(start) && g.PublishedAt.Before(end)
+}
+
 type generationRecord struct {
 	ID          string    `json:"id"`
 	Number      int       `json:"generation"`

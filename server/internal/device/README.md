@@ -27,11 +27,22 @@ database password, never owner credentials. Keep this HTTP listener behind the
 verified HTTPS reverse proxy with explicitly configured trusted proxy CIDRs.
 
 `GET /healthz` (also HEAD) checks the authz database role/function access and the
-configured public trust validity with a two-second context bound. It does not
+current published public trust validity with a two-second context bound. It does not
 prove that a relay is reachable or that the served relay leaf is current. The
 runtime bounds headers/read/write/idle times and drains requests on SIGTERM.
-Trust and keys are startup snapshots; automatic generation reload is still
-certificate-maintenance work.
+Claim keys and the frp token remain startup snapshots. With the production
+repository, startup and readiness prefer the independently validated current
+database publication, including when the mounted bootstrap CA has expired.
+Bootstrap trust is allowed only for an uninitialized head and must be currently
+valid. Once publication is observed, missing, unavailable, wrong-name or expired
+trust cannot fall back to the bootstrap. No TLS verification is disabled.
+
+Enrollment preflight is bounded by the existing source-IP and worker limits.
+It does not determine the returned bundle: registration still selects current
+trust under the head lock before token consumption and supplies that exact
+snapshot to the signing callback. An initialized callback refuses an empty
+snapshot; post-commit fetching cannot repair or replace it. These are public
+trust/startup rules, not evidence that frps or a native device applied a generation.
 
 `NewHTTP` serves `POST /api/v1/devices/{enroll,status,unenroll}`. It checks the configured host,
 optional exact Origin, JSON media/encoding, canonical path and a 64 KiB body

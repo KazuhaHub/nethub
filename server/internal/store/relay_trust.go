@@ -101,8 +101,15 @@ func (s *RelayTrustStore) AcknowledgeReport(ctx context.Context, c device.Creden
 }
 
 func (s *RelayTrustStore) Health(ctx context.Context) error {
+	_, err := s.currentPublic(ctx)
+	return err
+}
+
+// currentPublic shares readiness and current-publication validation with
+// bootstrap recovery. Neither path may bypass the public-history role fences.
+func (s *RelayTrustStore) currentPublic(ctx context.Context) (*relaytrust.Generation, error) {
 	if s == nil || s.Enrollment == nil || s.Enrollment.Health(ctx) != nil {
-		return device.ErrUnavailable
+		return nil, device.ErrUnavailable
 	}
 	var ready bool
 	err := s.Enrollment.DB.QueryRowContext(ctx, `SELECT
@@ -122,16 +129,18 @@ func (s *RelayTrustStore) Health(ctx context.Context) error {
  AND ((tgrelid='public.relay_trust_generations'::regclass AND tgname='relay_trust_generation_immutable')
  OR (tgrelid='public.relay_trust_applications'::regclass AND tgname='relay_trust_application_immutable')))=2`).Scan(&ready)
 	if err != nil || !ready {
-		return device.ErrUnavailable
+		return nil, device.ErrUnavailable
 	}
 	var data []byte
 	if err := s.Enrollment.DB.QueryRowContext(ctx, `SELECT coalesce(read_current_relay_trust($1),'null'::jsonb)`, s.ServerName).Scan(&data); err != nil {
-		return device.ErrUnavailable
+		return nil, device.ErrUnavailable
 	}
-	if string(data) != "null" {
-		if _, err := relaytrust.DecodeGeneration(data, s.ServerName, time.Now()); err != nil {
-			return device.ErrUnavailable
-		}
+	if string(data) == "null" {
+		return nil, nil
 	}
-	return nil
+	generation, err := relaytrust.DecodeGeneration(data, s.ServerName, time.Now())
+	if err != nil {
+		return nil, device.ErrUnavailable
+	}
+	return generation, nil
 }
