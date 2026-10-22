@@ -39,7 +39,7 @@ func (h *RelayAuthoritySnapshotHost) Snapshot(ctx context.Context, operation str
 	if h.checkServiceBinding() != nil {
 		return "", ErrRelayAuthority
 	}
-	return prepareAuthoritySnapshot(ctx, operation, h.Options)
+	return prepareAuthoritySnapshotWithCheckpoint(ctx, operation, h.Options, h.checkpoint)
 }
 
 func (h *RelayAuthoritySnapshotHost) snapshot(ctx context.Context, operation string, r relaytrust.SwitchRequest, expected string) (authoritySnapshot, error) {
