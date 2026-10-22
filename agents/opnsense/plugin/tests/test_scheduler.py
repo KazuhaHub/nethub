@@ -32,8 +32,8 @@ def test_package_cron_uses_system_format_and_absolute_commands():
         if index == 3:
             assert command[:3] == ['/bin/sleep', '40', '&&']
             command = command[3:]
-            assert command[:5] == ['/usr/bin/timeout', '-k', '2', '45', '/usr/bin/lockf']
-            command = command[4:]
+            assert command[:3] == ['/usr/local/bin/python3.13', '/usr/local/opnsense/scripts/nethub-agent/run_bounded.py', '45']
+            command = command[3:]
             assert command[-5:-3] == ['--locked', 'certificate']
         if index == 4:
             assert command[:3] == ['/bin/sleep', '30', '&&']
@@ -75,8 +75,9 @@ def test_lifecycle_actions_are_bounded_locked_and_uncached(name):
     parser = configparser.ConfigParser(delimiters=(':',), interpolation=None)
     parser.read(ROOT / 'src/usr/local/opnsense/service/conf/actions.d/actions_nethub-agent.conf')
     command = shlex.split(parser[name]['command'])
-    if name == 'trust':
-        assert command[:3] == ['/usr/local/bin/python3.13', '/usr/local/opnsense/scripts/nethub-agent/run_bounded.py', '95']
+    if name in ('trust', 'forget'):
+        deadline = '95' if name == 'trust' else '35'
+        assert command[:3] == ['/usr/local/bin/python3.13', '/usr/local/opnsense/scripts/nethub-agent/run_bounded.py', deadline]
         command = command[3:]
     else:
         assert command[:4] == ['/usr/bin/timeout', '-k', '2', '35']
