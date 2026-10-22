@@ -16,6 +16,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/guiacme"
 	"github.com/KazuhaHub/nethub/server/internal/guicert"
 	"github.com/KazuhaHub/nethub/server/internal/guiissuer"
+	"github.com/KazuhaHub/nethub/server/internal/hostlease"
 	"github.com/KazuhaHub/nethub/server/internal/http01"
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
 	"github.com/KazuhaHub/nethub/server/internal/relaycert"
@@ -588,4 +589,27 @@ func testProtectedRelayTrustCommands(t *testing.T, binary, directory, project, o
 		t.Fatal("offline preparation changed public head or active authority")
 	}
 	t.Log("Protected relay authority commands passed expected-root refusal, immutable preparation, independent backup verification and unchanged active authority/runtime/head")
+	lease, err := hostlease.Acquire(filepath.Join(directory, "relay-operation.lock"))
+	if err != nil {
+		t.Fatal("fixture shared host lease")
+	}
+	func() {
+		defer lease.Close()
+		refuse("current")
+		refuse("publish", "--bundle-file", bundle, "--expected-generation", second.ID)
+		if raw, err := authority("inspect"); err == nil || len(raw) != 0 {
+			t.Fatal("authority operation bypassed host lease")
+		}
+		raw, err := command(nil, binary, "certificates", "maintain-relay", "--directory", directory, "--project-name", project)
+		if err != nil || strings.TrimSpace(string(raw)) != "Relay maintenance already running; skipped" {
+			t.Fatal("renewal bypassed host lease or incorrectly reported a failure")
+		}
+	}()
+	if current = invoke("current"); current.ID != second.ID || setup.CheckFiles(directory) != nil {
+		t.Fatal("contended operation changed authority or head")
+	}
+	if raw, err := authority("inspect"); err != nil || len(raw) == 0 {
+		t.Fatal("authority did not recover after host lease release")
+	}
+	t.Log("Protected shared relay lease refused publication and offline authority during contention, skipped renewal, then recovered without changing authority/runtime/head")
 }
