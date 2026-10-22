@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/pem"
+	"strings"
 	"sync"
 	"testing"
 
@@ -25,6 +26,7 @@ func certificateDERFingerprint(t *testing.T, data []byte) string {
 func testRelayAuthoritySwitch(t *testing.T, f *enrollmentFixture, p *relaytrust.Publisher, store *RelayTrustStore,
 	credential device.Credential, deviceID string, overlap *relaytrust.Generation, request relaytrust.SwitchRequest, tenant string, web *sql.DB) {
 	t.Helper()
+	testRelayAuthorityCancellation(t, f, p, request, web)
 	stale := request
 	stale.GenerationID = "56dde2f1-b731-474e-a822-1974623cf25b"
 	if _, err := p.BeginSwitch(f.ctx, stale); err == nil {
@@ -38,6 +40,9 @@ func testRelayAuthoritySwitch(t *testing.T, f *enrollmentFixture, p *relaytrust.
 	intent, err := p.BeginSwitch(f.ctx, request)
 	if err != nil || intent.Phase != "pending" {
 		t.Fatal("begin authority switch", err)
+	}
+	if _, err := p.CancelSwitch(f.ctx, request, strings.Repeat("c", 64)); err == nil {
+		t.Fatal("pending switch was cancelled")
 	}
 	var wg sync.WaitGroup
 	for range 8 {
@@ -160,6 +165,9 @@ func testRelayAuthoritySwitch(t *testing.T, f *enrollmentFixture, p *relaytrust.
 	resolved, err := p.FinishSwitch(f.ctx, request, "rolled_back", request.PreviousLeaf)
 	if err != nil || resolved.Phase != "rolled_back" {
 		t.Fatal("rollback report failed", err)
+	}
+	if _, err := p.CancelSwitch(f.ctx, request, strings.Repeat("c", 64)); err == nil {
+		t.Fatal("completed switch was cancelled")
 	}
 	retry, err := p.FinishSwitch(f.ctx, request, "rolled_back", request.PreviousLeaf)
 	if err != nil || !retry.FinishedAt.Equal(*resolved.FinishedAt) {

@@ -7,13 +7,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io"
 	"net"
 	"net/http"
 	"net/netip"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,6 +55,24 @@ func TestNativeRelayAuthorityTransition(t *testing.T) {
 	before := map[string][]byte{}
 	for _, file := range manifest.Files {
 		before[file.Path] = read(filepath.Join(directory, filepath.FromSlash(file.Path)))
+	}
+	for _, path := range []string{"setup.json", "runtime/relay/relay-cert.pem", "runtime/relay/relay-key.pem", "runtime/trust/relay-ca.pem"} {
+		before[path] = read(filepath.Join(directory, filepath.FromSlash(path)))
+	}
+	serviceID := func(name string) string {
+		t.Helper()
+		command := exec.CommandContext(ctx, "/usr/bin/docker", "--host", "unix:///var/run/docker.sock", "compose", "--project-name", project, "--file", filepath.Join(directory, "docker-compose.yml"), "--file", filepath.Join(directory, "docker-compose.override.yml"), "--file", override, "ps", "--all", "--quiet", name)
+		command.Env = []string{"PATH=/usr/bin:/bin", "HOME=/root", "LANG=C", "LC_ALL=C"}
+		raw, err := command.Output()
+		id := strings.TrimSpace(string(raw))
+		if err != nil || len(id) != 64 {
+			t.Fatal("bound cancellation service identity unavailable")
+		}
+		return id
+	}
+	services := map[string]string{}
+	for _, name := range []string{"postgres", "nethub-web", "caddy", "nethub-authz", "frps"} {
+		services[name] = serviceID(name)
 	}
 	leaf := read(filepath.Join(directory, "runtime/relay/relay-cert.pem"))
 	fingerprint := func(raw []byte) string {
@@ -155,13 +176,80 @@ func TestNativeRelayAuthorityTransition(t *testing.T) {
 			}
 		}
 	}
-	report(overlap)
 	service, err := setup.BindRelayAuthorityService(ctx, directory, project, override, "")
 	if err != nil {
 		t.Fatal("initial bound deployment service", err)
 	}
 	opts := setup.RelayAuthoritySnapshotOptions{Directory: directory, CandidateDirectory: candidate, CandidateBackup: backup, CustodyFile: custody, SuccessorBackup: filepath.Join(root, "successor-full-backup"), ServiceFingerprint: service.Fingerprint(),
 		Request: relaytrust.SwitchRequest{ID: "54dcc6c9-093f-4d76-8b4d-f27836cfaec5", GenerationID: overlap.ID, PreviousRoot: next.Metadata.Previous, NextRoot: next.Metadata.Next, PreviousLeaf: fingerprint(leaf), NextLeaf: fingerprint(next.Material.Certificate)}}
+	// Without current application reports admission must refuse the prepared
+	// operation. Cancellation must preserve that history rather than erase it.
+	abortOpts := opts
+	abortOpts.Request.ID = "a12cfec0-5907-4e31-99ea-ab0061a01ac5"
+	abortOpts.SuccessorBackup = filepath.Join(root, "cancelled-successor-backup")
+	prepared, err := setup.RunBoundRelayAuthorityTransition(ctx, abortOpts, project, override)
+	if err == nil || prepared.Phase != "prepared" || relayauthority.CheckNoPendingTransition(directory) == nil {
+		t.Fatal("refused preparation did not retain maintenance exclusion", err)
+	}
+	aborted, err := setup.AbortBoundRelayAuthorityTransition(ctx, directory, abortOpts.Request.ID, project, override)
+	if err != nil || aborted.Phase != "aborted" || aborted.Cancellation == nil || setup.CheckFiles(directory) != nil || relayauthority.CheckNoPendingTransition(directory) != nil {
+		t.Fatal("bound prepared-operation cancellation failed", err)
+	}
+	cancellation, err := publisher.ReadCancellation(ctx, abortOpts.Request.ID)
+	if err != nil || cancellation.IntentDigest != aborted.IntentDigest || !cancellation.CancelledAt.Equal(aborted.Cancellation.CancelledAt) {
+		t.Fatal("bound cancellation did not retain exact database receipt", err)
+	}
+	retried, err := setup.AbortBoundRelayAuthorityTransition(ctx, directory, abortOpts.Request.ID, project, override)
+	if err != nil || !retried.UpdatedAt.Equal(aborted.UpdatedAt) || !retried.Cancellation.CancelledAt.Equal(cancellation.CancelledAt) {
+		t.Fatal("bound cancellation retry changed timestamps", err)
+	}
+	for path, raw := range before {
+		if !bytes.Equal(read(filepath.Join(directory, filepath.FromSlash(path))), raw) {
+			t.Fatal("cancellation changed original credentials")
+		}
+	}
+	observedBefore, err := observeFixtureRelay(ctx, netip.MustParseAddrPort("127.0.0.1:7000"), manifest.Config.ConsoleHost, before["secrets/issuer/ca.pem"])
+	if err != nil || observedBefore != opts.Request.PreviousLeaf {
+		t.Fatal("cancellation changed actual original TLS", err)
+	}
+	report(overlap)
+	if _, err := publisher.BeginSwitch(ctx, abortOpts.Request); err == nil {
+		t.Fatal("cancelled operation admitted after device reports")
+	}
+	if _, err := setup.RunBoundRelayAuthorityTransition(ctx, abortOpts, project, override); err == nil {
+		t.Fatal("cancelled host operation replayed")
+	}
+	for name, id := range services {
+		if serviceID(name) != id {
+			t.Fatal("cancellation or refused replay recreated service", name)
+		}
+	}
+	// Commit actual admission and discard only its successful reply. Cancellation
+	// must refuse that pending decision, and retained-request recovery must use
+	// the positive database record rather than attempting fresh admission.
+	lostOpts := opts
+	lostOpts.Request.ID = "b8cd9e54-10a6-48b0-a8cb-32cd74ecc2dd"
+	lostOpts.SuccessorBackup = filepath.Join(root, "lost-admission-successor-backup")
+	lostTrust := &lostAuthorityAdmission{Publisher: publisher}
+	lostHost := &setup.RelayAuthoritySnapshotHost{Options: lostOpts, Service: service}
+	prepared, err = (relayauthority.Transition{Directory: directory, ServerName: manifest.Config.ConsoleHost, Request: lostOpts.Request, Host: lostHost, Trust: lostTrust}).Run(ctx)
+	if err == nil || prepared.Phase != "prepared" || !lostTrust.discarded {
+		t.Fatal("real lost admission did not retain prepared state", err)
+	}
+	if pending, err := publisher.ReadSwitch(ctx, lostOpts.Request.ID); err != nil || pending.Phase != "pending" {
+		t.Fatal("discarded admission reply was not actually pending", err)
+	}
+	refused, err := setup.AbortBoundRelayAuthorityTransition(ctx, directory, lostOpts.Request.ID, project, override)
+	if err == nil || refused.Phase != "aborting" || relayauthority.CheckNoPendingTransition(directory) == nil {
+		t.Fatal("pending admission cancellation cleared protection", err)
+	}
+	recovered, err := setup.ResumeBoundRelayAuthorityTransition(ctx, directory, lostOpts.Request.ID, project, override)
+	if err != nil && !errors.Is(err, relayauthority.ErrTransition) || recovered.Phase != "rolled_back" || setup.CheckFiles(directory) != nil || relayauthority.CheckNoPendingTransition(directory) != nil {
+		t.Fatal("pending admission did not recover after refused cancellation", err)
+	}
+	if decision, err := publisher.ReadSwitch(ctx, lostOpts.Request.ID); err != nil || decision.Phase != "rolled_back" {
+		t.Fatal("lost admission recovery did not resolve actual SQL fence", err)
+	}
 	wrongBaseline := opts
 	wrongBaseline.Request.PreviousLeaf = opts.Request.NextRoot
 	if _, err := setup.RunBoundRelayAuthorityTransition(ctx, wrongBaseline, project, override); err == nil {
@@ -211,6 +299,22 @@ func TestNativeRelayAuthorityTransition(t *testing.T) {
 		t.Fatal("retired authority still accepted actual served relay")
 	}
 	t.Log("Combined authority transition passed authenticated compiled trust reports, real PostgreSQL fence, exact files/backups/maintenance, actual authz/frps reload, retained-request resume, successor TLS and retired-root refusal; no native trust application or per-write process termination")
+	t.Log("Bound authority abort passed refused preparation, serialized cancellation, unchanged original files/TLS/services, exact retry and fresh-operation reprepare; no partial-initialization or expiry recovery")
+	t.Log("Lost admission recovery passed actual pending SQL decision, refused cancellation and retained-request rollback from aborting; no fresh admission or cancellation-by-absence")
+}
+
+type lostAuthorityAdmission struct {
+	*relaytrust.Publisher
+	discarded bool
+}
+
+func (p *lostAuthorityAdmission) BeginSwitch(ctx context.Context, request relaytrust.SwitchRequest) (*relaytrust.Switch, error) {
+	result, err := p.Publisher.BeginSwitch(ctx, request)
+	if err == nil && !p.discarded {
+		p.discarded = true
+		return nil, errors.New("acceptance fixture discarded committed admission response")
+	}
+	return result, err
 }
 
 func observeFixtureRelay(ctx context.Context, endpoint netip.AddrPort, name string, ca []byte) (string, error) {

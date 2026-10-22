@@ -36,10 +36,11 @@ type TransitionTrust interface {
 }
 
 type TransitionState struct {
-	Version      int       `json:"version"`
-	IntentDigest string    `json:"intent_sha256"`
-	Phase        string    `json:"phase"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	Version      int                      `json:"version"`
+	IntentDigest string                   `json:"intent_sha256"`
+	Phase        string                   `json:"phase"`
+	UpdatedAt    time.Time                `json:"updated_at"`
+	Cancellation *relaytrust.Cancellation `json:"cancellation,omitempty"`
 }
 
 type transitionIntent struct {
@@ -182,10 +183,22 @@ func transitionDirectory(path string) error {
 
 func validTransitionPhase(phase string) bool {
 	switch phase {
-	case "prepared", "applying", "committing", "rolling_back", "committed", "rolled_back":
+	case "prepared", "applying", "committing", "rolling_back", "committed", "rolled_back", "aborting", "aborted":
 		return true
 	}
 	return false
+}
+
+func validTransitionState(state TransitionState, intent transitionIntent, now time.Time) bool {
+	raw, err := transitionJSON(intent)
+	if err != nil || state.Version != 1 || state.IntentDigest != digest(raw) || !validTransitionPhase(state.Phase) || state.UpdatedAt.IsZero() || state.UpdatedAt.After(now.Add(5*time.Second)) {
+		return false
+	}
+	if state.Phase != "aborted" {
+		return state.Cancellation == nil
+	}
+	c := state.Cancellation
+	return c.Valid(intent.ServerName, now) && c.SwitchRequest == intent.Request && c.IntentDigest == state.IntentDigest && !c.CancelledAt.After(state.UpdatedAt.Add(5*time.Second))
 }
 
 // Run holds the shared relay lease through snapshot, admission, application,
@@ -254,13 +267,27 @@ func (e Transition) Run(ctx context.Context) (TransitionState, error) {
 			return state, ErrTransition
 		}
 	}
-	raw, _ := transitionJSON(intent)
-	identity := digest(raw)
 	if readTransitionJSON(statePath, &state) != nil {
 		return state, ErrTransition
 	}
-	if state.Version != 1 || state.IntentDigest != identity || !validTransitionPhase(state.Phase) || state.UpdatedAt.IsZero() || state.UpdatedAt.After(e.now().Add(5*time.Second)) || syncTransitionFile(statePath) != nil {
+	if !validTransitionState(state, intent, e.now()) || syncTransitionFile(statePath) != nil {
 		return state, ErrTransition
+	}
+	if state.Phase == "aborted" {
+		return state, ErrTransition
+	}
+	var interruptedAdmission *relaytrust.Switch
+	if state.Phase == "aborting" {
+		reader, ok := e.Trust.(interface {
+			ReadSwitch(context.Context, string) (*relaytrust.Switch, error)
+		})
+		if !ok {
+			return state, ErrTransition
+		}
+		interruptedAdmission, err = reader.ReadSwitch(ctx, e.Request.ID)
+		if err != nil || !interruptedAdmission.Valid(e.ServerName, e.now()) || interruptedAdmission.SwitchRequest != e.Request || interruptedAdmission.Phase != "pending" {
+			return state, ErrTransition
+		}
 	}
 	checkpoint := func(point string) {
 		if e.checkpoint != nil {
@@ -286,7 +313,17 @@ func (e Transition) Run(ctx context.Context) (TransitionState, error) {
 	if ctx.Err() != nil {
 		return state, ErrTransition
 	}
-	receipt, err := e.Trust.BeginSwitch(ctx, e.Request)
+	// Admission may have committed before its reply was lost and cancellation
+	// then refused it. Only a positively identified pending record permits that
+	// aborting operation to recover. Never call Begin or infer absence here.
+	receipt := interruptedAdmission
+	if receipt != nil {
+		if save("rolling_back") != nil {
+			return state, ErrTransition
+		}
+	} else {
+		receipt, err = e.Trust.BeginSwitch(ctx, e.Request)
+	}
 	if err != nil || !receipt.Valid(e.ServerName, e.now()) || receipt.SwitchRequest != e.Request {
 		return state, ErrTransition
 	}

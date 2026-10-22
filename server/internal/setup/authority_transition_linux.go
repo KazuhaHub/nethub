@@ -70,17 +70,58 @@ func RunBoundRelayAuthorityTransition(ctx context.Context, o RelayAuthoritySnaps
 // derive a different original leaf, authority or operation identity on restart.
 func ResumeBoundRelayAuthorityTransition(ctx context.Context, directory, operationID, project, composeFile string) (relayauthority.TransitionState, error) {
 	var state relayauthority.TransitionState
+	snapshot, err := loadBoundAuthoritySnapshot(ctx, directory, operationID)
+	if err != nil {
+		return state, err
+	}
+	return RunBoundRelayAuthorityTransition(ctx, snapshot.Options, project, composeFile)
+}
+
+func loadBoundAuthoritySnapshot(ctx context.Context, directory, operationID string) (authoritySnapshot, error) {
+	var snapshot authoritySnapshot
 	if os.Geteuid() != 0 || ctx.Err() != nil || !authorityOperationID.MatchString(operationID) || !filepath.IsAbs(directory) || filepath.Clean(directory) != directory {
-		return state, ErrRelayAuthority
+		return snapshot, ErrRelayAuthority
 	}
 	operation := filepath.Join(directory, "authority-transitions", operationID)
 	raw, err := authorityRead(filepath.Join(operation, "snapshot.json"), 0, 1048576)
-	var snapshot authoritySnapshot
 	if err != nil || json.Unmarshal(raw, &snapshot) != nil || !bytes.Equal(raw, authorityJSON(snapshot)) || snapshot.Version != 1 || snapshot.Options.Directory != directory || snapshot.Options.Request.ID != operationID || !snapshot.Options.Request.Valid() {
-		return state, ErrRelayAuthority
+		return snapshot, ErrRelayAuthority
 	}
 	if _, err := verifyAuthoritySnapshot(operation, snapshot.Options); err != nil {
+		return snapshot, ErrRelayAuthority
+	}
+	return snapshot, nil
+}
+
+// AbortBoundRelayAuthorityTransition verifies the complete original deployment
+// and actual TLS under the shared lease, then serializes an immutable database
+// cancellation before reopening maintenance. It never deletes a journal or
+// restores/reloads a service to make cancellation pass.
+func AbortBoundRelayAuthorityTransition(ctx context.Context, directory, operationID, project, composeFile string) (relayauthority.TransitionState, error) {
+	var state relayauthority.TransitionState
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	snapshot, err := loadBoundAuthoritySnapshot(ctx, directory, operationID)
+	if err != nil {
+		return state, err
+	}
+	o := snapshot.Options
+	if !relayTrustDigest.MatchString(o.ServiceFingerprint) {
 		return state, ErrRelayAuthority
 	}
-	return RunBoundRelayAuthorityTransition(ctx, snapshot.Options, project, composeFile)
+	service, err := BindRelayAuthorityService(ctx, directory, project, composeFile, o.ServiceFingerprint)
+	if err != nil {
+		return state, ErrRelayAuthority
+	}
+	binding, err := service.host.database(ctx)
+	if err != nil {
+		return state, ErrRelayAuthority
+	}
+	run, err := guiissuer.NewDockerSQLRunner(binding)
+	if err != nil {
+		return state, ErrRelayAuthority
+	}
+	publisher := &relaytrust.Publisher{Run: relaytrust.SQLRunner(run), ServerName: service.binding.Config.ConsoleHost}
+	host := &RelayAuthoritySnapshotHost{Options: o, Service: service}
+	return (relayauthority.Transition{Directory: directory, ServerName: service.binding.Config.ConsoleHost, Request: o.Request, Host: host, Trust: publisher}).Abort(ctx)
 }
