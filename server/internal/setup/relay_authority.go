@@ -2,8 +2,9 @@ package setup
 
 import (
 	"errors"
-	"github.com/KazuhaHub/nethub/server/internal/relayauthority"
 	"regexp"
+
+	"github.com/KazuhaHub/nethub/server/internal/relayauthority"
 )
 
 var ErrRelayAuthority = errors.New("protected offline relay authority operation unavailable")

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/guiissuer"
+	"github.com/KazuhaHub/nethub/server/internal/hostlease"
 	"github.com/KazuhaHub/nethub/server/internal/relaytrust"
 )
 
@@ -25,6 +26,14 @@ func RunRelayTrust(ctx context.Context, o RelayTrustOptions) (RelayTrustResult, 
 	}
 	canonical, err := filepath.EvalSymlinks(directory)
 	if err != nil || canonical != directory || CheckAuthority(directory) != nil {
+		return result, ErrRelayTrust
+	}
+	lease, err := hostlease.Acquire(filepath.Join(directory, "relay-operation.lock"))
+	if err != nil {
+		return result, ErrRelayTrust
+	}
+	defer lease.Close()
+	if ctx.Err() != nil || CheckAuthority(directory) != nil {
 		return result, ErrRelayTrust
 	}
 	manifest, err := Load(directory)
