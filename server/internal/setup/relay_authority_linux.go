@@ -38,7 +38,7 @@ func RunRelayAuthority(ctx context.Context, o RelayAuthorityOptions) (RelayAutho
 	if err != nil {
 		return result, ErrRelayAuthority
 	}
-	for _, path := range []string{o.CandidateDirectory, o.BackupDirectory} {
+	for _, path := range []string{o.CandidateDirectory, o.BackupDirectory, o.CustodyFile} {
 		if path == "" {
 			continue
 		}
@@ -82,9 +82,22 @@ func RunRelayAuthority(ctx context.Context, o RelayAuthorityOptions) (RelayAutho
 		err = relayauthority.Backup(o.CandidateDirectory, o.BackupDirectory, now)
 	case "verify-backup":
 		err = relayauthority.VerifyBackup(o.CandidateDirectory, o.BackupDirectory, now)
+	case "acknowledge-backup", "verify-custody":
+		var receipt relayauthority.Custody
+		if o.Action == "acknowledge-backup" {
+			receipt, err = relayauthority.AcknowledgeBackup(o.CandidateDirectory, o.BackupDirectory, o.CustodyFile, o.Acknowledgement, now)
+		} else {
+			receipt, err = relayauthority.VerifyCustody(o.CandidateDirectory, o.BackupDirectory, o.CustodyFile, now)
+		}
+		if err == nil {
+			result.CustodyAcknowledgedAt = receipt.AcknowledgedAt.UTC().Format(time.RFC3339Nano)
+		}
 	}
 	if err != nil || ctx.Err() != nil {
 		return result, ErrRelayAuthority
 	}
-	return RelayAuthorityResult{State: "prepared", Candidate: candidate.Metadata, BackupVerified: o.Action == "backup" || o.Action == "verify-backup"}, nil
+	result.State = "prepared"
+	result.Candidate = candidate.Metadata
+	result.BackupVerified = o.Action == "backup" || o.Action == "verify-backup" || result.CustodyAcknowledgedAt != ""
+	return result, nil
 }

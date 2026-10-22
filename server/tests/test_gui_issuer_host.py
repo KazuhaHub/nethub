@@ -31,6 +31,7 @@ class HostFixtureAdmission(unittest.TestCase):
             "Protected relay trust commands passed pending read, explicit initialization, exact retry, overlap CAS, stale/unsafe refusal and unchanged authority/runtime",
             "Protected relay authority commands passed expected-root refusal, immutable preparation, independent backup verification and unchanged active authority/runtime/head",
             "Protected shared relay lease refused publication and offline authority during contention, skipped renewal, then recovered without changing authority/runtime/head",
+            "Protected relay authority custody required explicit acknowledgement, preserved exact retry timestamp and refused a missing independent backup without changing active authority/runtime/head",
             "Protected account commands passed offline initialization, verified immutable backup",
             "fresh terms review, outdated/missing-backup consent refusal, explicit private-CA registration retry and original-account recovery from pre-registration backup",
         ]
@@ -42,6 +43,8 @@ class HostFixtureAdmission(unittest.TestCase):
         self.assertFalse(fixture.acceptance_evidence(0, None, log + "\n" + authority)["passed"])
         lease = next(line for line in lines if line.startswith("Protected shared relay lease"))
         self.assertFalse(fixture.acceptance_evidence(0, None, log + "\n" + lease)["passed"])
+        custody = next(line for line in lines if line.startswith("Protected relay authority custody"))
+        self.assertFalse(fixture.acceptance_evidence(0, None, log + "\n" + custody)["passed"])
         for missing in lines:
             with self.subTest(missing=missing):
                 self.assertFalse(any(fixture.acceptance_evidence(0, None, log.replace(missing, "")).values()))
