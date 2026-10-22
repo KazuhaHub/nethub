@@ -80,6 +80,10 @@ func (h *RelayAuthoritySnapshotHost) VerifyPreparation(ctx context.Context, oper
 	if err != nil || root != request.PreviousRoot {
 		return "", "", ErrRelayAuthority
 	}
+	configuredLeaf, err := authorityRead(filepath.Join(o.Directory, "runtime/relay/relay-cert.pem"), 65532, 32768)
+	if err != nil || authorityLeaf(configuredLeaf) != request.PreviousLeaf {
+		return "", "", ErrRelayAuthority
+	}
 	observed, err := h.Service.Observe(ctx, ca)
 	if err != nil || observed != request.PreviousLeaf || ctx.Err() != nil {
 		return "", "", ErrRelayAuthority

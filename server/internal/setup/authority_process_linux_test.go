@@ -236,6 +236,9 @@ func TestNativeAuthorityProcessRecovery(t *testing.T) {
 			t.Fatal("process death reopened ordinary maintenance")
 		}
 		if index < len(preparationPoints) {
+			if index == 0 {
+				testPreparationConfiguredLeafMismatch(t, ctx, opts, project, compose, before, service)
+			}
 			operation := filepath.Join(directory, "authority-transitions", opts.Request.ID)
 			partial, present, err := authorityTree(operation)
 			if err != nil || !present {
@@ -374,6 +377,48 @@ func TestNativeAuthorityProcessRecovery(t *testing.T) {
 	}
 	t.Log("Actual process recovery passed ten file/journal/reload exits with exact old-state rollback and one committed SQL-response exit without write/reload replay; real PostgreSQL, service TLS and cleanup-scoped backups, no native application")
 	t.Log("Initialization cancellation passed five actual preparation process exits, real serialized database cancellation, retained partial files, exact original files/backup/maintenance/TLS and unchanged services; explicit original options, no expired-original TLS recovery")
+}
+
+func testPreparationConfiguredLeafMismatch(t *testing.T, ctx context.Context, o RelayAuthoritySnapshotOptions, project, compose string, original map[string][]byte, service *BoundRelayAuthorityService) {
+	t.Helper()
+	replacement, err := relaycert.Renew(original["secrets/issuer/ca.pem"], original["secrets/issuer/ca-key.pem"], service.binding.Config.ConsoleHost, time.Now())
+	if err != nil || authorityLeaf(replacement.Certificate) == o.Request.PreviousLeaf {
+		t.Fatal("independent valid same-authority leaf fixture")
+	}
+	paths := []string{"runtime/relay/relay-cert.pem", "runtime/relay/relay-key.pem"}
+	lease, err := hostlease.Acquire(filepath.Join(o.Directory, "relay-operation.lock"))
+	if err != nil {
+		t.Fatal("stage original-runtime mismatch under shared lease")
+	}
+	if authorityReplace(filepath.Join(o.Directory, paths[0]), 65532, replacement.Certificate) != nil || authorityReplace(filepath.Join(o.Directory, paths[1]), 65532, replacement.Key) != nil {
+		lease.Close()
+		t.Fatal("stage valid but unapplied same-authority runtime pair")
+	}
+	lease.Close()
+	defer func() {
+		restore, err := hostlease.Acquire(filepath.Join(o.Directory, "relay-operation.lock"))
+		if err != nil {
+			t.Error("could not reacquire fixture restoration lease")
+			return
+		}
+		defer restore.Close()
+		for _, path := range paths {
+			if authorityReplace(filepath.Join(o.Directory, path), 65532, original[path]) != nil {
+				t.Error("could not restore original fixture runtime pair")
+			}
+		}
+	}()
+	if CheckFiles(o.Directory) != nil {
+		t.Fatal("same-authority replacement must independently pass file validation")
+	}
+	if observed, err := service.Observe(ctx, original["secrets/issuer/ca.pem"]); err != nil || observed != o.Request.PreviousLeaf {
+		t.Fatal("original in-memory TLS fixture no longer independently verifies", err)
+	}
+	state, err := CancelBoundRelayAuthorityPreparation(ctx, o, project, compose)
+	if err == nil || state.Phase == "aborted" || relayauthority.CheckNoPendingTransition(o.Directory) == nil {
+		t.Fatal("valid disk pair differing from actual/requested original leaf was cancelled")
+	}
+	t.Log("Preparation cancellation refused independently valid same-authority disk material while actual TLS still served the requested original leaf")
 }
 
 func reportCrashFixtureTrust(t *testing.T, ctx context.Context, directory string, manifest Manifest, root string, g *relaytrust.Generation) {
