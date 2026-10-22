@@ -37,7 +37,8 @@ the configured duration (at most ten minutes).
 Before publication, hold the native shared reconcile lock so the scheduler
 cannot consume the intended first report. Publish the desired overlap through
 the protected host command, then invoke the real native trust worker under that
-lock. Require `applied_unconfirmed` and the drop receipt. Independently verify
+lock. Require `applied_unconfirmed`, the drop receipt and no connection-error
+marker. Independently verify
 the generation-specific PostgreSQL application/audit row and accepted timestamp.
 Retry the worker; require confirmation with unchanged CA bytes/PID and the same
 server receipt. Restore the original proxy route and stop the owned fixture in

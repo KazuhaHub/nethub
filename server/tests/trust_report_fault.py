@@ -20,12 +20,20 @@ MAX_BODY = 65536
 
 
 def write_once(path, value):
+    if path.exists() or path.is_symlink():
+        raise FileExistsError('Fixture receipt already exists')
     raw = json.dumps(value, sort_keys=True).encode()
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fd, 'wb') as stream:
-        stream.write(raw)
-        stream.flush()
-        os.fsync(stream.fileno())
+    temporary = path.parent / ('.receipt-' + uuid.uuid4().hex)
+    try:
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, 'wb') as stream:
+            stream.write(raw)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.link(temporary, path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
     if os.name == 'posix':
         parent = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
         try:

@@ -93,6 +93,7 @@ class ResponseLoss(unittest.TestCase):
         self.assertEqual(self.backend.requests[0], self.backend.requests[1])
         self.assertEqual(self.backend.requests[0][2:], ('Bearer private-test-credential', '192.0.2.1'))
         self.assertEqual(first, json.loads((self.root / 'dropped.json').read_text()))
+        self.assertFalse((self.root / 'connection-error.json').exists())
         self.assertNotIn('private-test-credential', (self.root / 'dropped.json').read_text() + captured.getvalue())
 
     def test_denial_wrong_identity_generation_and_mismatched_success_are_forwarded(self):
