@@ -68,6 +68,12 @@ metadata, but conflicting known account or orders identities are refused. It
 neither looks up nor creates an account. This is a local readable-copy check, not
 evidence of an independent storage failure domain or an external archive upload.
 
+Known identity in a newer backup must already match the current namespace. After
+restoring older pre-registration state, use creation-disabled lookup to recover
+that identity before verifying a registered snapshot or admitting registration.
+The current state may be newer than its backup; a backup cannot silently supply
+identity that the current state has lost.
+
 `Restore` is an explicit operation into a new protected namespace. It preserves
 the backed-up key and known account identity without contacting the CA. A later
 lookup with creation disabled can recover an account whose registration response

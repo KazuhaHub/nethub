@@ -56,6 +56,10 @@ report is refused. A repeated current report preserves its original timestamp
 and one audit. Receipt insertion and audit commit atomically; existing history
 cannot be updated or deleted.
 
+Concurrency acceptance observes PostgreSQL lock waits on the exact blocking
+transaction before releasing publication or revocation. A fixed sleep alone is
+not evidence that the competing enrollment or report reached that lock.
+
 `DecodeGeneration` independently reparses public material from SQL and compares
 the configured relay name, canonical PEM/root identities, fingerprint and actual
 validity window. An SQL row or response alone cannot bypass X.509 validation.
@@ -69,6 +73,11 @@ response fields carry that exact bundle, without another fetch after consuming
 the token. With no published head, the configured bootstrap bundle remains the
 fallback. Wrong current relay identity fails before consuming the token, and
 readiness refuses a disabled enrollment fence.
+
+The PostgreSQL fixture observes enrollment waiting on the exact publisher
+transaction, then checks the token with `FOR UPDATE NOWAIT`. Its unused value
+and immediately available row lock prove admission has not consumed or locked
+the token while waiting; an MVCC read of the value alone would not establish it.
 
 The configured bootstrap CA must still be valid for service construction/health
 and the existing signing checks. Startup authority migration and expiry recovery

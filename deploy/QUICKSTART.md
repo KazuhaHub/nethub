@@ -8,7 +8,7 @@ internal test CA, not a public certificate.
 
 Use a Linux Docker host with Docker Engine and Compose supporting `!override`
 ([Compose 2.24.4 or later](https://docs.docker.com/reference/compose-file/merge/#replace-value)). Keep the source checkout available for image builds.
-Build the console with Node 24.14.0, then the CLI with Go 1.26.9, or use the pinned
+Build the console with Node 24.14.0, then the CLI with Go 1.26.10, or use the pinned
 three-stage deploy/Dockerfile. Runtime is static distroless nonroot (UID 65532).
 Run host initialization/file checks as root because local Compose bind mounts
 preserve host ownership. The PostgreSQL 16 Alpine image uses UID 70; runtime secrets remain UID 65532.
