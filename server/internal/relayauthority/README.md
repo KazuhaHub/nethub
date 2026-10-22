@@ -74,6 +74,39 @@ custody. Tests use disposable local fixtures and do not acknowledge operational
 material on the operator's behalf. No active signer, manifest, public generation
 or service changes during acknowledgement.
 
+## Durable transition coordinator
+
+The internal `Transition` engine holds the shared relay operation lease and
+persists an immutable intent bound to the deployment, exact database switch
+request and host snapshot digest. Prepared state is synced before the intent
+completion marker. A missing state beside an existing intent is refused; it
+cannot silently restart an operation whose live writes may already have begun.
+Canonical private JSON, owner/mode/single-link checks, file sync, atomic state
+replacement and parent-directory sync protect the journal. Exact retry syncs the
+existing intent/state again. Interrupted initialization remains for inspection.
+
+The database fence precedes live changes. `applying` is persisted before host
+writes; an interrupted application recovers toward rollback. Independently
+verified new state is followed by a durable `committing` decision. A lost terminal
+reply leaves that decision intact and retries it; it never selects the opposite
+terminal state. Failed rollback retains the pending database fence. Adopting an
+already terminal database receipt requires a matching local decision and fresh
+host verification, and performs no host writes.
+
+The host interface must preserve and revalidate a synced immutable before/after
+snapshot, covering authority files, ownership, runtime trust, setup manifest,
+independent full backup and maintenance journal. Apply/restore may change only
+known before/after states. Verification must independently check the resulting
+files/backup and actual CA/name/served leaf. Callbacks must honor cancellation
+and bound commands; the coordinator supplies a three-minute context.
+
+Fault tests reopen the disk journal with a fresh host object at preparation,
+fence, apply, commit, rollback and lost-reply boundaries. They use synthetic host
+bytes and an in-memory database seam, so they do not prove actual deployment
+migration, PostgreSQL integration, backup custody or TLS observation. POSIX unsafe
+path tests run on the privileged-host platform. A concrete protected deployment
+adapter and genuine combined acceptance are still required before activation.
+
 ## Activation remains separate
 
 There is deliberately no activate command in this component. Active deployment

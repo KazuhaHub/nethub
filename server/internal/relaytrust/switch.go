@@ -33,11 +33,28 @@ type Switch struct {
 	ObservedLeaf *string    `json:"observed_leaf"`
 }
 
+// Valid rechecks a typed adapter receipt against the same identity, phase and
+// timestamp rules used for bounded SQL decoding before host side effects.
+func (s *Switch) Valid(serverName string, now time.Time) bool {
+	if s == nil {
+		return false
+	}
+	raw, err := json.Marshal(s)
+	if err != nil {
+		return false
+	}
+	_, err = decodeSwitch(raw, serverName, now)
+	return err == nil
+}
+
 func (r SwitchRequest) valid() bool {
 	return validID(r.ID) && validID(r.GenerationID) &&
 		certificateFingerprint.MatchString(r.PreviousRoot) && certificateFingerprint.MatchString(r.NextRoot) && r.PreviousRoot != r.NextRoot &&
 		certificateFingerprint.MatchString(r.PreviousLeaf) && certificateFingerprint.MatchString(r.NextLeaf) && r.PreviousLeaf != r.NextLeaf
 }
+
+// Valid checks the immutable public operation identity before host journaling.
+func (r SwitchRequest) Valid() bool { return r.valid() }
 
 func decodeSwitch(data []byte, name string, now time.Time) (*Switch, error) {
 	fields, err := boundedjson.Object(bytes.NewReader(data))
