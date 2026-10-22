@@ -109,10 +109,23 @@ adapter and genuine combined acceptance are still required before activation.
 
 ## Activation remains separate
 
+An explicit preparation cancellation can resolve partial snapshot/metadata output
+without reconstructing it. The host independently verifies current original
+files, ownership, the independent backup, maintenance and actual original TLS
+twice under the shared lease. The immutable SQL cancellation decision precedes
+an atomically published terminal marker. Existing switches are refused, even if
+their admission reply was lost; a null lookup is never used as absence proof.
+Lost replies leave the original journal protected until an exact retry receives
+the same decision. Partial files and backups remain untouched for inspection.
+Staging and admission refuse the marker; only a correlated valid receipt permits
+ordinary maintenance. A completed retry preserves its first timestamps without
+replaying host effects. This path requires explicit original options and does
+not accept an expired original TLS endpoint or discover missing options itself.
+
 Ordinary relay maintenance checks retained transition journals both before and
 under the shared lease. Releasing a crashed process's lease does not reopen
 renewal: nonterminal, partial, missing or malformed intent/state blocks it.
-Only structurally valid committed/rolled-back records permit normal maintenance,
+Structurally valid committed/rolled-back records or verified cancellation receipts permit normal maintenance,
 which still performs its original authority/runtime checks. This prevents a timer
 from modifying a planned mixed deployment before recovery acquires the lease.
 

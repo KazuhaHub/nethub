@@ -36,6 +36,16 @@ func CheckNoPendingTransition(directory string) error {
 		if _, err := protected(path, true); err != nil {
 			return ErrTransition
 		}
+		marker := filepath.Join(path, preparationCancellationFile)
+		if _, err := os.Lstat(marker); err == nil {
+			var record preparationCancellation
+			if readTransitionJSON(marker, &record) != nil || !validPreparationCancellation(record, directory, entry.Name(), time.Now()) || syncTransitionFile(marker) != nil {
+				return ErrTransition
+			}
+			continue
+		} else if !os.IsNotExist(err) {
+			return ErrTransition
+		}
 		var intent transitionIntent
 		var state TransitionState
 		if readTransitionJSON(filepath.Join(path, "intent.json"), &intent) != nil || readTransitionJSON(filepath.Join(path, "state.json"), &state) != nil {

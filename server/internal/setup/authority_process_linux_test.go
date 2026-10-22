@@ -181,8 +181,9 @@ func TestNativeAuthorityProcessRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal("owned test executable")
 	}
-	points := []string{"maintenance", "runtime/relay/relay-cert.pem", "runtime/relay/relay-key.pem", "runtime/trust/relay-ca.pem",
-		"secrets/issuer/ca-key.pem", "secrets/issuer/ca.pem", "secrets/issuer/initial/relay-cert.pem", "secrets/issuer/initial/relay-key.pem", "setup.json", "reloaded", "finished_sql"}
+	preparationPoints := []string{"snapshot_started", "snapshot_first_file", "snapshot_maintenance_complete", "successor_backup_first_file", "snapshot_complete"}
+	points := append(append([]string{}, preparationPoints...), "maintenance", "runtime/relay/relay-cert.pem", "runtime/relay/relay-key.pem", "runtime/trust/relay-ca.pem",
+		"secrets/issuer/ca-key.pem", "secrets/issuer/ca.pem", "secrets/issuer/initial/relay-cert.pem", "secrets/issuer/initial/relay-key.pem", "setup.json", "reloaded", "finished_sql")
 	leasePath := filepath.Join(directory, "relay-operation.lock")
 	leaseBefore, err := os.Stat(leasePath)
 	if err != nil {
@@ -233,6 +234,73 @@ func TestNativeAuthorityProcessRecovery(t *testing.T) {
 		acquired.Close()
 		if relayauthority.CheckNoPendingTransition(directory) == nil {
 			t.Fatal("process death reopened ordinary maintenance")
+		}
+		if index < len(preparationPoints) {
+			operation := filepath.Join(directory, "authority-transitions", opts.Request.ID)
+			partial, present, err := authorityTree(operation)
+			if err != nil || !present {
+				t.Fatal("partial initialization output unavailable", point)
+			}
+			partialBackup, backupPresent, err := authorityTree(opts.SuccessorBackup)
+			if err != nil {
+				t.Fatal("partial independent backup unavailable", point)
+			}
+			state, err := CancelBoundRelayAuthorityPreparation(ctx, opts, project, compose)
+			if err != nil || state.Phase != "aborted" || state.Cancellation == nil || CheckFiles(directory) != nil || relayauthority.CheckNoPendingTransition(directory) != nil {
+				t.Fatal("actual interrupted preparation cancellation failed", point, err)
+			}
+			decision, err := publisher.ReadCancellation(ctx, opts.Request.ID)
+			if err != nil || decision.SwitchRequest != opts.Request || decision.IntentDigest != state.IntentDigest || !decision.CancelledAt.Equal(state.Cancellation.CancelledAt) {
+				t.Fatal("partial cancellation lacks matching durable database decision", point, err)
+			}
+			if _, err := publisher.BeginSwitch(ctx, opts.Request); err == nil {
+				t.Fatal("cancelled initialization entered database admission", point)
+			}
+			if _, err := RunBoundRelayAuthorityTransition(ctx, opts, project, compose); err == nil {
+				t.Fatal("cancelled initialization replayed host transition", point)
+			}
+			if _, err := PrepareRelayAuthoritySnapshot(ctx, opts); err == nil {
+				t.Fatal("cancelled initialization replayed snapshot preparation", point)
+			}
+			after, exists, err := authorityTree(operation)
+			if err != nil || !exists {
+				t.Fatal("cancelled initialization output unavailable", point)
+			}
+			retained := make([]authorityTreeEntry, 0, len(after))
+			for _, entry := range after {
+				if entry.Path != "cancelled-preparation.json" {
+					retained = append(retained, entry)
+				}
+			}
+			if !bytes.Equal(authorityJSON(partial), authorityJSON(retained)) {
+				t.Fatal("cancellation changed partial initialization output", point)
+			}
+			retainedBackup, retainedBackupPresent, err := authorityTree(opts.SuccessorBackup)
+			if err != nil || retainedBackupPresent != backupPresent || !bytes.Equal(authorityJSON(partialBackup), authorityJSON(retainedBackup)) {
+				t.Fatal("cancellation changed partial independent backup", point)
+			}
+			for path, raw := range before {
+				actual, err := authorityRead(filepath.Join(directory, filepath.FromSlash(path)), owners[path], 32768)
+				if err != nil || !bytes.Equal(actual, raw) {
+					t.Fatal("initialization cancellation changed original bytes", point)
+				}
+			}
+			tree, exists, err := authorityTree(filepath.Join(directory, "secrets/issuer/maintenance"))
+			if err != nil || !exists || !bytes.Equal(authorityJSON(tree), authorityJSON(baselineTree)) {
+				t.Fatal("initialization cancellation changed original maintenance", point)
+			}
+			retry, err := CancelBoundRelayAuthorityPreparation(ctx, opts, project, compose)
+			if err != nil || !retry.UpdatedAt.Equal(state.UpdatedAt) || !retry.Cancellation.CancelledAt.Equal(state.Cancellation.CancelledAt) {
+				t.Fatal("partial cancellation retry changed original decision", point, err)
+			}
+			afterCancelIDs := ids()
+			for name, id := range unchanged {
+				if afterCancelIDs[name] != id {
+					t.Fatal("initialization cancellation recreated service", point, name)
+				}
+			}
+			t.Log("Cancelled owned initialization exit at checkpoint", point)
+			continue
 		}
 		receipt, err := publisher.ReadSwitch(ctx, opts.Request.ID)
 		if err != nil {
@@ -305,6 +373,7 @@ func TestNativeAuthorityProcessRecovery(t *testing.T) {
 		t.Log("Recovered owned process exit at durable checkpoint", point)
 	}
 	t.Log("Actual process recovery passed ten file/journal/reload exits with exact old-state rollback and one committed SQL-response exit without write/reload replay; real PostgreSQL, service TLS and cleanup-scoped backups, no native application")
+	t.Log("Initialization cancellation passed five actual preparation process exits, real serialized database cancellation, retained partial files, exact original files/backup/maintenance/TLS and unchanged services; explicit original options, no expired-original TLS recovery")
 }
 
 func reportCrashFixtureTrust(t *testing.T, ctx context.Context, directory string, manifest Manifest, root string, g *relaytrust.Generation) {

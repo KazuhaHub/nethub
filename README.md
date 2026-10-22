@@ -294,9 +294,11 @@ unfinished. Remaining decisions are tracked in [DESIGN](docs/DESIGN.md) §14.
 
 Protected relay authority transitions have passed real PostgreSQL, file/backup,
 service TLS and eleven process-exit recovery checkpoints (PRs #119–#120).
-Prepared-operation cancellation is under validation: it must retain an immutable
-database decision, refuse replay and verify the unchanged original deployment
-before reopening maintenance. Partial initialization, expiry recovery and
+Prepared-operation cancellation passed real database/Compose acceptance in
+PR #121, including lost-admission recovery. Interrupted initialization is under
+validation: cancellation verifies the current original deployment and retains
+partial files, with a permanent database decision and atomic terminal marker.
+Expiry recovery and
 authenticated native trust rollout remain separate gates. See the current
 [handoff](docs/HANDOFF_PROMPT.md) for acceptance evidence and limits.
 

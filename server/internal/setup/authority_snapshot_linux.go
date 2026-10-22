@@ -224,7 +224,14 @@ func PrepareRelayAuthoritySnapshot(ctx context.Context, o RelayAuthoritySnapshot
 }
 
 func prepareAuthoritySnapshot(ctx context.Context, operation string, o RelayAuthoritySnapshotOptions) (string, error) {
+	return prepareAuthoritySnapshotWithCheckpoint(ctx, operation, o, nil)
+}
+
+func prepareAuthoritySnapshotWithCheckpoint(ctx context.Context, operation string, o RelayAuthoritySnapshotOptions, checkpoint func(string)) (string, error) {
 	if ctx.Err() != nil || os.Geteuid() != 0 || !o.Request.Valid() || operation != filepath.Join(o.Directory, "authority-transitions", o.Request.ID) {
+		return "", ErrRelayAuthority
+	}
+	if relayauthority.CheckPreparationOpen(operation) != nil {
 		return "", ErrRelayAuthority
 	}
 	candidate, err := relayauthority.Load(o.CandidateDirectory, time.Now())
@@ -287,6 +294,9 @@ func prepareAuthoritySnapshot(ctx context.Context, operation string, o RelayAuth
 			return "", ErrRelayAuthority
 		}
 	}
+	if checkpoint != nil {
+		checkpoint("snapshot_started")
+	}
 	replacements := map[string][]byte{"secrets/issuer/ca.pem": candidate.Material.CA, "secrets/issuer/ca-key.pem": candidate.Material.CAKey, "secrets/issuer/initial/relay-cert.pem": candidate.Material.Certificate, "secrets/issuer/initial/relay-key.pem": candidate.Material.Key,
 		"runtime/relay/relay-cert.pem": candidate.Material.Certificate, "runtime/relay/relay-key.pem": candidate.Material.Key, "runtime/trust/relay-ca.pem": candidate.Material.CA}
 	after := before
@@ -323,7 +333,7 @@ func prepareAuthoritySnapshot(ctx context.Context, operation string, o RelayAuth
 		return "", ErrRelayAuthority
 	}
 	s.OriginalBackupManifest = authorityHash(backupManifest)
-	for _, path := range paths {
+	for index, path := range paths {
 		if ctx.Err() != nil {
 			return "", ErrRelayAuthority
 		}
@@ -343,6 +353,9 @@ func prepareAuthoritySnapshot(ctx context.Context, operation string, o RelayAuth
 			return "", ErrRelayAuthority
 		}
 		s.Files = append(s.Files, authoritySnapshotFile{Path: path, Before: authorityHash(raw), After: authorityHash(next), UID: owners[path]})
+		if index == 0 && checkpoint != nil {
+			checkpoint("snapshot_first_file")
+		}
 	}
 	maintenance := filepath.Join(o.Directory, "secrets/issuer/maintenance")
 	s.Maintenance, s.MaintenancePresent, err = authorityTree(maintenance)
@@ -362,6 +375,9 @@ func prepareAuthoritySnapshot(ctx context.Context, operation string, o RelayAuth
 			return "", ErrRelayAuthority
 		}
 	}
+	if checkpoint != nil {
+		checkpoint("snapshot_maintenance_complete")
+	}
 	if _, err := os.Lstat(o.SuccessorBackup); !os.IsNotExist(err) {
 		return "", ErrRelayAuthority
 	}
@@ -369,10 +385,13 @@ func prepareAuthoritySnapshot(ctx context.Context, operation string, o RelayAuth
 		return "", ErrRelayAuthority
 	}
 	// The backup root must be new; exclusive writes retain partial output on error.
-	for _, file := range after.Files {
+	for index, file := range after.Files {
 		raw, err := authorityRead(filepath.Join(snapshotRoot, "after", filepath.FromSlash(file.Path)), 0, 32768)
 		if err != nil || authorityCopy(o.SuccessorBackup, filepath.Join(o.SuccessorBackup, filepath.FromSlash(file.Path)), raw) != nil {
 			return "", ErrRelayAuthority
+		}
+		if index == 0 && checkpoint != nil {
+			checkpoint("successor_backup_first_file")
 		}
 	}
 	if authorityCopy(o.SuccessorBackup, filepath.Join(o.SuccessorBackup, "setup.json"), newManifest) != nil || authoritySyncDirectory(snapshotRoot) != nil {
@@ -384,7 +403,11 @@ func prepareAuthoritySnapshot(ctx context.Context, operation string, o RelayAuth
 	if authorityCopy(operation, metadata, authorityJSON(s)) != nil {
 		return "", ErrRelayAuthority
 	}
-	return verifyAuthoritySnapshot(operation, o)
+	result, err := verifyAuthoritySnapshot(operation, o)
+	if err == nil && checkpoint != nil {
+		checkpoint("snapshot_complete")
+	}
+	return result, err
 }
 
 func verifyAuthoritySnapshot(operation string, o RelayAuthoritySnapshotOptions) (string, error) {

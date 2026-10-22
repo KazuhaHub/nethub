@@ -226,6 +226,9 @@ func (e Transition) Run(ctx context.Context) (TransitionState, error) {
 	if transitionDirectory(operation) != nil {
 		return state, ErrTransition
 	}
+	if CheckPreparationOpen(operation) != nil {
+		return state, ErrTransition
+	}
 	intentPath := filepath.Join(operation, "intent.json")
 	statePath := filepath.Join(operation, "state.json")
 	var intent transitionIntent
@@ -263,7 +266,13 @@ func (e Transition) Run(ctx context.Context) (TransitionState, error) {
 		// never be mistaken for a fresh operation after live writes began.
 		state = TransitionState{Version: 1, IntentDigest: digest(raw), Phase: "prepared", UpdatedAt: e.now()}
 		encoded, err := transitionJSON(state)
-		if err != nil || state.UpdatedAt.IsZero() || writeTransitionFile(statePath, encoded, true) != nil || writeTransitionFile(intentPath, raw, true) != nil {
+		if err != nil || state.UpdatedAt.IsZero() || writeTransitionFile(statePath, encoded, true) != nil {
+			return state, ErrTransition
+		}
+		if e.checkpoint != nil {
+			e.checkpoint("state_prepared")
+		}
+		if writeTransitionFile(intentPath, raw, true) != nil {
 			return state, ErrTransition
 		}
 	}
