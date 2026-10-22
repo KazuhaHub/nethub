@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/guiissuer"
 	"github.com/KazuhaHub/nethub/server/internal/relayauthority"
@@ -26,6 +27,8 @@ func RunBoundRelayAuthorityTransition(ctx context.Context, o RelayAuthoritySnaps
 	if os.Geteuid() != 0 || ctx.Err() != nil || !o.Request.Valid() || !relayTrustDigest.MatchString(o.ServiceFingerprint) || !filepath.IsAbs(o.Directory) || filepath.Clean(o.Directory) != o.Directory {
 		return state, ErrRelayAuthority
 	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
 	expected := ""
 	intent := filepath.Join(o.Directory, "authority-transitions", o.Request.ID, "intent.json")
 	if _, err := os.Lstat(intent); err == nil {
@@ -38,6 +41,16 @@ func RunBoundRelayAuthorityTransition(ctx context.Context, o RelayAuthoritySnaps
 	service, err := BindRelayAuthorityService(ctx, o.Directory, project, composeFile, expected)
 	if err != nil || service.Fingerprint() != o.ServiceFingerprint {
 		return state, ErrRelayAuthority
+	}
+	if expected == "" {
+		ca, err := authorityRead(filepath.Join(o.Directory, "secrets/issuer/ca.pem"), 0, 32768)
+		if err != nil {
+			return state, ErrRelayAuthority
+		}
+		observed, err := service.Observe(ctx, ca)
+		if err != nil || observed != o.Request.PreviousLeaf {
+			return state, ErrRelayAuthority
+		}
 	}
 	binding, err := service.host.database(ctx)
 	if err != nil {

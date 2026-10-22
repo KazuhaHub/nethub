@@ -162,6 +162,14 @@ func TestNativeRelayAuthorityTransition(t *testing.T) {
 	}
 	opts := setup.RelayAuthoritySnapshotOptions{Directory: directory, CandidateDirectory: candidate, CandidateBackup: backup, CustodyFile: custody, SuccessorBackup: filepath.Join(root, "successor-full-backup"), ServiceFingerprint: service.Fingerprint(),
 		Request: relaytrust.SwitchRequest{ID: "54dcc6c9-093f-4d76-8b4d-f27836cfaec5", GenerationID: overlap.ID, PreviousRoot: next.Metadata.Previous, NextRoot: next.Metadata.Next, PreviousLeaf: fingerprint(leaf), NextLeaf: fingerprint(next.Material.Certificate)}}
+	wrongBaseline := opts
+	wrongBaseline.Request.PreviousLeaf = opts.Request.NextRoot
+	if _, err := setup.RunBoundRelayAuthorityTransition(ctx, wrongBaseline, project, override); err == nil {
+		t.Fatal("unobserved predecessor leaf admitted")
+	}
+	if _, err := os.Lstat(filepath.Join(directory, "authority-transitions", opts.Request.ID)); !os.IsNotExist(err) {
+		t.Fatal("refused predecessor created a transition journal")
+	}
 	state, err := setup.RunBoundRelayAuthorityTransition(ctx, opts, project, override)
 	if err != nil || state.Phase != "committed" {
 		t.Fatal("combined bound authority transition failed", state.Phase, err)
