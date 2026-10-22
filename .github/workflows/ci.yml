@@ -120,6 +120,19 @@ jobs:
             )
           done
 
+      - name: Build and scan the actual FreeBSD appliance client
+        run: |
+          cd ../agents/opnsense/plugin/frpc-build
+          test -z "$(gofmt -l tools.go)"
+          go mod verify
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+          GOBIN="$RUNNER_TEMP" go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+          GOOS=freebsd GOARCH=amd64 CGO_ENABLED=0 GOFLAGS=-tags=frpc,noweb \
+            "$RUNNER_TEMP/govulncheck" github.com/fatedier/frp/cmd/frpc
+          python3 ../frpc_source.py --output "$RUNNER_TEMP/frpc-appliance/frpc"
+          "$RUNNER_TEMP/govulncheck" -mode=binary "$RUNNER_TEMP/frpc-appliance/frpc"
+
   deployment:
     name: Deployment checks
     runs-on: ubuntu-latest
