@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.com/nethub/v1/relay-trust-settings-request.schema.json",
+  "type": "object",
+  "properties": {
+    "agent_protocol_version": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        {
+          "pattern": "^1\\.(?:[5-9]|[1-9][0-9]+)\\."
+        }
+      ]
+    },
+    "device_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    }
+  },
+  "required": [
+    "agent_protocol_version",
+    "device_id"
+  ],
+  "additionalProperties": true,
+  "maxProperties": 18
+}

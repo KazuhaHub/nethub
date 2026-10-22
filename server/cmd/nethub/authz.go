@@ -155,7 +155,12 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 	}
-	handler, err := device.NewHTTP(device.HTTPConfig{Origin: *origin, TrustedProxies: proxies, Logger: logger, Certificates: certificates}, service)
+	trust, err := device.NewRelayTrust(service, &store.RelayTrustStore{Enrollment: repository, ServerName: *relayName})
+	if err != nil || trust.Health(startup) != nil {
+		fmt.Fprintln(stderr, "Relay trust database authorization is unavailable")
+		return 1
+	}
+	handler, err := device.NewHTTP(device.HTTPConfig{Origin: *origin, TrustedProxies: proxies, Logger: logger, Certificates: certificates, RelayTrust: trust}, service)
 	if err != nil || service.Health(startup) != nil {
 		fmt.Fprintln(stderr, "Authz origin, proxy configuration or database authorization is invalid")
 		return 1

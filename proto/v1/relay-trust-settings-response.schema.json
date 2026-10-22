@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.com/nethub/v1/relay-trust-settings-response.schema.json",
+  "type": "object",
+  "properties": {
+    "agent_protocol_version": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        {
+          "pattern": "^1\\.(?:[5-9]|[1-9][0-9]+)\\."
+        }
+      ]
+    },
+    "device_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "desired": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "generation_id": {
+              "allOf": [
+                {
+                  "$ref": "common.schema.json#/$defs/uuid"
+                },
+                {
+                  "not": {
+                    "const": "00000000-0000-0000-0000-000000000000"
+                  }
+                }
+              ]
+            },
+            "generation": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "server_name": {
+              "$ref": "common.schema.json#/$defs/hostname"
+            },
+            "ca_pem": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 32768,
+              "pattern": "^(-----BEGIN CERTIFICATE-----\\n[A-Za-z0-9+/=\\r\\n]+-----END CERTIFICATE-----\\n){1,2}$"
+            },
+            "bundle_fingerprint": {
+              "$ref": "common.schema.json#/$defs/sha256"
+            },
+            "published_at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+              "minLength": 27,
+              "maxLength": 27
+            },
+            "not_before": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+              "minLength": 27,
+              "maxLength": 27
+            },
+            "valid_until": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{6}Z$",
+              "minLength": 27,
+              "maxLength": 27
+            }
+          },
+          "required": [
+            "generation_id",
+            "generation",
+            "server_name",
+            "ca_pem",
+            "bundle_fingerprint",
+            "published_at",
+            "not_before",
+            "valid_until"
+          ],
+          "additionalProperties": true,
+          "maxProperties": 24
+        }
+      ]
+    }
+  },
+  "required": [
+    "agent_protocol_version",
+    "device_id",
+    "desired"
+  ],
+  "additionalProperties": true,
+  "maxProperties": 19
+}

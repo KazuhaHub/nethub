@@ -82,7 +82,8 @@ the token while waiting; an MVCC read of the value alone would not establish it.
 The configured bootstrap CA must still be valid for service construction/health
 and the existing signing checks. Startup authority migration and expiry recovery
 remain separate work; current enrollment delivery alone does not complete root
-rotation. There is no trust settings/applied HTTP route, startup publication or
+rotation. Protocol1.5 now exposes authenticated current settings and application
+reports; see proto/RELAY_TRUST.md. There is no automatic startup publication or
 native reconciliation yet. Repository tests simulate authenticated
 application reports; they do not establish an appliance applied trust. The
 all-reported retirement test advances database public metadata, not relay

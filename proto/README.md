@@ -1,6 +1,6 @@
 # Device protocol
 
-The shared device protocol is version **1.4.0**, recorded in `VERSION`.
+The shared device protocol is version **1.5.0**, recorded in `VERSION`.
 `v1/*.schema.json` are JSON Schema draft 2020-12 documents used by Go and Python
 contract tests. Enrollment, signed claims and native OPNsense enrollment are
 implemented. Authenticated status/removal and native appliance lifecycle behavior
@@ -24,6 +24,8 @@ pipeline remain separate work.
 | certificate-submit-request / certificate-submit-response | Enrollment-bound signed CSR admission and exact durable readback |
 | certificate-issued-request / certificate-issued-response | Authenticated original-request pins and pending or issued public generation |
 | certificate-applied-request / certificate-applied-response | Authenticated verified-generation report and immutable server receipt |
+| relay-trust-settings-request / relay-trust-settings-response | Authenticated current public trust generation, or explicit pending null |
+| relay-trust-applied-request / relay-trust-applied-response | Exact current trust identity report and original server acceptance receipt |
 
 The public device endpoints are `/api/v1/devices/{enroll,status,rotate,unenroll}`
 under the administrator-selected HTTPS console origin. Enrollment carries its

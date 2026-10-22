@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.com/nethub/v1/relay-trust-applied-request.schema.json",
+  "type": "object",
+  "properties": {
+    "agent_protocol_version": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        {
+          "pattern": "^1\\.(?:[5-9]|[1-9][0-9]+)\\."
+        }
+      ]
+    },
+    "device_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "generation_id": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/uuid"
+        },
+        {
+          "not": {
+            "const": "00000000-0000-0000-0000-000000000000"
+          }
+        }
+      ]
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "bundle_fingerprint": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    }
+  },
+  "required": [
+    "agent_protocol_version",
+    "device_id",
+    "generation_id",
+    "generation",
+    "bundle_fingerprint"
+  ],
+  "additionalProperties": true,
+  "maxProperties": 21
+}

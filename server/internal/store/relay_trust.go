@@ -10,8 +10,8 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/relaytrust"
 )
 
-// RelayTrustStore is not wired into a public route yet. Each operation holds
-// head-before-device locks and rechecks the authenticated credential at commit.
+// RelayTrustStore holds head-before-device locks and rechecks the authenticated
+// credential through commit, independently of bearer verification in the API.
 type RelayTrustStore struct {
 	Enrollment *EnrollmentStore
 	ServerName string
@@ -75,20 +75,63 @@ func (s *RelayTrustStore) Acknowledge(ctx context.Context, c device.Credential, 
 	if s == nil || g == nil || g.Bundle() == nil || g.ServerName != s.ServerName {
 		return time.Time{}, device.ErrDenied
 	}
+	return s.AcknowledgeReport(ctx, c, id, relaytrust.Report{GenerationID: g.ID, Number: g.Number, Fingerprint: g.Bundle().Fingerprint()})
+}
+
+func (s *RelayTrustStore) AcknowledgeReport(ctx context.Context, c device.Credential, id string, report relaytrust.Report) (time.Time, error) {
+	if !report.Valid() {
+		return time.Time{}, device.ErrDenied
+	}
 	tx, err := s.lock(ctx, c, id)
 	if err != nil {
 		return time.Time{}, err
 	}
 	defer tx.Rollback()
 	var accepted sql.NullTime
-	if err := tx.QueryRowContext(ctx, `SELECT record_relay_trust_application($1,$2,$3,$4)`, id, g.ID, g.Number, g.Bundle().Fingerprint()).Scan(&accepted); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT record_relay_trust_application($1,$2,$3,$4)`, id, report.GenerationID, report.Number, report.Fingerprint).Scan(&accepted); err != nil {
 		return time.Time{}, device.ErrUnavailable
 	}
 	if !accepted.Valid {
-		return time.Time{}, device.ErrDenied
+		return time.Time{}, relaytrust.ErrChanged
 	}
 	if tx.Commit() != nil {
 		return time.Time{}, device.ErrUnavailable
 	}
 	return accepted.Time, nil
+}
+
+func (s *RelayTrustStore) Health(ctx context.Context) error {
+	if s == nil || s.Enrollment == nil || s.Enrollment.Health(ctx) != nil {
+		return device.ErrUnavailable
+	}
+	var ready bool
+	err := s.Enrollment.DB.QueryRowContext(ctx, `SELECT
+ public.lock_relay_trust_head() AND
+ NOT EXISTS (SELECT FROM (VALUES('public.read_current_relay_trust(text)'),('public.lock_relay_trust_head()'),
+ ('public.record_relay_trust_application(uuid,uuid,integer,text)')) f(signature)
+ LEFT JOIN pg_proc p ON p.oid=to_regprocedure(f.signature)
+ WHERE p.oid IS NULL OR NOT p.prosecdef OR p.proowner<>'nethub_owner'::regrole
+ OR NOT has_function_privilege(current_user,p.oid,'EXECUTE'))
+ AND NOT EXISTS (SELECT FROM (VALUES('public.relay_trust_generations'),('public.relay_trust_head'),('public.relay_trust_applications')) f(name)
+ JOIN pg_class c ON c.oid=to_regclass(f.name)
+ WHERE NOT c.relrowsecurity OR NOT c.relforcerowsecurity
+ OR has_table_privilege(current_user,c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
+ OR has_any_column_privilege(current_user,c.oid,'SELECT,INSERT,UPDATE,REFERENCES'))
+ AND (SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal AND tgenabled IN ('O','A')
+ AND tgfoid='public.retain_relay_trust_history()'::regprocedure
+ AND ((tgrelid='public.relay_trust_generations'::regclass AND tgname='relay_trust_generation_immutable')
+ OR (tgrelid='public.relay_trust_applications'::regclass AND tgname='relay_trust_application_immutable')))=2`).Scan(&ready)
+	if err != nil || !ready {
+		return device.ErrUnavailable
+	}
+	var data []byte
+	if err := s.Enrollment.DB.QueryRowContext(ctx, `SELECT coalesce(read_current_relay_trust($1),'null'::jsonb)`, s.ServerName).Scan(&data); err != nil {
+		return device.ErrUnavailable
+	}
+	if string(data) != "null" {
+		if _, err := relaytrust.DecodeGeneration(data, s.ServerName, time.Now()); err != nil {
+			return device.ErrUnavailable
+		}
+	}
+	return nil
 }

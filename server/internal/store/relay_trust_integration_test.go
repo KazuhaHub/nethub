@@ -1,10 +1,14 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"io"
+	"log/slog"
+	"net/http/httptest"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -16,6 +20,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
 	"github.com/KazuhaHub/nethub/server/internal/relaycert"
 	"github.com/KazuhaHub/nethub/server/internal/relaytrust"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 func waitForRelayTrustTransaction(t *testing.T, f *enrollmentFixture, blocker *sql.Tx, result <-chan error, operation string) {
@@ -102,7 +107,7 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 	if err != nil || current.ID != overlap.ID {
 		t.Fatal("authenticated current trust read", err)
 	}
-	if _, err := store.Acknowledge(f.ctx, credential, assigned.ID, first); !errors.Is(err, device.ErrDenied) {
+	if _, err := store.Acknowledge(f.ctx, credential, assigned.ID, first); !errors.Is(err, relaytrust.ErrChanged) {
 		t.Fatal("stale trust report accepted", err)
 	}
 	func() {
@@ -273,7 +278,7 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 	if err != nil || final.Number != 3 {
 		t.Fatal("all-applied retirement refused", err)
 	}
-	if _, err := store.Acknowledge(f.ctx, live[0].c, live[0].id, overlap); !errors.Is(err, device.ErrDenied) {
+	if _, err := store.Acknowledge(f.ctx, live[0].c, live[0].id, overlap); !errors.Is(err, relaytrust.ErrChanged) {
 		t.Fatal("previous head report accepted after retirement", err)
 	}
 	if retry, err := publisher.Publish(f.ctx, overlap.ID, string(next.CA)); err != nil || retry.ID != final.ID {
@@ -307,6 +312,93 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 		t.Fatal("different trust identity admitted enrollment", err)
 	}
 	f.unused(t, bad)
+	trustService, err := device.NewRelayTrust(service, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := trustService.Health(f.ctx); err != nil {
+		t.Fatal("trust API schema readiness", err)
+	}
+	handler, err := device.NewHTTP(device.HTTPConfig{Origin: "https://console.example.com", Logger: slog.New(slog.NewJSONHandler(io.Discard, nil)), RelayTrust: trustService}, service)
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiler := jsonschema.NewCompiler()
+	compiler.AssertFormat()
+	for _, name := range []string{"common.schema.json", "relay-trust-settings-response.schema.json", "relay-trust-applied-response.schema.json"} {
+		data, err := os.ReadFile(filepath.Join(f.root, "v1", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		document, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := compiler.AddResource(document.(map[string]any)["$id"].(string), document); err != nil {
+			t.Fatal(err)
+		}
+	}
+	postTrust := func(action string, value any) *httptest.ResponseRecorder {
+		t.Helper()
+		body, err := json.Marshal(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := httptest.NewRequest("POST", "https://console.example.com/api/v1/devices/relay-trust/"+action, bytes.NewReader(body))
+		r.RemoteAddr = "192.0.2.2:12345"
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Authorization", "Bearer "+response.DeviceSecret)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		if w.Code == 200 {
+			schema, err := compiler.Compile("https://schemas.example.com/nethub/v1/relay-trust-" + action + "-response.schema.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			value, err := jsonschema.UnmarshalJSON(bytes.NewReader(w.Body.Bytes()))
+			if err != nil || schema.Validate(value) != nil {
+				t.Fatal("genuine trust HTTP output violates shared schema")
+			}
+		}
+		return w
+	}
+	identity := protocol.Identity{AgentProtocolVersion: protocol.Version, DeviceID: response.DeviceID}
+	w := postTrust("settings", identity)
+	var settings protocol.RelayTrustSettings
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &settings) != nil || settings.Desired == nil || settings.Desired.ID != final.ID || settings.Desired.CAPEM != final.Bundle().PEM() {
+		t.Fatal("genuine HTTP current trust delivery", w.Code)
+	}
+	report := protocol.RelayTrustAppliedRequest{Identity: identity, GenerationID: final.ID, Generation: final.Number, Fingerprint: final.Bundle().Fingerprint()}
+	var acceptedAt string
+	for range 2 {
+		w = postTrust("applied", report)
+		var accepted protocol.RelayTrustAppliedResponse
+		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &accepted) != nil || accepted.Validate() != nil {
+			t.Fatal("genuine HTTP trust acknowledgement", w.Code)
+		}
+		if acceptedAt != "" && acceptedAt != accepted.AcceptedAt {
+			t.Fatal("HTTP trust retry changed receipt")
+		}
+		acceptedAt = accepted.AcceptedAt
+	}
+	report.GenerationID = overlap.ID
+	report.Generation = overlap.Number
+	report.Fingerprint = overlap.Bundle().Fingerprint()
+	if w := postTrust("applied", report); w.Code != 409 {
+		t.Fatal("HTTP stale trust did not request refresh", w.Code)
+	}
+	oldIdentity := identity
+	oldIdentity.AgentProtocolVersion = "1.4.99"
+	if w := postTrust("settings", oldIdentity); w.Code != 400 {
+		t.Fatal("old HTTP trust peer accepted", w.Code)
+	}
+	if _, err := f.owner.ExecContext(f.ctx, `UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id=$1`, identity.DeviceID); err != nil {
+		t.Fatal(err)
+	}
+	if w := postTrust("settings", identity); w.Code != 401 {
+		t.Fatal("revoked HTTP trust read accepted", w.Code)
+	}
+	t.Log("Authenticated relay trust HTTP passed genuine database current delivery, exact report retry, stale-generation refresh, old-minor refusal and revoked-device denial")
 	t.Log("Published relay trust enrollment passed current bundle delivery under the admission transaction and wrong-relay refusal before consuming the token; existing wire fields and bootstrap startup requirements retained")
 	t.Log("Durable relay trust history passed host-only publication CAS, overlap, unapplied retirement barrier, authenticated current-head reports, eight concurrent retries, private grants, immutable history and revoked waiting report refusal; no device delivery or root switch")
 }
