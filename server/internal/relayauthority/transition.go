@@ -273,8 +273,21 @@ func (e Transition) Run(ctx context.Context) (TransitionState, error) {
 	if !validTransitionState(state, intent, e.now()) || syncTransitionFile(statePath) != nil {
 		return state, ErrTransition
 	}
-	if state.Phase == "aborting" || state.Phase == "aborted" {
+	if state.Phase == "aborted" {
 		return state, ErrTransition
+	}
+	var interruptedAdmission *relaytrust.Switch
+	if state.Phase == "aborting" {
+		reader, ok := e.Trust.(interface {
+			ReadSwitch(context.Context, string) (*relaytrust.Switch, error)
+		})
+		if !ok {
+			return state, ErrTransition
+		}
+		interruptedAdmission, err = reader.ReadSwitch(ctx, e.Request.ID)
+		if err != nil || !interruptedAdmission.Valid(e.ServerName, e.now()) || interruptedAdmission.SwitchRequest != e.Request || interruptedAdmission.Phase != "pending" {
+			return state, ErrTransition
+		}
 	}
 	checkpoint := func(point string) {
 		if e.checkpoint != nil {
@@ -300,7 +313,17 @@ func (e Transition) Run(ctx context.Context) (TransitionState, error) {
 	if ctx.Err() != nil {
 		return state, ErrTransition
 	}
-	receipt, err := e.Trust.BeginSwitch(ctx, e.Request)
+	// Admission may have committed before its reply was lost and cancellation
+	// then refused it. Only a positively identified pending record permits that
+	// aborting operation to recover. Never call Begin or infer absence here.
+	receipt := interruptedAdmission
+	if receipt != nil {
+		if save("rolling_back") != nil {
+			return state, ErrTransition
+		}
+	} else {
+		receipt, err = e.Trust.BeginSwitch(ctx, e.Request)
+	}
 	if err != nil || !receipt.Valid(e.ServerName, e.now()) || receipt.SwitchRequest != e.Request {
 		return state, ErrTransition
 	}

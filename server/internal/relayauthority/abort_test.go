@@ -2,6 +2,7 @@ package relayauthority
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -13,6 +14,7 @@ type cancellingTrustFixture struct {
 	cancellation *relaytrust.Cancellation
 	denyBegin    bool
 	loseCancel   bool
+	loseBegin    bool
 	cancels      int
 }
 
@@ -21,7 +23,20 @@ func (f *cancellingTrustFixture) BeginSwitch(ctx context.Context, r relaytrust.S
 		f.begin++
 		return nil, ErrTransition
 	}
-	return f.transitionTrustFixture.BeginSwitch(ctx, r)
+	result, err := f.transitionTrustFixture.BeginSwitch(ctx, r)
+	if err == nil && f.loseBegin {
+		f.loseBegin = false
+		return nil, ErrTransition
+	}
+	return result, err
+}
+
+func (f *cancellingTrustFixture) ReadSwitch(_ context.Context, id string) (*relaytrust.Switch, error) {
+	if f.state == nil || f.state.ID != id {
+		return nil, ErrTransition
+	}
+	copy := *f.state
+	return &copy, nil
 }
 func (f *cancellingTrustFixture) CancelSwitch(ctx context.Context, r relaytrust.SwitchRequest, intent string) (*relaytrust.Cancellation, error) {
 	f.cancels++
@@ -112,5 +127,24 @@ func TestAbortedGuardRequiresCorrelatedDatabaseReceipt(t *testing.T) {
 	}
 	if CheckNoPendingTransition(e.Directory) == nil {
 		t.Fatal("uncorrelated abort receipt reopened maintenance")
+	}
+}
+
+func TestAbortingRecoversPositivelyIdentifiedLostAdmission(t *testing.T) {
+	e, h, db := transitionFixture(t)
+	trust := &cancellingTrustFixture{transitionTrustFixture: db, loseBegin: true}
+	e.Trust = trust
+	state, err := e.Run(context.Background())
+	if err == nil || state.Phase != "prepared" || db.state == nil || db.state.Phase != "pending" {
+		t.Fatal("lost admission fixture did not retain real pending decision")
+	}
+	state, err = e.Abort(context.Background())
+	if err == nil || state.Phase != "aborting" || trust.cancellation != nil {
+		t.Fatal("pending admission was cancelled")
+	}
+	starts := db.begin
+	state, err = e.Run(context.Background())
+	if err != nil && !errors.Is(err, ErrTransition) || state.Phase != "rolled_back" || db.begin != starts || h.apply != 0 || h.restore != 1 || CheckNoPendingTransition(e.Directory) != nil {
+		t.Fatal("positively identified pending admission did not recover without Begin", err)
 	}
 }
