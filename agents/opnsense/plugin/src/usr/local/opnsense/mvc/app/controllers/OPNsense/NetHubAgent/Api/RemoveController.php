@@ -45,7 +45,7 @@ class RemoveController extends \OPNsense\Base\ApiControllerBase
                 if ((string)$model->device_id !== $deviceId) {
                     return $this->failure('Enrollment changed during removal; local review is required.');
                 }
-                $values = array_fill_keys(['console_url', 'server_addr', 'server_name', 'relay_ca', 'subdomain',
+                $values = array_fill_keys(['console_url', 'server_addr', 'server_name', 'relay_ca', 'relay_trust_state', 'subdomain',
                     'device_id', 'device_secret', 'frp_token', 'domain_claim'], '');
                 $values['enabled'] = '0';
                 $values['server_port'] = '7000';

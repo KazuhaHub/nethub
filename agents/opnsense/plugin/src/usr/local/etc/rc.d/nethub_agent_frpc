@@ -23,6 +23,8 @@ nethub_agent_prestart()
     [ ! -e /var/db/nethub-agent/stopped ] || return 1
     [ ! -e /var/db/nethub-agent/revoked ] || return 1
     [ ! -e /var/db/nethub-agent/uninstalling ] || return 1
+    # A controlled written-phase reload still verifies exact saved trust.
+    /usr/bin/timeout -k 2 20 /usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/relay_trust_recover.py --check-start >/dev/null 2>&1 || return 1
     if [ -e /var/db/nethub-agent/recovery.json ] && [ "${NETHUB_WATCHDOG_RECOVERY_ONCE:-0}" != 1 ]; then
         /usr/local/bin/python3.13 -c '
 import json, re, sys

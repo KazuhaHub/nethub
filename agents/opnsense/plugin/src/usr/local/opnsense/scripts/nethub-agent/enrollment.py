@@ -216,7 +216,10 @@ def request_enrollment(origin, token, platform_version, agent_version, hostname,
 
 def request_json(origin, path, request, expected_status=200, secret=None, context=None):
     origin = validate_origin(origin)
-    if path not in ('/api/v1/devices/enroll', '/api/v1/devices/status', '/api/v1/devices/unenroll'):
+    if path not in ('/api/v1/devices/enroll', '/api/v1/devices/status', '/api/v1/devices/unenroll',
+                    '/api/v1/devices/gui-certificate/settings', '/api/v1/devices/gui-certificate/request',
+                    '/api/v1/devices/gui-certificate/issued', '/api/v1/devices/gui-certificate/applied',
+                    '/api/v1/devices/relay-trust/settings', '/api/v1/devices/relay-trust/applied'):
         raise ProtocolError('Invalid device endpoint')
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json', 'Connection': 'close'}
     if secret is not None:

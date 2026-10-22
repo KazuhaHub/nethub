@@ -102,6 +102,7 @@ class EnrollController extends \OPNsense\Base\ApiControllerBase
                 $settings['server_port'] = (string)$assignment['server_port'];
                 $settings['console_url'] = $origin;
                 $settings['relay_ca'] = base64_encode($assignment['relay_ca_pem']);
+                $settings['relay_trust_state'] = '';
                 $settings['enabled'] = '1';
                 $model->setNodes($settings);
                 if (count($model->performValidation()) !== 0) {

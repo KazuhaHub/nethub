@@ -30,6 +30,10 @@
             <Required>N</Required>
             <mask>/^[A-Za-z0-9+\/=]{1,45000}$/D</mask>
         </relay_ca>
+        <relay_trust_state type="TextField">
+            <Required>N</Required>
+            <mask>/^[A-Za-z0-9+\/=]{1,5500}$/D</mask>
+        </relay_trust_state>
         <subdomain type="TextField">
             <Required>N</Required>
             <mask>/^[a-z0-9-]{1,63}$/D</mask>
