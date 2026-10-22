@@ -41,6 +41,7 @@ func legacyIssuerRoleFixture(t *testing.T, ctx context.Context, owner *sql.DB) f
  public.read_current_relay_trust(text),public.publish_relay_trust(uuid,text,bytea,text,jsonb,timestamptz,timestamptz),
  public.relay_authority_switch_fence_ready(),public.begin_relay_authority_switch(uuid,uuid,text,text,text,text,text),
  public.read_relay_authority_switch(uuid,text),public.finish_relay_authority_switch(uuid,text,text),
+ public.cancel_relay_authority_switch(uuid,uuid,text,text,text,text,text,text),public.read_relay_authority_cancellation(uuid,text),
  public.claim_gui_certificate_job(),public.renew_gui_certificate_lease(uuid,uuid,bigint),
  public.release_gui_certificate_lease(uuid,uuid,bigint,text),
  public.read_gui_certificate_progress(uuid,uuid,bigint),

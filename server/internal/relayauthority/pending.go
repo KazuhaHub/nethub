@@ -41,11 +41,10 @@ func CheckNoPendingTransition(directory string) error {
 		if readTransitionJSON(filepath.Join(path, "intent.json"), &intent) != nil || readTransitionJSON(filepath.Join(path, "state.json"), &state) != nil {
 			return ErrTransition
 		}
-		raw, err := transitionJSON(intent)
-		if err != nil || intent.Version != 1 || intent.Deployment != directory || !intent.Request.Valid() || intent.Request.ID != entry.Name() || intent.ServerName == "" || !digestPattern.MatchString(intent.SnapshotDigest) || state.Version != 1 || state.IntentDigest != digest(raw) || state.UpdatedAt.IsZero() || state.UpdatedAt.After(time.Now().Add(5*time.Second)) {
+		if intent.Version != 1 || intent.Deployment != directory || !intent.Request.Valid() || intent.Request.ID != entry.Name() || intent.ServerName == "" || !digestPattern.MatchString(intent.SnapshotDigest) || !validTransitionState(state, intent, time.Now()) {
 			return ErrTransition
 		}
-		if state.Phase != "committed" && state.Phase != "rolled_back" {
+		if state.Phase != "committed" && state.Phase != "rolled_back" && state.Phase != "aborted" {
 			return ErrTransition
 		}
 	}

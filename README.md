@@ -7,9 +7,9 @@ VyOS.
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Stars](https://img.shields.io/github/stars/KazuhaHub/nethub?style=social)
 
-**Status: pre-alpha, W2 tunnel integration.** W0 measurements are accepted;
-the OPNsense development plugin has native tunnel, recovery, scheduler lifecycle,
-and coexistence validation. Enrollment and the control plane remain unimplemented. See
+**Status: pre-alpha, W4 integration.** W0–W3 are accepted; the development
+control plane and OPNsense plugin include enrollment and certificate-management
+components. Combined native certificate/trust rollout and W5–W7 remain unfinished. See
 [Project status](#project-status) before using the development files.
 
 **Before you self-host, you will need:** a domain name you control DNS for, a
@@ -34,8 +34,8 @@ see [Requirements](#requirements) for the full list.
 
 ## What v1 is designed to do
 
-The following describes the complete v1 scope; only the transport and development
-plugin are implemented.
+The following describes the complete v1 scope. Implementation and integration
+are in progress; this is not a released deployment.
 
 - Give an OPNsense box sitting behind CGNAT or a dynamic IP a stable, working
   web UI URL — no port forwarding, no dynamic DNS hacks, no VPN client
@@ -289,8 +289,16 @@ cron lifecycle, WAN reconnect, reboot, and os-frp coexistence on OPNsense 26.7.7
 There is no released version or complete deployment. Interfaces remain subject to change.
 
 The owner selected shadcn/ui with native dialog, source-IP gating, and explicit
-heartbeat revocation. Those product controls are design requirements awaiting
-implementation. Remaining decisions are tracked in [DESIGN](docs/DESIGN.md) §14.
+heartbeat revocation. Source-IP gating and full revocation acceptance remain
+unfinished. Remaining decisions are tracked in [DESIGN](docs/DESIGN.md) §14.
+
+Protected relay authority transitions have passed real PostgreSQL, file/backup,
+service TLS and eleven process-exit recovery checkpoints (PRs #119–#120).
+Prepared-operation cancellation is under validation: it must retain an immutable
+database decision, refuse replay and verify the unchanged original deployment
+before reopening maintenance. Partial initialization, expiry recovery and
+authenticated native trust rollout remain separate gates. See the current
+[handoff](docs/HANDOFF_PROMPT.md) for acceptance evidence and limits.
 
 ## Roadmap
 
@@ -299,7 +307,7 @@ Everything in this table is plan, not shipped.
 | Version | Focus |
 |---|---|
 | v1 | Remote web UI access for OPNsense devices behind CGNAT/dynamic IP, plus a multi-user console (admin/member, invitation-only) with OIDC sign-in — no config read/write |
-| v1.1 | Per-device TLS certificates, arm64 |
+| v1.1 | arm64 |
 | v1.2 | Telemetry: tunnel/device health metrics |
 | v2 | Encrypted config backup: the device encrypts `config.xml` with a key derived on the device before uploading, and the control plane stores ciphertext it cannot decrypt (so no server-side diffing) |
 | v2.5 | Config push (send config changes to devices) |
@@ -327,7 +335,6 @@ project and is not affiliated with, endorsed by, or sponsored by Deciso B.V.*
 NetHub 是一个自托管的远程访问与设备管理工具：让藏在 CGNAT 或动态 IP 后面的
 开源路由器/防火墙（首发支持 OPNsense）无需端口转发即可远程打开 Web UI。v1
 只做远程访问，不读取、不修改设备配置；批量升级和遥测都不在 v1 范围内。控制台
-计划支持多用户（admin / member，邀请制）、OIDC 和 SAML 登录（可配置多个 IdP）。项目目前处于 pre-alpha 的设计阶段：设计方案是 v0.3 草案，还没有任何
-代码，Weekend 0 传输层验证也尚未运行，不能用于生产。中文设计文档见
+计划支持多用户（admin / member，邀请制）、OIDC 和 SAML 登录（可配置多个 IdP）。项目目前处于 pre-alpha 的 W4 集成阶段，W0–W3 已验收，已有控制台、入网与证书管理组件；原生设备证书／信任更新的联合验收及 W5–W7 尚未完成，不能用于生产。中文设计文档见
 [`docs/DESIGN.md`](docs/DESIGN.md)，完整的中文 README 见
 [`docs/README.zh-CN.md`](docs/README.zh-CN.md)。
