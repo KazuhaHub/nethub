@@ -34,6 +34,12 @@ RUN go test -c -o /out/guiissuer.test ./internal/guiissuer
 FROM scratch AS guiissuer-acceptance
 COPY --from=guiissuer-tests-build /out/guiissuer.test /guiissuer.test
 
+FROM build AS setup-tests-build
+RUN go test -c -o /out/setup.test ./internal/setup
+
+FROM scratch AS setup-acceptance
+COPY --from=setup-tests-build /out/setup.test /setup.test
+
 FROM gcr.io/distroless/static-debian13:nonroot@sha256:e2e927ec666bae08560abb3c55d0659eceabb657f56b6782ab500a9fc7f555e3
 COPY --from=build /out/nethub /nethub
 COPY LICENSE NOTICE /licenses/
