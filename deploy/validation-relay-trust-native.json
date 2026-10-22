@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "date": "2026-10-22",
+  "server_source": "ffe87fca49c2c84cd41e5b20ec847f841284c610",
+  "server_ci_run": 39767150067,
+  "native_build_source": "e6ce45c6686200297b2b33918914b3ae5b6329e6",
+  "unsigned_package_sha256": "3af38de19479bf24203c4f97eae081ae9d4b26acf39e42255bd6f17dc93c7b19",
+  "environment": {
+    "router_memory_mib": 1024,
+    "server_memory_mib": 512,
+    "server_swap_mib": 2048,
+    "server_cpu_count": 2,
+    "server_os": "Debian 13",
+    "docker": "29.9.2",
+    "compose": "5.6.1",
+    "frp": "0.71.1",
+    "go": "1.26.10"
+  },
+  "receipts": {
+    "router-enrolled.json": {
+      "verified_console_https": true,
+      "default_native_trust_store": true,
+      "configd_enrollment_succeeded": true,
+      "genuine_php_assignment_validation": true,
+      "native_model_saved": true,
+      "explicit_start_succeeded": true,
+      "browser_enrollment_verified": false,
+      "relay_proxy_registration_verified": false,
+      "public_gui_verified": false
+    },
+    "native-trust-idempotence.json": {
+      "success": true,
+      "confirmed": true,
+      "generation": 1,
+      "pid_unchanged": true,
+      "ca_unchanged": true
+    },
+    "native-relay-and-ack.json": {
+      "actual_frps_proxy_online": true,
+      "native_application_matches_current_head": true,
+      "immutable_application_rows": 1,
+      "application_audit_rows": 1,
+      "public_gui_verified": false
+    },
+    "clone-stack-resumed.json": {
+      "retained_publication_exact": true,
+      "postgres_recovery_and_services_healthy": true,
+      "verified_console_https": true,
+      "guarded_restart": true,
+      "native_application_verified": false
+    },
+    "router-final-restoration.json": {
+      "restored_version": "0.0.6",
+      "baseline_files_checked": 25,
+      "immutable_runtime_files_exact": true,
+      "runtime_permissions_exact": true,
+      "volatile_status_refreshed_by_cron": [
+        "state.json"
+      ],
+      "temporary_console_ca_link_removed": true,
+      "temporary_hosts_removed": true,
+      "temporary_key_and_transaction_directories_removed": true,
+      "native_config_exact": true,
+      "package_checksum_passed": true,
+      "frpc_stopped": true,
+      "operator_stop_restored": true,
+      "read_only": true
+    }
+  }
+}
