@@ -54,6 +54,9 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 	if current, err := publisher.Current(f.ctx); err != nil || current != nil {
 		t.Fatal("initial trust head", err)
 	}
+	if current, err := f.repository.CurrentRelayTrust(f.ctx, "relay.example.test"); err != nil || current != nil {
+		t.Fatal("uninitialized application trust preflight", err)
+	}
 	old, err := relaycert.Create("relay.example.test", time.Now())
 	if err != nil {
 		t.Fatal(err)
@@ -307,10 +310,41 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 	if json.Unmarshal(data, &bootstrap) != nil {
 		t.Fatal("bootstrap enrollment fixture")
 	}
+	expiredBootstrap, err := relaycert.Create("relay.example.test", time.Now().AddDate(-11, 0, 0))
+	if err != nil {
+		t.Fatal("expired bootstrap fixture", err)
+	}
+	bootstrap.RelayCAPEM = string(expiredBootstrap.CA)
+	if _, err := relaytrust.Parse(bootstrap.RelayCAPEM, time.Now()); err == nil {
+		t.Fatal("bootstrap fixture must independently fail current root validation")
+	}
 	service, err := device.New(f.repository, f.signer, device.RelayConfig{Address: bootstrap.ServerAddr, ServerName: "relay.example.test", Port: bootstrap.ServerPort, FRPToken: bootstrap.FRPToken, CAPEM: bootstrap.RelayCAPEM})
 	if err != nil {
 		t.Fatal(err)
 	}
+	if service.Health(f.ctx) != nil {
+		t.Fatal("current database publication did not rescue expired bootstrap readiness")
+	}
+	func() {
+		unused, token, _ := f.fresh(t, tenant)
+		if _, err := f.owner.ExecContext(f.ctx, `GRANT SELECT ON relay_trust_generations TO nethub_authz`); err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			if _, err := f.owner.ExecContext(f.ctx, `REVOKE SELECT ON relay_trust_generations FROM nethub_authz`); err != nil {
+				t.Error(err)
+			}
+		}()
+		if service.Health(f.ctx) == nil {
+			t.Fatal("bootstrap recovery bypassed unsafe public-history grants")
+		}
+		request := f.input
+		request.EnrollToken = token
+		if response, err := service.Enroll(f.ctx, request, netip.MustParseAddr("192.0.2.19")); err == nil || response.DeviceSecret != "" {
+			t.Fatal("unsafe trust readiness admitted or exposed credentials")
+		}
+		f.unused(t, unused)
+	}()
 	_, token, _ := f.fresh(t, tenant)
 	input := f.input
 	input.EnrollToken = token
@@ -410,7 +444,8 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 	if w := postTrust("settings", identity); w.Code != 401 {
 		t.Fatal("revoked HTTP trust read accepted", w.Code)
 	}
+	testPublishedBootstrapRuntime(t, f, tenant, bootstrap, final)
 	t.Log("Authenticated relay trust HTTP passed genuine database current delivery, exact report retry, stale-generation refresh, old-minor refusal and revoked-device denial")
-	t.Log("Published relay trust enrollment passed current bundle delivery under the admission transaction and wrong-relay refusal before consuming the token; existing wire fields and bootstrap startup requirements retained")
+	t.Log("Published relay trust enrollment passed current bundle delivery under the admission transaction and wrong-relay refusal before consuming the token; initialized startup/readiness use current publication despite expired bootstrap")
 	t.Log("Durable relay trust history passed host-only publication CAS, overlap, unapplied retirement barrier, authenticated current-head reports, eight concurrent retries, private grants, immutable history and revoked waiting report refusal; no device delivery or root switch")
 }

@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/auth"
@@ -98,26 +99,30 @@ type window struct {
 }
 
 type Service struct {
-	repository       Repository
-	signer           *claim.Keyring
-	relay            RelayConfig
-	certs            []*x509.Certificate
-	workers          chan struct{}
-	entropy          io.Reader
-	hash             func(string) (string, error)
-	now              func() time.Time
-	mu               sync.Mutex
-	windows          map[netip.Addr]window
-	sweepAfter       time.Time
-	deviceDummyHash  string
-	lifecycleWindows map[netip.Addr]window
-	lifecycleSweep   time.Time
+	repository         Repository
+	signer             *claim.Keyring
+	relay              RelayConfig
+	certs              []*x509.Certificate
+	publishedTrustSeen atomic.Bool
+	workers            chan struct{}
+	entropy            io.Reader
+	hash               func(string) (string, error)
+	now                func() time.Time
+	mu                 sync.Mutex
+	windows            map[netip.Addr]window
+	sweepAfter         time.Time
+	deviceDummyHash    string
+	lifecycleWindows   map[netip.Addr]window
+	lifecycleSweep     time.Time
 }
 
 func (s *Service) Health(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	if !s.trustValid(s.now()) || s.repository.Health(ctx) != nil {
+	if !s.trustReady(ctx) {
+		return ErrUnavailable
+	}
+	if _, published := s.repository.(PublishedTrustReader); !published && s.repository.Health(ctx) != nil {
 		return ErrUnavailable
 	}
 	return nil
@@ -137,6 +142,13 @@ func New(repository Repository, signer *claim.Keyring, relay RelayConfig) (*Serv
 	if err != nil || len(token) != 32 || hex.EncodeToString(token) != relay.FRPToken {
 		return nil, ErrUnavailable
 	}
+	published, err := initialPublishedTrust(repository, relay.ServerName)
+	if err != nil {
+		return nil, ErrUnavailable
+	}
+	if published != nil {
+		relay.CAPEM = published.Bundle().PEM()
+	}
 	bundle, err := relaytrust.Parse(relay.CAPEM, time.Now())
 	if err != nil {
 		return nil, ErrUnavailable
@@ -153,6 +165,7 @@ func New(repository Repository, signer *claim.Keyring, relay RelayConfig) (*Serv
 	service := &Service{repository: repository, signer: signer, relay: relay, certs: certs,
 		workers: make(chan struct{}, 2), entropy: rand.Reader, hash: auth.HashPassword,
 		now: time.Now, windows: make(map[netip.Addr]window), deviceDummyHash: dummy, lifecycleWindows: make(map[netip.Addr]window)}
+	service.publishedTrustSeen.Store(published != nil)
 	if !service.trustValid(service.now()) {
 		return nil, ErrUnavailable
 	}
@@ -235,7 +248,7 @@ func (s *Service) Enroll(ctx context.Context, request protocol.EnrollRequest, ip
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	now := s.now()
-	if ctx.Err() != nil || !s.trustValid(now) {
+	if ctx.Err() != nil {
 		return protocol.EnrollResponse{}, ErrUnavailable
 	}
 	if err := s.admit(ip, now); err != nil {
@@ -246,6 +259,11 @@ func (s *Service) Enroll(ctx context.Context, request protocol.EnrollRequest, ip
 		defer func() { <-s.workers }()
 	default:
 		return protocol.EnrollResponse{}, ErrBusy
+	}
+	// Bound unauthenticated database preflight by the existing IP and worker
+	// admission limits; it must still precede secret hashing and token use.
+	if !s.trustReady(ctx) {
+		return protocol.EnrollResponse{}, ErrUnavailable
 	}
 	var secret [32]byte
 	if _, err := io.ReadFull(s.entropy, secret[:]); err != nil {
@@ -268,13 +286,18 @@ func (s *Service) Enroll(ctx context.Context, request protocol.EnrollRequest, ip
 			Hostname: request.Hostname, Capabilities: append([]string(nil), request.Capabilities...),
 			ClusterHint: request.ClusterHint, GUIPublicKey: request.GUIPublicKey}}
 	assigned, err := s.repository.Register(ctx, record, func(value Assignment) (string, error) {
-		if ctx.Err() != nil || !s.trustValid(s.now()) {
+		if ctx.Err() != nil {
 			return "", ErrUnavailable
 		}
 		if value.RelayCAPEM != "" {
 			if _, err := relaytrust.Parse(value.RelayCAPEM, s.now()); err != nil {
 				return "", ErrUnavailable
 			}
+			if _, tracked := s.repository.(PublishedTrustReader); tracked {
+				s.publishedTrustSeen.Store(true)
+			}
+		} else if s.publishedTrustSeen.Load() || !s.trustValid(s.now()) {
+			return "", ErrUnavailable
 		}
 		return s.signer.Issue(value.ID, value.Subdomain, value.TenantID, value.IssuedAt)
 	})
