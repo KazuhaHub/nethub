@@ -28,6 +28,8 @@ func (s *EnrollmentStore) Health(ctx context.Context) error {
  AND has_function_privilege(current_user,'public.lookup_device_credential(uuid)','EXECUTE')
  AND has_function_privilege(current_user,'public.lock_relay_trust_head()','EXECUTE')
  AND has_function_privilege(current_user,'public.read_current_relay_trust(text)','EXECUTE')
+ AND has_function_privilege(current_user,'public.relay_authority_switch_fence_ready()','EXECUTE')
+ AND public.relay_authority_switch_fence_ready()
  AND EXISTS (SELECT FROM pg_trigger WHERE tgrelid='public.devices'::regclass
    AND tgname='devices_relay_trust_enrollment' AND NOT tgisinternal AND tgenabled IN ('O','A')
    AND tgfoid='public.guard_enrollment_relay_trust()'::regprocedure)

@@ -180,7 +180,7 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 		}
 	}
 	for _, role := range []string{"nethub_web", "nethub_authz", "nethub_issuer"} {
-		for _, table := range []string{"relay_trust_generations", "relay_trust_head", "relay_trust_applications"} {
+		for _, table := range []string{"relay_trust_generations", "relay_trust_head", "relay_trust_applications", "relay_authority_switches"} {
 			var grants bool
 			if err := f.owner.QueryRowContext(f.ctx, `SELECT has_table_privilege($1,$2,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE') OR has_any_column_privilege($1,$2,'SELECT,INSERT,UPDATE,REFERENCES')`, role, "public."+table).Scan(&grants); err != nil || grants {
 				t.Fatal("raw relay trust grants", err)
@@ -269,11 +269,23 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 	if len(live) == 0 {
 		t.Fatal("retirement fixture has no live devices")
 	}
+	request := relaytrust.SwitchRequest{ID: "4f90bb81-5258-4521-8010-ae6fe7bc5981", GenerationID: overlap.ID,
+		PreviousRoot: first.Bundle().RootFingerprints()[0], PreviousLeaf: certificateDERFingerprint(t, old.Certificate),
+		NextLeaf: certificateDERFingerprint(t, next.Certificate)}
+	nextBundle, err := relaytrust.Parse(string(next.CA), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.NextRoot = nextBundle.RootFingerprints()[0]
+	if _, err := publisher.BeginSwitch(f.ctx, request); err == nil {
+		t.Fatal("authority switch accepted unapplied device")
+	}
 	for _, d := range live {
 		if _, err := store.Acknowledge(f.ctx, d.c, d.id, overlap); err != nil {
 			t.Fatal("fixture current trust report", err)
 		}
 	}
+	testRelayAuthoritySwitch(t, f, publisher, store, live[0].c, live[0].id, overlap, request, tenant, web)
 	final, err := publisher.Publish(f.ctx, overlap.ID, string(next.CA))
 	if err != nil || final.Number != 3 {
 		t.Fatal("all-applied retirement refused", err)

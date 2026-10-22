@@ -1,5 +1,33 @@
 # Public relay trust bundles
 
+## Durable authority switch fence
+
+The internal host adapter can reserve a switch against an exact current overlap
+generation, both root identities and the before/after leaf fingerprints. The
+database requires a current application report from every non-revoked device,
+under the same head-before-device locks used by enrollment and publication.
+Only one pending switch is allowed. The host must persist its operation identity
+before requesting it; a lost response is retried with that same identity.
+
+While pending, new enrollment and new trust generations are refused. Enrollment
+rolls back without consuming its token. Current device reads, application report
+retries and structural readiness remain available. Pending state has no expiry:
+a host crash cannot silently reopen admission during an incomplete transition.
+
+Resolution requires a matching committed/new-leaf or rolled-back/previous-leaf
+report from the restricted host issuer identity. Exact retries preserve the
+original creation/completion timestamps; conflicting identities, incomplete
+terminal states, terminal rewrites and history deletion are refused. Readiness
+checks required triggers, function owners/search paths, RLS and private grants.
+Application roles cannot inspect the switch history or resolve the fence.
+
+This is a database coordination primitive. It does not perform host file changes,
+restart frps, independently observe TLS, migrate the authority manifest/backup,
+quarantine offline devices, or expose an activation command. A future protected
+coordinator must durably journal its writes, verify the actual served leaf and
+recover/roll back host state before submitting a terminal report. Database fixture
+reports are not evidence that a real appliance installed overlap trust.
+
 ## Protected host commands
 
 On the initialized Linux Docker host, root can inspect or publish the public
