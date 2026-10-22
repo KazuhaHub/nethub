@@ -32,8 +32,14 @@ forwarding resolution, Argon2 pool and lifecycle rate budgets are shared with th
 existing device API. No diagnostic includes a submitted secret or CA response.
 
 Go/Python request builders and JSON Schema examples cover this additive contract.
-Python builders only construct public identity messages; they install no file,
-send no request and do not assert that a native writer ran. A native adapter must
+Python builders construct public identity messages. The native verification
+helper independently checks the assigned identity, monotonic snapshot, canonical
+content, effective dates, CA constraints and each root's self-signature using
+isolated native OpenSSL trust. It rejects unknown critical extensions and strips
+bounded future response fields. Verification uses disposable public scratch files;
+it installs no trust, sends no request and does not assert that a native writer ran.
+Receipt parsing correlates the exact report while allowing a newer server minor.
+A native adapter must
 persist and verify the actual managed trust before calling the applied operation.
 It must correlate the exact response, retry a lost receipt without reinstalling,
 preserve monotonic generations, and keep the tunnel/source-IP/lifecycle safeguards.
