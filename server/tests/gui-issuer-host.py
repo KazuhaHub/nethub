@@ -148,7 +148,8 @@ def acceptance_evidence(code, failure, log):
     lease = log.count("Protected shared relay lease refused publication and offline authority during contention, skipped renewal, then recovered without changing authority/runtime/head") == 1
     custody = log.count("Protected relay authority custody required explicit acknowledgement, preserved exact retry timestamp and refused a missing independent backup without changing active authority/runtime/head") == 1
     snapshot = log.count("Protected authority snapshot preserved all active files, staged independent successor backup and refused damaged copies and unresolved maintenance") == 1
-    passed = (code == 0 and failure is None and initial and renewal and delivery and provisioning and publication and authority and lease and custody and snapshot and
+    recovery = log.count("Authority file recovery passed real PostgreSQL rollback and lost-commit recovery, exact manifests and backups, retained maintenance, unchanged credentials and independently verified fixture TLS; no authz/frps reload or native application") == 1
+    passed = (code == 0 and failure is None and initial and renewal and delivery and provisioning and publication and authority and lease and custody and snapshot and recovery and
               "Protected host command passed genuine Compose database discovery" in log)
     return {"passed": passed, "initial_issuance_verified": passed and initial,
             "authenticated_delivery_verified": passed and delivery,
@@ -158,7 +159,8 @@ def acceptance_evidence(code, failure, log):
             "relay_authority_preparation_verified": passed and authority,
             "relay_operation_lease_verified": passed and lease,
             "relay_authority_custody_verified": passed and custody,
-            "relay_authority_snapshot_verified": passed and snapshot}
+            "relay_authority_snapshot_verified": passed and snapshot,
+            "relay_authority_file_recovery_verified": passed and recovery}
 
 
 def run(args):
