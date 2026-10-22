@@ -750,15 +750,26 @@ func testProtectedAuthoritySnapshot(t *testing.T, directory, project, override, 
 		t.Fatal("snapshot invalidated original confirmed authority")
 	}
 	t.Log("Protected authority snapshot preserved all active files, staged independent successor backup and refused damaged copies and unresolved maintenance")
-	service := &snapshotTLSFixture{t: t, directory: directory, name: manifest.Config.ConsoleHost, failReload: true}
+	service := &snapshotTLSFixture{t: t, directory: directory, name: manifest.Config.ConsoleHost, failReload: true, corruptOnFailure: filepath.Join(directory, "secrets/authz/claim_key")}
 	defer service.close()
 	host := &setup.RelayAuthoritySnapshotHost{Options: opts, Service: service}
 	engine := relayauthority.Transition{Directory: directory, ServerName: manifest.Config.ConsoleHost, Request: opts.Request, Host: host, Trust: publisher}
 	state, err := engine.Run(context.Background())
-	if err == nil || state.Phase != "rolled_back" {
-		t.Fatal("injected service failure did not roll back real authority files", state.Phase, err)
+	if err == nil || state.Phase != "rolling_back" {
+		t.Fatal("unexpected credential bytes did not retain recovery protection", state.Phase, err)
 	}
 	receipt, err := publisher.ReadSwitch(context.Background(), opts.Request.ID)
+	if err != nil || receipt.Phase != "pending" {
+		t.Fatal("failed file restoration released real database fence", err)
+	}
+	if os.WriteFile(service.corruptOnFailure, before["secrets/authz/claim_key"], 0600) != nil {
+		t.Fatal("restore owned corruption fixture")
+	}
+	state, err = engine.Run(context.Background())
+	if err == nil || state.Phase != "rolled_back" {
+		t.Fatal("real file rollback did not resume", state.Phase, err)
+	}
+	receipt, err = publisher.ReadSwitch(context.Background(), opts.Request.ID)
 	if err != nil || receipt.Phase != "rolled_back" {
 		t.Fatal("actual database rollback receipt", err)
 	}
@@ -807,11 +818,12 @@ func testProtectedAuthoritySnapshot(t *testing.T, directory, project, override, 
 }
 
 type snapshotTLSFixture struct {
-	t               *testing.T
-	directory, name string
-	server          *httptest.Server
-	failReload      bool
-	loads           int
+	t                *testing.T
+	directory, name  string
+	server           *httptest.Server
+	failReload       bool
+	corruptOnFailure string
+	loads            int
 }
 
 func (s *snapshotTLSFixture) close() {
@@ -843,6 +855,11 @@ func (s *snapshotTLSFixture) Reload(ctx context.Context, ca []byte) error {
 	s.server.StartTLS()
 	if s.failReload {
 		s.failReload = false
+		if s.corruptOnFailure != "" {
+			if err := os.WriteFile(s.corruptOnFailure, []byte(strings.Repeat("0", 64)+"\n"), 0600); err != nil {
+				return err
+			}
+		}
 		return setup.ErrRelayAuthority
 	}
 	return nil
