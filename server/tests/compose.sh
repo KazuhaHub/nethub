@@ -16,6 +16,7 @@ for port in (7000,8443):
             raise SystemExit('Relay acceptance requires unused TCP 7000 and 8443; no existing service was changed')
 PY
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+python3 "$root/server/tests/test_trust_report_fault.py"
 stage=$(mktemp -d)
 project="nethub-stack-test-$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"
 image=${NETHUB_RUNTIME_TEST_IMAGE:-"nethub-stack-test:$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"}
