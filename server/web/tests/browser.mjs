@@ -73,6 +73,7 @@ try {
   const violations = [];
   const failures = [];
   const external = [];
+  let inventoryRequests = 0;
   await context.exposeBinding("recordCSP", (_, value) =>
     violations.push(value),
   );
@@ -87,6 +88,9 @@ try {
   page.on("pageerror", (error) => failures.push(error.message));
   page.on("request", (request) => {
     if (!request.url().startsWith(origin + "/")) external.push(request.url());
+    if (new URL(request.url()).pathname === "/api/v1/console/devices") {
+      inventoryRequests++;
+    }
   });
   await page.goto(origin);
   await page.getByRole("heading", { name: "Sign in to NetHub" }).waitFor();
@@ -185,8 +189,68 @@ try {
   assert.equal(await tokenField.count(), 0);
   await page.getByRole("button", { name: "Close dialog" }).click();
   await page.request.post(origin + "/test/devices");
-  await page.getByRole("button", { name: "Refresh devices" }).click();
-  await page.getByText("Branch office", { exact: true }).waitFor();
+  await page
+    .getByText("Branch office", { exact: true })
+    .waitFor({ timeout: 8000 });
+  let activeInventoryRequests = 0;
+  let maximumInventoryRequests = 0;
+  let finishSlowInventory;
+  const slowInventory = new Promise((resolve) => {
+    finishSlowInventory = resolve;
+  });
+  const inventoryRoute = /\/api\/v1\/console\/devices(?:\?|$)/;
+  await page.route(inventoryRoute, async (route) => {
+    assert.equal(route.request().headers()["x-nethub-background"], "1");
+    activeInventoryRequests++;
+    maximumInventoryRequests = Math.max(
+      maximumInventoryRequests,
+      activeInventoryRequests,
+    );
+    try {
+      const response = await route.fetch();
+      await new Promise((resolve) => setTimeout(resolve, 6500));
+      await route.fulfill({ response });
+    } finally {
+      activeInventoryRequests--;
+      finishSlowInventory();
+    }
+  });
+  await Promise.race([
+    slowInventory,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Inventory polling timed out")), 13000),
+    ),
+  ]);
+  assert.equal(maximumInventoryRequests, 1);
+  await page.unroute(inventoryRoute);
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[aria-label="Device inventory"]')
+        .getAttribute("aria-busy") === "false",
+  );
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  const hiddenInventoryRequests = inventoryRequests;
+  await page.waitForTimeout(6500);
+  assert.equal(inventoryRequests, hiddenInventoryRequests);
+  const resumedInventory = page.waitForRequest(
+    (request) => new URL(request.url()).pathname === "/api/v1/console/devices",
+    { timeout: 2000 },
+  );
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await resumedInventory;
   await page.getByLabel("Search this page").fill("home");
   assert.equal(await page.getByRole("row").count(), 2);
   await page.getByLabel("Search this page").fill("");
@@ -235,6 +299,9 @@ try {
           "login",
           "reload",
           "empty inventory",
+          "automatic inventory updates",
+          "non-overlapping inventory requests",
+          "hidden inventory polling pause and resume",
           "enrollment",
           "copy",
           "modal focus",
@@ -256,6 +323,9 @@ try {
   );
   console.log(
     "Browser flows passed: zero CSP violations, browser errors, or external requests.",
+  );
+  console.log(
+    "Automatic inventory refresh passed without reload, with non-overlapping requests and hidden-page pause/resume.",
   );
 } finally {
   await browser?.close();

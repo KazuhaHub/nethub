@@ -77,6 +77,14 @@ func (s *AuthStore) CreateSession(ctx context.Context, candidate auth.Candidate,
 }
 
 func (s *AuthStore) LookupSession(ctx context.Context, digest []byte, idle time.Duration) (auth.SessionRecord, error) {
+	return s.lookupSession(ctx, digest, idle, true)
+}
+
+func (s *AuthStore) LookupSessionPassive(ctx context.Context, digest []byte, idle time.Duration) (auth.SessionRecord, error) {
+	return s.lookupSession(ctx, digest, idle, false)
+}
+
+func (s *AuthStore) lookupSession(ctx context.Context, digest []byte, idle time.Duration, touch bool) (auth.SessionRecord, error) {
 	if len(digest) != 32 || idle < time.Second {
 		return auth.SessionRecord{}, auth.ErrUnauthenticated
 	}
@@ -99,17 +107,27 @@ func (s *AuthStore) LookupSession(ctx context.Context, digest []byte, idle time.
 		return auth.SessionRecord{}, err
 	}
 	var sessionID string
-	err = tx.QueryRowContext(ctx, `SELECT id FROM sessions WHERE token_hash=$1 AND user_id=$2 FOR UPDATE`, digest, record.ID).Scan(&sessionID)
+	lock := "FOR SHARE"
+	if touch {
+		lock = "FOR UPDATE"
+	}
+	err = tx.QueryRowContext(ctx, `SELECT id FROM sessions WHERE token_hash=$1 AND user_id=$2 `+lock, digest, record.ID).Scan(&sessionID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return auth.SessionRecord{}, auth.ErrUnauthenticated
 	}
 	if err != nil {
 		return auth.SessionRecord{}, err
 	}
-	err = tx.QueryRowContext(ctx, `UPDATE sessions SET last_seen_at=greatest(last_seen_at,clock_timestamp())
+	query := `UPDATE sessions SET last_seen_at=greatest(last_seen_at,clock_timestamp())
  WHERE id=$1 AND created_at<=clock_timestamp() AND expires_at>clock_timestamp()
  AND last_seen_at>clock_timestamp()-($2 * interval '1 millisecond')
- RETURNING csrf_hash,created_at,expires_at`, sessionID, idle.Milliseconds()).Scan(&record.CSRFHash, &record.CreatedAt, &record.ExpiresAt)
+ RETURNING csrf_hash,created_at,expires_at`
+	if !touch {
+		query = `SELECT csrf_hash,created_at,expires_at FROM sessions
+ WHERE id=$1 AND created_at<=clock_timestamp() AND expires_at>clock_timestamp()
+ AND last_seen_at>clock_timestamp()-($2 * interval '1 millisecond')`
+	}
+	err = tx.QueryRowContext(ctx, query, sessionID, idle.Milliseconds()).Scan(&record.CSRFHash, &record.CreatedAt, &record.ExpiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return auth.SessionRecord{}, auth.ErrUnauthenticated
 	}

@@ -1481,6 +1481,9 @@ period is now five seconds; its 45-second recent-observation window, separate
 revocation discovery/confirmation policy and D6 heartbeat settings are unchanged.
 The production-timer regression covers a proxy appearing just after an empty
 snapshot. Fresh native acceptance must be repeated against the corrected image.
+The visible inventory also refreshes every five seconds without overlapping
+requests. Background reads revalidate sessions without extending idle activity;
+hidden pages pause polling. Native acceptance must observe the row without reload.
 
 **W4-6 frps 和 Caddy 的部署配置。**
 

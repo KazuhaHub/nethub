@@ -51,8 +51,10 @@ async function request<T>(
   path: string,
   body?: object,
   signal?: AbortSignal,
+  background = false,
 ): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
+  if (background) headers["X-NetHub-Background"] = "1";
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
     if (csrf) headers["X-CSRF-Token"] = csrf;
@@ -124,13 +126,23 @@ export const api = {
     await request<void>("/logout", {});
     clearSession();
   },
-  devices(cursor: string | null, status: string, signal?: AbortSignal) {
+  devices(
+    cursor: string | null,
+    status: string,
+    signal?: AbortSignal,
+    background = false,
+  ) {
     const query = new URLSearchParams({ limit: "50" });
     if (cursor) query.set("cursor", cursor);
     if (status === "online" || status === "offline")
       query.set("online", String(status === "online"));
     if (status === "revoked") query.set("revoked", "true");
-    return request<DevicePage>(`/devices?${query}`, undefined, signal);
+    return request<DevicePage>(
+      `/devices?${query}`,
+      undefined,
+      signal,
+      background,
+    );
   },
   enroll(signal?: AbortSignal) {
     return request<Enrollment>("/enroll-tokens", {}, signal);

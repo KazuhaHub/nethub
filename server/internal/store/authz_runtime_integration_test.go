@@ -270,6 +270,7 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 	if !seen {
 		t.Fatal("compiled runtime did not persist a matching periodic relay observation")
 	}
+	t.Log("Compiled authz observation passed its five-second production cadence with persisted device state")
 	if _, err := f.owner.ExecContext(f.ctx, `UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id=$1`, result.DeviceID); err != nil {
 		t.Fatal(err)
 	}

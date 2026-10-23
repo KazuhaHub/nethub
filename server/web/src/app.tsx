@@ -381,11 +381,19 @@ function Devices() {
   const cursor = cursors[cursors.length - 1];
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setError("");
-    api
-      .devices(cursor, status, controller.signal)
-      .then((result) => {
+    let pending = false;
+    async function load(background = false) {
+      if (pending || controller.signal.aborted) return;
+      pending = true;
+      setLoading(true);
+      setError("");
+      try {
+        const result = await api.devices(
+          cursor,
+          status,
+          controller.signal,
+          background,
+        );
         if (!controller.signal.aborted) {
           setPage(result);
           setUpdated(
@@ -395,14 +403,24 @@ function Devices() {
             }),
           );
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         if (!controller.signal.aborted) setError(message(error));
-      })
-      .finally(() => {
+      } finally {
+        pending = false;
         if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
+      }
+    }
+    function refreshVisible() {
+      if (document.visibilityState === "visible") void load(true);
+    }
+    void load();
+    const timer = setInterval(refreshVisible, 5000);
+    document.addEventListener("visibilitychange", refreshVisible);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshVisible);
+    };
   }, [cursor, status, refresh]);
   const visible = page.items.filter((device) =>
     [device.label, device.hostname, device.subdomain, device.owner.email].some(
@@ -588,10 +606,16 @@ function Devices() {
         </footer>
       </section>
       <p className="observation-note">
-        Online reflects a recent tunnel observation. Refresh to check the latest
-        state.
+        Online reflects a recent tunnel observation. This list updates
+        automatically while visible.
       </p>
-      <EnrollmentDialog open={open} close={() => setOpen(false)} />
+      <EnrollmentDialog
+        open={open}
+        close={() => {
+          setOpen(false);
+          setRefresh((value) => value + 1);
+        }}
+      />
     </>
   );
 }

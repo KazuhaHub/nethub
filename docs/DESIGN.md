@@ -788,6 +788,9 @@ The read-only display poll uses a five-second period so a newly registered proxy
 can meet this target even when it just missed the previous snapshot. It updates
 only recent-observation timestamps. The separate 15-second revocation-discovery
 schedule, three-confirmation policy and D6 heartbeat settings remain unchanged.
+Visible inventory refresh uses the same five-second budget and passive session
+checks, preserving idle expiry. Hidden pages pause requests; active refreshes
+retain normal session activity.
 （仍需用 OPNsense 自己的账号登录；若 Q7 的门禁落地，"打开"同时登记你当前的源 IP）。
 
 **这条路径上任何一步需要读文档，就是一个要修的 bug。**

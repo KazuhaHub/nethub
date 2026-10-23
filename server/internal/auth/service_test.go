@@ -35,6 +35,9 @@ func (r *testRepository) CreateSession(_ context.Context, _ Candidate, record Se
 func (r *testRepository) LookupSession(context.Context, []byte, time.Duration) (SessionRecord, error) {
 	return r.record, r.failure
 }
+func (r *testRepository) LookupSessionPassive(ctx context.Context, digest []byte, idle time.Duration) (SessionRecord, error) {
+	return r.LookupSession(ctx, digest, idle)
+}
 func (r *testRepository) DeleteSession(context.Context, []byte, netip.Addr) error { return r.failure }
 
 func TestServiceFailuresAndSynchronizerPersistence(t *testing.T) {
@@ -51,6 +54,10 @@ func TestServiceFailuresAndSynchronizerPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	passive, err := service.AuthenticatePassive(context.Background(), login.Token)
+	if err != nil || passive.User != login.User || passive.CSRFToken != login.CSRFToken {
+		t.Fatal("passive authentication lost the live user or synchronizer binding")
+	}
 	if repository.record.ExpiresAt.Sub(repository.record.CreatedAt) != 12*time.Hour {
 		t.Fatal("absolute timeout default changed")
 	}
@@ -63,6 +70,9 @@ func TestServiceFailuresAndSynchronizerPersistence(t *testing.T) {
 	repository.record.CSRFHash[0] ^= 1
 	if _, err = service.Authenticate(context.Background(), login.Token); !errors.Is(err, ErrUnauthenticated) {
 		t.Fatal("corrupted CSRF binding accepted")
+	}
+	if _, err = service.AuthenticatePassive(context.Background(), login.Token); !errors.Is(err, ErrUnauthenticated) {
+		t.Fatal("passive authentication accepted a corrupted CSRF binding")
 	}
 	repository.failure = errors.New("private database diagnostic")
 	if _, err = service.Login(context.Background(), "member@example.com", "a test passphrase", netip.MustParseAddr("192.0.2.1"), "test"); err != ErrUnavailable {

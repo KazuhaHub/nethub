@@ -13,6 +13,12 @@ leaving no time for enrollment or rendering within the same 15-second target.
 Earlier successful measurements, including the 3.723-second fresh run, did not
 exercise that timer phase and remain archived separately.
 
+The recorded rendered-row measurement included an explicit console reload. The
+inventory previously had no automatic refresh. The visible inventory now polls
+every five seconds, skips overlapping requests, pauses while hidden and refreshes
+on visibility restoration or enrollment-dialog close. Native revalidation waits
+for the rendered online row without reloading or clicking Refresh.
+
 The observer now polls every five seconds. Each poll still uses one bounded,
 read-only admin request, without overlap. Parser limits, storage bounds, skipped
 busy rows, credential isolation and safe failure logging are unchanged. The
@@ -26,6 +32,14 @@ the former period and passed after the correction. It does not shorten or replac
 the production timer. The compiled-runtime PostgreSQL test also checks a
 four-to-eight-second interval between actual admin requests and matching persisted
 state, followed by revocation and clean shutdown.
+
+The browser regression changes fixture inventory without a manual refresh. It
+failed against the former UI and passes with automatic refresh. Further cases
+hold a response across another timer tick and test hidden/visible transitions.
+Background inventory requests use passive authentication, preserving current
+user/tenant and expiry checks without updating session activity. Database tests
+cover unchanged activity, natural idle expiry, role/disable changes and expiry
+after user/session lock waits for both authentication modes.
 
 Local relay observer tests passed. Complete hosted regression, assembled-image
 acceptance and a native repeat with the corrected runtime remain required. The

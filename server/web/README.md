@@ -36,6 +36,12 @@ plaintext available only from the issue response. Clipboard writes are explicit;
 copied text remains in the user's system clipboard. No background network polling
 renews idle sessions or device grants.
 
+The visible inventory refreshes every five seconds, with one request in flight.
+Hidden pages pause polling and refresh when visible again. Closing enrollment
+also refreshes immediately. Background reads use passive session validation:
+tenant, role, disable state, idle expiry and absolute expiry are checked without
+updating session activity. User-initiated loads retain normal activity updates.
+
 Browser verification compiles a separate loopback TLS fixture using production
 authentication and HTTP handlers, with isolated accounts and in-memory storage.
 Its test-control routes are confined to that fixture and are not linked into the
@@ -53,6 +59,8 @@ use an installed Chrome for local verification. CI installs the pinned Playwrigh
 Chromium and runs the same flows. The tested flows include keyboard focus, token
 clearing and expiry, storage isolation, light/dark, a 390px viewport, logout, and
 401 redirect; this is not a full accessibility or cross-browser audit.
+Inventory tests also cover automatic updates without reload, a response spanning
+another poll tick, and simulated hidden/visible transitions.
 
 Four registry component sources were taken from the W3-0 reviewed snapshot
 outside this repository, then formatted. Their upstream MIT text is retained in
