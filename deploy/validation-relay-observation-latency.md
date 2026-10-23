@@ -45,3 +45,18 @@ Local relay observer tests passed. Complete hosted regression, assembled-image
 acceptance and a native repeat with the corrected runtime remain required. The
 W4 online-latency checkbox is reopened until that native revalidation passes;
 the failed run is not relabeled as a successful 15-second result.
+
+Hosted acceptance also exposed two test-harness problems. Inventory refreshes
+could still be in flight when the deployed browser advanced to its next step;
+the test now waits for the active inventory response and completed body. It
+retains the zero-unexpected-network-failures assertion.
+
+A later run reached official frps configuration validation, then exhausted its
+20-minute job deadline without reporting the next phase. The available log does
+not establish which subsequent command stalled. Compose startup, administrator
+initialization and cleanup now have separate command deadlines and fixed phase
+messages; failure output includes only service state, without configuration or
+credentials. The repeat-initialization check additionally requires the actual
+account-state refusal and exit 1. A shell control demonstrated that the former
+check accepted exit 124; current tests reject timeout, unexpected success and a
+daemon failure. No integration check was removed or job deadline increased.
