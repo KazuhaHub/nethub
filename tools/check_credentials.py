@@ -15,6 +15,7 @@ PUBLIC_CSR_SPKI = json.loads((ROOT / 'proto/examples/valid/certificate-submit-re
 PUBLIC_RELEASE_KEY = next(node.value.value for node in ast.walk(ast.parse((ROOT / 'weekend0/vm_preflight.py').read_text()))
                           if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == 'KEY_SHA256'
                                                                  for target in node.targets))
+PUBLIC_SCREENSHOT = 'ae362ce989f5d25bf51e2276cffedbe8f92fea1bc1f51a165874762b593c07c4'
 
 
 def main():
@@ -63,11 +64,17 @@ def main():
         allowed = 'proto/examples/valid/enroll-bound-response.json'
         line = '  "gui_key_fingerprint": "' + PUBLIC_SPKI + '",\n'
         release = 'KEY_SHA256 = "' + PUBLIC_RELEASE_KEY + '"\n'
+        screenshot_path = 'deploy/validation-native-browser.json'
+        screenshot = '  "02-console-token.png": "' + PUBLIC_SCREENSHOT + '",\n'
         control('approved-public-values', {
             allowed: line,
             'proto/examples/valid/certificate-submit-response.json':
                 '  "gui_key_fingerprint": "' + PUBLIC_CSR_SPKI + '",\n',
             'weekend0/vm_preflight.py': release,
+            screenshot_path: json.dumps({
+                'legacy': {'02-console-token.png': PUBLIC_SCREENSHOT},
+                'screenshots': [{'file': '02-console-token.png', 'sha256': secrets.token_hex(32)}],
+            }, indent=2) + '\n',
         }, False)
         control('changed-fingerprint', {
             allowed: '  "gui_key_fingerprint": "' + secrets.token_hex(32) + '",\n',
@@ -79,13 +86,26 @@ def main():
         control('same-line-credential', {
             'weekend0/vm_preflight.py': release.rstrip() + '; api_key = "' + secrets.token_urlsafe(32) + '"\n',
         }, True)
+        control('changed-screenshot-digest', {
+            screenshot_path: '  "02-console-token.png": "' + secrets.token_hex(32) + '",\n',
+        }, True)
+        control('screenshot-wrong-path', {'other.json': screenshot}, True)
+        control('screenshot-wrong-field', {
+            screenshot_path: 'api_key = "' + PUBLIC_SCREENSHOT + '"\n',
+        }, True)
+        control('screenshot-adjacent-credential', {
+            screenshot_path: screenshot + 'api_key = "' + secrets.token_urlsafe(32) + '"\n',
+        }, True)
+        control('screenshot-same-line-credential', {
+            screenshot_path: screenshot.rstrip() + ' "api_key": "' + secrets.token_urlsafe(32) + '"\n',
+        }, True)
         findings = scan('git', ROOT, 'history', history=True)
         if findings:
             locations = [{key: finding.get(key) for key in ['RuleID', 'File', 'StartLine', 'Commit']}
                          for finding in findings]
             print(json.dumps({'credential_findings': locations}))
             raise SystemExit(1)
-    print('Credential history scan passed with default rules, full fetched history and five exception controls; reports and matches were not published')
+    print('Credential history scan passed with default rules, full fetched history and ten exception controls; reports and matches were not published')
 
 
 if __name__ == '__main__':

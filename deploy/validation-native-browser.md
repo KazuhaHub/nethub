@@ -48,4 +48,12 @@ startup. Browser exceptions were limited to that verified console SPKI and the
 pinned original native GUI SPKI. The appliance used its default trust store with
 the temporary fixture CA. Neither public certificate trust nor GUI certificate
 issuance, installation, renewal, rollback or reboot persistence is established
-here. W4's fresh-server flow and its other acceptance items remain open.
+here. A later [fresh-backend run](validation-native-fresh-browser.md) covers the
+clean initialization and browser flow; W4's other acceptance items remain open.
+
+The original receipt used screenshot filenames as JSON keys. The scanner treated
+the masked enrollment-token screenshot's digest as a credential. Current receipts
+separate filename and SHA256 fields. The exact historical path/field/digest has
+one bounded exception, with changed-value, field, path, adjacent and same-line
+credential controls alongside the earlier checks. Default rules and full fetched
+history scanning remain enabled.

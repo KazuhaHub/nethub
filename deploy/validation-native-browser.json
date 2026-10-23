@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "observed_utc_date": "2026-10-23",
   "passed": true,
   "inputs": {
@@ -44,13 +44,28 @@
     "owned_stack_stopped": true,
     "database_authority_and_profiles_retained": true
   },
-  "screenshots": {
-    "01-console-login.png": "fa00290e30d4763d008191c38dc875c363eeed6cdc856394746e7249dfe411b1",
-    "02-console-token.png": "ae362ce989f5d25bf51e2276cffedbe8f92fea1bc1f51a165874762b593c07c4",
-    "03-native-enrollment.png": "65f3f0a1c4856fb24c370275ed22ba5e7057c677ca305012a805330c8356307f",
-    "04-native-enrolled.png": "810064c80d60f094a962405aa5bc6b61287ff4424fe77a28f6c8949c8ea68cf0",
-    "05-console-online.png": "4f8129222f6a39aa65fbaf6864af5f492d53df3be1c32185e314f35f30acaadd"
-  },
+  "screenshots": [
+    {
+      "file": "01-console-login.png",
+      "sha256": "fa00290e30d4763d008191c38dc875c363eeed6cdc856394746e7249dfe411b1"
+    },
+    {
+      "file": "02-console-token.png",
+      "sha256": "ae362ce989f5d25bf51e2276cffedbe8f92fea1bc1f51a165874762b593c07c4"
+    },
+    {
+      "file": "03-native-enrollment.png",
+      "sha256": "65f3f0a1c4856fb24c370275ed22ba5e7057c677ca305012a805330c8356307f"
+    },
+    {
+      "file": "04-native-enrolled.png",
+      "sha256": "810064c80d60f094a962405aa5bc6b61287ff4424fe77a28f6c8949c8ea68cf0"
+    },
+    {
+      "file": "05-console-online.png",
+      "sha256": "4f8129222f6a39aa65fbaf6864af5f492d53df3be1c32185e314f35f30acaadd"
+    }
+  ],
   "limits": {
     "screenshots_and_operational_evidence_kept_private": true,
     "fresh_native_client": true,
