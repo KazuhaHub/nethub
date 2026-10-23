@@ -194,6 +194,75 @@ def test_actual_php_renewal_failure_restores_the_previous_owned_native_certifica
     assert json.loads(journal.path.read_bytes())['phase'] == 'rolled_back'
 
 
+def native_model_save(backend):
+    tree = ET.parse(backend.configuration)
+    ref = tree.findtext('system/webgui/ssl-certref')
+    node = next(item for item in tree.findall('cert') if item.findtext('refid') == ref)
+    node.set('uuid', '12345678-1234-4234-8234-123456789abc')
+    values = {child.tag: child.text for child in node}
+    for child in list(node):
+        node.remove(child)
+    for name in ['refid', 'descr', 'caref', 'crt', 'csr', 'prv']:
+        ET.SubElement(node, name).text = values.get(name)
+    tree.write(backend.configuration)
+
+
+@pytest.mark.parametrize('healthy', [True, False])
+def test_actual_php_native_model_serialization_preserves_retry_renewal_and_rollback(store, healthy):
+    journal, backend, value, chain, _ = store
+    apply(journal, backend, value)
+    original_hash = json.loads(journal.path.read_bytes())['native_hash']
+    native_model_save(backend)
+    before = backend.configuration.read_bytes()
+    assert apply(journal, backend, value)['phase'] == 'applied'
+    assert backend.configuration.read_bytes() == before
+    assert json.loads(journal.path.read_bytes())['native_hash'] == original_hash
+    assert backend.operations.count('install') == 1
+    newer = chain.issue()
+    newer['issued']['generation'] = 2
+    newer['issued']['generation_id'] = '456789ab-4567-4567-4567-456789abcdef'
+    (backend.parent / 'gui-certificate.json').write_bytes(KeyStore._encoded(newer))
+    backend.healthy = healthy
+    if healthy:
+        assert apply(journal, backend, newer)['generation'] == 2
+        assert json.loads(journal.path.read_bytes())['native_hash'] != original_hash
+    else:
+        with pytest.raises(CertificateTransactionError):
+            journal.apply(newer)
+        assert ET.tostring(ET.parse(backend.configuration).getroot()) == ET.tostring(ET.fromstring(before))
+        assert json.loads(journal.path.read_bytes())['phase'] == 'rolled_back'
+
+
+@pytest.mark.parametrize('change', ['refid', 'descr', 'crt', 'prv', 'caref', 'csr',
+                                   'unknown_field', 'unknown_attribute', 'invalid_uuid',
+                                   'duplicate_field', 'nested_field'])
+def test_actual_php_model_normalization_still_refuses_changed_material_or_shape(store, change):
+    journal, backend, value, _, _ = store
+    apply(journal, backend, value)
+    native_model_save(backend)
+    tree = ET.parse(backend.configuration)
+    ref = tree.findtext('system/webgui/ssl-certref')
+    node = next(item for item in tree.findall('cert') if item.findtext('refid') == ref)
+    if change in ['refid', 'descr', 'crt', 'prv', 'caref', 'csr']:
+        node.find(change).text = 'changed by operator'
+    elif change == 'unknown_field':
+        ET.SubElement(node, 'unexpected').text = 'changed'
+    elif change == 'unknown_attribute':
+        node.set('unexpected', 'changed')
+    elif change == 'invalid_uuid':
+        node.set('uuid', 'invalid')
+    elif change == 'duplicate_field':
+        node.append(copy.deepcopy(node.find('crt')))
+    else:
+        ET.SubElement(node.find('crt'), 'nested').text = 'changed'
+    tree.write(backend.configuration)
+    before = backend.configuration.read_bytes()
+    with pytest.raises(CertificateTransactionError):
+        journal.apply(value)
+    assert backend.configuration.read_bytes() == before
+    assert backend.operations.count('install') == 1
+
+
 @pytest.mark.parametrize('fault', ['disabled', 'revoked', 'wrong_key', 'duplicate_reference', 'manual_hostname_missing'])
 def test_actual_php_preparation_refuses_changed_identity_or_intent_before_native_write(store, fault):
     journal, backend, value, chain, _ = store
