@@ -41,10 +41,13 @@ user/tenant and expiry checks without updating session activity. Database tests
 cover unchanged activity, natural idle expiry, role/disable changes and expiry
 after user/session lock waits for both authentication modes.
 
-Local relay observer tests passed. Complete hosted regression, assembled-image
-acceptance and a native repeat with the corrected runtime remain required. The
-W4 online-latency checkbox is reopened until that native revalidation passes;
-the failed run is not relabeled as a successful 15-second result.
+Source `ab20628` passed all six jobs in run 39953411565, with actual logs checked
+before PR #138 merged. Its verified runtime rendered a newly enrolled native
+device online in 2.511 seconds without console reload or manual refresh.
+Independent token/model/key/credential checks and five retained screenshots
+support that measurement. The W4 timing item closes from this distinct repeat;
+the earlier failure is not relabeled. Its later offline certificate application
+failed and remains open. See [the scoped native result](validation-native-offline-recovery.md).
 
 Hosted acceptance also exposed duplicate dialog dismissal. Escape and the close
 button notified the parent, then the controlled native `close` event notified it
