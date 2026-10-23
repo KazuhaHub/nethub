@@ -1,0 +1,78 @@
+{
+  "schema_version": 2,
+  "observed_utc_date": "2026-10-23",
+  "passed": true,
+  "inputs": {
+    "native_package_source": "aaf0dbe0fd8a1fac5fb8686afcf2801a5b0f4032",
+    "native_package_version": "0.0.14",
+    "native_package_sha256": "267d6f2f72f347d9f434991768c22b331cca64d971bd34db06021778e8f83781",
+    "server_image_source": "9ffcb2dbf46c80a61978d3911f5ba54130295302",
+    "server_and_image_inputs_match_merge": "ed329599a27ce037037538e781632a5141a163e2",
+    "browser_runner_sha256": "47f2a0c59b0049a95f3cc456d947dedb07188dda13bfd9da0e8ab28506b20d96",
+    "appliance_memory_mib": 1024,
+    "credential_verifier_source_sha256": "b430f4fc055c78ba4c5600f4426ed1f6f769e6baccb6a03401c88859908f2c8e",
+    "credential_verifier_binary_sha256": "a21060a9917658579043ce8312d1b700602f0552058f043ab4bd7ad2a4225add",
+    "verifier_target_source_sha256": "bf9f4299838c4bfb129678138a906b75726dbb62fd04e3e6a1ef7535857420ef"
+  },
+  "browser": {
+    "api_click_to_online_seconds": 4.922,
+    "rendered_click_to_online_seconds": 5.968,
+    "rendered_online_verified": true,
+    "token_input_cleared": true,
+    "page_errors": 0,
+    "external_requests": 0,
+    "settings_response_contains_only_activation_flag": true,
+    "legacy_debug_endpoint_absent": true
+  },
+  "provenance": {
+    "genuine_profiles_retained": 2,
+    "consumed_ui_token_matches_database": true,
+    "wrong_secret_controls_passed": true,
+    "archived_private_keys_match_native_and_database_public_keys": true,
+    "earlier_device_token_audit_rows_unchanged": true,
+    "new_audit_rows_per_flow": 3,
+    "protocol_assignment_response_reconstructed": false,
+    "native_secret_verified_with_production_password_verifier": true,
+    "verifier_dependencies_match_production_lockfile": true
+  },
+  "restoration": {
+    "original_native_package": "0.0.6",
+    "original_native_configuration_exact": true,
+    "operator_stop_preserved": true,
+    "original_running_container_count": 14,
+    "original_listener_owners_verified": true,
+    "owned_stack_stopped": true,
+    "database_authority_and_profiles_retained": true
+  },
+  "screenshots": [
+    {
+      "file": "01-console-login.png",
+      "sha256": "fa00290e30d4763d008191c38dc875c363eeed6cdc856394746e7249dfe411b1"
+    },
+    {
+      "file": "02-console-token.png",
+      "sha256": "ae362ce989f5d25bf51e2276cffedbe8f92fea1bc1f51a165874762b593c07c4"
+    },
+    {
+      "file": "03-native-enrollment.png",
+      "sha256": "65f3f0a1c4856fb24c370275ed22ba5e7057c677ca305012a805330c8356307f"
+    },
+    {
+      "file": "04-native-enrolled.png",
+      "sha256": "810064c80d60f094a962405aa5bc6b61287ff4424fe77a28f6c8949c8ea68cf0"
+    },
+    {
+      "file": "05-console-online.png",
+      "sha256": "4f8129222f6a39aa65fbaf6864af5f492d53df3be1c32185e314f35f30acaadd"
+    }
+  ],
+  "limits": {
+    "screenshots_and_operational_evidence_kept_private": true,
+    "fresh_native_client": true,
+    "backend_reinitialized": false,
+    "fixture_ca_only": true,
+    "browser_certificate_exceptions": "Only independently verified console and pinned native GUI SPKIs",
+    "public_certificate_trust_verified": false,
+    "complete_gui_certificate_pipeline_verified": false
+  }
+}

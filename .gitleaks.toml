@@ -29,3 +29,10 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^weekend0/vm_preflight\.py$''']
 regexes = ['''^\s*KEY_SHA256 = "9f3b76ffef38fb6405595038b324b61043c9a2c375ae5c151d628508e9a845ce"\s*$''']
+
+[[rules.allowlists]]
+description = "Exact historical masked screenshot checksum"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^deploy/validation-native-browser\.json$''']
+regexes = ['''^\s*"02-console-token\.png":\s*"ae362ce989f5d25bf51e2276cffedbe8f92fea1bc1f51a165874762b593c07c4",?\s*$''']

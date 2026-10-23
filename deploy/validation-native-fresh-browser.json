@@ -1,0 +1,93 @@
+{
+  "schema_version": 2,
+  "observed_utc_date": "2026-10-23",
+  "passed": true,
+  "inputs": {
+    "native_package_source": "aaf0dbe0fd8a1fac5fb8686afcf2801a5b0f4032",
+    "native_package_version": "0.0.14",
+    "native_package_sha256": "267d6f2f72f347d9f434991768c22b331cca64d971bd34db06021778e8f83781",
+    "server_image_source": "9ffcb2dbf46c80a61978d3911f5ba54130295302",
+    "server_and_image_inputs_match_merge": "ed329599a27ce037037538e781632a5141a163e2",
+    "browser_runner_sha256": "468ac5bf92290b3a6fda626f7e99f55054a34b7adb5c539cd8cfbabdf0bce498",
+    "appliance_memory_mib": 1024,
+    "credential_verifier_source_sha256": "b430f4fc055c78ba4c5600f4426ed1f6f769e6baccb6a03401c88859908f2c8e",
+    "credential_verifier_binary_sha256": "a21060a9917658579043ce8312d1b700602f0552058f043ab4bd7ad2a4225add",
+    "verifier_target_source_sha256": "bf9f4299838c4bfb129678138a906b75726dbb62fd04e3e6a1ef7535857420ef",
+    "source_archive_sha256": "df3458cdbca8e93fdb482d050db4da82d35bdeb32590390c03f0bf19e40501d7"
+  },
+  "initialization": {
+    "fresh_authority_and_deployment_directory": true,
+    "offline_initializer": true,
+    "new_compose_project_and_network": true,
+    "database_started_with_zero_devices": true,
+    "database_started_with_zero_tokens": true,
+    "preparatory_token_minted": false,
+    "runtime_images_reused_without_changes": true,
+    "original_realm_retained": true,
+    "off_host_authority_backup_entries_verified": 34,
+    "all_three_restore_guard_paths_verified": true,
+    "database_volume_distinct_from_retained_realm": true,
+    "database_volume_created_after_staging": true
+  },
+  "browser": {
+    "api_click_to_online_seconds": 2.975,
+    "rendered_click_to_online_seconds": 3.723,
+    "initial_inventory_empty": true,
+    "rendered_online_verified": true,
+    "token_input_cleared": true,
+    "page_errors": 0,
+    "external_requests": 0
+  },
+  "provenance": {
+    "one_new_device": true,
+    "one_consumed_ui_token": true,
+    "native_secret_verified_with_production_password_verifier": true,
+    "wrong_secret_control_passed": true,
+    "private_key_matches_native_and_database_public_key": true,
+    "prior_audits_unchanged": true,
+    "new_audit_rows": 3,
+    "actual_php_saved_model_retained": true,
+    "protocol_assignment_response_reconstructed": false
+  },
+  "restoration": {
+    "original_native_package": "0.0.6",
+    "original_native_configuration_exact": true,
+    "operator_stop_preserved": true,
+    "original_running_container_count": 14,
+    "original_listener_owners_verified": true,
+    "owned_stack_stopped": true,
+    "database_authority_and_profiles_retained": true
+  },
+  "screenshots": [
+    {
+      "file": "01-console-login.png",
+      "sha256": "fa00290e30d4763d008191c38dc875c363eeed6cdc856394746e7249dfe411b1"
+    },
+    {
+      "file": "02-console-token.png",
+      "sha256": "148024ed051f3c97636606a4db2a5bb9d608acb3dc9e28cd303e130d6a0f4d1f"
+    },
+    {
+      "file": "03-native-enrollment.png",
+      "sha256": "65f3f0a1c4856fb24c370275ed22ba5e7057c677ca305012a805330c8356307f"
+    },
+    {
+      "file": "04-native-enrolled.png",
+      "sha256": "810064c80d60f094a962405aa5bc6b61287ff4424fe77a28f6c8949c8ea68cf0"
+    },
+    {
+      "file": "05-console-online.png",
+      "sha256": "dedff728682ee301ff3a62cdceea23bc0ee526c3bbc5c1a9ed10d8be99236f63"
+    }
+  ],
+  "limits": {
+    "shared_lab_host": true,
+    "fresh_application_state_not_new_operating_system": true,
+    "fixture_ca_and_dns_mapping_only": true,
+    "browser_certificate_exceptions": "Only independently verified console and pinned native GUI SPKIs",
+    "screenshots_and_operational_evidence_kept_private": true,
+    "public_certificate_trust_verified": false,
+    "complete_gui_certificate_pipeline_verified": false,
+    "formal_release_backup_acceptance": false
+  }
+}
