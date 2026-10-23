@@ -7,6 +7,10 @@ binaries with the compiler pinned in `server/.go-version`.
 
 - Caddy 2.11.7 uses the standard module set and embedded time zones, with
   `golang.org/x/net` upgraded to 0.60.0. Its version identifies the NetHub build.
+  Its pinned Alpine base also receives the `brotli-libs` 1.2.1-r0 security patch
+  for CVE-2026-111497, as recorded in the
+  [Alpine 3.23 security database](https://secdb.alpinelinux.org/v3.23/main.json).
+  This updates the inherited OS libraries without changing the Caddy module set.
 - PostgreSQL uses the pinned official 16 Alpine image. Only gosu is replaced,
   rebuilt from the upstream 1.19 commit (`6456aaa0f3c8`); Go records that tag as
   a pseudo-version because the upstream tag does not use a `v` prefix. The
