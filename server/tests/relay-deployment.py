@@ -17,6 +17,36 @@ work = stage / "relay-test"
 work.mkdir(mode=0o700)
 clients = []
 logs = []
+compose = ["docker", "compose", "--project-name", sys.argv[3],
+           "--file", str(stage / "deployment/docker-compose.yml"),
+           "--file", str(stage / "deployment/docker-compose.override.yml"),
+           "--file", str(stage / "test.yml")]
+
+
+def service_log(service, label):
+    result = subprocess.run(compose + ["ps", "--quiet", service], capture_output=True, timeout=10)
+    container = result.stdout.decode().strip()
+    assert result.returncode == 0 and len(container) == 64 and all(c in "0123456789abcdef" for c in container)
+    result = subprocess.run(["docker", "logs", container], stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, timeout=10)
+    assert result.returncode == 0 and len(result.stdout) < 8 * 1024 * 1024
+    (work / (label + ".log")).write_bytes(result.stdout)
+    return result.stdout
+
+
+def hook_events(label):
+    records = [json.loads(line) for line in service_log("nethub-authz", label).splitlines() if line.strip()]
+    return [record for record in records if record.get("msg") == "Relay hook decision"]
+
+
+def stop_client(client):
+    if client.poll() is None:
+        client.terminate()
+        try:
+            client.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            client.kill()
+            client.wait(timeout=5)
 
 
 def curl(path, payload=None, authenticated=False, expect_json=True):
@@ -52,7 +82,7 @@ class Backend(http.server.BaseHTTPRequestHandler):
         pass
 
 
-def start_client(assignment, name, backend_port, corrupt=False):
+def start_client(assignment, name, backend_port, corrupt=False, subdomain=None):
     claim = assignment["domain_claim"]
     if corrupt:
         # Change a signature byte without changing the claim's assigned identity.
@@ -67,7 +97,8 @@ def start_client(assignment, name, backend_port, corrupt=False):
                       "tls": {"enable": True, "serverName": assignment["server_name"],
                               "trustedCaFile": str(work / "relay-ca.pem")}},
         "proxies": [{"name": "nethub-" + assignment["device_id"] + "-web", "type": "https",
-                     "localIP": "127.0.0.1", "localPort": backend_port, "subdomain": assignment["subdomain"]}],
+                     "localIP": "127.0.0.1", "localPort": backend_port,
+                     "subdomain": assignment["subdomain"] if subdomain is None else subdomain}],
     }
     path = work / (name + ".json")
     path.write_text(json.dumps(config), encoding="utf-8")
@@ -112,13 +143,51 @@ try:
     assert assignments[0]["relay_ca_pem"].encode() == (stage / "deployment/runtime/trust/relay-ca.pem").read_bytes()
     (work / "relay-ca.pem").write_text(assignments[0]["relay_ca_pem"], encoding="utf-8")
 
+    before = hook_events("before-invalid-claim-authz")
+    frps_before = service_log("frps", "before-invalid-claim-frps")
     bad = start_client(assignments[0], "invalid-claim", backend.server_port, corrupt=True)
     try:
         assert bad.wait(timeout=10) != 0
     except subprocess.TimeoutExpired:
         raise RuntimeError("invalid claim was not rejected promptly") from None
+    rejected = hook_events("after-invalid-claim-authz")[len(before):]
+    assert any(e.get("operation") == "Login" and e.get("decision") == "invalid_claim" for e in rejected)
+    assert not any(e.get("decision") == "allowed" for e in rejected)
+    assert b"not_authorized" in (work / "invalid-claim.log").read_bytes()
+    frps_after = service_log("frps", "after-invalid-claim-frps")
+    assert frps_after.count(b"not_authorized") > frps_before.count(b"not_authorized")
+    print("Tampered signature: Login invalid_claim; actual frpc and frps both recorded not_authorized")
+
+    # Try the other enrolled device's subdomain before either route exists, so
+    # an ordinary duplicate-route error cannot satisfy this rejection check.
+    before = hook_events("before-cross-device-authz")
+    frps_before = service_log("frps", "before-cross-device-frps")
+    cross = start_client(assignments[0], "cross-device", backend.server_port,
+                         subdomain=assignments[1]["subdomain"])
+    try:
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            assert cross.poll() is None, "cross-device client lost its valid control connection"
+            events = hook_events("after-cross-device-authz")[len(before):]
+            decisions = [(e.get("operation"), e.get("decision")) for e in events]
+            if ("NewProxy", "proxy_policy") in decisions:
+                assert ("Login", "allowed") in decisions
+                assert decisions.index(("Login", "allowed")) < decisions.index(("NewProxy", "proxy_policy"))
+                assert ("NewProxy", "allowed") not in decisions
+                if b"not_authorized" in (work / "cross-device.log").read_bytes():
+                    break
+            time.sleep(0.2)
+        else:
+            raise RuntimeError("cross-device proxy was not rejected by its authorization policy")
+        frps_after = service_log("frps", "after-cross-device-frps")
+        assert frps_after.count(b"not_authorized") > frps_before.count(b"not_authorized")
+        print("Cross-device subdomain: Login allowed, NewProxy proxy_policy; actual frpc and frps both recorded not_authorized")
+    finally:
+        stop_client(cross)
+
+    valid_clients = []
     for index, assignment in enumerate(assignments):
-        start_client(assignment, f"client{index}", backend.server_port)
+        valid_clients.append(start_client(assignment, f"client{index}", backend.server_port))
     def check_tunnels():
         deadline = time.monotonic() + 30
         for assignment in assignments:
@@ -134,7 +203,7 @@ try:
                 time.sleep(0.2)
             else:
                 raise RuntimeError("verified TLS passthrough did not become available")
-        assert all(client.poll() is None for client in clients[1:])
+        assert all(client.poll() is None for client in valid_clients)
 
     check_tunnels()
     for _ in range(90):
@@ -145,18 +214,13 @@ try:
         time.sleep(0.25)
     else:
         raise RuntimeError("actual frps observations did not reach the console")
-    assert all(client.poll() is None for client in clients[1:])
+    assert all(client.poll() is None for client in valid_clients)
     print("Deployed relay passed verified HTTPS enrollment, tampered-claim denial, two simultaneous TLS tunnels and actual frps-to-console observations")
+    print("Both legitimate assigned subdomains passed verified TLS after the operation-specific Login and NewProxy denials")
     exercise(stage, sys.argv[3], assignments, check_tunnels)
 finally:
     for client in clients:
-        if client.poll() is None:
-            client.terminate()
-            try:
-                client.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                client.kill()
-                client.wait(timeout=5)
+        stop_client(client)
     for log in logs:
         log.close()
     backend.server_close()
