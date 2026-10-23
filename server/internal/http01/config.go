@@ -32,41 +32,50 @@ func (p *Publisher) MatchesPolicy(domain string, protectedHosts []string) bool {
 	return true
 }
 
-// OpenExistingFile loads protected publisher policy without initializing or
-// repairing a missing namespace. Cleanup needs no account, database or signer.
-func OpenExistingFile(path string) (*Publisher, error) {
+// ReadFileConfig validates protected policy without creating publisher state.
+func ReadFileConfig(path string) (FileConfig, error) {
+	var config FileConfig
 	if len(path) > 4096 || !filepath.IsAbs(path) || filepath.Clean(path) != path {
-		return nil, ErrInput
+		return config, ErrInput
 	}
 	canonical, err := filepath.EvalSymlinks(path)
 	if err != nil || canonical != path {
-		return nil, ErrState
+		return config, ErrState
 	}
 	parent, err := os.Lstat(filepath.Dir(path))
 	if err != nil || !parent.IsDir() || !owned(parent) || runtime.GOOS != "windows" && parent.Mode().Perm()&0022 != 0 {
-		return nil, ErrState
+		return config, ErrState
 	}
 	data, err := readProtected(path, 0600, 20000)
 	if err != nil {
-		return nil, ErrState
+		return config, ErrState
 	}
 	fields, err := boundedjson.Object(bytes.NewReader(data))
 	if err != nil || len(fields) != 5 {
-		return nil, ErrInput
+		return config, ErrInput
 	}
 	for _, name := range []string{"version", "public_directory", "state_directory", "device_domain", "excluded_hosts"} {
 		if _, ok := fields[name]; !ok {
-			return nil, ErrInput
+			return config, ErrInput
 		}
 	}
-	var config FileConfig
 	if json.Unmarshal(data, &config) != nil || config.Version != 1 || config.ExcludedHosts == nil {
-		return nil, ErrInput
+		return FileConfig{}, ErrInput
 	}
 	for _, path := range []string{config.PublicDirectory, config.StateDirectory} {
 		if len(path) > 4096 || !filepath.IsAbs(path) || filepath.Clean(path) != path {
-			return nil, ErrInput
+			return FileConfig{}, ErrInput
 		}
+	}
+	return config, nil
+}
+
+// OpenExistingFile loads protected publisher policy without initializing or
+// repairing a missing namespace. Cleanup needs no account, database or signer.
+func OpenExistingFile(path string) (*Publisher, error) {
+	config, err := ReadFileConfig(path)
+	if err != nil {
+		return nil, err
 	}
 	if protected(config.PublicDirectory, true, 0755) != nil || protected(config.StateDirectory, true, 0700) != nil || protected(filepath.Join(config.PublicDirectory, ".publisher.json"), false, 0644) != nil || protected(filepath.Join(config.PublicDirectory, ".publisher-lease"), false, 0644) != nil || protected(filepath.Join(config.StateDirectory, "namespace.json"), false, 0600) != nil {
 		return nil, ErrState

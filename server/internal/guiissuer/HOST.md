@@ -49,6 +49,12 @@ retrying initial admission never authorizes a renewal.
 
 ## Explicit policy and invocation
 
+Initialize the HTTP-01 namespace with `nethub certificates initialize-http01
+--directory /srv/nethub-deployment --config-file /etc/nethub/http01.json`
+before configuring routing and starting its independent cleanup service/timer.
+The command requires a confirmed deployment and matching protected policy;
+it does not initialize an account or start issuance.
+
 Adapt `deploy/gui-issuer.example.json` to the deployment and install it as
 `/etc/nethub/gui-issuer.json`, root-owned mode 0600. All nine fields are required;
 unknown/duplicate fields and null origin lists are refused. Paths must be
