@@ -226,6 +226,11 @@ def test_actual_php_native_model_serialization_preserves_retry_renewal_and_rollb
     if healthy:
         assert apply(journal, backend, newer)['generation'] == 2
         assert json.loads(journal.path.read_bytes())['native_hash'] != original_hash
+        current = ET.parse(backend.configuration)
+        ref = current.findtext('system/webgui/ssl-certref')
+        entry = next(item for item in current.findall('cert') if item.findtext('refid') == ref)
+        assert entry.attrib == {'uuid': '12345678-1234-4234-8234-123456789abc'}
+        assert entry.find('caref') is not None and entry.find('csr') is not None
     else:
         with pytest.raises(CertificateTransactionError):
             journal.apply(newer)

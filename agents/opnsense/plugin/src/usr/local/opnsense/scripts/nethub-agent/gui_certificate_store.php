@@ -387,7 +387,11 @@ final class NativeGuiCertificateStore
             throw new RuntimeException('Invalid native GUI port');
         }
         $after = new SimpleXMLElement('<cert/>');
-        foreach (['refid' => $ref, 'descr' => $description, 'crt' => base64_encode($chain), 'prv' => base64_encode($pem)] as $field => $text) {
+        if ($before !== null && isset($before['uuid'])) {
+            $after->addAttribute('uuid', (string)$before['uuid']);
+        }
+        foreach (['refid' => $ref, 'descr' => $description, 'caref' => '',
+                  'crt' => base64_encode($chain), 'csr' => '', 'prv' => base64_encode($pem)] as $field => $text) {
             $after->addChild($field, $text);
         }
         $snapshot = ['version' => 1, 'nonce' => $request['nonce'], 'candidate_sha256' => $request['candidate_sha256'],

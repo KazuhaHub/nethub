@@ -26,6 +26,8 @@ empty optional CA/CSR fields do not change that identity. Nonempty CA/CSR values
 remain bound. Unknown attributes or fields, duplicates and nested fields are
 refused; certificate material, description, device and selected reference checks
 remain in place. Unmanaged certificate hashing is unchanged.
+Renewal retains the existing native UUID and emits the native model's six
+persistent fields, so it preserves that entry's UI identity.
 
 The actual FreeBSD PHP implementation rejected the saved boot entry before the
 change and matched its original last-good digest afterward. Eleven changed
