@@ -11,6 +11,8 @@ concurrency:
 
 permissions: {}
 
+# Hosted cache egress limits must not stall required checks.
+# Dependencies still use their lockfiles and the pinned compiler/runtime.
 jobs:
   control-plane:
     name: Control plane checks
@@ -31,13 +33,12 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: server/.go-version
-          cache-dependency-path: server/go.sum
+          cache: false
       - name: Set up Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "24.14.0"
-          cache: npm
-          cache-dependency-path: server/web/package-lock.json
+          package-manager-cache: false
       - name: Build and check console
         working-directory: server/web
         run: |
@@ -98,7 +99,7 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: server/.go-version
-          cache-dependency-path: server/go.sum
+          cache: false
       - name: Scan the Linux runtime with the pinned compiler
         env:
           GOOS: linux
@@ -156,8 +157,7 @@ jobs:
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "24.14.0"
-          cache: npm
-          cache-dependency-path: server/web/package-lock.json
+          package-manager-cache: false
       - name: Install the deployed-browser test
         working-directory: server/web
         env:
