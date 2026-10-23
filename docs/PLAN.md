@@ -1522,13 +1522,13 @@ The configuration writer and private temporary-file handoff were confirmed by Ka
 ### 验收（对应 DESIGN §10 W4）
 
 - [x] 上面的端到端流程走通，设备在 15 秒内显示在线（截图或录屏） — A fresh isolated deployment/database and unenrolled native client reached rendered online in 3.723 seconds. Initial device/token counts were zero; all five screenshots, credential/key provenance and restoration were checked. [Evidence and lab CA/DNS/1 GiB limits](../deploy/validation-native-fresh-browser.md).
-- [ ] 同一个 token 用第二次会失败；过期 token 会失败（贴输出）
+- [x] 同一个 token 用第二次会失败；过期 token 会失败（贴输出） — Immediate unexpired replay and a naturally expired unused token returned 401 without database mutation. The same expired request with a fresh token enrolled successfully. [Responses and independent controls](../deploy/validation-enrollment-boundaries.md).
 - [ ] 手工改坏声明里的一个字符，frpc 登录被拒（贴 frps 日志）
 - [ ] 把一台设备的 `subdomain` 改成另一台设备的，`NewProxy` 被拒（贴日志）
-- [ ] 协议版本不兼容的 enroll 请求被拒，并返回能看懂的错误
+- [x] 协议版本不兼容的 enroll 请求被拒，并返回能看懂的错误 — Protocol 99.0.0 returned 400/incompatible_protocol with the supported major; the same unused token then enrolled with 1.5.0. [Evidence](../deploy/validation-enrollment-boundaries.md).
 - [x] 契约测试（Go 和 Python 两端）在 CI 里跑，绿；故意改坏一个示例时会变红 — PR #40/run 39207923123; both real suites failed on the deliberately broken valid fixture, then passed after restoration.
 - [ ] 日志里搜不到 token、`device_secret`、声明的内容（`docker compose logs | grep` 检查）
-- [ ] web 容器里没有签名密钥、frps 的管理凭证、frps auth token（`docker compose exec nethub-web ls` 对应的密钥目录，贴输出）；`nethub doctor` 的分离检查通过
+- [x] web 容器里没有签名密钥、frps 的管理凭证、frps auth token（`docker compose exec nethub-web ls` 对应的密钥目录，贴输出）；`nethub doctor` 的分离检查通过 — The stopped distroless container's actual secret-directory archive contained only pg_nethub_web and secrets_key; read-only mount/image checks and the protected file doctor passed. [Scope and output](../deploy/validation-enrollment-boundaries.md).
 - [ ] unenroll 之后，设备在控制台里显示已撤销，它原来的子域名打不开
 - [ ] Relay certificate renewal automatically issues and applies changed material, retries application without reissuing, verifies the served certificate and records recovery time.
 - [ ] Public trust distribution records authenticated applied generations and exercises an offline-device/root-transition recovery path; issuer private keys remain outside application runtime containers.

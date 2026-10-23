@@ -4,7 +4,6 @@ import ast
 import json
 import os
 from pathlib import Path
-import secrets
 import subprocess
 import tempfile
 
@@ -66,6 +65,13 @@ def main():
         release = 'KEY_SHA256 = "' + PUBLIC_RELEASE_KEY + '"\n'
         screenshot_path = 'deploy/validation-native-browser.json'
         screenshot = '  "02-console-token.png": "' + PUBLIC_SCREENSHOT + '",\n'
+        # Fixed public-derived controls stay above the scanner's entropy threshold.
+        # Random hexadecimal values can fall below it and miss the intended rule.
+        changed_fingerprint = PUBLIC_SPKI[::-1]
+        changed_screenshot = PUBLIC_SCREENSHOT[::-1]
+        credential = changed_screenshot + changed_fingerprint
+        assert changed_fingerprint not in (PUBLIC_SPKI, PUBLIC_CSR_SPKI)
+        assert changed_screenshot != PUBLIC_SCREENSHOT
         control('approved-public-values', {
             allowed: line,
             'proto/examples/valid/certificate-submit-response.json':
@@ -73,31 +79,31 @@ def main():
             'weekend0/vm_preflight.py': release,
             screenshot_path: json.dumps({
                 'legacy': {'02-console-token.png': PUBLIC_SCREENSHOT},
-                'screenshots': [{'file': '02-console-token.png', 'sha256': secrets.token_hex(32)}],
+                'screenshots': [{'file': '02-console-token.png', 'sha256': changed_screenshot}],
             }, indent=2) + '\n',
         }, False)
         control('changed-fingerprint', {
-            allowed: '  "gui_key_fingerprint": "' + secrets.token_hex(32) + '",\n',
+            allowed: '  "gui_key_fingerprint": "' + changed_fingerprint + '",\n',
         }, True)
         control('adjacent-credential', {
-            allowed: line + 'api_key = "' + secrets.token_urlsafe(32) + '"\n',
+            allowed: line + 'api_key = "' + credential + '"\n',
         }, True)
         control('wrong-path', {'other.json': line}, True)
         control('same-line-credential', {
-            'weekend0/vm_preflight.py': release.rstrip() + '; api_key = "' + secrets.token_urlsafe(32) + '"\n',
+            'weekend0/vm_preflight.py': release.rstrip() + '; api_key = "' + credential + '"\n',
         }, True)
         control('changed-screenshot-digest', {
-            screenshot_path: '  "02-console-token.png": "' + secrets.token_hex(32) + '",\n',
+            screenshot_path: '  "02-console-token.png": "' + changed_screenshot + '",\n',
         }, True)
         control('screenshot-wrong-path', {'other.json': screenshot}, True)
         control('screenshot-wrong-field', {
             screenshot_path: 'api_key = "' + PUBLIC_SCREENSHOT + '"\n',
         }, True)
         control('screenshot-adjacent-credential', {
-            screenshot_path: screenshot + 'api_key = "' + secrets.token_urlsafe(32) + '"\n',
+            screenshot_path: screenshot + 'api_key = "' + credential + '"\n',
         }, True)
         control('screenshot-same-line-credential', {
-            screenshot_path: screenshot.rstrip() + ' "api_key": "' + secrets.token_urlsafe(32) + '"\n',
+            screenshot_path: screenshot.rstrip() + ' "api_key": "' + credential + '"\n',
         }, True)
         findings = scan('git', ROOT, 'history', history=True)
         if findings:
