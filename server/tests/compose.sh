@@ -259,13 +259,22 @@ compose logs --no-color > "$stage/relay-runtime.log"
 python3 - "$stage" <<'PY'
 import json,pathlib,sys
 s=pathlib.Path(sys.argv[1]);log=(s/'relay-runtime.log').read_text()
+log+='\n'+'\n'.join(path.read_text() for path in (s/'relay-test').glob('*.log'))
+def credentials(value):
+    if isinstance(value,dict):
+        for key,item in value.items():
+            if key in ('device_secret','frp_token','domain_claim','enroll_token','token') and isinstance(item,str):
+                assert len(item)>=32
+                yield item
+            else:yield from credentials(item)
+    elif isinstance(value,list):
+        for item in value:yield from credentials(item)
 for path in (s/'relay-test').glob('*.json'):
-    value=json.loads(path.read_text())
-    for key in ('device_secret','frp_token','domain_claim','enroll_token'):
-        if key in value:assert value[key] not in log
+    for value in credentials(json.loads(path.read_text())):assert value not in log
 for path in (s/'deployment/secrets').rglob('*'):
     if path.is_file() and path.stat().st_size==65:assert path.read_text().strip() not in log
 print('Enrolled credentials, claims and deployment secrets are absent from runtime logs')
+print('Nested client auth tokens and original/tampered claims are absent from client and captured authz/frps logs')
 PY
 # Exercise the privileged host adapter against the live disposable database.
 # Missing fixture identity must fail here rather than silently skip the test.
