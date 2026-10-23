@@ -1463,7 +1463,8 @@ production network isolation remain W4 deployment acceptance; Ping/NewUserConn
 remain W5. See [the callback boundary](../server/internal/relayhook/README.md).
 
 **W4-5 只读轮询和在线状态。**
-`nethub authz` 每 15 秒调一次 frps 的 admin API（只在内部网络），列出在线代理，更新 `devices.last_seen_at`。
+`nethub authz` polls the private frps admin API every five seconds to refresh
+`devices.last_seen_at` for matching online proxies.
 本阶段只读、只更新状态，不做任何断线动作（DESIGN §5：admin API 断不了在线连接）。
 
 W4-5 implementation note (2026-10-19): the bounded admin poller and authz
@@ -1472,6 +1473,14 @@ uses database time and tenant RLS, and skips busy rows. Local Go tests/vet pass;
 new genuine storage/console cases and a compiled-process 15-second HTTP-fixture
 probe still need CI. Real frps interoperability remains W4-6 deployment acceptance.
 See [the observation boundary](../server/internal/relaystate/README.md).
+
+W4-5 latency correction (2026-10-23): a retained native run completed enrollment
+in 1.854 seconds but rendered online in 16.862 seconds. The former 15-second
+display-poll period left no budget for enrollment and rendering. The display
+period is now five seconds; its 45-second recent-observation window, separate
+revocation discovery/confirmation policy and D6 heartbeat settings are unchanged.
+The production-timer regression covers a proxy appearing just after an empty
+snapshot. Fresh native acceptance must be repeated against the corrected image.
 
 **W4-6 frps 和 Caddy 的部署配置。**
 
@@ -1521,7 +1530,7 @@ The configuration writer and private temporary-file handoff were confirmed by Ka
 
 ### 验收（对应 DESIGN §10 W4）
 
-- [x] 上面的端到端流程走通，设备在 15 秒内显示在线（截图或录屏） — A fresh isolated deployment/database and unenrolled native client reached rendered online in 3.723 seconds. Initial device/token counts were zero; all five screenshots, credential/key provenance and restoration were checked. [Evidence and lab CA/DNS/1 GiB limits](../deploy/validation-native-fresh-browser.md).
+- [ ] 上面的端到端流程走通，设备在 15 秒内显示在线（截图或录屏） — The earlier fresh run passed in 3.723 seconds; its [evidence and lab limits](../deploy/validation-native-fresh-browser.md) remain archived. A later retained run took 16.862 seconds and exposed a timer-phase regression. The corrected observation cadence requires native revalidation before this item closes again.
 - [x] 同一个 token 用第二次会失败；过期 token 会失败（贴输出） — Immediate unexpired replay and a naturally expired unused token returned 401 without database mutation. The same expired request with a fresh token enrolled successfully. [Responses and independent controls](../deploy/validation-enrollment-boundaries.md).
 - [x] 手工改坏声明里的一个字符，frpc 登录被拒（贴 frps 日志） — Actual official client/frps logs and Login/invalid_claim matched in PR #134/run 39917999149. [Observed output](../deploy/validation-enrollment-boundaries.md#operation-specific-relay-rejection).
 - [x] 把一台设备的 `subdomain` 改成另一台设备的，`NewProxy` 被拒（贴日志） — A valid Login was followed by NewProxy/proxy_policy before either route existed; both legitimate routes subsequently passed verified TLS. [Observed output](../deploy/validation-enrollment-boundaries.md#operation-specific-relay-rejection).

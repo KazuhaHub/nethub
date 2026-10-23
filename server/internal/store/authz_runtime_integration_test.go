@@ -25,6 +25,7 @@ import (
 
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
 	"github.com/KazuhaHub/nethub/server/internal/relayhook"
+	"github.com/KazuhaHub/nethub/server/internal/relaystate"
 )
 
 func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
@@ -252,11 +253,12 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 			t.Fatal("runtime did not poll the admin API at its production cadence")
 		}
 	}
-	if secondPoll.Sub(firstPoll) < 14*time.Second {
-		t.Fatal("runtime used a faster observation cadence than the configured 15 seconds")
+	if elapsed := secondPoll.Sub(firstPoll); elapsed < 4*time.Second || elapsed > 8*time.Second {
+		t.Fatal("runtime did not use the configured five-second observation cadence")
 	}
 	seen := false
-	for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); {
+	// A scheduled observation can skip the row during the deliberate lock above.
+	for deadline := time.Now().Add(relaystate.Interval + 3*time.Second); time.Now().Before(deadline); {
 		if err := f.owner.QueryRowContext(f.ctx, `SELECT coalesce(last_seen_at BETWEEN statement_timestamp()-interval '5 seconds' AND statement_timestamp(),false) FROM devices WHERE id=$1`, result.DeviceID).Scan(&seen); err != nil {
 			t.Fatal(err)
 		}
