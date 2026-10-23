@@ -146,6 +146,9 @@ func TestHTTP01InitializationCompiledCommand(t *testing.T) {
 	directory, path, policy := http01InitializationFixture(t)
 	binary := os.Getenv("NETHUB_TEST_AUTHORITY_CLI")
 	if binary == "" {
+		if os.Getenv("NETHUB_TEST_HTTP01_CLI_REQUIRED") == "1" {
+			t.Fatal("deployment acceptance requires the compiled HTTP-01 initializer")
+		}
 		t.Skip("requires the compiled deployment CLI")
 	}
 	if !filepath.IsAbs(binary) {
