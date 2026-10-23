@@ -1529,10 +1529,17 @@ The configuration writer and private temporary-file handoff were confirmed by Ka
 - [x] 契约测试（Go 和 Python 两端）在 CI 里跑，绿；故意改坏一个示例时会变红 — PR #40/run 39207923123; both real suites failed on the deliberately broken valid fixture, then passed after restoration.
 - [x] 日志里搜不到 token、`device_secret`、声明的内容（`docker compose logs | grep` 检查） — Retained API/native runs checked 20 known credential values in six service logs; hosted denial tests also scanned every enrollment request, nested auth tokens and original/tampered claims across client/authz/frps logs. [Scope](../deploy/validation-enrollment-boundaries.md).
 - [x] web 容器里没有签名密钥、frps 的管理凭证、frps auth token（`docker compose exec nethub-web ls` 对应的密钥目录，贴输出）；`nethub doctor` 的分离检查通过 — The stopped distroless container's actual secret-directory archive contained only pg_nethub_web and secrets_key; read-only mount/image checks and the protected file doctor passed. [Scope and output](../deploy/validation-enrollment-boundaries.md).
-- [ ] unenroll 之后，设备在控制台里显示已撤销，它原来的子域名打不开
+- [x] unenroll 之后，设备在控制台里显示已撤销，它原来的子域名打不开 — Actual native UI removal returned complete cleanup; a fresh console login rendered Revoked and PostgreSQL confirmed it. The former subdomain reached the live public TCP listener but could no longer complete TLS. [Evidence and private CA/1 GiB scope](../deploy/validation-native-gui-lifecycle.md).
 - [ ] Relay certificate renewal automatically issues and applies changed material, retries application without reissuing, verifies the served certificate and records recovery time.
 - [ ] Public trust distribution records authenticated applied generations and exercises an offline-device/root-transition recovery path; issuer private keys remain outside application runtime containers.
 - [ ] The external reverse-proxy path owns console TLS, exposes no unprotected origin listener, and rejects spoofed forwarding headers. Router GUI certificate issuance, installation and renewal are required in v1; test wrong-host/key rejection, rollback, offline recovery and reboot persistence.
+
+Native GUI certificate progress (2026-10-23): genuine package cron installed and
+confirmed two generations from one native key/CSR through the public NAT relay.
+Natural renewal produced exactly two real orders/finalizations; both served
+leaves passed independent chain/name/fingerprint checks. [Scoped measurements](../deploy/validation-native-gui-lifecycle.md).
+Wrong-host/key, application failure/rollback, offline/reboot and public CA
+acceptance remain open; the combined certificate checkbox is not complete.
 
 ### 常见坑
 
