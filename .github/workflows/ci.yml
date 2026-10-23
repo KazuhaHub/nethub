@@ -51,6 +51,16 @@ jobs:
         env:
           NETHUB_UI_EVIDENCE: ${{ runner.temp }}/nethub-ui-evidence
         run: |
+          # Bound Playwright's nested APT downloads on the hosted runner.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          printf '%s\n' \
+            'Acquire::Retries "2";' \
+            'Acquire::http::Timeout "15";' \
+            'Acquire::https::Timeout "15";' \
+            'APT::Update::Error-Mode "any";' \
+            | sudo tee /etc/apt/apt.conf.d/80-nethub-ci >/dev/null
           npx playwright install --with-deps chromium
           npm run verify
       - name: Check module integrity and formatting
