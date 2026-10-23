@@ -1521,7 +1521,7 @@ The configuration writer and private temporary-file handoff were confirmed by Ka
 
 ### 验收（对应 DESIGN §10 W4）
 
-- [ ] 上面的端到端流程走通，设备在 15 秒内显示在线（截图或录屏）
+- [ ] 上面的端到端流程走通，设备在 15 秒内显示在线（截图或录屏） — Native UI/rendering passed in 5.968 seconds on a fresh client and retained isolated backend; [scoped evidence](../deploy/validation-native-browser.md). Fresh-server initialization remains unverified, so this gate stays open.
 - [ ] 同一个 token 用第二次会失败；过期 token 会失败（贴输出）
 - [ ] 手工改坏声明里的一个字符，frpc 登录被拒（贴 frps 日志）
 - [ ] 把一台设备的 `subdomain` 改成另一台设备的，`NewProxy` 被拒（贴日志）
