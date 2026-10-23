@@ -173,7 +173,48 @@ final class NativeGuiCertificateStore
 
     private function hash(?SimpleXMLElement $node): ?string
     {
-        return $node === null ? null : hash('sha256', dom_import_simplexml($this->node($node->asXML()))->C14N());
+        if ($node === null) {
+            return null;
+        }
+        $node = $this->node($node->asXML());
+        if (preg_match('/\ANetHub managed GUI [a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\z/D', (string)$node->descr)) {
+            $element = dom_import_simplexml($node);
+            foreach ($element->attributes as $attribute) {
+                if ($attribute->name !== 'uuid' || $attribute->namespaceURI !== null ||
+                    !preg_match('/\A[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\z/D', $attribute->value)) {
+                    throw new RuntimeException('Native managed certificate shape needs local review');
+                }
+            }
+            $fields = [];
+            foreach ($element->childNodes as $child) {
+                if (!$child instanceof DOMElement || $child->namespaceURI !== null || $child->hasAttributes() ||
+                    !in_array($child->tagName, ['refid', 'descr', 'crt', 'prv', 'caref', 'csr'], true) ||
+                    array_key_exists($child->tagName, $fields)) {
+                    throw new RuntimeException('Native managed certificate shape needs local review');
+                }
+                foreach ($child->childNodes as $text) {
+                    if (!$text instanceof DOMText) {
+                        throw new RuntimeException('Native managed certificate shape needs local review');
+                    }
+                }
+                $fields[$child->tagName] = $child->textContent;
+            }
+            foreach (['refid', 'descr', 'crt', 'prv'] as $required) {
+                if (!array_key_exists($required, $fields)) {
+                    throw new RuntimeException('Native managed certificate shape needs local review');
+                }
+            }
+            // Core Trust adds a UUID and empty optional fields when saving its model.
+            // Keep the original four-field digest stable; bind all certificate material.
+            $node = new SimpleXMLElement('<cert/>');
+            foreach (['refid', 'descr', 'crt', 'prv', 'caref', 'csr'] as $name) {
+                if (array_key_exists($name, $fields) && (!in_array($name, ['caref', 'csr'], true) || $fields[$name] !== '')) {
+                    $node->addChild($name);
+                    $node->{$name} = $fields[$name];
+                }
+            }
+        }
+        return hash('sha256', dom_import_simplexml($node)->C14N());
     }
 
     private function replace(SimpleXMLElement $root, string $ref, ?string $xml): void
@@ -346,7 +387,11 @@ final class NativeGuiCertificateStore
             throw new RuntimeException('Invalid native GUI port');
         }
         $after = new SimpleXMLElement('<cert/>');
-        foreach (['refid' => $ref, 'descr' => $description, 'crt' => base64_encode($chain), 'prv' => base64_encode($pem)] as $field => $text) {
+        if ($before !== null && isset($before['uuid'])) {
+            $after->addAttribute('uuid', (string)$before['uuid']);
+        }
+        foreach (['refid' => $ref, 'descr' => $description, 'caref' => '',
+                  'crt' => base64_encode($chain), 'csr' => '', 'prv' => base64_encode($pem)] as $field => $text) {
             $after->addChild($field, $text);
         }
         $snapshot = ['version' => 1, 'nonce' => $request['nonce'], 'candidate_sha256' => $request['candidate_sha256'],
