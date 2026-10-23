@@ -35,8 +35,17 @@ def service_log(service, label):
 
 
 def hook_events(label):
-    records = [json.loads(line) for line in service_log("nethub-authz", label).splitlines() if line.strip()]
-    return [record for record in records if record.get("msg") == "Relay hook decision"]
+    startup = {b"Read-only relay observation enabled",
+               b"Device enrollment API and internal relay hooks started"}
+    events = []
+    for line in service_log("nethub-authz", label).splitlines():
+        if not line.strip() or line in startup:
+            continue
+        record = json.loads(line)
+        assert isinstance(record, dict)
+        if record.get("msg") == "Relay hook decision":
+            events.append(record)
+    return events
 
 
 def stop_client(client):
@@ -133,6 +142,7 @@ try:
         request = {"agent_protocol_version": "1.0.0", "enroll_token": token, "platform": "opnsense",
                    "platform_version": "26.7.7", "agent_version": "0.0.2", "capabilities": ["remote.web"],
                    "hostname": f"router{index}.example.com", "cluster_hint": False}
+        (work / f"enrollment-request{index}.json").write_text(json.dumps(request), encoding="utf-8")
         assignment = curl("/api/v1/devices/enroll", request)
         assert assignment["server_name"] == "console.example.com" and assignment["server_port"] == 7000
         (work / f"assignment{index}.json").write_text(json.dumps(assignment), encoding="utf-8")
