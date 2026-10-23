@@ -74,6 +74,7 @@ try {
   const failures = [];
   const external = [];
   let inventoryRequests = 0;
+  let activeInventoryRefreshes = 0;
   await context.exposeBinding("recordCSP", (_, value) =>
     violations.push(value),
   );
@@ -90,6 +91,9 @@ try {
     if (!request.url().startsWith(origin + "/")) external.push(request.url());
     if (new URL(request.url()).pathname === "/api/v1/console/devices") {
       inventoryRequests++;
+      if (request.headers()["x-nethub-background"] === undefined) {
+        activeInventoryRefreshes++;
+      }
     }
   });
   await page.goto(origin);
@@ -129,6 +133,22 @@ try {
   const opener = page.getByRole("button", { name: "Add device", exact: true });
   await opener.click();
   const dialog = page.getByRole("dialog", { name: "Add a device" });
+  async function closeDialogOnce(action) {
+    const before = activeInventoryRefreshes;
+    await action();
+    await dialog.waitFor({ state: "hidden" });
+    await page.waitForTimeout(200);
+    await page.waitForFunction(
+      () =>
+        !document.querySelector('button[aria-label="Refresh devices"]')
+          ?.disabled,
+    );
+    assert.equal(
+      activeInventoryRefreshes - before,
+      1,
+      "One dialog dismissal must trigger exactly one active inventory refresh",
+    );
+  }
   await dialog.waitFor();
   await page
     .getByRole("button", { name: "Generate token", exact: true })
@@ -164,7 +184,7 @@ try {
       ),
     );
   }
-  await page.keyboard.press("Escape");
+  await closeDialogOnce(() => page.keyboard.press("Escape"));
   await dialog.waitFor({ state: "hidden" });
   assert.equal(await tokenField.count(), 0);
   assert.ok(
@@ -187,7 +207,12 @@ try {
     .getByText("This token expired. Generate a new one when you are ready.")
     .waitFor();
   assert.equal(await tokenField.count(), 0);
-  await page.getByRole("button", { name: "Close dialog" }).click();
+  await closeDialogOnce(() =>
+    page.getByRole("button", { name: "Close dialog" }).click(),
+  );
+  console.log(
+    "Dialog Escape and close button each triggered exactly one active inventory refresh.",
+  );
   await page.request.post(origin + "/test/devices");
   await page
     .getByText("Branch office", { exact: true })

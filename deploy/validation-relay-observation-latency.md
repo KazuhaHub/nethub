@@ -46,10 +46,14 @@ acceptance and a native repeat with the corrected runtime remain required. The
 W4 online-latency checkbox is reopened until that native revalidation passes;
 the failed run is not relabeled as a successful 15-second result.
 
-Hosted acceptance also exposed two test-harness problems. Inventory refreshes
-could still be in flight when the deployed browser advanced to its next step;
-the test now waits for the active inventory response and completed body. It
-retains the zero-unexpected-network-failures assertion.
+Hosted acceptance also exposed duplicate dialog dismissal. Escape and the close
+button notified the parent, then the controlled native `close` event notified it
+again. Each dismissal started two inventory refreshes and cancelled the first.
+The dialog now uses its native close event as the single notification boundary.
+A real-browser regression observed two active refreshes before the change and
+requires exactly one after each dismissal. The deployed browser also waits for
+the active response and completed body before its next transition. Both the
+zero-unexpected-network-failures assertion and native focus behavior remain.
 
 A later run reached official frps configuration validation, then exhausted its
 20-minute job deadline without reporting the next phase. The available log does

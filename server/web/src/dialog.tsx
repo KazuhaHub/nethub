@@ -25,10 +25,8 @@ export function NativeDialog({
       ref={ref}
       className="native-dialog"
       aria-labelledby={titleId}
-      onClose={onClose}
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
+      onClose={() => {
+        if (open) onClose();
       }}
       onKeyDown={(event) => {
         if (event.key !== "Tab") return;
@@ -60,7 +58,7 @@ export function NativeDialog({
           variant="ghost"
           size="icon"
           aria-label="Close dialog"
-          onClick={onClose}
+          onClick={() => ref.current?.close()}
         >
           <X />
         </Button>
