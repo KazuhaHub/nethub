@@ -1,12 +1,17 @@
 # Relay observations
 
-The authz runtime polls frps immediately, then every 15 seconds without overlapping
+The authz runtime polls frps immediately, then every five seconds without overlapping
 requests. Enable it with `--frps-admin-origin`, `--frps-admin-user-file` and
 `--frps-admin-password-file`; partial configuration fails startup. Credentials
 come from private regular files. The origin has an explicit port and no path,
 userinfo, query or fragment. DNS results must all be private or loopback; the
 transport dials a validated literal address, ignores environment proxies and
 never follows redirects. HTTPS uses normal system-root/hostname verification.
+
+A new proxy can appear just after an empty snapshot. A 15-second observation
+period consumed the entire enrollment-to-online target before enrollment and
+rendering overhead. The five-second period leaves room for both. This display
+poller does not change the separate revocation-discovery or heartbeat policy.
 
 The fixed read-only request is `GET /api/proxy/https`, following frp 0.71.1's
 [router](https://github.com/fatedier/frp/blob/v0.71.1/server/api_router.go),
@@ -45,6 +50,8 @@ redirect/proxy isolation, TLS rejection, stalled responses and safe retry loggin
 The genuine PostgreSQL follow-up tests matching/unknown/revoked/wrong routes,
 multiple tenant scopes, unchanged identity fields, console expiry, lock skipping
 and role grants. Its compiled CLI test uses a local admin HTTP fixture at the
-real 15-second cadence and checks persisted status plus clean shutdown. Those
-native additions still need CI. Real frps responses and multi-client traffic
-remain W4 deployment acceptance; the fixture is not a real relay process.
+real five-second cadence and checks persisted status plus clean shutdown. A
+production-cadence regression registers a proxy immediately after an empty poll
+and requires repository delivery within eight seconds, without shortening the
+timer in the test. Real frps/native timings remain separate deployment evidence;
+the local HTTP fixture is not a real relay process.

@@ -35,6 +35,11 @@ test("the request wrapper attaches CSRF, clears it on 401, and never puts creden
     assert.equal(calls[1].init.headers["X-CSRF-Token"], "fixture-csrf");
     assert.equal(calls[1].init.credentials, "same-origin");
     assert.equal(calls[1].init.cache, "no-store");
+    await api.devices(null, "all", undefined, true);
+    assert.equal(calls.at(-1).init.headers["X-NetHub-Background"], "1");
+    assert.equal(calls.at(-1).init.method, "GET");
+    await api.devices(null, "all");
+    assert.equal(calls.at(-1).init.headers["X-NetHub-Background"], undefined);
     assert.ok(
       calls.every(
         (call) =>

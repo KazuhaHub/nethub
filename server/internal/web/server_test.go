@@ -57,6 +57,46 @@ func (f *fixtureRepository) DeleteSession(_ context.Context, digest []byte, _ ne
 	delete(f.sessions, string(digest))
 	return f.failure
 }
+func (f *fixtureRepository) LookupSessionPassive(ctx context.Context, digest []byte, idle time.Duration) (auth.SessionRecord, error) {
+	return f.LookupSession(ctx, digest, idle)
+}
+
+type passiveOnlyRepository struct {
+	*fixtureRepository
+	passiveCalls int
+}
+
+func (f *passiveOnlyRepository) LookupSession(context.Context, []byte, time.Duration) (auth.SessionRecord, error) {
+	return auth.SessionRecord{}, auth.ErrUnavailable
+}
+
+func (f *passiveOnlyRepository) LookupSessionPassive(ctx context.Context, digest []byte, idle time.Duration) (auth.SessionRecord, error) {
+	f.passiveCalls++
+	return f.fixtureRepository.LookupSession(ctx, digest, idle)
+}
+
+func TestOnlyBackgroundInventoryUsesPassiveAuthentication(t *testing.T) {
+	server, original, _ := newFixture(t)
+	repository := &passiveOnlyRepository{fixtureRepository: original}
+	service, err := auth.NewService(repository, auth.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.auth = service
+	cookie, session := fixtureLogin(t, server)
+	headers := map[string]string{"X-NetHub-Background": "1"}
+	if response := call(server, "GET", prefix+"/devices", "", cookie, headers); response.Code != 200 || repository.passiveCalls != 1 {
+		t.Fatal("background inventory did not use passive session validation")
+	}
+	if response := call(server, "GET", prefix+"/devices", "", cookie, nil); response.Code != 500 {
+		t.Fatal("manual inventory unexpectedly bypassed active authentication")
+	}
+	headers["Content-Type"] = "application/json"
+	headers["X-CSRF-Token"] = session.CSRFToken
+	if response := call(server, "POST", prefix+"/enroll-tokens", `{}`, cookie, headers); response.Code != 500 || repository.passiveCalls != 1 {
+		t.Fatal("background marker changed mutation authentication")
+	}
+}
 func (f *fixtureRepository) Health(context.Context) error { return f.failure }
 func (f *fixtureRepository) Devices(context.Context, string, DeviceQuery) (DevicePage, error) {
 	return f.page, f.failure

@@ -57,6 +57,9 @@ func (r *repository) DeleteSession(_ context.Context, digest []byte, _ netip.Add
 	delete(r.sessions, string(digest))
 	return nil
 }
+func (r *repository) LookupSessionPassive(ctx context.Context, digest []byte, idle time.Duration) (auth.SessionRecord, error) {
+	return r.LookupSession(ctx, digest, idle)
+}
 func (r *repository) Health(context.Context) error                  { return nil }
 func (r *repository) LoginFailed(context.Context, netip.Addr) error { return nil }
 func (r *repository) Devices(_ context.Context, _ string, query web.DeviceQuery) (web.DevicePage, error) {

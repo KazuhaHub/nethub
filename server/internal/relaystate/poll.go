@@ -15,7 +15,8 @@ import (
 	"time"
 )
 
-const Interval = 15 * time.Second
+// Leave time for enrollment and rendering within the 15-second online target.
+const Interval = 5 * time.Second
 const MaxProxies = 1024
 const maxBody = 1024 * 1024
 

@@ -75,7 +75,13 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (auth.Sess
 		writeError(w, r, 401, "unauthenticated", "Sign in to continue")
 		return auth.Session{}, "", false
 	}
-	session, err := s.auth.Authenticate(r.Context(), token)
+	var session auth.Session
+	if r.Method == http.MethodGet && r.URL.Path == "/api/v1/console/devices" &&
+		len(r.Header.Values("X-NetHub-Background")) == 1 && r.Header.Get("X-NetHub-Background") == "1" {
+		session, err = s.auth.AuthenticatePassive(r.Context(), token)
+	} else {
+		session, err = s.auth.Authenticate(r.Context(), token)
+	}
 	if errors.Is(err, auth.ErrUnauthenticated) {
 		http.SetCookie(w, auth.ClearSessionCookie())
 		writeError(w, r, 401, "unauthenticated", "Sign in to continue")

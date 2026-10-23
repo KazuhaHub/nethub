@@ -77,6 +77,23 @@ try {
   });
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
+  const inventoryAfter = async (action) => {
+    const response = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === "/api/v1/console/devices" &&
+        response.request().method() === "GET" &&
+        response.request().headers()["x-nethub-background"] === undefined &&
+        response.status() === 200,
+    );
+    await action();
+    assert.equal(await (await response).finished(), null);
+    await page.getByRole("button", { name: "Refresh devices" }).waitFor();
+    await page.waitForFunction(
+      () =>
+        !document.querySelector('button[aria-label="Refresh devices"]')
+          ?.disabled,
+    );
+  };
   let cspViolations = 0;
   let browserErrors = 0;
   let externalRequests = 0;
@@ -109,7 +126,9 @@ try {
   const login = async () => {
     await page.getByLabel("Email address").fill("compose-admin@example.com");
     await page.getByLabel("Password", { exact: true }).fill(password);
-    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await inventoryAfter(() =>
+      page.getByRole("button", { name: "Sign in", exact: true }).click(),
+    );
     await page.getByRole("heading", { name: "Devices", exact: true }).waitFor();
     await page
       .getByRole("heading", { name: "Your network starts here" })
@@ -126,7 +145,7 @@ try {
   assert.ok(
     !(await page.evaluate(() => document.cookie)).includes(session.value),
   );
-  await page.reload();
+  await inventoryAfter(() => page.reload());
   await page
     .getByRole("heading", { name: "Your network starts here" })
     .waitFor();
@@ -189,7 +208,7 @@ try {
         ),
       );
     }
-    await page.keyboard.press("Escape");
+    await inventoryAfter(() => page.keyboard.press("Escape"));
     await dialog.waitFor({ state: "hidden" });
     assert.equal(await tokenField.count(), 0);
     assert.ok(

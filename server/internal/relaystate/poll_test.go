@@ -79,7 +79,7 @@ func TestAuthenticatedReadOnlyObservation(t *testing.T) {
 		}
 		return nil
 	}), io.Discard)
-	if poller.interval != 15*time.Second || poller.client.Transport.(*http.Transport).Proxy != nil {
+	if poller.interval != 5*time.Second || poller.client.Transport.(*http.Transport).Proxy != nil {
 		t.Fatal("production cadence or direct-connection policy changed")
 	}
 	if err := poller.Poll(context.Background()); err != nil || calls.Load() != 1 {
@@ -216,6 +216,64 @@ func TestRunCadenceCancellationAndSafeRecovery(t *testing.T) {
 		strings.Count(output.String(), "Relay observation resumed") != 1 || strings.Contains(output.String(), password) ||
 		strings.Contains(output.String(), "private database diagnostic") {
 		t.Fatal("observation retry or safe transition logging is incorrect")
+	}
+}
+
+func TestNewProxyAfterEmptyPollLeavesEnrollmentDisplayBudget(t *testing.T) {
+	var live atomic.Bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if live.Load() {
+			_, _ = w.Write(payload(t, proxy()))
+		} else {
+			_, _ = io.WriteString(w, `{"proxies":[]}`)
+		}
+	}))
+	defer server.Close()
+	empty := make(chan struct{}, 1)
+	online := make(chan time.Time, 1)
+	poller := newPoller(t, server.URL, repositoryFunc(func(_ context.Context, values []Observation) error {
+		if len(values) == 0 {
+			select {
+			case empty <- struct{}{}:
+			default:
+			}
+		} else if len(values) == 1 && values[0] == (Observation{DeviceID: deviceID, Subdomain: "abcd1234"}) {
+			select {
+			case online <- time.Now():
+			default:
+			}
+		} else {
+			t.Error("unexpected relay observation")
+		}
+		return nil
+	}), io.Discard)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { poller.Run(ctx); close(done) }()
+	defer func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Error("observation loop did not stop after cancellation")
+		}
+	}()
+	select {
+	case <-empty:
+	case <-time.After(time.Second):
+		t.Fatal("initial empty relay poll did not complete")
+	}
+	// Register immediately after an empty snapshot to exercise the worst timer phase.
+	registered := time.Now()
+	live.Store(true)
+	select {
+	case observed := <-online:
+		if observed.Sub(registered) > 8*time.Second {
+			t.Fatal("relay discovery exhausted the enrollment display budget")
+		}
+	case <-time.After(8 * time.Second):
+		t.Fatal("new proxy was not observed with time left for enrollment and rendering")
 	}
 }
 

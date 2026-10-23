@@ -358,6 +358,30 @@ func TestPostgresBoundaries(t *testing.T) {
 		if _, err = storeB.LookupSession(ctx, tokenDigest, 30*time.Minute); !errors.Is(err, auth.ErrUnauthenticated) {
 			t.Fatalf("session crossed tenant: %v", err)
 		}
+		if _, err = storeB.LookupSessionPassive(ctx, tokenDigest, 30*time.Minute); !errors.Is(err, auth.ErrUnauthenticated) {
+			t.Fatal("passive session lookup crossed tenant")
+		}
+		if _, err = service.Authenticate(ctx, login.Token); err != nil {
+			t.Fatal(err)
+		}
+		var activityBefore, activityAfter time.Time
+		if err = owner.QueryRowContext(ctx, `SELECT last_seen_at FROM sessions WHERE token_hash=$1`, tokenDigest).Scan(&activityBefore); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(1200 * time.Millisecond)
+		if passive, lookupError := storeA.LookupSessionPassive(ctx, tokenDigest, 3*time.Second); lookupError != nil || passive.ID != actor {
+			t.Fatal("passive read rejected an unexpired session")
+		}
+		if err = owner.QueryRowContext(ctx, `SELECT last_seen_at FROM sessions WHERE token_hash=$1`, tokenDigest).Scan(&activityAfter); err != nil || !activityAfter.Equal(activityBefore) {
+			t.Fatal("passive lookup refreshed idle activity")
+		}
+		time.Sleep(2100 * time.Millisecond)
+		for _, lookup := range []func(context.Context, []byte, time.Duration) (auth.SessionRecord, error){storeA.LookupSessionPassive, storeA.LookupSession} {
+			if _, err = lookup(ctx, tokenDigest, 3*time.Second); !errors.Is(err, auth.ErrUnauthenticated) {
+				t.Fatal("background or active lookup revived a naturally idle-expired session")
+			}
+		}
+		t.Log("Passive session lookup preserved last_seen_at and natural idle expiry; active lookup could not revive it")
 		if _, err = owner.ExecContext(ctx, `UPDATE users SET role='admin' WHERE id=$1`, actor); err != nil {
 			t.Fatal(err)
 		}
@@ -365,12 +389,18 @@ func TestPostgresBoundaries(t *testing.T) {
 		if err != nil || current.User.Role != "admin" {
 			t.Fatal("session retained stale role")
 		}
+		if passive, passiveError := service.AuthenticatePassive(ctx, login.Token); passiveError != nil || passive.User.Role != "admin" {
+			t.Fatal("passive lookup retained a stale role")
+		}
 		// Return to member before disable so last-admin protection is independent.
 		if _, err = owner.ExecContext(ctx, `UPDATE users SET role='member',disabled_at=now() WHERE id=$1`, actor); err != nil {
 			t.Fatal(err)
 		}
 		if _, err = service.Authenticate(ctx, login.Token); !errors.Is(err, auth.ErrUnauthenticated) {
 			t.Fatal("disabled account retained a live session")
+		}
+		if _, err = service.AuthenticatePassive(ctx, login.Token); !errors.Is(err, auth.ErrUnauthenticated) {
+			t.Fatal("passive lookup accepted a disabled account")
 		}
 		if _, err = service.Login(ctx, "auth-member@example.com", password, ip, "test"); !errors.Is(err, auth.ErrInvalidCredentials) {
 			t.Fatal("disabled account logged in")
@@ -428,50 +458,53 @@ func TestPostgresBoundaries(t *testing.T) {
 		}
 		// Admission must use the clock after either row-lock wait, rather than
 		// the statement start time at which this session was still valid.
-		for _, lockQuery := range []string{`SELECT id FROM users WHERE id=$1 FOR UPDATE`, `SELECT id FROM sessions WHERE user_id=$1 FOR UPDATE`} {
-			if _, err = owner.ExecContext(ctx, `UPDATE sessions SET last_seen_at=clock_timestamp(),expires_at=clock_timestamp()+interval '150 milliseconds' WHERE user_id=$1`, actor); err != nil {
-				t.Fatal(err)
-			}
-			blocker, err := owner.BeginTx(ctx, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer blocker.Rollback()
-			if _, err = blocker.ExecContext(ctx, lockQuery, actor); err != nil {
-				t.Fatal(err)
-			}
-			lookupResult := make(chan error, 1)
-			go func() { _, err := storeA.LookupSession(ctx, tokenDigest, 30*time.Minute); lookupResult <- err }()
-			waiting := false
-			for range 100 {
-				var blocked int
-				if err = owner.QueryRowContext(ctx, `SELECT count(*) FROM pg_locks WHERE locktype='transactionid' AND NOT granted`).Scan(&blocked); err != nil {
+		for _, lookup := range []func(context.Context, []byte, time.Duration) (auth.SessionRecord, error){storeA.LookupSession, storeA.LookupSessionPassive} {
+			for _, lockQuery := range []string{`SELECT id FROM users WHERE id=$1 FOR UPDATE`, `SELECT id FROM sessions WHERE user_id=$1 FOR UPDATE`} {
+				if _, err = owner.ExecContext(ctx, `UPDATE sessions SET last_seen_at=clock_timestamp(),expires_at=clock_timestamp()+interval '150 milliseconds' WHERE user_id=$1`, actor); err != nil {
 					t.Fatal(err)
 				}
-				if blocked > 0 {
-					waiting = true
-					break
+				blocker, err := owner.BeginTx(ctx, nil)
+				if err != nil {
+					t.Fatal(err)
 				}
-				time.Sleep(10 * time.Millisecond)
-			}
-			if !waiting {
-				t.Fatal("lookup did not reach the row lock")
-			}
-			if _, err = owner.ExecContext(ctx, `SELECT pg_sleep(0.2)`); err != nil {
-				t.Fatal(err)
-			}
-			if err = blocker.Commit(); err != nil {
-				t.Fatal(err)
-			}
-			select {
-			case err := <-lookupResult:
-				if !errors.Is(err, auth.ErrUnauthenticated) {
-					t.Fatalf("accepted expiry during lock wait: %v", err)
+				defer blocker.Rollback()
+				if _, err = blocker.ExecContext(ctx, lockQuery, actor); err != nil {
+					t.Fatal(err)
 				}
-			case <-ctx.Done():
-				t.Fatal("blocked session lookup did not finish")
+				lookupResult := make(chan error, 1)
+				go func() { _, err := lookup(ctx, tokenDigest, 30*time.Minute); lookupResult <- err }()
+				waiting := false
+				for range 100 {
+					var blocked int
+					if err = owner.QueryRowContext(ctx, `SELECT count(*) FROM pg_locks WHERE locktype='transactionid' AND NOT granted`).Scan(&blocked); err != nil {
+						t.Fatal(err)
+					}
+					if blocked > 0 {
+						waiting = true
+						break
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+				if !waiting {
+					t.Fatal("lookup did not reach the row lock")
+				}
+				if _, err = owner.ExecContext(ctx, `SELECT pg_sleep(0.2)`); err != nil {
+					t.Fatal(err)
+				}
+				if err = blocker.Commit(); err != nil {
+					t.Fatal(err)
+				}
+				select {
+				case err := <-lookupResult:
+					if !errors.Is(err, auth.ErrUnauthenticated) {
+						t.Fatalf("accepted expiry during lock wait: %v", err)
+					}
+				case <-ctx.Done():
+					t.Fatal("blocked session lookup did not finish")
+				}
 			}
 		}
+		t.Log("Active and passive session lookups rejected expiry after both real row-lock waits")
 		if _, err = owner.ExecContext(ctx, `UPDATE sessions SET last_seen_at=clock_timestamp(),expires_at=clock_timestamp()+interval '1 hour' WHERE user_id=$1`, actor); err != nil {
 			t.Fatal(err)
 		}

@@ -40,10 +40,12 @@ type SessionRecord struct {
 // Repository is bound to the deployment tenant. Session creation must recheck
 // the verified password and active user atomically; lookup must enforce idle
 // and absolute expiry and reload current role/disable state on every request.
+// Passive lookup applies the same checks without updating session activity.
 type Repository interface {
 	PasswordCandidate(context.Context, string) (Candidate, error)
 	CreateSession(context.Context, Candidate, SessionRecord) (SessionRecord, error)
 	LookupSession(context.Context, []byte, time.Duration) (SessionRecord, error)
+	LookupSessionPassive(context.Context, []byte, time.Duration) (SessionRecord, error)
 	DeleteSession(context.Context, []byte, netip.Addr) error
 }
 
@@ -162,11 +164,25 @@ func (s *Service) Login(ctx context.Context, email, password string, ip netip.Ad
 }
 
 func (s *Service) Authenticate(ctx context.Context, token string) (Session, error) {
+	return s.authenticate(ctx, token, false)
+}
+
+// AuthenticatePassive enforces current session/user state without extending idle activity.
+func (s *Service) AuthenticatePassive(ctx context.Context, token string) (Session, error) {
+	return s.authenticate(ctx, token, true)
+}
+
+func (s *Service) authenticate(ctx context.Context, token string, passive bool) (Session, error) {
 	digest, err := tokenHash(token)
 	if err != nil {
 		return Session{}, ErrUnauthenticated
 	}
-	record, err := s.repository.LookupSession(ctx, digest, s.config.IdleTimeout)
+	var record SessionRecord
+	if passive {
+		record, err = s.repository.LookupSessionPassive(ctx, digest, s.config.IdleTimeout)
+	} else {
+		record, err = s.repository.LookupSession(ctx, digest, s.config.IdleTimeout)
+	}
 	if errors.Is(err, ErrUnauthenticated) {
 		return Session{}, err
 	}

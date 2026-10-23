@@ -783,6 +783,14 @@ OIDC 提供方不在 init 里配：init 完成后由管理员在控制台里添�
 `nethub init`（生成密钥、写配置、创建首个管理员）→ `docker compose up -d` → 用管理员登录控制台 →
 点"添加设备"拿到一次性 token → 在路由器 GUI 里 Services → NetHub Agent 粘贴 token 点 Enroll →
 15 秒内设备列表显示在线 → 点"打开"，新标签页打开这台 OPNsense 的 GUI
+
+The read-only display poll uses a five-second period so a newly registered proxy
+can meet this target even when it just missed the previous snapshot. It updates
+only recent-observation timestamps. The separate 15-second revocation-discovery
+schedule, three-confirmation policy and D6 heartbeat settings remain unchanged.
+Visible inventory refresh uses the same five-second budget and passive session
+checks, preserving idle expiry. Hidden pages pause requests; active refreshes
+retain normal session activity.
 （仍需用 OPNsense 自己的账号登录；若 Q7 的门禁落地，"打开"同时登记你当前的源 IP）。
 
 **这条路径上任何一步需要读文档，就是一个要修的 bug。**

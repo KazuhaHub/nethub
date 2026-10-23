@@ -16,6 +16,7 @@ for port in (7000,8443):
             raise SystemExit('Relay acceptance requires unused TCP 7000 and 8443; no existing service was changed')
 PY
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+python3 "$root/server/tests/test_compose_boundaries.py"
 python3 "$root/server/tests/test_trust_report_fault.py"
 stage=$(mktemp -d)
 project="nethub-stack-test-$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"
@@ -33,38 +34,50 @@ guiissuer_binary_holder="$project-guiissuer-binary"
 setup_test_image="$project-setup-test:local"
 setup_binary_holder="$project-setup-binary"
 pebble_image='ghcr.io/letsencrypt/pebble@sha256:5080492187bea12909c053d7a2b90a9e95104ef1c82381828e7823db71ce7e54'
-compose() { docker compose -p "$project" -f "$stage/deployment/docker-compose.yml" -f "$stage/deployment/docker-compose.override.yml" -f "$stage/test.yml" "$@"; }
+compose_for() (
+    limit=$1
+    shift
+    exec timeout --signal=TERM --kill-after=5 "$limit" docker compose -p "$project" \
+        -f "$stage/deployment/docker-compose.yml" -f "$stage/deployment/docker-compose.override.yml" \
+        -f "$stage/test.yml" "$@"
+)
+compose() { compose_for 210 "$@"; }
 cleanup() {
     status=$?
+    trap - EXIT HUP INT TERM
     if [ "$status" -ne 0 ]; then
+        echo 'Compose acceptance failed; retained service states follow' >&2
+        timeout --kill-after=5 15 docker ps -a --filter "label=com.docker.compose.project=$project" \
+            --format '{{.Label "com.docker.compose.service"}} state={{.State}} status={{.Status}}' >&2 || true
         for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log" "$stage/frps-build.log" "$stage/http01-build.log" "$stage/guiacme-build.log" "$stage/guiissuer-build.log" "$stage/setup-build.log"; do
             if [ -f "$log" ]; then tail -n 60 "$log" >&2; fi
         done
     fi
-    docker rm -f "$frps_container" >/dev/null 2>&1 || true
-    docker rm -f "$http01_binary_holder" >/dev/null 2>&1 || true
-    docker image rm "$http01_test_image" >/dev/null 2>&1 || true
-    docker rm -f "$guiacme_binary_holder" >/dev/null 2>&1 || true
-    docker image rm "$guiacme_test_image" >/dev/null 2>&1 || true
-    docker rm -f "$guiissuer_binary_holder" >/dev/null 2>&1 || true
-    docker image rm "$guiissuer_test_image" >/dev/null 2>&1 || true
-    docker rm -f "$setup_binary_holder" >/dev/null 2>&1 || true
-    docker image rm "$setup_test_image" >/dev/null 2>&1 || true
+    for container in "$frps_container" "$http01_binary_holder" "$guiacme_binary_holder" "$guiissuer_binary_holder" "$setup_binary_holder"; do
+        timeout --kill-after=5 15 docker rm -f "$container" >/dev/null 2>&1 || true
+    done
+    for test_image in "$http01_test_image" "$guiacme_test_image" "$guiissuer_test_image" "$setup_test_image"; do
+        timeout --kill-after=5 15 docker image rm "$test_image" >/dev/null 2>&1 || true
+    done
     if [ -f "$stage/test.yml" ]; then
-        compose logs --no-color > "$stage/runtime-final.log" 2>&1 || true
-        compose down -v --remove-orphans >/dev/null 2>&1 || true
+        compose_for 20 logs --no-color > "$stage/runtime-final.log" 2>&1 || true
+        compose_for 40 down -v --remove-orphans >/dev/null 2>&1 || true
     fi
-    if [ -z "${NETHUB_RUNTIME_TEST_IMAGE:-}" ]; then docker image rm "$image" >/dev/null 2>&1 || true; fi
-    if [ -z "${NETHUB_POSTGRES_TEST_IMAGE:-}" ]; then docker image rm "$postgres_image" >/dev/null 2>&1 || true; fi
-    if [ -z "${NETHUB_CADDY_TEST_IMAGE:-}" ]; then docker image rm "$caddy_image" >/dev/null 2>&1 || true; fi
-    if [ -z "${NETHUB_FRPS_TEST_IMAGE:-}" ]; then docker image rm "$frps_image" >/dev/null 2>&1 || true; fi
+    if [ -z "${NETHUB_RUNTIME_TEST_IMAGE:-}" ]; then timeout --kill-after=5 15 docker image rm "$image" >/dev/null 2>&1 || true; fi
+    if [ -z "${NETHUB_POSTGRES_TEST_IMAGE:-}" ]; then timeout --kill-after=5 15 docker image rm "$postgres_image" >/dev/null 2>&1 || true; fi
+    if [ -z "${NETHUB_CADDY_TEST_IMAGE:-}" ]; then timeout --kill-after=5 15 docker image rm "$caddy_image" >/dev/null 2>&1 || true; fi
+    if [ -z "${NETHUB_FRPS_TEST_IMAGE:-}" ]; then timeout --kill-after=5 15 docker image rm "$frps_image" >/dev/null 2>&1 || true; fi
     if [ -n "${NETHUB_COMPOSE_EVIDENCE:-}" ]; then
         mkdir -p "$NETHUB_COMPOSE_EVIDENCE"
         tar -czf "$NETHUB_COMPOSE_EVIDENCE/compose-private-evidence.tar.gz" -C "$stage" .
     fi
     case "$stage" in /tmp/*|/var/tmp/*) rm -rf -- "$stage" ;; esac
+    exit "$status"
 }
-trap cleanup EXIT HUP INT TERM
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 if [ -z "${NETHUB_RUNTIME_TEST_IMAGE:-}" ]; then
     docker build -f "$root/deploy/Dockerfile" -t "$image" "$root" > "$stage/build.log" 2>&1
@@ -208,13 +221,19 @@ docker run --rm --network none --entrypoint /frps-official \
     -v "$stage/deployment/runtime/relay:/run/relay:ro" \
     "$frps_image" verify -c /run/secrets/frps.toml > "$stage/frps-official-verify.log" 2>&1
 echo 'Official checksum-verified frps accepted the generated production configuration'
+echo 'Starting the isolated Compose services (210-second command deadline, 150-second health wait)'
 compose up -d --wait --wait-timeout 150 > "$stage/start.log" 2>&1
+echo 'Isolated Compose startup completed; creating the initial administrator (90-second deadline)'
 openssl rand -hex 24 > "$stage/admin-password"
-compose run --rm -T admin-bootstrap --email compose-admin@example.com --password-stdin < "$stage/admin-password" > "$stage/admin.log" 2>&1
-if compose run --rm -T admin-bootstrap --email second@example.com --password-stdin < "$stage/admin-password" > "$stage/repeat-admin.log" 2>&1; then
-    echo 'Repeated administrator bootstrap unexpectedly succeeded' >&2
+compose_for 90 run --rm -T admin-bootstrap --email compose-admin@example.com --password-stdin < "$stage/admin-password" > "$stage/admin.log" 2>&1
+echo 'Initial administrator created; verifying that repeat initialization is closed'
+repeat_status=0
+compose_for 90 run --rm -T admin-bootstrap --email second@example.com --password-stdin < "$stage/admin-password" > "$stage/repeat-admin.log" 2>&1 || repeat_status=$?
+if [ "$repeat_status" -ne 1 ] || ! grep -Fqx 'Accounts already exist; initial administrator creation is closed' "$stage/repeat-admin.log"; then
+    echo "Repeated administrator bootstrap did not return the expected account-state refusal (exit $repeat_status)" >&2
     exit 1
 fi
+echo 'Repeated administrator bootstrap returned the expected account-state refusal'
 python3 - "$stage" <<'PY'
 import json,pathlib,sys
 s=pathlib.Path(sys.argv[1]);(s/'login.json').write_text(json.dumps({'email':'compose-admin@example.com','password':(s/'admin-password').read_text().rstrip('\n')}))
