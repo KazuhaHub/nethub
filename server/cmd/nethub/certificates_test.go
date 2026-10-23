@@ -6,7 +6,7 @@ import (
 )
 
 func TestCertificateCommandBoundaries(t *testing.T) {
-	for _, args := range [][]string{{"certificates"}, {"certificates", "unknown"}, {"certificates", "maintain-relay", "--unknown"}, {"certificates", "maintain-relay", "unexpected"}, {"certificates", "cleanup-http01", "--unknown"}, {"certificates", "cleanup-http01", "unexpected"}} {
+	for _, args := range [][]string{{"certificates"}, {"certificates", "unknown"}, {"certificates", "maintain-relay", "--unknown"}, {"certificates", "maintain-relay", "unexpected"}, {"certificates", "cleanup-http01", "--unknown"}, {"certificates", "cleanup-http01", "unexpected"}, {"certificates", "initialize-http01", "--unknown"}, {"certificates", "initialize-http01", "unexpected"}} {
 		var out, diagnostic bytes.Buffer
 		if run(args, &out, &diagnostic) != 2 || out.Len() != 0 {
 			t.Fatal("invalid certificate operation accepted")
@@ -30,6 +30,18 @@ func TestCertificateCommandBoundaries(t *testing.T) {
 	diagnostic.Reset()
 	if run([]string{"certificates", "cleanup-http01", "--config-file", t.TempDir()}, &out, &diagnostic) != 1 || out.Len() != 0 || diagnostic.Len() == 0 {
 		t.Fatal("uninitialized cleanup accepted")
+	}
+}
+
+func TestHTTP01InitializationCommandBoundaries(t *testing.T) {
+	var out, diagnostic bytes.Buffer
+	if run([]string{"certificates", "initialize-http01", "--help"}, &out, &diagnostic) != 0 || out.Len() != 0 || diagnostic.Len() == 0 {
+		t.Fatal("initialization help unavailable")
+	}
+	out.Reset()
+	diagnostic.Reset()
+	if run([]string{"certificates", "initialize-http01", "--directory", t.TempDir()}, &out, &diagnostic) != 1 || out.Len() != 0 || diagnostic.Len() == 0 {
+		t.Fatal("uninitialized or unprivileged initialization accepted")
 	}
 }
 

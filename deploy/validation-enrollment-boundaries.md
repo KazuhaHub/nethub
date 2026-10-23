@@ -53,5 +53,27 @@ database, authority, genuine assignments and recovery copies were retained.
 The native appliance was not modified by these API tests.
 
 Raw requests, replies, snapshots, logs and key material remain outside Git.
-Public-CA trust, tampered-claim Login rejection, cross-device NewProxy rejection,
-unenrollment and the remaining certificate lifecycle acceptance stay open.
+Public-CA trust, unenrollment and the remaining certificate lifecycle acceptance
+stay open.
+
+## Operation-specific relay rejection
+
+PR #134's final head `758f96ea9044e992d458a57e839b2d4cdaeac447` passed all six
+jobs in run 39917999149; actual job logs and all four user DCO sign-offs were
+checked before merging as `61548ee`. The Linux deployment used genuine official
+frpc clients, frps and the production authorization service. Hosted output was:
+
+```text
+Tampered signature: Login invalid_claim; actual frpc and frps both recorded not_authorized
+Cross-device subdomain: Login allowed, NewProxy proxy_policy; actual frpc and frps both recorded not_authorized
+Both legitimate assigned subdomains passed verified TLS after the operation-specific Login and NewProxy denials
+Nested client auth tokens and original/tampered claims are absent from client and captured authz/frps logs
+```
+
+Only one signature character changed in the first case. The second retained a
+valid identity and claim but requested the other genuinely enrolled device's
+subdomain before either route existed, excluding duplicate-route failure. Login
+remained valid; NewProxy was refused by policy while the control process stayed
+alive. Every enrollment request and nested client credential was included in log
+checks. These are actual Linux relay/API fixtures; they do not claim another
+native appliance or GUI certificate acceptance.

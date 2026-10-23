@@ -287,8 +287,9 @@ NETHUB_TEST_AUTHORITY_CLI="$stage/http01-nethub" \
 NETHUB_TEST_AUTHORITY_COMPOSE="$stage/test.yml" "$stage/guiissuer.test" -test.v \
     -test.run '^TestNative(DockerSQLRunner|RelayAuthorityService|RelayAuthorityTransition)$' -test.timeout=300s
 NETHUB_TEST_GUI_SQL_PROJECT="$project" NETHUB_TEST_AUTHORITY_DIRECTORY="$stage/deployment" \
-NETHUB_TEST_AUTHORITY_COMPOSE="$stage/test.yml" "$stage/setup.test" -test.v \
-    -test.run '^(TestNativeAuthorityProcessRecovery|TestAuthorityCommand.*)$' -test.timeout=720s
+NETHUB_TEST_AUTHORITY_COMPOSE="$stage/test.yml" NETHUB_TEST_AUTHORITY_CLI="$stage/http01-nethub" \
+NETHUB_TEST_HTTP01_CLI_REQUIRED=1 "$stage/setup.test" -test.v \
+    -test.run '^(TestNativeAuthorityProcessRecovery|TestAuthorityCommand.*|TestHTTP01Initialization.*)$' -test.timeout=720s
 # The administrative fixture creates a separate tenant. Run it only after the
 # single-tenant bootstrap/browser/relay acceptance and before final teardown.
 database_id=$(compose ps -q postgres)

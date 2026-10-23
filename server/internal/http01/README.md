@@ -37,6 +37,21 @@ without following or deleting them; other valid entries can still be cleaned.
 Only numeric counters enter status JSON. A caller can repeat batches until
 `cycle_complete`, resuming a timed-out invocation from its protected cursor.
 
+Install a root-owned mode-0600 policy using `deploy/http01-policy.example.json`,
+then explicitly initialize its namespace against the confirmed deployment:
+
+```sh
+nethub certificates initialize-http01 \
+  --directory /srv/nethub-deployment --config-file /etc/nethub/http01.json
+```
+
+This Linux root operation verifies the independent authority backup, exact device
+domain and console exclusion before creating public/private roots. Their existing
+parents must be protected and the roots must remain outside the deployment.
+An exact retry verifies the existing identity; partial or damaged state requires
+review and is retained. The command does not register an account, publish a
+challenge, change proxy configuration or enable services.
+
 `nethub certificates cleanup-http01 --config-file /etc/nethub/http01.json` runs a
 30-second scan budget on the Linux root host without database/account/signer dependencies.
 The root-owned 0600 policy contains exactly the fields in
