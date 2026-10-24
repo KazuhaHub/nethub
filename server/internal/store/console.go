@@ -65,7 +65,8 @@ func (s *ConsoleStore) Devices(ctx context.Context, actor string, query web.Devi
  to_json(d.capabilities),d.cluster_hint,
  coalesce(d.last_seen_at>statement_timestamp()-interval '45 seconds' AND d.last_seen_at<=statement_timestamp(),false),
  d.last_seen_at,d.enrolled_at,d.revoked,d.revoked_at,owner.id,owner.email,
- d.service_state,d.last_report_at,d.last_reconcile_success,d.last_reconcile_at
+ d.service_state,d.last_report_at,d.last_reconcile_success,d.last_reconcile_at,
+ console_certificate_status($1,d.id)
  FROM devices d JOIN users actor ON actor.tenant_id=d.tenant_id
  JOIN users owner ON owner.tenant_id=d.tenant_id AND owner.id=d.owner_user_id
  WHERE actor.id=$1 AND actor.disabled_at IS NULL AND (actor.role='admin' OR d.owner_user_id=actor.id)
@@ -80,13 +81,18 @@ func (s *ConsoleStore) Devices(ctx context.Context, actor string, query web.Devi
 	for rows.Next() {
 		var device web.Device
 		var capabilities []byte
+		var certificate []byte
 		if err = rows.Scan(&device.ID, &device.Label, &device.Hostname, &device.Subdomain, &device.Platform, &device.PlatformVersion, &device.AgentVersion,
 			&capabilities, &device.ClusterHint, &device.Online, &device.LastSeenAt, &device.EnrolledAt, &device.Revoked, &device.RevokedAt, &device.Owner.ID, &device.Owner.Email,
-			&device.ServiceState, &device.LastReportAt, &device.LastReconcileSuccess, &device.LastReconcileAt); err != nil {
+			&device.ServiceState, &device.LastReportAt, &device.LastReconcileSuccess, &device.LastReconcileAt, &certificate); err != nil {
 			rows.Close()
 			return web.DevicePage{}, err
 		}
 		if err = json.Unmarshal(capabilities, &device.Capabilities); err != nil {
+			rows.Close()
+			return web.DevicePage{}, err
+		}
+		if err = json.Unmarshal(certificate, &device.GUICertificate); err != nil {
 			rows.Close()
 			return web.DevicePage{}, err
 		}

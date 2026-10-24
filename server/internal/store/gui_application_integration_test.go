@@ -14,7 +14,7 @@ import (
 
 // The second issued generation is administratively seeded in this disposable
 // database. These cases test reporting authority, not renewal scheduling.
-func testGUIApplicationReports(t *testing.T, f *enrollmentFixture, queue *GUIJobQueue, credential device.Credential, request GUIRequest, issued *guicert.IssuedCertificate) guicert.ApplicationReport {
+func testGUIApplicationReports(t *testing.T, f *enrollmentFixture, queue *GUIJobQueue, credential device.Credential, request GUIRequest, issued *guicert.IssuedCertificate, checkMetadata func(string)) guicert.ApplicationReport {
 	t.Helper()
 	report := guicert.ApplicationReport{DeviceID: request.DeviceID, RequestID: request.ID, RequestFingerprint: request.Fingerprint, GenerationID: issued.ID, Generation: issued.Generation, Fingerprint: issued.Fingerprint}
 	if queue.Health(f.ctx) != nil {
@@ -76,6 +76,7 @@ func testGUIApplicationReports(t *testing.T, f *enrollmentFixture, queue *GUIJob
 	if err != nil || first.IsZero() {
 		t.Fatal("valid application denied", err)
 	}
+	checkMetadata("applied")
 	var wg sync.WaitGroup
 	results := make(chan error, 8)
 	for range 8 {
@@ -109,6 +110,14 @@ func testGUIApplicationReports(t *testing.T, f *enrollmentFixture, queue *GUIJob
 	var secondJob, secondID string
 	if err := f.owner.QueryRowContext(f.ctx, `INSERT INTO gui_certificate_jobs(tenant_id,device_id,request_id,generation,state) SELECT tenant_id,device_id,request_id,2,'issued' FROM gui_certificate_generations WHERE id=$1 RETURNING id`, issued.ID).Scan(&secondJob); err != nil {
 		t.Fatal("disposable second generation job", err)
+	}
+	checkMetadata("renewing")
+	if _, err := f.owner.ExecContext(f.ctx, `UPDATE gui_certificate_jobs SET state='failed' WHERE id=$1`, secondJob); err != nil {
+		t.Fatal(err)
+	}
+	checkMetadata("renewal_failed")
+	if _, err := f.owner.ExecContext(f.ctx, `UPDATE gui_certificate_jobs SET state='issued' WHERE id=$1`, secondJob); err != nil {
+		t.Fatal(err)
 	}
 	if err := f.owner.QueryRowContext(f.ctx, `INSERT INTO gui_certificate_generations(tenant_id,device_id,request_id,job_id,generation,chain_pem,leaf_fingerprint,not_before,not_after,valid_until,renew_after,completed_lease,completed_version) SELECT tenant_id,device_id,request_id,$2,2,chain_pem,leaf_fingerprint,not_before,not_after,valid_until,renew_after,gen_random_uuid(),1 FROM gui_certificate_generations WHERE id=$1 RETURNING id`, issued.ID, secondJob).Scan(&secondID); err != nil {
 		t.Fatal("disposable second generation material", err)

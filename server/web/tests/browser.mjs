@@ -218,6 +218,72 @@ try {
     .getByText("Branch office", { exact: true })
     .waitFor({ timeout: 8000 });
   let activeInventoryRequests = 0;
+  const branch = page.getByRole("row").filter({ hasText: "Branch office" });
+  const lab = page.getByRole("row").filter({ hasText: "Lab gateway" });
+  assert.equal(
+    await lab.getByRole("button", { name: "Open", exact: true }).isDisabled(),
+    true,
+  );
+  let opens = 0;
+  page.on("request", (request) => {
+    if (request.url().endsWith("/open")) opens++;
+  });
+  const routerURL = "https://branch.router.example.com:8443/";
+  await context.route(routerURL, async (route) => {
+    const headers = await route.request().allHeaders();
+    assert.equal(headers.cookie, undefined, "Console cookie reached router");
+    assert.equal(headers.referer, undefined, "Console referrer reached router");
+    await route.fulfill({
+      contentType: "text/html",
+      body: "<!doctype html><title>Isolated router</title><p>Router login</p>",
+    });
+  });
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const popupEvent = context.waitForEvent("page");
+    await branch.getByRole("button", { name: "Open", exact: true }).click();
+    const popup = await popupEvent;
+    await popup.waitForURL(routerURL);
+    assert.equal(await popup.evaluate(() => window.opener), null);
+    assert.equal(await popup.evaluate(() => document.referrer), "");
+    assert.equal(opens, attempt, "Only explicit clicks renew access");
+    await popup.close();
+  }
+  await page.evaluate(() => {
+    window.fixtureOpen = window.open;
+    window.open = () => null;
+  });
+  await branch.getByRole("button", { name: "Open", exact: true }).click();
+  const fallback = branch.getByRole("link", { name: "Continue to router" });
+  await fallback.waitFor();
+  assert.equal(await fallback.getAttribute("href"), routerURL);
+  assert.equal(await fallback.getAttribute("rel"), "noopener noreferrer");
+  assert.equal(opens, 3);
+  await page.evaluate(() => {
+    window.open = window.fixtureOpen;
+    delete window.fixtureOpen;
+  });
+  await page.route("**/api/v1/console/devices/*/open", (route) =>
+    route.fulfill({
+      status: 409,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "device_revoked",
+          message: "This device has been revoked",
+        },
+      }),
+    }),
+  );
+  const rejectedPopup = context.waitForEvent("page");
+  await branch.getByRole("button", { name: "Open", exact: true }).click();
+  const rejected = await rejectedPopup;
+  if (!rejected.isClosed()) await rejected.waitForEvent("close");
+  await branch.getByRole("alert").waitFor();
+  await page.unroute("**/api/v1/console/devices/*/open");
+  const explicitOpens = opens;
+  console.log(
+    "Explicit Open and renewal passed with disabled pending certificate, detached opener, no referrer/cookie leakage and rejected-popup cleanup.",
+  );
   let maximumInventoryRequests = 0;
   let finishSlowInventory;
   const slowInventory = new Promise((resolve) => {
@@ -311,6 +377,7 @@ try {
   assert.deepEqual(violations, []);
   assert.deepEqual(failures, []);
   assert.deepEqual(external, []);
+  assert.equal(opens, explicitOpens, "Polling must never renew access");
   assert.ok(!serverLog.includes(token) && !serverLog.includes(session.value));
   writeFileSync(
     join(evidence, "results.json"),
@@ -325,6 +392,10 @@ try {
           "reload",
           "empty inventory",
           "automatic inventory updates",
+          "explicit Open and renewal",
+          "certificate readiness gating",
+          "router opener and credential isolation",
+          "failed Open popup cleanup",
           "non-overlapping inventory requests",
           "hidden inventory polling pause and resume",
           "enrollment",

@@ -35,6 +35,10 @@ test("the request wrapper attaches CSRF, clears it on 401, and never puts creden
     assert.equal(calls[1].init.headers["X-CSRF-Token"], "fixture-csrf");
     assert.equal(calls[1].init.credentials, "same-origin");
     assert.equal(calls[1].init.cache, "no-store");
+    await api.openDevice("00000000-0000-4000-8000-000000000001");
+    assert.equal(calls.at(-1).init.method, "POST");
+    assert.equal(calls.at(-1).init.body, "{}");
+    assert.equal(calls.at(-1).init.headers["X-CSRF-Token"], "fixture-csrf");
     await api.devices(null, "all", undefined, true);
     assert.equal(calls.at(-1).init.headers["X-NetHub-Background"], "1");
     assert.equal(calls.at(-1).init.method, "GET");
@@ -47,6 +51,7 @@ test("the request wrapper attaches CSRF, clears it on 401, and never puts creden
           !call.url.includes("fixture-csrf"),
       ),
     );
+
     denied = true;
     await assert.rejects(api.enroll(), (error) => error.status === 401);
     assert.equal(signedOut, 1);
@@ -81,4 +86,61 @@ test("network and retry failures have bounded, safe messages", async () => {
   } finally {
     globalThis.fetch = previous;
   }
+});
+
+const accessSource = readFileSync(
+  new URL("../src/device-access.ts", import.meta.url),
+  "utf8",
+);
+const { canOpenDevice, deviceDestination } = await import(
+  `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(accessSource, { mode: "transform" })).toString("base64")}`
+);
+test("Open requires a live matching installation report and a strict router destination", () => {
+  const now = Date.now();
+  const device = {
+    online: true,
+    revoked: false,
+    url: "https://branch.router.example.com:8443",
+    gui_certificate: {
+      state: "applied",
+      assigned_host: "branch.router.example.com",
+      confirmed_at: new Date(now - 1000).toISOString(),
+      valid_until: new Date(now + 60000).toISOString(),
+    },
+  };
+  assert.equal(canOpenDevice(device, now), true);
+  for (const change of [
+    { online: false },
+    { revoked: true },
+    { gui_certificate: undefined },
+  ])
+    assert.equal(canOpenDevice({ ...device, ...change }, now), false);
+  for (const change of [
+    { state: "pending" },
+    { state: "failed" },
+    { state: "expired" },
+    { assigned_host: "other.router.example.com" },
+    { confirmed_at: null },
+    { valid_until: new Date(now).toISOString() },
+  ])
+    assert.equal(
+      canOpenDevice(
+        {
+          ...device,
+          gui_certificate: { ...device.gui_certificate, ...change },
+        },
+        now,
+      ),
+      false,
+    );
+  for (const url of [
+    "javascript:alert(1)",
+    "http://branch.router.example.com:8443",
+    "https://branch.router.example.com",
+    "https://user@branch.router.example.com:8443",
+    "https://branch.router.example.com:8443/path",
+    "https://branch.router.example.com:8443/?token=x",
+    "https://branch.router.example.com:8443/#x",
+  ])
+    assert.equal(deviceDestination({ ...device, url }), null);
 });

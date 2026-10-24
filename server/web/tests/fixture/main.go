@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -75,12 +76,21 @@ func (r *repository) Devices(_ context.Context, _ string, query web.DeviceQuery)
 			continue
 		}
 		now := time.Now().UTC()
-		page.Items = append(page.Items, web.Device{ID: name, Label: name, Hostname: name, Subdomain: []string{"branch", "home", "lab"}[i], Platform: "opnsense", Online: online, LastSeenAt: &now, EnrolledAt: now, Owner: web.Owner{ID: "fixture", Email: "ui-test@example.com"}, Capabilities: []string{"remote.web"}})
+		host := []string{"branch", "home", "lab"}[i] + ".router.example.com"
+		until := now.Add(24 * time.Hour)
+		certificate := web.GUICertificateStatus{State: "applied", AssignedHost: &host, ValidUntil: &until, ConfirmedAt: &now}
+		if i == 2 {
+			certificate = web.GUICertificateStatus{State: "pending"}
+		}
+		page.Items = append(page.Items, web.Device{ID: fmt.Sprintf("00000000-0000-4000-8000-%012d", i+1), Label: name, Hostname: name, Subdomain: []string{"branch", "home", "lab"}[i], Platform: "opnsense", Online: online, LastSeenAt: &now, EnrolledAt: now, Owner: web.Owner{ID: "fixture", Email: "ui-test@example.com"}, Capabilities: []string{"remote.web"}, GUICertificate: certificate})
 	}
 	return page, nil
 }
-func (r *repository) OpenDevice(context.Context, string, string, netip.Addr) (web.DeviceAccess, error) {
-	return web.DeviceAccess{}, web.ErrDeviceUnavailable
+func (r *repository) OpenDevice(_ context.Context, _, id string, _ netip.Addr) (web.DeviceAccess, error) {
+	if id != "00000000-0000-4000-8000-000000000001" {
+		return web.DeviceAccess{}, web.ErrDeviceUnavailable
+	}
+	return web.DeviceAccess{Subdomain: "branch", ExpiresAt: time.Now().Add(30 * time.Minute)}, nil
 }
 
 func (r *repository) IssueEnrollToken(context.Context, string, netip.Addr) (web.EnrollToken, error) {

@@ -21,6 +21,20 @@ export type Device = {
   revoked: boolean;
   revoked_at: string | null;
   owner: { id: string; email: string };
+  gui_certificate?: {
+    state:
+      | "unsupported"
+      | "pending"
+      | "failed"
+      | "applied"
+      | "renewing"
+      | "renewal_failed"
+      | "expired"
+      | "revoked";
+    assigned_host: string | null;
+    valid_until: string | null;
+    confirmed_at: string | null;
+  };
 };
 export type DevicePage = { items: Device[]; next_cursor: string | null };
 export type Enrollment = { token: string; expires_at: string };
@@ -146,5 +160,11 @@ export const api = {
   },
   enroll(signal?: AbortSignal) {
     return request<Enrollment>("/enroll-tokens", {}, signal);
+  },
+  openDevice(id: string) {
+    return request<{ url: string; gate_expires_at: string }>(
+      `/devices/${encodeURIComponent(id)}/open`,
+      {},
+    );
   },
 };

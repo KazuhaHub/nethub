@@ -7,7 +7,9 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"math/big"
@@ -23,18 +25,54 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, tenant string) {
+func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, webRole *sql.DB, tenant string) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, _, foreignActor := f.fresh(t, tenant)
 	public, _ := x509.MarshalPKIXPublicKey(&key.PublicKey)
-	r, _, _ := f.fresh(t, tenant)
+	r, _, actor := f.fresh(t, tenant)
 	r.GUIPublicKey = base64.RawURLEncoding.EncodeToString(public)
 	a, err := f.repository.Register(f.ctx, r, f.issue)
 	if err != nil {
 		t.Fatal(err)
 	}
+	checkMetadata := func(want string) {
+		t.Helper()
+		tx, err := webRole.BeginTx(f.ctx, &sql.TxOptions{ReadOnly: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback()
+		if _, err = tx.ExecContext(f.ctx, `SELECT set_config('app.tenant_id',$1,true)`, tenant); err != nil {
+			t.Fatal(err)
+		}
+		var raw []byte
+		if err = tx.QueryRowContext(f.ctx, `SELECT console_certificate_status($1,$2)`, actor, a.ID).Scan(&raw); err != nil {
+			t.Fatal(err)
+		}
+		var metadata map[string]json.RawMessage
+		if json.Unmarshal(raw, &metadata) != nil || len(metadata) != 4 || string(metadata["state"]) != `"`+want+`"` {
+			t.Fatalf("unexpected console metadata: state %s", want)
+		}
+		for _, key := range []string{"state", "assigned_host", "valid_until", "confirmed_at"} {
+			if _, ok := metadata[key]; !ok {
+				t.Fatal("metadata field missing")
+			}
+		}
+		var forbidden []byte
+		if err = tx.QueryRowContext(f.ctx, `SELECT console_certificate_status($1,$2)`, foreignActor, a.ID).Scan(&forbidden); err != nil || forbidden != nil {
+			t.Fatal("foreign actor metadata exposed", err)
+		}
+		if _, err = tx.ExecContext(f.ctx, `SELECT set_config('app.tenant_id','00000000-0000-0000-0000-000000000000',true)`); err != nil {
+			t.Fatal(err)
+		}
+		if err = tx.QueryRowContext(f.ctx, `SELECT console_certificate_status($1,$2)`, actor, a.ID).Scan(&forbidden); err != nil || forbidden != nil {
+			t.Fatal("foreign tenant metadata exposed", err)
+		}
+	}
+	checkMetadata("pending")
 	requests := &GUIRequestStore{Enrollment: f.repository, DeviceDomain: "devices.example.com"}
 	csrDER, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{DNSNames: []string{a.Subdomain + ".devices.example.com"}, SignatureAlgorithm: x509.ECDSAWithSHA256}, key)
 	if err != nil {
@@ -202,7 +240,8 @@ func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, tenant string) {
 			t.Fatal("expired generation was acknowledged", err)
 		}
 	}()
-	application := testGUIApplicationReports(t, f, queue, credential, request, delivered)
+	application := testGUIApplicationReports(t, f, queue, credential, request, delivered, checkMetadata)
+	checkMetadata("applied")
 	for _, wrong := range []struct{ id, fingerprint string }{
 		{"00000000-0000-0000-0000-000000000000", request.Fingerprint},
 		{request.ID, strings.Repeat("0", 64)},
@@ -248,6 +287,14 @@ func testGUIIssuedMaterial(t *testing.T, f *enrollmentFixture, tenant string) {
 		}
 	}
 	testRevocationFencesGUIApplication(t, f, queue, credential, application)
+	checkMetadata("revoked")
+	for _, role := range []string{"nethub_authz", "nethub_issuer"} {
+		var allowed bool
+		if err := f.owner.QueryRowContext(f.ctx, `SELECT has_function_privilege($1,'public.console_certificate_status(uuid,uuid)','EXECUTE')`, role).Scan(&allowed); err != nil || allowed {
+			t.Fatal("console projection authority exposed", err)
+		}
+	}
+	t.Log("Console certificate projection passed pending, genuine first application, seeded renewal, revoked, cross-owner/tenant and narrow runtime privilege checks without exposing raw material")
 	if _, _, err := queue.Issued(f.ctx, credential, a.ID, request.ID, request.Fingerprint); !errors.Is(err, device.ErrDenied) {
 		t.Fatal("revoked device received retained issued material", err)
 	}
