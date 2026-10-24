@@ -14,9 +14,12 @@ public-key value nor a valid CSR alone proves current device authorization.
 
 The chain validator revalidates the signed CSR and binds the leaf to its public
 key and exact assigned SAN. It requires independently supplied roots; certificates
-returned by the issuer cannot grant their own trust. Bounded canonical PEM must
-contain an ordered, nonduplicate current server chain, without keys or unrelated
-certificates. Public status includes the leaf dates and the earlier effective
+returned by the issuer cannot grant their own trust. Bounded PEM may use ASCII
+whitespace between certificate blocks and CRLF line endings; output is canonical.
+Each consumed block is checked so the PEM decoder cannot silently skip malformed
+blocks or unrelated text. The response must contain an ordered, nonduplicate
+current server chain, without keys or unrelated certificates. Public status
+includes the leaf dates and the earlier effective
 chain expiry. Raw installation bytes are excluded from JSON and copied on return.
 
 This supports a device-generated private key: the issuer receives only a CSR,
