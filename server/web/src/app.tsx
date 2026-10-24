@@ -43,14 +43,24 @@ import {
   deviceDestination,
 } from "./device-access";
 
-function DeviceAccess({ device }: { device: Device }) {
+function DeviceAccess({
+  device,
+  onRevoked,
+}: {
+  device: Device;
+  onRevoked: () => void;
+}) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [confirm, setConfirm] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+  const [revokedHere, setRevokedHere] = useState(false);
+  const revoked = device.revoked || revokedHere;
   const [grant, setGrant] = useState<{ url: string; expires: string } | null>(
     null,
   );
   async function openDevice() {
-    if (pending || !canOpenDevice(device)) return;
+    if (pending || revoking || revoked || !canOpenDevice(device)) return;
     // Reserve the tab during the gesture; sever access before any navigation.
     const tab = window.open("about:blank", "_blank");
     if (tab) tab.opener = null;
@@ -76,18 +86,96 @@ function DeviceAccess({ device }: { device: Device }) {
       setPending(false);
     }
   }
+  async function revokeDevice() {
+    if (revoking || revoked) return;
+    setRevoking(true);
+    setError("");
+    try {
+      const result = await api.revokeDevice(device.id);
+      if (
+        result.revoked !== true ||
+        !Number.isFinite(Date.parse(result.revoked_at))
+      )
+        throw new Error(
+          "Revocation was not confirmed. Refresh before retrying.",
+        );
+      setRevokedHere(true);
+      setGrant(null);
+      setConfirm(false);
+      onRevoked();
+    } catch (error) {
+      setError(message(error));
+    } finally {
+      setRevoking(false);
+    }
+  }
   const validGrant =
-    grant && Date.parse(grant.expires) > Date.now() && canOpenDevice(device);
+    !revoked &&
+    grant &&
+    Date.parse(grant.expires) > Date.now() &&
+    canOpenDevice(device);
   return (
     <div className="device-access">
       <Button
         variant="outline"
         size="sm"
-        disabled={pending || !canOpenDevice(device)}
+        disabled={pending || revoking || revoked || !canOpenDevice(device)}
         onClick={() => void openDevice()}
       >
         {pending ? "Opening…" : "Open"}
       </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={pending || revoking || revoked}
+        onClick={() => {
+          setError("");
+          setConfirm(true);
+        }}
+      >
+        Revoke
+      </Button>
+      {revokedHere && (
+        <p role="status">
+          Revoked. Heartbeat disconnection may take time; existing browser
+          streams may continue.
+        </p>
+      )}
+      <NativeDialog
+        open={confirm}
+        title="Revoke device?"
+        onClose={() => setConfirm(false)}
+      >
+        <p>
+          Revoke {device.label || device.hostname || device.subdomain}? This
+          permanently disables this enrollment. Restoring access requires
+          enrolling again.
+        </p>
+        <p>
+          New connections will be denied. The tunnel disconnects through
+          heartbeat checks; existing browser streams may continue briefly. Keep
+          another way to reach the router.
+        </p>
+        {error && (
+          <p className="error-message" role="alert">
+            {error}
+          </p>
+        )}
+        <Button
+          variant="outline"
+          disabled={revoking}
+          onClick={() => setConfirm(false)}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="destructive"
+          disabled={revoking}
+          onClick={() => void revokeDevice()}
+        >
+          {revoking ? "Revoking…" : "Permanently revoke"}
+        </Button>
+      </NativeDialog>
       {validGrant && (
         <p className="muted">
           <a href={grant.url} target="_blank" rel="noopener noreferrer">
@@ -97,7 +185,7 @@ function DeviceAccess({ device }: { device: Device }) {
           Allowed until {new Date(grant.expires).toLocaleTimeString()}
         </p>
       )}
-      {error && (
+      {error && !confirm && (
         <p className="error-message" role="alert">
           {error}
         </p>
@@ -653,7 +741,10 @@ function Devices() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <DeviceAccess device={device} />
+                      <DeviceAccess
+                        device={device}
+                        onRevoked={() => setRefresh((value) => value + 1)}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

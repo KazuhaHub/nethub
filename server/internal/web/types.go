@@ -70,6 +70,11 @@ type DeviceAccess struct {
 	ExpiresAt time.Time `json:"gate_expires_at"`
 }
 
+type DeviceRevocation struct {
+	Revoked   bool      `json:"revoked"`
+	RevokedAt time.Time `json:"revoked_at"`
+}
+
 // Repository is tenant-bound at startup; HTTP cannot choose the tenant or pass
 // an authorization role. Implementations recheck the active actor in SQL.
 type Repository interface {
@@ -77,5 +82,6 @@ type Repository interface {
 	Devices(context.Context, string, DeviceQuery) (DevicePage, error)
 	IssueEnrollToken(context.Context, string, netip.Addr) (EnrollToken, error)
 	OpenDevice(context.Context, string, string, netip.Addr) (DeviceAccess, error)
+	RevokeDevice(context.Context, string, string, netip.Addr) (DeviceRevocation, error)
 	LoginFailed(context.Context, netip.Addr) error
 }

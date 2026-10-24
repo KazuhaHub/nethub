@@ -364,6 +364,82 @@ try {
     path: join(evidence, "devices-mobile.png"),
     fullPage: true,
   });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  let revocations = 0;
+  page.on("request", (request) => {
+    if (request.url().endsWith("/revoke")) revocations++;
+  });
+  const revokeButton = branch.getByRole("button", {
+    name: "Revoke",
+    exact: true,
+  });
+  const revokeDialog = page.getByRole("dialog", {
+    name: "Revoke device?",
+    exact: true,
+  });
+  await revokeButton.click();
+  await revokeDialog.waitFor();
+  await page.screenshot({
+    path: join(evidence, "revoke-confirmation.png"),
+    fullPage: true,
+  });
+  await revokeDialog
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
+  await revokeDialog.waitFor({ state: "hidden" });
+  await revokeButton.click();
+  await page.keyboard.press("Escape");
+  await revokeDialog.waitFor({ state: "hidden" });
+  assert.equal(revocations, 0, "Dismissal must not revoke a device");
+  await page.route("**/api/v1/console/devices/*/revoke", (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "internal",
+          message: "The request could not be completed",
+        },
+      }),
+    }),
+  );
+  await revokeButton.click();
+  await revokeDialog
+    .getByRole("button", { name: "Permanently revoke", exact: true })
+    .click();
+  await revokeDialog.getByRole("alert").waitFor();
+  assert.equal(await revokeDialog.isVisible(), true);
+  assert.equal(
+    await branch
+      .getByRole("button", { name: "Open", exact: true })
+      .isDisabled(),
+    false,
+  );
+  await page.unroute("**/api/v1/console/devices/*/revoke");
+  await revokeDialog
+    .getByRole("button", { name: "Permanently revoke", exact: true })
+    .click();
+  await revokeDialog.waitFor({ state: "hidden" });
+  await branch.getByText("Revoked", { exact: true }).first().waitFor();
+  assert.equal(
+    await branch
+      .getByRole("button", { name: "Open", exact: true })
+      .isDisabled(),
+    true,
+  );
+  assert.equal(await revokeButton.isDisabled(), true);
+  assert.equal(
+    await branch.getByRole("link", { name: "Continue to router" }).count(),
+    0,
+  );
+  assert.equal(revocations, 2, "Only explicit confirmation may call revoke");
+  await page.screenshot({
+    path: join(evidence, "revoked-inventory.png"),
+    fullPage: true,
+  });
+  console.log(
+    "Console revoke passed native confirmation, Cancel/Escape without mutation, retained error retry, disabled Open and cleared continuation after success.",
+  );
   await opener.click();
   await page.request.post(origin + "/test/expire");
   await page
@@ -396,6 +472,7 @@ try {
           "certificate readiness gating",
           "router opener and credential isolation",
           "failed Open popup cleanup",
+          "explicit permanent revocation confirmation and failure retry",
           "non-overlapping inventory requests",
           "hidden inventory polling pause and resume",
           "enrollment",
