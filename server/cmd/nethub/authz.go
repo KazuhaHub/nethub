@@ -132,7 +132,7 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Authz database connection failed; check settings and the authz password file")
 		return 1
 	}
-	defer db.Close()
+	defer closeAuthzDatabase(db.Close)
 	repository := &store.EnrollmentStore{DB: db}
 	service, err := device.New(repository, signer, device.RelayConfig{Address: *relayAddr, ServerName: *relayName,
 		Port: uint16(*relayPort), FRPToken: hex.EncodeToString(frpToken), CAPEM: string(ca)})
@@ -173,6 +173,14 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 	}
+	var revocations *relayhook.RevocationCache
+	if *hookListen != "" {
+		revocations, err = relayhook.NewRevocationCache(&store.RelayStore{DB: db}, logger)
+		if err != nil || revocations.Refresh(startup) != nil {
+			fmt.Fprintln(stderr, "Initial relay revocation snapshot is unavailable")
+			return 1
+		}
+	}
 	listener, err := net.Listen("tcp", *listen)
 	if err != nil {
 		fmt.Fprintln(stderr, "Authz listener could not be opened")
@@ -182,7 +190,7 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 	var hooks *http.Server
 	var hookListener net.Listener
 	if *hookListen != "" {
-		hookHandler, err := relayhook.New(relayhook.Config{Peers: peers, Logger: logger}, &store.RelayStore{DB: db}, signer)
+		hookHandler, err := relayhook.New(relayhook.Config{Peers: peers, Logger: logger, Ping: revocations}, &store.RelayStore{DB: db}, signer)
 		if err != nil {
 			fmt.Fprintln(stderr, "Relay callback configuration is invalid")
 			return 1
@@ -204,7 +212,15 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 		observationContext, stopObservation := context.WithCancel(ctx)
 		done := make(chan struct{})
 		go func() { observer.Run(observationContext); close(done) }()
-		defer func() { stopObservation(); <-done }()
+		defer func() {
+			stopObservation()
+			timer := time.NewTimer(time.Second)
+			defer timer.Stop()
+			select {
+			case <-done:
+			case <-timer.C:
+			}
+		}()
 		fmt.Fprintln(stdout, "Read-only relay observation enabled")
 	}
 	if hooks == nil {
@@ -212,9 +228,25 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 	} else {
 		fmt.Fprintln(stdout, "Device enrollment API and internal relay hooks started")
 	}
-	if err := serveAuthz(ctx, server, listener, hooks, hookListener); err != nil {
+	var worker func(context.Context) error
+	if revocations != nil {
+		worker = revocations.Run
+	}
+	if err := serveAuthzMonitored(ctx, server, listener, hooks, hookListener, worker); err != nil {
 		fmt.Fprintln(stderr, "Authz HTTP service stopped unexpectedly")
 		return 1
 	}
 	return 0
+}
+
+// A stuck database driver must not prevent a failed authz process from exiting.
+func closeAuthzDatabase(closeDatabase func() error) {
+	done := make(chan struct{})
+	go func() { _ = closeDatabase(); close(done) }()
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+	}
 }

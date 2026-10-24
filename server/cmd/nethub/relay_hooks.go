@@ -66,3 +66,29 @@ func serveAuthz(ctx context.Context, public *http.Server, publicListener net.Lis
 	}
 	return nil
 }
+
+// A failed refresh/self-check worker stops both APIs so the container can restart.
+func serveAuthzMonitored(ctx context.Context, public *http.Server, publicListener net.Listener, hooks *http.Server, hookListener net.Listener, worker func(context.Context) error) error {
+	if worker == nil {
+		return serveAuthz(ctx, public, publicListener, hooks, hookListener)
+	}
+	child, cancel := context.WithCancel(ctx)
+	defer cancel()
+	results := make(chan error, 2)
+	go func() { results <- worker(child) }()
+	go func() { results <- serveAuthz(child, public, publicListener, hooks, hookListener) }()
+	first := <-results
+	unexpected := ctx.Err() == nil
+	cancel()
+	second := <-results
+	if first != nil {
+		return first
+	}
+	if second != nil {
+		return second
+	}
+	if unexpected {
+		return errors.New("authorization refresh worker stopped unexpectedly")
+	}
+	return nil
+}

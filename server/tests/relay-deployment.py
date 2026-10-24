@@ -14,6 +14,7 @@ import time
 import uuid
 
 from relay_maintenance import exercise
+from relay_heartbeat import exercise_heartbeats
 
 
 stage, port = Path(sys.argv[1]), int(sys.argv[2])
@@ -323,6 +324,8 @@ try:
     print("Deployed relay passed verified HTTPS enrollment, tampered-claim denial, two simultaneous TLS tunnels and actual frps-to-console observations")
     print("Both legitimate assigned subdomains passed verified TLS after the operation-specific Login and NewProxy denials")
     exercise(stage, sys.argv[3], assignments, check_tunnels)
+    exercise_heartbeats(stage, compose, assignments, valid_clients, gateway, sql,
+                        check_tunnels, probe, local_source, hook_events)
 finally:
     for client in clients:
         stop_client(client)

@@ -7,7 +7,24 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestAuthzDatabaseCleanupIsBounded(t *testing.T) {
+	release := make(chan struct{})
+	returned := make(chan struct{})
+	defer close(release)
+	started := time.Now()
+	go func() { closeAuthzDatabase(func() error { <-release; return nil }); close(returned) }()
+	select {
+	case <-returned:
+		if elapsed := time.Since(started); elapsed < 900*time.Millisecond || elapsed > 2*time.Second {
+			t.Fatal("unexpected cleanup deadline", elapsed)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("database cleanup prevented process exit")
+	}
+}
 
 func TestAuthzFlagsAndMaterial(t *testing.T) {
 	for _, args := range [][]string{{"authz"}, {"authz", "--port", "70000"}, {"authz", "--relay-port", "0"},

@@ -2,12 +2,59 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/netip"
 	"testing"
 	"time"
 )
+
+func TestRevocationWorkerFailureStopsBothAuthorizationListeners(t *testing.T) {
+	for _, failure := range []error{errors.New("self-check failed"), nil} {
+		publicListener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		hookListener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			publicListener.Close()
+			t.Fatal(err)
+		}
+		public := &http.Server{Handler: http.NotFoundHandler()}
+		hooks := &http.Server{Handler: http.NotFoundHandler()}
+		trigger := make(chan struct{})
+		worker := func(ctx context.Context) error {
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-trigger:
+				return failure
+			}
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan error, 1)
+		go func() { done <- serveAuthzMonitored(ctx, public, publicListener, hooks, hookListener, worker) }()
+		close(trigger)
+		select {
+		case err := <-done:
+			if err == nil {
+				t.Fatal("unexpected worker exit was treated as a clean stop")
+			}
+		case <-time.After(2 * time.Second):
+			cancel()
+			t.Fatal("worker failure did not stop the APIs")
+		}
+		cancel()
+		for _, listener := range []net.Listener{publicListener, hookListener} {
+			connection, err := net.DialTimeout("tcp", listener.Addr().String(), 100*time.Millisecond)
+			if err == nil {
+				connection.Close()
+				t.Fatal("authorization listener remained available")
+			}
+		}
+	}
+}
 
 func TestHookListenerRequiresPrivateBindAndExactPeers(t *testing.T) {
 	var peers hookPeers

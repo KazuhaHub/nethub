@@ -1580,6 +1580,15 @@ requirement with the earlier private-CA renewal/fault controls and the accepted
 
 ## 12. 阶段 W5：远程打开 + 撤销
 
+Implementation checkpoint (2026-10-24): explicit Open, scoped certificate status,
+NewUserConn source admission and the 0.0.17 local circuit breaker are implemented.
+Heartbeat revocation uses a five-second memory-cache refresh within the planned
+5–10 second range; Login/NewProxy remain database-current. See the
+[callback boundaries](../server/internal/relayhook/README.md) and
+[circuit test scope](../agents/opnsense/plugin/tests/circuit-breaker-progress.md).
+The acceptance checklist below remains open until the combined native/public
+measurements, anomaly handling and recovery cases are complete.
+
 **目标：**
 
 - 手机开 4G，从控制台点"打开"，能登录路由器的 GUI；

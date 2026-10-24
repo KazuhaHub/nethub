@@ -1,6 +1,6 @@
 # Internal relay callbacks
 
-W4 implements `Login` and `NewProxy`, and W5 adds `NewUserConn` on
+W4 implements `Login` and `NewProxy`, and W5 adds `NewUserConn` and `Ping` on
 `POST /api/v1/frp/hooks`. The public
 device listener does not serve this route. Enable the separate listener with
 `--hook-listen` and repeatable `--hook-peer` flags. The bind must be an exact
@@ -17,8 +17,9 @@ caller has no configured timeout in that source path, so the handler enforces a
 active callbacks. The listener separately bounds header reads and idle sockets.
 
 Read at most 64 KiB, reject duplicate keys at every depth, and extract identity
-from exact field names: Login's `metas` or NewProxy's `user.metas`. Verify the
-deployment signature and metadata device ID before accessing storage. Storage
+from exact field names: Login's `metas` or other operations' `user.metas`. Verify the
+deployment signature and metadata device ID before admission. For Login,
+NewProxy and NewUserConn, storage
 sets tenant RLS from that verified identity and requires the current device ID,
 tenant, subdomain and microsecond issuance timestamp, with `revoked=false`. A
 row share lock serializes that check with revocation or claim replacement. A
@@ -53,11 +54,46 @@ database clock after waits; it exposes only a boolean to authz, with no user-tab
 read grant. Traffic does not extend access. Router GUI authentication remains
 required, and an already established stream can outlive its source grant.
 
-Generated frps configurations include `NewUserConn`. Existing bundles must update
+Generated frps configurations include `NewUserConn` and `Ping`. Existing bundles must update
 their callback operation list before source gating can be claimed; updating the
-web binary alone does not enable it. The Open UI and real native source-gate
-acceptance remain separate W5 work. Missing/expired grants and storage errors
+web binary alone does not enable it. The Open UI is implemented; real native source-gate
+acceptance remains separate W5 work. Missing/expired grants and storage errors
 deny within the existing hook budget.
+
+`Ping` uses only an initialized in-memory revocation set, keyed by tenant and
+device. It still verifies the signed login metadata and trusted socket peer.
+Authz loads the initial set before serving hooks and refreshes it every five
+seconds using a read-only, repeatable-read transaction with tenant-local RLS.
+The existing database grants suffice. Database failures retain the last good set;
+known one-way revocations never disappear after an incomplete read. Login and
+proxy admission continue to query current database state. Successful Ping decisions
+log at debug level; denials keep the fixed operation/decision log.
+
+Refresh has a two-second database budget and a 250 ms cancellation grace. An
+unresponsive loader or a failed in-memory self-check stops both authz listeners
+and exits unsuccessfully, allowing the container restart policy to act. There
+is at most one refresh request in flight. Normal database errors do not trigger
+this exit. HTTP draining retains its ten-second bound; observation cleanup and
+database cleanup each wait at most one additional second so an unresponsive
+dependency cannot trap process exit.
+Snapshot reads are limited to 1,024 tenants and 100,000 revoked device
+IDs; exceeding a limit refuses the refresh instead of discarding existing denials.
+
+Clients retain the explicit 10-second heartbeat interval and 30-second timeout.
+frp's [Ping handler](https://github.com/fatedier/frp/blob/v0.71.1/server/control.go)
+processes plugin refusal through its heartbeat error path. Authz restart or outage
+therefore affects every connected tunnel. Deploy authz changes with that
+interruption in mind; clients reconnect after service recovery. A suspended
+process can delay callbacks, and refusing a heartbeat does not promise immediate
+closure of every established browser stream. Newly revoked IDs wait for a
+successful refresh and their next heartbeat. Database outage can delay that
+refresh while new Login/proxy/user connections already fail closed.
+
+The official-client deployment fixture checks actual frps proxy control states
+through its private admin API, not only TLS failures (which could instead be
+NewUserConn rejection). It separately exercises authz outage/recovery, cached Ping
+revocation, fresh Login denial and an unaffected device's verified TLS route.
+These isolated checks do not replace the native/public-network W5 acceptance.
 
 Local tests cover signature/identity/routing rejection, peer spoofing, bounded
 input, saturation, database deadlines and a real slow-body TCP connection. The

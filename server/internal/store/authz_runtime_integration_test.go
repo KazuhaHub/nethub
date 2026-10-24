@@ -212,7 +212,8 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 		}
 		defer response.Body.Close()
 		var decision struct {
-			Reject bool `json:"reject"`
+			Reject bool   `json:"reject"`
+			Reason string `json:"reject_reason"`
 		}
 		if json.NewDecoder(io.LimitReader(response.Body, 4096)).Decode(&decision) != nil ||
 			response.StatusCode != status || status == 200 && decision.Reject != rejected {
@@ -220,8 +221,10 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 		}
 	}
 	login := map[string]any{"metas": metas}
+	ping := map[string]any{"user": map[string]any{"metas": metas}, "timestamp": 1}
 	proxy := map[string]any{"user": map[string]any{"metas": metas}, "proxy_name": relayhook.ProxyName(result.DeviceID), "proxy_type": "https", "subdomain": result.Subdomain}
 	sendHook(hookAddress, "Login", login, false, 200)
+	sendHook(hookAddress, "Ping", ping, false, 200)
 	sendHook(hookAddress, "NewProxy", proxy, false, 200)
 	proxy["custom_domains"] = []string{"console.example.com"}
 	sendHook(hookAddress, "NewProxy", proxy, true, 200)
@@ -283,6 +286,43 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 	}
 	sendHook(hookAddress, "Login", login, true, 200)
 	sendHook(hookAddress, "NewProxy", proxy, true, 200)
+	// The production refresh interval must publish revocation without another Login.
+	deadline := time.Now().Add(relayhook.RevocationInterval + 2*time.Second)
+	for {
+		data, err := json.Marshal(map[string]any{"version": "0.1.0", "op": "Ping", "content": ping})
+		if err != nil {
+			t.Fatal(err)
+		}
+		request, err := http.NewRequestWithContext(f.ctx, http.MethodPost, "http://"+hookAddress+relayhook.Path+"?op=Ping&version=0.1.0", bytes.NewReader(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Header.Set("Content-Type", "application/json")
+		response, err := client.Do(request)
+		if err != nil {
+			t.Fatal("compiled Ping failed", err)
+		}
+		var decision struct {
+			Reject bool   `json:"reject"`
+			Reason string `json:"reject_reason"`
+		}
+		err = json.NewDecoder(io.LimitReader(response.Body, 4096)).Decode(&decision)
+		response.Body.Close()
+		if err != nil || response.StatusCode != 200 {
+			t.Fatal("compiled Ping response invalid")
+		}
+		if decision.Reject {
+			if decision.Reason != "not_authorized" {
+				t.Fatal("compiled Ping failed for a non-revocation reason")
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("compiled revocation refresh exceeded production interval")
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	t.Log("Compiled authz Ping used its initialized memory snapshot and published revocation on the five-second production refresh interval")
 	_ = command.Process.Signal(syscall.SIGTERM)
 	select {
 	case err := <-completed:

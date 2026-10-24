@@ -31,9 +31,14 @@ type Repository interface {
 	AuthorizeConnection(context.Context, protocol.ClaimPayload, netip.Addr) error
 }
 
+type PingAuthorizer interface {
+	AuthorizePing(protocol.ClaimPayload) error
+}
+
 type Config struct {
 	Peers  []netip.Addr
 	Logger *slog.Logger
+	Ping   PingAuthorizer
 }
 
 type Server struct {
@@ -42,6 +47,7 @@ type Server struct {
 	signer     *claim.Keyring
 	repository Repository
 	workers    chan struct{}
+	ping       PingAuthorizer
 }
 
 func New(config Config, repository Repository, signer *claim.Keyring) (*Server, error) {
@@ -57,7 +63,7 @@ func New(config Config, repository Repository, signer *claim.Keyring) (*Server, 
 		peers[normalized] = true
 	}
 	return &Server{peers: peers, repository: repository, signer: signer,
-		logger: config.Logger, workers: make(chan struct{}, 64)}, nil
+		logger: config.Logger, ping: config.Ping, workers: make(chan struct{}, 64)}, nil
 }
 
 type response struct {
@@ -75,7 +81,11 @@ func (s *Server) respond(w http.ResponseWriter, status int, operation, decision 
 		}
 	}
 	// Both fields are selected from fixed codes, never request or dependency text.
-	s.logger.Info("Relay hook decision", "operation", operation, "decision", decision)
+	if operation == "Ping" && decision == "allowed" {
+		s.logger.Debug("Relay hook decision", "operation", operation, "decision", decision)
+	} else {
+		s.logger.Info("Relay hook decision", "operation", operation, "decision", decision)
+	}
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(result)
 }
@@ -124,7 +134,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	operation, ok := text(object, "op")
-	if !ok || operation != "Login" && operation != "NewProxy" && operation != "NewUserConn" {
+	if !ok || operation != "Login" && operation != "NewProxy" && operation != "NewUserConn" && operation != "Ping" {
 		s.respond(w, 200, "unknown", "invalid_request")
 		return
 	}
@@ -169,7 +179,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.respond(w, 200, operation, "unavailable")
 		return
 	}
-	if operation == "NewUserConn" {
+	if operation == "Ping" {
+		if s.ping == nil {
+			err = ErrUnavailable
+		} else {
+			err = s.ping.AuthorizePing(payload)
+		}
+	} else if operation == "NewUserConn" {
 		name, nameOK := text(content, "proxy_name")
 		kind, kindOK := text(content, "proxy_type")
 		remote, remoteOK := text(content, "remote_addr")
