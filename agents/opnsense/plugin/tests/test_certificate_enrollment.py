@@ -1,6 +1,8 @@
 """Check key-before-network enrollment and shared-lock removal boundaries."""
 import json
 import subprocess
+import sys
+import threading
 from unittest import mock
 import xml.etree.ElementTree as ET
 
@@ -85,6 +87,75 @@ def test_enrollment_uses_common_mutation_lock_before_consuming_request(case):
         result = case.agent.enroll(path)
     assert result['action'] == 'busy' and path.exists()
     assert not (case.agent.config / 'gui-key').exists()
+
+
+def test_enrollment_waits_for_scheduler_lock_before_consuming_request(case):
+    path = request_file(case)
+    original = (case.root / 'conf/config.xml').read_bytes()
+    contested = threading.Event()
+    flock = base.MODULE.fcntl.flock
+
+    def observe_contention(*args):
+        try:
+            return flock(*args)
+        except BlockingIOError:
+            contested.set()
+            raise
+
+    with (case.agent.state / 'reconcile.lock').open('a') as lock:
+        flock(lock, base.MODULE.fcntl.LOCK_EX | base.MODULE.fcntl.LOCK_NB)
+
+        def release():
+            if contested.wait(5):
+                flock(lock, base.MODULE.fcntl.LOCK_UN)
+
+        worker = threading.Thread(target=release)
+        worker.start()
+        try:
+            with mock.patch.object(base.MODULE.fcntl, 'flock', side_effect=observe_contention):
+                with mock.patch('enrollment.request_enrollment', side_effect=ProtocolError('Controlled network refusal')) as network:
+                    result = case.agent.enroll(path)
+            network.assert_called_once()
+            assert contested.is_set()
+            assert result == {'success': False, 'message': 'Controlled network refusal'}
+        finally:
+            contested.set()
+            worker.join(6)
+    assert not worker.is_alive()
+    assert not path.exists()
+    assert (case.agent.config / 'gui-key/key.pem').is_file()
+    assert (case.root / 'conf/config.xml').read_bytes() == original
+
+
+@pytest.mark.skipif(not sys.platform.startswith('freebsd'), reason='Requires native FreeBSD lockf')
+def test_enrollment_lock_interoperates_with_native_scheduler_lockf(case):
+    path = request_file(case)
+    ready = case.root / 'lock-ready'
+    program = 'import pathlib,sys; pathlib.Path(sys.argv[1]).touch(); sys.stdin.buffer.read(1)'
+    child = subprocess.Popen([
+        '/usr/bin/lockf', '-sk', '-t', '0', str(case.agent.state / 'reconcile.lock'),
+        sys.executable, '-c', program, str(ready),
+    ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        import time
+        deadline = time.monotonic() + 5
+        while not ready.exists() and child.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert ready.exists() and child.poll() is None
+        with mock.patch('enrollment.request_enrollment') as network:
+            assert case.agent.enroll(path)['action'] == 'busy'
+        network.assert_not_called()
+        assert path.exists() and not (case.agent.config / 'gui-key').exists()
+        output, error = child.communicate(b'x', timeout=5)
+        assert child.returncode == 0 and not output and not error
+        with mock.patch('enrollment.request_enrollment', side_effect=ProtocolError('Controlled network refusal')) as network:
+            assert case.agent.enroll(path)['message'] == 'Controlled network refusal'
+        network.assert_called_once()
+        assert not path.exists()
+    finally:
+        if child.poll() is None:
+            child.kill()
+        child.communicate(timeout=5)
 
 
 def test_runtime_key_removal_requires_cleared_fields_and_preserves_native_certificate(case):

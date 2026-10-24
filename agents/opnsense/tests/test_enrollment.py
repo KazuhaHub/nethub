@@ -178,7 +178,7 @@ def test_php_controller_keeps_credentials_private_and_saves_under_native_lock(tm
     run = subprocess.run(['php', str(harness), str(controller), str(PHP), str(directory)],
                          input=json.dumps(SAMPLE), text=True, capture_output=True, check=True)
     assert json.loads(run.stdout)['controller_cases_passed'] == [
-        'success', 'start-failed', 'bad-response', 'model-invalid', 'existing', 'get-only', 'readonly', 'busy']
+        'success', 'start-failed', 'bad-response', 'model-invalid', 'existing', 'get-only', 'readonly', 'busy', 'service-busy']
     assert not run.stderr
 
 

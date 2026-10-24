@@ -14,6 +14,7 @@ import subprocess
 import sys
 import syslog
 import tempfile
+import time
 import tomllib
 import xml.etree.ElementTree as ET
 
@@ -136,11 +137,17 @@ class Agent:
                 directory.chmod(0o700)
             os.umask(0o077)
             with (self.state / 'reconcile.lock').open('a') as lock:
-                try:
-                    if not locked:
-                        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                except BlockingIOError:
-                    return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
+                if not locked:
+                    deadline = time.monotonic() + 3
+                    while True:
+                        try:
+                            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                            break
+                        except BlockingIOError:
+                            remaining = deadline - time.monotonic()
+                            if remaining <= 0:
+                                return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
+                            time.sleep(min(0.1, remaining))
                 return self.enroll_locked(request_file)
         except OSError:
             return {'success': False, 'message': 'Private enrollment storage is unavailable'}
