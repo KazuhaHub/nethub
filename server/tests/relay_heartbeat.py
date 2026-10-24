@@ -14,7 +14,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
-                        check_tunnels, probe, source, hook_events):
+                        check_tunnels, probe, source, hook_events, revocation_client):
     work = Path(stage) / 'heartbeat-test'
     work.mkdir(mode=0o700)
     secrets = Path(stage) / 'deployment/secrets/frps'
@@ -23,7 +23,6 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
     authorization = 'Basic ' + base64.b64encode(credentials).decode()
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
     expected = {'nethub-' + str(uuid.UUID(item['device_id'])) + '-web' for item in assignments}
-    first = 'nethub-' + assignments[0]['device_id'] + '-web'
 
     def online():
         request = urllib.request.Request('http://' + gateway + ':7500/api/proxy/https',
@@ -69,13 +68,26 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
     recovery_ms = round((time.monotonic() - started) * 1000)
     assert all(client.poll() is None for client in clients)
 
+    # Later authority tests retain the original two enrollments. Revocation is
+    # irreversible: create a separate authenticated identity for this control.
+    target = revocation_client()
+    target_name = 'nethub-' + target['device_id'] + '-web'
+    expected.add(target_name)
+    wait_online(expected, time.monotonic() + 15)
+    deadline = time.monotonic() + 10
+    while True:
+        ready = probe(target, source)
+        if ready.returncode == 0 and ready.stdout.decode() == target['subdomain'] + '.router.example.com':
+            break
+        assert time.monotonic() < deadline, 'dedicated revocation client never completed verified TLS'
+        time.sleep(0.1)
     before = hook_events('before-revoked-heartbeat')
     prior_ping = sum(event.get('operation') == 'Ping' and event.get('decision') == 'device_denied' for event in before)
     prior_login = sum(event.get('operation') == 'Login' and event.get('decision') == 'device_denied' for event in before)
-    device = str(uuid.UUID(assignments[0]['device_id']))
+    device = str(uuid.UUID(target['device_id']))
     started = time.monotonic()
     sql("UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id='" + device + "';")
-    wait_online(expected - {first}, started + 48)
+    wait_online(expected - {target_name}, started + 48)
     revoked_ms = round((time.monotonic() - started) * 1000)
     deadline = time.monotonic() + 20
     while True:
@@ -87,11 +99,13 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
         if time.monotonic() >= deadline:
             raise RuntimeError('revoked control session lacked actual Ping and reconnect Login denials')
         time.sleep(0.2)
-    assert probe(assignments[0], source).returncode != 0
+    assert probe(target, source).returncode != 0
     survivor = probe(assignments[1], source)
     assert survivor.returncode == 0 and survivor.stdout.decode() == assignments[1]['subdomain'] + '.router.example.com'
-    assert online() == expected - {first}
+    assert online() == expected - {target_name}
+    check_tunnels()
     result = {'heartbeat_interval_seconds': 10, 'heartbeat_timeout_seconds': 30,
+              'control_state_probe_timeout_seconds': 2,
               'authz_outage_controls_offline_ms': outage_ms, 'authz_restart_recovery_ms': recovery_ms,
               'revoked_control_offline_ms': revoked_ms, 'unrevoked_control_and_verified_TLS_preserved': True,
               'actual_Ping_and_fresh_Login_denials': True, 'passed': True}
