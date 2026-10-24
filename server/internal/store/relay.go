@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/netip"
 	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
@@ -16,6 +17,22 @@ var _ relayhook.Repository = (*RelayStore)(nil)
 
 // Authorize accepts only a payload already verified by the deployment keyring.
 func (s *RelayStore) Authorize(ctx context.Context, identity protocol.ClaimPayload) error {
+	return s.authorize(ctx, identity, netip.Addr{})
+}
+
+// AuthorizeConnection binds a verified assignment to its current exact-IP grant.
+func (s *RelayStore) AuthorizeConnection(ctx context.Context, identity protocol.ClaimPayload, source netip.Addr) error {
+	if !source.IsValid() || source.Zone() != "" {
+		return relayhook.ErrDenied
+	}
+	source = source.Unmap()
+	if source.IsUnspecified() || source.IsMulticast() {
+		return relayhook.ErrDenied
+	}
+	return s.authorize(ctx, identity, source)
+}
+
+func (s *RelayStore) authorize(ctx context.Context, identity protocol.ClaimPayload, source netip.Addr) error {
 	if s == nil || s.DB == nil {
 		return relayhook.ErrUnavailable
 	}
@@ -39,7 +56,20 @@ func (s *RelayStore) Authorize(ctx context.Context, identity protocol.ClaimPaylo
 	if errors.Is(err, sql.ErrNoRows) {
 		return relayhook.ErrDenied
 	}
-	if err != nil || !matches || tx.Commit() != nil {
+	if err != nil || !matches {
+		return relayhook.ErrUnavailable
+	}
+	if source.IsValid() {
+		var live bool
+		err = tx.QueryRowContext(ctx, `SELECT device_source_access($1,$2::inet)`, identity.DeviceID, source.String()).Scan(&live)
+		if err != nil {
+			return relayhook.ErrUnavailable
+		}
+		if !live {
+			return relayhook.ErrDenied
+		}
+	}
+	if tx.Commit() != nil {
 		return relayhook.ErrUnavailable
 	}
 	return nil

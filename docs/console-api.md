@@ -4,8 +4,9 @@
 > W3 implements health, local login/logout/session, device listing, and enroll-token
 > issuance through `nethub web`. The React console implements these W3 flows;
 > W4 deployment acceptance is recorded separately. W5's scoped Open API is
-> implemented as an access-grant foundation; its UI and NewUserConn enforcement
-> remain pending. Other W5-W7 console endpoints below remain proposals.
+> implemented with NewUserConn enforcement in generated relay bundles; its UI and
+> native gate acceptance remain pending. Other W5-W7 console endpoints below
+> remain proposals.
 > Update this document in the same pull request as any API contract change.
 > [`DESIGN.md`](DESIGN.md) is the authority on behaviour; where this document
 > and DESIGN disagree, DESIGN wins.
@@ -417,9 +418,10 @@ Request: `{}` without query parameters. Response `200`:
 { "url": "https://abcd1234.router.example.com:8443", "gate_expires_at": "2026-10-24T08:30:00Z" }
 ```
 
-The API and transactional database grant are implemented. The console button and
-NewUserConn enforcement remain W5 work; this endpoint alone does not establish
-an enforced gate or verify a successful GUI connection.
+The API, transactional database grant and generated relay's NewUserConn checks
+are implemented. Existing bundles must include NewUserConn in the frps callback
+operation list. The console button and real native gate acceptance remain W5
+work; an API response alone does not verify a successful GUI connection.
 
 The console opens it in a new tab with `noopener,noreferrer`, so the device
 page cannot reach the console tab. It also shows the hostname, so the user
@@ -697,7 +699,8 @@ Confirmed on 2026-10-18:
   measured in W0; the API does not promise instantaneous live disconnection.
 - Device revocation is one-way. The database already enforces it, limits web's
   writes, and provides scoped Open/cutoff functions. The scoped Open HTTP API is
-  implemented; revocation/cutoff HTTP integration and gate enforcement remain W5.
+  implemented with generated relay source checks; revocation/cutoff HTTP
+  integration, Open UI and native gate acceptance remain W5.
 - Web's enrollment status-column grants are implemented. Hash read/expiry update
   and token consumption remain unavailable to web.
 - SAML is included in v1 through authcore/saml; its complete HTTP flows, trusted

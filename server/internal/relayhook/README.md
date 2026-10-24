@@ -1,6 +1,7 @@
 # Internal relay callbacks
 
-W4 implements `Login` and `NewProxy` on `POST /api/v1/frp/hooks`. The public
+W4 implements `Login` and `NewProxy`, and W5 adds `NewUserConn` on
+`POST /api/v1/frp/hooks`. The public
 device listener does not serve this route. Enable the separate listener with
 `--hook-listen` and repeatable `--hook-peer` flags. The bind must be an exact
 private or loopback IP; peers are exact socket addresses without CIDRs or DNS.
@@ -41,6 +42,23 @@ Both listeners stop if either fails. SIGTERM drains both; a hook bind failure
 does not leave the public API running alone. With no hook flags, enrollment-only
 startup remains available and explicitly reports hooks disabled.
 
+`NewUserConn` verifies the same signed/current assignment, the canonical HTTPS
+proxy name and the relay-reported exact TCP source. IPv4-mapped addresses normalize
+to IPv4; hostnames, ranges, scoped addresses, unspecified/multicast addresses and
+invalid ports are refused. HTTP forwarding headers never select this source.
+The request requires an unexpired exact grant from explicit console Open. Its
+actor must still be enabled and either the current owner or an administrator.
+The narrow `device_source_access` function locks the grant/actor and rechecks the
+database clock after waits; it exposes only a boolean to authz, with no user-table
+read grant. Traffic does not extend access. Router GUI authentication remains
+required, and an already established stream can outlive its source grant.
+
+Generated frps configurations include `NewUserConn`. Existing bundles must update
+their callback operation list before source gating can be claimed; updating the
+web binary alone does not enable it. The Open UI and real native source-gate
+acceptance remain separate W5 work. Missing/expired grants and storage errors
+deny within the existing hook budget.
+
 Local tests cover signature/identity/routing rejection, peer spoofing, bounded
 input, saturation, database deadlines and a real slow-body TCP connection. The
 native PostgreSQL harness adds valid signed-but-stale/wrong assignments,
@@ -48,5 +66,15 @@ revocation/claim changes during observed row-lock waits, and compiled-process
 callbacks, a real 500 ms database lock timeout, recovery, listener separation and
 shutdown. These native cases passed in run 39219581415 on 3c24e5e. Real frps registration and
 tunnel traffic still require W4 deployment acceptance; these tests send callback
-HTTP directly. Ping and NewUserConn remain W5 work, so this step does not claim
-to disconnect existing sessions or enforce the browser source-IP gate.
+HTTP directly. The additional W5 suite exercises current source grants, role
+isolation, expiry during an unchanged row-lock wait, and two actual official
+clients through generated frps. Ping-based interruption and the remaining native
+W5 acceptance are still pending.
+
+The host-local Compose fixture measures a nonce-bound TCP peer independently of
+its socket bind address. When Docker applies different source translations to
+console ingress and local relay probes, the fixture records the console Open and
+adds the measured local source through the same narrow web-role grant/audit
+transaction. This compensation is confined to the isolated fixture. Each denial
+requires an actual NewUserConn decision; public/native source preservation and
+the complete console-to-router flow remain separate acceptance.
