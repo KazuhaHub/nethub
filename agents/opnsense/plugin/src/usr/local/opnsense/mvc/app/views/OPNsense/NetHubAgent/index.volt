@@ -1,5 +1,6 @@
 <script>
 $(function () {
+    let circuitPending = false;
     const form = 'nethubSettings';
     const endpoint = '/api/nethubagent/settings/';
     mapDataToFormUI({[form]: endpoint + 'get'});
@@ -14,10 +15,29 @@ $(function () {
     function showStatus() {
         ajaxCall('/api/nethubagent/service/status', {}, function (result) {
             $('#nethubStatus').text(JSON.stringify(result, null, 2));
+            const known = result && typeof result.disabled === 'boolean';
+            $('#nethubCircuitBreaker').prop('checked', known && result.disabled)
+                .prop('disabled', circuitPending || !known);
+            $('#nethubCircuitStatus').text(!known ? '{{ lang._("Circuit breaker status unavailable") }}' :
+                result.disabled ? (result.status === 'stopped' ? '{{ lang._("Circuit breaker enabled; tunnel stopped") }}' :
+                    '{{ lang._("Circuit breaker enabled; tunnel has not stopped. Check service status.") }}') :
+                    '{{ lang._("Circuit breaker released; saved settings and other stop conditions still apply") }}');
         });
     }
     showStatus();
     showEnrollment();
+    $('#nethubCircuitBreaker').on('change', function () {
+        const action = this.checked ? 'disable' : 'enable';
+        circuitPending = true;
+        $(this).prop('disabled', true);
+        $('#nethubCircuitResult').text('{{ lang._("Applying local circuit breaker…") }}');
+        ajaxCall('/api/nethubagent/service/' + action, {}, function (result, status) {
+            circuitPending = false;
+            $('#nethubCircuitResult').text(status === 'success' && result && typeof result.message === 'string' ?
+                result.message : '{{ lang._("Operation was not confirmed. Refresh status before retrying.") }}');
+            showStatus();
+        });
+    });
     $('#saveNetHub').on('click', function () {
         saveFormToEndpoint(endpoint + 'set', form);
     });
@@ -67,10 +87,16 @@ $(function () {
     <button id="saveNetHub" class="btn btn-primary" type="button">{{ lang._('Save') }}</button>
     <button id="applyNetHub" class="btn btn-default" type="button">{{ lang._('Apply') }}</button>
     <button id="refreshNetHub" class="btn btn-default" type="button">{{ lang._('Refresh status') }}</button>
+    <h2>{{ lang._('Local circuit breaker') }}</h2>
+    <label><input id="nethubCircuitBreaker" type="checkbox" disabled> {{ lang._('Stop remote access') }}</label>
+    <p>{{ lang._('Stops the NetHub tunnel without changing saved configuration. Keep a local console or another independent access path before switching it on.') }}</p>
+    <p id="nethubCircuitStatus" role="status"></p>
+    <p id="nethubCircuitResult" role="status"></p>
     <pre id="nethubStatus"></pre>
     <h2>{{ lang._('Enrollment') }}</h2>
     <p id="nethubEnrollmentInfo"></p>
     <p>{{ lang._('Enter the HTTPS address of your NetHub console and its one-use token. Enrollment enables the tunnel. The router keeps its current GUI login and security checks.') }}</p>
+    <p>{{ lang._('Before enrolling, confirm that you can reach this router without NetHub, such as through a local console or physical access.') }}</p>
     <div class="form-group">
         <label for="nethubConsoleUrl">{{ lang._('Console HTTPS address') }}</label>
         <input id="nethubConsoleUrl" class="form-control" type="url" maxlength="512" autocomplete="off" placeholder="https://console.example.com">
