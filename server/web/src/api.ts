@@ -5,6 +5,7 @@ export type Session = {
   session_expires_at: string;
 };
 export type Device = {
+  disconnect?: Disconnect | null;
   id: string;
   label: string;
   hostname: string;
@@ -39,6 +40,12 @@ export type Device = {
 export type DevicePage = { items: Device[]; next_cursor: string | null };
 export type Enrollment = { token: string; expires_at: string };
 export type Revocation = { revoked: true; revoked_at: string };
+export type Disconnect = {
+  request_id: string;
+  requested_at: string;
+  armed_at: string | null;
+  state: "pending" | "armed";
+};
 
 export class ApiError extends Error {
   constructor(
@@ -170,5 +177,11 @@ export const api = {
   },
   revokeDevice(id: string) {
     return request<Revocation>(`/devices/${encodeURIComponent(id)}/revoke`, {});
+  },
+  requestDisconnect(id: string) {
+    return request<Disconnect>(
+      `/devices/${encodeURIComponent(id)}/disconnect`,
+      {},
+    );
   },
 };

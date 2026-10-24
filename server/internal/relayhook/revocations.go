@@ -25,6 +25,41 @@ type RevocationRepository interface {
 	Revocations(context.Context) ([]RevokedDevice, error)
 }
 
+type DisconnectProcessor interface {
+	ProcessDisconnects(context.Context, func(RevokedDevice) bool) error
+}
+
+func (c *RevocationCache) ProcessDisconnects(ctx context.Context) error {
+	processor, ok := c.repository.(DisconnectProcessor)
+	if !ok {
+		return nil
+	}
+	read, cancel := context.WithTimeout(ctx, c.budget)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		done <- processor.ProcessDisconnects(read, func(device RevokedDevice) bool {
+			return errors.Is(c.AuthorizePing(protocol.ClaimPayload{TenantID: device.TenantID, DeviceID: device.DeviceID}), ErrDenied)
+		})
+	}()
+	select {
+	case err := <-done:
+		if read.Err() != nil {
+			return ErrUnavailable
+		}
+		return err
+	case <-read.Done():
+		timer := time.NewTimer(c.grace)
+		defer timer.Stop()
+		select {
+		case <-done:
+			return ErrUnavailable
+		case <-timer.C:
+			return ErrRevocationLiveness
+		}
+	}
+}
+
 type revocationSnapshot struct {
 	devices map[RevokedDevice]struct{}
 	probe   RevokedDevice
@@ -152,6 +187,16 @@ func (c *RevocationCache) Run(ctx context.Context) error {
 			}
 			if err != nil {
 				c.logger.Warn("Revocation refresh failed; retaining previous snapshot")
+			}
+			err = c.ProcessDisconnects(ctx)
+			if ctx.Err() != nil {
+				return nil
+			}
+			if errors.Is(err, ErrRevocationLiveness) {
+				return err
+			}
+			if err != nil {
+				c.logger.Warn("Disconnect requests remain pending")
 			}
 		}
 	}

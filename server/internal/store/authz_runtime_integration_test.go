@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,7 +30,7 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/relaystate"
 )
 
-func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
+func testAuthzRuntime(t *testing.T, f *enrollmentFixture, webRole *sql.DB, tenant string) {
 	t.Helper()
 	binary := os.Getenv("NETHUB_AUTHZ_TEST_BINARY")
 	if binary == "" {
@@ -323,6 +325,30 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, tenant string) {
 		time.Sleep(25 * time.Millisecond)
 	}
 	t.Log("Compiled authz Ping used its initialized memory snapshot and published revocation on the five-second production refresh interval")
+	consoleRepo := &ConsoleStore{AuthStore: AuthStore{DB: webRole, Tenant: tenant}}
+	requestReceipt, err := consoleRepo.RequestDisconnect(f.ctx, actor, result.DeviceID, netip.MustParseAddr("192.0.2.188"))
+	if err != nil {
+		t.Fatal("compiled runtime cutoff request failed", err)
+	}
+	deadline = time.Now().Add(relayhook.RevocationInterval + 3*time.Second)
+	for {
+		var armed bool
+		if err = f.owner.QueryRowContext(f.ctx, `SELECT processed_at IS NOT NULL FROM device_disconnect_requests WHERE id=$1`, requestReceipt.RequestID).Scan(&armed); err != nil {
+			t.Fatal(err)
+		}
+		if armed {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("compiled authz did not process the pending cutoff")
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	var armedAudits int
+	if err = f.owner.QueryRowContext(f.ctx, `SELECT count(*) FROM audit_log WHERE target_device_id=$1 AND action='device.disconnect_armed' AND payload->>'request_id'=$2`, result.DeviceID, requestReceipt.RequestID).Scan(&armedAudits); err != nil || armedAudits != 1 {
+		t.Fatal("compiled cutoff lacks one processing audit", err)
+	}
+	t.Log("Compiled authz processed the genuine web-role cutoff request only after published Ping denial with one armed audit")
 	_ = command.Process.Signal(syscall.SIGTERM)
 	select {
 	case err := <-completed:
