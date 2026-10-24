@@ -211,6 +211,21 @@ func (s *Server) devices(w http.ResponseWriter, r *http.Request) {
 		}
 		device.URL = "https://" + host + ":8443"
 	}
+	if session.User.Role != "admin" {
+		page.RelayAlerts = nil
+	}
+	if len(page.RelayAlerts) > 100 {
+		s.internal(w, r, "relay alert projection")
+		return
+	}
+	seenAlerts := make(map[string]bool, len(page.RelayAlerts))
+	for _, alert := range page.RelayAlerts {
+		if !alert.Valid() || seenAlerts[alert.ID] {
+			s.internal(w, r, "relay alert projection")
+			return
+		}
+		seenAlerts[alert.ID] = true
+	}
 	writeJSON(w, r, 200, page)
 }
 

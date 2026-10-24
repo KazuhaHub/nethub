@@ -13,6 +13,8 @@ import (
 
 	"github.com/KazuhaHub/nethub/server/internal/device"
 	"github.com/KazuhaHub/nethub/server/internal/relaystate"
+	"github.com/KazuhaHub/nethub/server/internal/web"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, tenant, otherTenant string) {
@@ -158,6 +160,9 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 		if err := repository.Commit(f.ctx, routes, inspect(t, routes), confirm(t, inspect(t, routes), 10)); err != nil {
 			t.Fatal(err)
 		}
+		_,immutableError:=f.owner.ExecContext(f.ctx,`UPDATE relay_anomaly_incidents SET response='revoked' WHERE proxy_key=$1`,routes[0].ProxyKey)
+		var receiptError *pgconn.PgError
+		if !errors.As(immutableError,&receiptError) || receiptError.Code!="23514" {t.Fatal("owner update bypassed immutable incident response",immutableError)}
 		for index, value := range values {
 			if isRevoked(t, value.ID) || countIncidents(t, routes[index].ProxyKey) != 1 {
 				t.Fatal("persisted alarm escalated or duplicated")
@@ -189,6 +194,20 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 		member := register(t, tenant)
 		if project(t, tenant, member.OwnerID) != "[]" {
 			t.Fatal("member saw admin alerts")
+		}
+		console := &ConsoleStore{AuthStore: AuthStore{DB: webRole, Tenant: tenant}}
+		adminPage, err := console.Devices(f.ctx, value.OwnerID, web.DeviceQuery{Limit: 1})
+		if err != nil || len(adminPage.RelayAlerts) != 2 {
+			t.Fatal("admin inventory lost its bounded deployment alerts", err)
+		}
+		for _, alert := range adminPage.RelayAlerts {
+			if !alert.Valid() {
+				t.Fatal("invalid persisted alert projection")
+			}
+		}
+		memberPage, err := console.Devices(f.ctx, member.OwnerID, web.DeviceQuery{Limit: 1})
+		if err != nil || len(memberPage.RelayAlerts) != 0 {
+			t.Fatal("inventory exposed admin alerts to a member", err)
 		}
 		if _, err := f.owner.ExecContext(f.ctx, `UPDATE users SET disabled_at=clock_timestamp() WHERE id=$1`, value.OwnerID); err != nil {
 			t.Fatal(err)

@@ -65,6 +65,8 @@ docker cp "$authz_binary" "$name:/tmp/nethub"
 # Only these disposable test executables need to run as the container's postgres.
 docker exec -u 0 "$name" chmod 0555 /tmp/database.test /tmp/nethub
 docker cp "$root/proto" "$name:/tmp/nethub-proto"
-docker exec -u postgres -e NETHUB_DATABASE_TEST=1 -e NETHUB_PROTOCOL_FIXTURES=/tmp/nethub-proto -e NETHUB_AUTHZ_TEST_BINARY=/tmp/nethub "$name" /tmp/database.test -test.v -test.timeout=120s
+# Include the real three-sample, 15-second runtime test and bounded shutdown after the
+# 180s suite context. Production HTTP/SQL/heartbeat deadlines are unchanged.
+docker exec -u postgres -e NETHUB_DATABASE_TEST=1 -e NETHUB_PROTOCOL_FIXTURES=/tmp/nethub-proto -e NETHUB_AUTHZ_TEST_BINARY=/tmp/nethub "$name" /tmp/database.test -test.v -test.timeout=210s
 # Re-execute the actual bootstrap hook and verify repeat initialization is safe.
 docker exec -u postgres -e POSTGRES_USER=postgres "$name" sh /docker-entrypoint-initdb.d/00-nethub-roles.sh >/dev/null

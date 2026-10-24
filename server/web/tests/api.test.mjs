@@ -5,9 +5,40 @@ import { stripTypeScriptTypes } from "node:module";
 
 const source = readFileSync(new URL("../src/api.ts", import.meta.url), "utf8");
 const compiled = stripTypeScriptTypes(source, { mode: "transform" });
-const { api, clearSession, onUnauthorized } = await import(
+const { api, clearSession, onUnauthorized, validRelayAlerts } = await import(
   `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`
 );
+
+test("relay alerts reject ambiguous identities, unsafe modes and duplicate receipts", () => {
+  const alert = {
+    id: "11111111-1111-4111-8111-111111111111",
+    device_id: null,
+    kind: "unknown_proxy",
+    response: "alarm_only",
+    confirmed_at: "2026-10-24T00:00:00Z",
+  };
+  assert.equal(validRelayAlerts([alert]), true);
+  const known = {
+    ...alert,
+    device_id: "22222222-2222-4222-8222-222222222222",
+    kind: "domain_mismatch",
+    response: "revoked",
+  };
+  assert.equal(validRelayAlerts([known]), true);
+  for (const invalid of [
+    null,
+    {},
+    [alert, alert],
+    Array(101).fill(alert),
+    [{ ...alert, device_id: known.device_id }],
+    [{ ...alert, response: "revoked" }],
+    [{ ...known, response: "already_revoked" }],
+    [{ ...alert, confirmed_at: "not-a-date" }],
+    [{ ...alert, id: { toString: "invalid" } }],
+  ]) {
+    assert.equal(validRelayAlerts(invalid), false);
+  }
+});
 
 test("the request wrapper attaches CSRF, clears it on 401, and never puts credentials in URLs", async () => {
   const previous = globalThis.fetch;

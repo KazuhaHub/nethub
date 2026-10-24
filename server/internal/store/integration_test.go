@@ -26,7 +26,9 @@ func TestPostgresBoundaries(t *testing.T) {
 	if os.Getenv("NETHUB_DATABASE_TEST") != "1" {
 		t.Skip("run tests/postgres.sh for an isolated genuine PostgreSQL instance")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	// The suite includes three real fifteen-second anomaly observations in the
+	// compiled runtime, in addition to the existing SQL and refresh lock cases.
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 	connect := func(role string) *sql.DB {
 		t.Helper()

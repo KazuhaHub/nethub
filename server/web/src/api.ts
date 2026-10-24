@@ -37,7 +37,47 @@ export type Device = {
     confirmed_at: string | null;
   };
 };
-export type DevicePage = { items: Device[]; next_cursor: string | null };
+export type RelayAlert = {
+  id: string;
+  device_id: string | null;
+  kind: "unknown_proxy" | "domain_mismatch" | "revoked_online";
+  response: "alarm_only" | "revoked" | "already_revoked";
+  confirmed_at: string;
+};
+export type DevicePage = {
+  items: Device[];
+  next_cursor: string | null;
+  relay_alerts?: RelayAlert[];
+};
+
+export function validRelayAlerts(value: unknown): value is RelayAlert[] {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+  if (!Array.isArray(value) || value.length > 100) return false;
+  const seen = new Set<string>();
+  return value.every((item) => {
+    if (
+      !item ||
+      typeof item !== "object" ||
+      typeof item.id !== "string" ||
+      !uuid.test(item.id) ||
+      seen.has(item.id) ||
+      typeof item.confirmed_at !== "string" ||
+      !Number.isFinite(Date.parse(item.confirmed_at))
+    )
+      return false;
+    seen.add(item.id);
+    if (item.kind === "unknown_proxy")
+      return item.device_id === null && item.response === "alarm_only";
+    if (typeof item.device_id !== "string" || !uuid.test(item.device_id))
+      return false;
+    return (
+      (item.kind === "domain_mismatch" &&
+        ["alarm_only", "revoked"].includes(item.response)) ||
+      (item.kind === "revoked_online" &&
+        ["alarm_only", "already_revoked"].includes(item.response))
+    );
+  });
+}
 export type Enrollment = { token: string; expires_at: string };
 export type Revocation = { revoked: true; revoked_at: string };
 export type Disconnect = {
@@ -148,7 +188,7 @@ export const api = {
     await request<void>("/logout", {});
     clearSession();
   },
-  devices(
+  async devices(
     cursor: string | null,
     status: string,
     signal?: AbortSignal,
@@ -159,12 +199,15 @@ export const api = {
     if (status === "online" || status === "offline")
       query.set("online", String(status === "online"));
     if (status === "revoked") query.set("revoked", "true");
-    return request<DevicePage>(
+    const page = await request<DevicePage>(
       `/devices?${query}`,
       undefined,
       signal,
       background,
     );
+    if (page.relay_alerts !== undefined && !validRelayAlerts(page.relay_alerts))
+      throw new Error("Relay alert data is unavailable. Try refreshing.");
+    return page;
   },
   enroll(signal?: AbortSignal) {
     return request<Enrollment>("/enroll-tokens", {}, signal);

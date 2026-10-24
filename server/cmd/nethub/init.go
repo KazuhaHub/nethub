@@ -29,6 +29,7 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 	proxyMode := flags.String("proxy-mode", "bundled", "bundled Caddy or external host reverse proxy")
 	webPort := flags.Uint("web-port", 0, "External proxy loopback web port (default 18080)")
 	devicePort := flags.Uint("device-port", 0, "External proxy loopback device API port (default 18081)")
+	anomalyActionLimit := flags.Int("anomaly-action-limit", 3, "Confirmed anomaly batch limit before alarm-only mode (1-1024)")
 	expected := flags.String("expected-address", "", "Expected public relay address for DNS preflight")
 	skipDNS := flags.Bool("offline", false, "Prepare an offline test bundle; DNS and public readiness remain unverified")
 	resume := flags.Bool("resume", false, "Resume only an existing unconfirmed bundle without regenerating secrets")
@@ -44,6 +45,10 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 	}
 	if *webPort > 65535 || *devicePort > 65535 {
 		fmt.Fprintln(stderr, "External proxy origin ports must be valid TCP ports")
+		return 2
+	}
+	if *anomalyActionLimit < 1 || *anomalyActionLimit > 1024 {
+		fmt.Fprintln(stderr, "Anomaly action limit must be between 1 and 1024")
 		return 2
 	}
 	if runtime.GOOS != "linux" || os.Geteuid() != 0 {
@@ -88,7 +93,7 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	config := setup.Config{ConsoleHost: *console, DeviceDomain: *device, SourceDirectory: absSource, NetworkSubnet: *subnet,
-		ProxyMode: *proxyMode, WebPort: uint16(*webPort), DevicePort: uint16(*devicePort)}
+		ProxyMode: *proxyMode, WebPort: uint16(*webPort), DevicePort: uint16(*devicePort), AnomalyActionLimit: *anomalyActionLimit}
 	if *resume {
 		config = previous.Config
 	}

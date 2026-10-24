@@ -18,7 +18,11 @@ uses current device rows under explicit tenant RLS; admission continues to use
 signed claims and current SQL, with memory-only Ping checks.
 
 `nethub authz --anomaly-action-limit 3` is the default. Valid limits are 1 through
-1024. More confirmed anomalies than this limit make the whole batch alarm-only.
+1024. Set the same option on `nethub init` for a new managed bundle; it is retained
+in the protected setup configuration and generated authz command, including its
+authority binding. An older bundle with the option omitted retains the default of 3.
+Resuming initialization preserves that bundle's existing configuration.
+More confirmed anomalies than this limit make the whole batch alarm-only.
 Cluster-tagged devices also require manual review. Unknown proxies have no trusted
 device to revoke and always produce alarms. In the single-tenant v1 console these
 are deployment-wide summaries; authz stores the same private summary within each
@@ -46,5 +50,8 @@ later recurrence needs a new three-sample confirmation.
 HTTP has a three-second budget, classification and persistence two seconds each,
 within an eight-second attempt. Failures log fixed unavailable/resumed transitions.
 Admin alert projection is scoped to an enabled current admin and excludes internal
-keys. Its inventory/UI integration, genuine concurrency/rollback tests and compiled
-production-cadence evidence must pass before this feature is accepted.
+keys. Inventory displays its latest 100 active entries, including honest decision
+state and confirmation time; members receive none. Local strict-CSP/browser and
+genuine PostgreSQL concurrency/rollback checks have passed at their recorded heads.
+Final checks of the committed version and compiled production-cadence evidence must
+pass before this feature is accepted.

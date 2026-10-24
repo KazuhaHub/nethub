@@ -115,6 +115,13 @@ func (s *ConsoleStore) Devices(ctx context.Context, actor string, query web.Devi
 		cursor := base64.RawURLEncoding.EncodeToString([]byte(page.Items[len(page.Items)-1].ID))
 		page.NextCursor = &cursor
 	}
+	var alerts []byte
+	if err = tx.QueryRowContext(ctx, `SELECT console_relay_alerts($1)`, actor).Scan(&alerts); err != nil {
+		return web.DevicePage{}, err
+	}
+	if err = json.Unmarshal(alerts, &page.RelayAlerts); err != nil {
+		return web.DevicePage{}, err
+	}
 	return page, tx.Commit()
 }
 

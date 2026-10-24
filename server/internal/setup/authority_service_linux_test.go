@@ -139,6 +139,22 @@ func TestAuthorityServiceFingerprintBindsImmutableConfiguration(t *testing.T) {
 	}
 }
 
+func TestAuthorityServicePinsConfiguredAnomalyAllowance(t *testing.T) {
+	s, c := authorityServiceFixture(t, "nethub-authz", false)
+	s.binding.Config.AnomalyActionLimit = 7
+	if s.accepts("nethub-authz", c, true, true) {
+		t.Fatal("changed configured allowance accepted an old command")
+	}
+	c.Config.Cmd = expectedAuthorityCommand(s.binding.Config, "nethub-authz")
+	if !s.accepts("nethub-authz", c, true, true) {
+		t.Fatal("configured managed command rejected")
+	}
+	c.Config.Cmd[len(c.Config.Cmd)-1] = "8"
+	if s.accepts("nethub-authz", c, true, true) {
+		t.Fatal("runtime allowance drift escaped authority binding")
+	}
+}
+
 func TestStoppedAuthorityServiceRequiresRetainedStaticNetwork(t *testing.T) {
 	s, c := authorityServiceFixture(t, "nethub-authz", false)
 	c.State.Running = false
