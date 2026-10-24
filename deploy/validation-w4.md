@@ -1,5 +1,11 @@
 # Native W4 deployment evidence
 
+Current checkpoint (2026-10-24): real public-CA native installation, authenticated
+public GUI access and normal UI removal now pass. Together with the earlier
+renewal, identity and offline/fault controls, this completes W4 acceptance within
+the documented lab scope. [Final measurements and requirement map](validation-native-public-certificate.md).
+The dated sections below retain their earlier outcomes and limitations.
+
 ## Public console and relay source address
 
 The Linux LXC loaded the four images exported by CI run 39231661494 from
