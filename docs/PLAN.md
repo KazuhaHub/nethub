@@ -1533,7 +1533,7 @@ The configuration writer and private temporary-file handoff were confirmed by Ka
 
 ### 验收（对应 DESIGN §10 W4）
 
-- [x] 上面的端到端流程走通，设备在 15 秒内显示在线（截图或录屏） — The earlier fresh run passed in 3.723 seconds. After the later 16.862-second failure, the corrected tested runtime rendered a new native device online in 2.511 seconds without reloading or manually refreshing the console. Token, model, key and credential binding plus five retained screenshots were independently verified. This retained-backend repeat closes the timing regression; its separate post-boot certificate application failed and remains open. [Evidence and lab limits](../deploy/validation-native-offline-recovery.md).
+- [x] 上面的端到端流程走通，设备在 15 秒内显示在线（截图或录屏） — The earlier fresh run passed in 3.723 seconds. After the later 16.862-second failure, the corrected tested runtime rendered a new native device online in 2.511 seconds without reloading or manually refreshing the console. Token, model, key and credential binding plus five retained screenshots were independently verified. This retained-backend repeat closes the timing regression; its separate certificate failure remains archived. [Earlier evidence and lab limits](../deploy/validation-native-offline-recovery.md). The corrected 0.0.15 repeat displayed online in 7.788 seconds and passed private-CA offline renewal and reboot persistence. [Follow-up measurements](../deploy/validation-native-offline-renewal.md).
 - [x] 同一个 token 用第二次会失败；过期 token 会失败（贴输出） — Immediate unexpired replay and a naturally expired unused token returned 401 without database mutation. The same expired request with a fresh token enrolled successfully. [Responses and independent controls](../deploy/validation-enrollment-boundaries.md).
 - [x] 手工改坏声明里的一个字符，frpc 登录被拒（贴 frps 日志） — Actual official client/frps logs and Login/invalid_claim matched in PR #134/run 39917999149. [Observed output](../deploy/validation-enrollment-boundaries.md#operation-specific-relay-rejection).
 - [x] 把一台设备的 `subdomain` 改成另一台设备的，`NewProxy` 被拒（贴日志） — A valid Login was followed by NewProxy/proxy_policy before either route existed; both legitimate routes subsequently passed verified TLS. [Observed output](../deploy/validation-enrollment-boundaries.md#operation-specific-relay-rejection).
@@ -1550,8 +1550,12 @@ Native GUI certificate progress (2026-10-23): genuine package cron installed and
 confirmed two generations from one native key/CSR through the public NAT relay.
 Natural renewal produced exactly two real orders/finalizations; both served
 leaves passed independent chain/name/fingerprint checks. [Scoped measurements](../deploy/validation-native-gui-lifecycle.md).
-Wrong-host/key, application failure/rollback, offline/reboot and public CA
-acceptance remain open; the combined certificate checkbox is not complete.
+The corrected 0.0.15 package also passed natural renewal while the guest was off,
+cron-driven application after boot, native UUID/key/reference retention and
+independent restoration. Boot DNS readiness to generation-2 confirmation took
+77.521 seconds, with 95.703 seconds of validity remaining. [Offline measurements](../deploy/validation-native-offline-renewal.md).
+Wrong-host/key, native application failure/rollback and public CA acceptance
+remain open; the combined certificate checkbox is not complete.
 
 ### 常见坑
 
