@@ -26,14 +26,14 @@ the deployed authz process and authenticated private frps admin observations. Tw
 original enrollments remain available for later authority tests; a separate third
 enrollment is permanently revoked. No enrollment is made active again.
 
-| Observation after command dispatch | PR 159 | Final PR 160 |
+| Measurement | PR 159 | Final PR 160 |
 | --- | ---: | ---: |
 | Authz stop command completed | 0.224 s | 0.248 s |
-| First sampled with original client sockets gone | 8.831 s | 8.999 s |
-| Both original proxy registrations removed | 8.843 s | 9.015 s |
+| First sampled with original sockets gone after stop dispatch | 8.831 s | 8.999 s |
+| Both original proxies offline after stop dispatch | 8.843 s | 9.015 s |
 | Proxy removal after confirmed authz stop | 8.618 s | 8.768 s |
-| Recovery after authz restart | 1.067 s | 1.075 s |
-| Dedicated revoked proxy removed | 9.792 s | 9.803 s |
+| Recovery after the authz start command returned | 1.067 s | 1.075 s |
+| Dedicated revoked proxy offline after revocation dispatch | 9.792 s | 9.803 s |
 
 Socket and proxy results are observation bounds, not exact packet timestamps.
 The stopped container was independently confirmed not running and not OOM-killed.
