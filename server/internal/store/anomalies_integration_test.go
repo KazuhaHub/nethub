@@ -18,7 +18,7 @@ import (
 func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, tenant, otherTenant string) {
 	t.Helper()
 	repository := &ObservationStore{DB: f.repository.DB}
-	register := func(scope string) device.Assignment {
+	register := func(t *testing.T, scope string) device.Assignment {
 		t.Helper()
 		request, _, _ := f.fresh(t, scope)
 		assignment, err := f.repository.Register(f.ctx, request, f.issue)
@@ -31,7 +31,7 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 		digest := sha256.Sum256([]byte(value.ID + "|" + assigned))
 		return relaystate.ObservedRoute{DeviceID: value.ID, Subdomain: assigned, ProxyKey: hex.EncodeToString(digest[:])}
 	}
-	inspect := func(routes []relaystate.ObservedRoute) []relaystate.Anomaly {
+	inspect := func(t *testing.T, routes []relaystate.ObservedRoute) []relaystate.Anomaly {
 		t.Helper()
 		findings, err := repository.Inspect(f.ctx, routes)
 		if err != nil {
@@ -39,7 +39,7 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 		}
 		return findings
 	}
-	confirm := func(findings []relaystate.Anomaly, limit int) []relaystate.AnomalyConfirmation {
+	confirm := func(t *testing.T, findings []relaystate.Anomaly, limit int) []relaystate.AnomalyConfirmation {
 		t.Helper()
 		now := time.Now()
 		tracker, err := relaystate.NewAnomalyTracker(now, limit)
@@ -55,7 +55,7 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 		}
 		return batch
 	}
-	isRevoked := func(id string) bool {
+	isRevoked := func(t *testing.T, id string) bool {
 		t.Helper()
 		var value bool
 		if err := f.owner.QueryRowContext(f.ctx, `SELECT revoked FROM devices WHERE id=$1`, id).Scan(&value); err != nil {
@@ -63,7 +63,7 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 		}
 		return value
 	}
-	countIncidents := func(key string) int {
+	countIncidents := func(t *testing.T, key string) int {
 		t.Helper()
 		var count int
 		if err := f.owner.QueryRowContext(f.ctx, `SELECT count(*) FROM relay_anomaly_incidents WHERE proxy_key=$1`, key).Scan(&count); err != nil {
@@ -71,7 +71,7 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 		}
 		return count
 	}
-	project := func(scope, actor string) string {
+	project := func(t *testing.T, scope, actor string) string {
 		t.Helper()
 		tx, err := webRole.BeginTx(f.ctx, nil)
 		if err != nil {
@@ -89,16 +89,16 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 	}
 
 	t.Run("classification_and_locked_recheck", func(t *testing.T) {
-		a, b, normal := register(tenant), register(otherTenant), register(tenant)
+		a, b, normal := register(t, tenant), register(t, otherTenant), register(t, tenant)
 		routes := []relaystate.ObservedRoute{route(a, "wrong001"), route(b, "wrong002"), route(normal, normal.Subdomain), {ProxyKey: strings.Repeat("a", 64)}}
-		findings := inspect(routes)
+		findings := inspect(t, routes)
 		if len(findings) != 3 {
 			t.Fatal("wrong classification count")
 		}
 		if findings[0].DeviceID != a.ID || findings[0].TenantID != tenant || findings[1].DeviceID != b.ID || findings[1].TenantID != otherTenant || findings[2].Kind != relaystate.UnknownProxy || findings[2].TenantID != "" || findings[2].DeviceID != "" {
 			t.Fatal("relay data established guessed ownership")
 		}
-		if err := repository.Commit(f.ctx, routes, findings, nil); err != nil || isRevoked(a.ID) || countIncidents(routes[0].ProxyKey) != 0 {
+		if err := repository.Commit(f.ctx, routes, findings, nil); err != nil || isRevoked(t, a.ID) || countIncidents(t, routes[0].ProxyKey) != 0 {
 			t.Fatal("unconfirmed finding caused an action", err)
 		}
 		// A normal online row held by another transaction must not block anomaly work.
@@ -115,20 +115,20 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 		}
 		blocker.Rollback()
 		one := []relaystate.ObservedRoute{routes[0]}
-		expected := inspect(one)
-		batch := confirm(expected, 3)
-		if err = repository.Commit(f.ctx, one, expected, batch); err != nil || !isRevoked(a.ID) {
+		expected := inspect(t, one)
+		batch := confirm(t, expected, 3)
+		if err = repository.Commit(f.ctx, one, expected, batch); err != nil || !isRevoked(t, a.ID) {
 			t.Fatal("confirmed mismatch was not atomically revoked", err)
 		}
-		if err = repository.Commit(f.ctx, one, expected, batch); !errors.Is(err, relaystate.ErrAnomalyChanged) || countIncidents(one[0].ProxyKey) != 1 {
+		if err = repository.Commit(f.ctx, one, expected, batch); !errors.Is(err, relaystate.ErrAnomalyChanged) || countIncidents(t, one[0].ProxyKey) != 1 {
 			t.Fatal("stale retry repeated the decision", err)
 		}
-		stale := inspect([]relaystate.ObservedRoute{routes[1]})
-		staleBatch := confirm(stale, 3)
+		stale := inspect(t, []relaystate.ObservedRoute{routes[1]})
+		staleBatch := confirm(t, stale, 3)
 		if _, err = f.owner.ExecContext(f.ctx, `UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id=$1`, b.ID); err != nil {
 			t.Fatal(err)
 		}
-		if err = repository.Commit(f.ctx, []relaystate.ObservedRoute{routes[1]}, stale, staleBatch); !errors.Is(err, relaystate.ErrAnomalyChanged) || countIncidents(routes[1].ProxyKey) != 0 {
+		if err = repository.Commit(f.ctx, []relaystate.ObservedRoute{routes[1]}, stale, staleBatch); !errors.Is(err, relaystate.ErrAnomalyChanged) || countIncidents(t, routes[1].ProxyKey) != 0 {
 			t.Fatal("changed database row accepted a stale classification", err)
 		}
 	})
@@ -137,12 +137,12 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 		var values []device.Assignment
 		var routes []relaystate.ObservedRoute
 		for range 4 {
-			value := register(tenant)
+			value := register(t, tenant)
 			values = append(values, value)
 			routes = append(routes, route(value, "wrong003"))
 		}
-		findings := inspect(routes)
-		batch := confirm(findings, 3)
+		findings := inspect(t, routes)
+		batch := confirm(t, findings, 3)
 		if len(batch) != 4 {
 			t.Fatal("missing mass confirmation")
 		}
@@ -155,45 +155,45 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 			t.Fatal(err)
 		}
 		// A restarted tracker with a larger allowance cannot upgrade durable alarms.
-		if err := repository.Commit(f.ctx, routes, inspect(routes), confirm(inspect(routes), 10)); err != nil {
+		if err := repository.Commit(f.ctx, routes, inspect(t, routes), confirm(t, inspect(t, routes), 10)); err != nil {
 			t.Fatal(err)
 		}
 		for index, value := range values {
-			if isRevoked(value.ID) || countIncidents(routes[index].ProxyKey) != 1 {
+			if isRevoked(t, value.ID) || countIncidents(t, routes[index].ProxyKey) != 1 {
 				t.Fatal("persisted alarm escalated or duplicated")
 			}
 		}
 	})
 
 	t.Run("unknown_projection_and_cluster_alarm", func(t *testing.T) {
-		value := register(tenant)
-		foreign := register(otherTenant)
+		value := register(t, tenant)
+		foreign := register(t, otherTenant)
 		if _, err := f.owner.ExecContext(f.ctx, `UPDATE users SET role='admin' WHERE id=$1`, value.OwnerID); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := f.owner.ExecContext(f.ctx, `UPDATE devices SET cluster_hint=true WHERE id=$1`, value.ID); err != nil {
+		if _, err := f.owner.ExecContext(f.ctx, `UPDATE devices SET cluster_hint='review-cluster' WHERE id=$1`, value.ID); err != nil {
 			t.Fatal(err)
 		}
 		routes := []relaystate.ObservedRoute{route(value, "wrong004"), {ProxyKey: strings.Repeat("b", 64)}}
-		findings := inspect(routes)
-		if err := repository.Commit(f.ctx, routes, findings, confirm(findings, 3)); err != nil || isRevoked(value.ID) {
+		findings := inspect(t, routes)
+		if err := repository.Commit(f.ctx, routes, findings, confirm(t, findings, 3)); err != nil || isRevoked(t, value.ID) {
 			t.Fatal("cluster hint did not preserve manual review", err)
 		}
-		projection := project(tenant, value.OwnerID)
+		projection := project(t, tenant, value.OwnerID)
 		if !strings.Contains(projection, "unknown_proxy") || !strings.Contains(projection, "alarm_only") || strings.Contains(projection, routes[1].ProxyKey) || strings.Contains(projection, foreign.ID) {
 			t.Fatal("admin projection leaked a key/tenant or lost the alert")
 		}
-		if project(tenant, foreign.OwnerID) != "[]" {
+		if project(t, tenant, foreign.OwnerID) != "[]" {
 			t.Fatal("foreign actor saw tenant alerts")
 		}
-		member := register(tenant)
-		if project(tenant, member.OwnerID) != "[]" {
+		member := register(t, tenant)
+		if project(t, tenant, member.OwnerID) != "[]" {
 			t.Fatal("member saw admin alerts")
 		}
 		if _, err := f.owner.ExecContext(f.ctx, `UPDATE users SET disabled_at=clock_timestamp() WHERE id=$1`, value.OwnerID); err != nil {
 			t.Fatal(err)
 		}
-		if project(tenant, value.OwnerID) != "[]" {
+		if project(t, tenant, value.OwnerID) != "[]" {
 			t.Fatal("disabled admin retained projection access")
 		}
 		if _, err := webRole.ExecContext(f.ctx, `SELECT id FROM relay_anomaly_incidents`); err == nil {
@@ -213,13 +213,13 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 	})
 
 	t.Run("busy_target_and_concurrent_receipt", func(t *testing.T) {
-		value := register(tenant)
+		value := register(t, tenant)
 		if _, err := f.owner.ExecContext(f.ctx, `UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id=$1`, value.ID); err != nil {
 			t.Fatal(err)
 		}
 		routes := []relaystate.ObservedRoute{route(value, value.Subdomain)}
-		findings := inspect(routes)
-		batch := confirm(findings, 3)
+		findings := inspect(t, routes)
+		batch := confirm(t, findings, 3)
 		blocker, err := f.owner.BeginTx(f.ctx, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -258,7 +258,7 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 				t.Fatal("concurrent exact retry failed", err)
 			}
 		}
-		if countIncidents(routes[0].ProxyKey) != 1 {
+		if countIncidents(t, routes[0].ProxyKey) != 1 {
 			t.Fatal("concurrent receipt duplicated")
 		}
 		var audits int
@@ -268,10 +268,10 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 	})
 
 	t.Run("audit_failure_rolls_back_action_and_receipt", func(t *testing.T) {
-		value := register(tenant)
+		value := register(t, tenant)
 		routes := []relaystate.ObservedRoute{route(value, "wrong005")}
-		findings := inspect(routes)
-		batch := confirm(findings, 3)
+		findings := inspect(t, routes)
+		batch := confirm(t, findings, 3)
 		if _, err := f.owner.ExecContext(f.ctx, `CREATE FUNCTION reject_anomaly_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='relay.anomaly_decisions' THEN RAISE EXCEPTION 'fixture audit failure'; END IF; RETURN NEW; END $$;
 CREATE TRIGGER reject_anomaly_audit BEFORE INSERT ON audit_log FOR EACH ROW EXECUTE FUNCTION reject_anomaly_audit()`); err != nil {
 			t.Fatal(err)
@@ -281,7 +281,7 @@ CREATE TRIGGER reject_anomaly_audit BEFORE INSERT ON audit_log FOR EACH ROW EXEC
 				t.Error(err)
 			}
 		}()
-		if err := repository.Commit(f.ctx, routes, findings, batch); err == nil || isRevoked(value.ID) || countIncidents(routes[0].ProxyKey) != 0 {
+		if err := repository.Commit(f.ctx, routes, findings, batch); err == nil || isRevoked(t, value.ID) || countIncidents(t, routes[0].ProxyKey) != 0 {
 			t.Fatal("audit failure left a committed mutation", err)
 		}
 	})

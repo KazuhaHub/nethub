@@ -70,7 +70,7 @@ func currentAnomalies(ctx context.Context, tx *sql.Tx, routes []relaystate.Obser
 		return nil, nil, nil, relaystate.ErrAnomalySample
 	}
 	records := make(map[string]anomalyDevice, len(routes))
-	statement := `SELECT d.tenant_id,d.id,d.subdomain,d.revoked,d.cluster_hint,r.proxy_key
+	statement := `SELECT d.tenant_id,d.id,d.subdomain,d.revoked,(d.cluster_hint IS NOT NULL AND d.cluster_hint<>''),r.proxy_key
 FROM devices d JOIN jsonb_to_recordset($1::jsonb) AS r(device_id text,subdomain text,proxy_key text)
   ON d.id=nullif(r.device_id,'')::uuid
 WHERE d.tenant_id=$2 ORDER BY d.id`
