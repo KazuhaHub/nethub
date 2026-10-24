@@ -13,9 +13,14 @@
 这样你在任何地方都能打开在 NAT 或 CGNAT 后面的路由器的管理页面。
 项目负责人是 **Kazuha**。凡是要拍板的事都归他，你负责按计划执行，并拿出证据。
 
-### Current state (updated 2026-10-23)
+### Current state (updated 2026-10-24)
 
-- **W4 remains in progress.** Native offline renewal and one restart-failure rollback/retry case now pass within the private-CA, lab-DNS and 1 GiB scope. Controlled native wrong-host/key refusals also pass. Public CA checks, combined certificate acceptance and W5-W7 remain incomplete. No released package is available.
+- **W4 acceptance is complete within the recorded lab scope; W5 is next.** A real public CA certificate was automatically installed and confirmed by native cron. Public TLS and authenticated Chrome GUI access passed with normal DNS/system trust. Normal UI removal, retained immutable applications and original native/14-service restoration passed independent checks. Earlier accepted renewal, identity, rollback and offline/root controls complete the combined certificate requirement. The accepted 1 GiB deviation remains; public renewal was not waited out. No signed release is available, and W5-W7 remain incomplete. [Measurements and requirement map](../deploy/validation-native-public-certificate.md).
+
+- **Public issuer compatibility corrected (2026-10-24):** PR #151 accepted accounts without a provider order-list URL; PR #152 accepts blank separators/CRLF between strict certificate blocks. The latter passed six jobs in run 40075177159 and merged as `a2ce712`. An existing issued order reproduced the format refusal and passed after correction without another order/finalization. Failed native trials retain their original outcomes. [Diagnostic](../deploy/validation-public-chain-format.md).
+
+The dated checkpoints below retain their original scope; the current state above
+supersedes their outstanding public-CA and combined-certificate items.
 
 - **Physical offline root recovery verified (2026-10-23):** unsigned 0.0.16 confirmed overlap before actual shutdown; protected commands switched authority and retired the old root while the guest was Off. After boot, genuine cron confirmed successor-only generation 7 with the same native identity/key. Immutable applications/audits, backup custody, sampled Off state, UI removal and original native/trust/14-service restoration passed independent checks. Browser online display took 8.248 seconds; boot dispatch to confirmed observation was at most 234.545 seconds. [Scope and measurements](../deploy/validation-native-offline-root-recovery.md). Public CA and combined certificate acceptance remain open.
 

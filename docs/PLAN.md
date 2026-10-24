@@ -1544,7 +1544,7 @@ The configuration writer and private temporary-file handoff were confirmed by Ka
 - [x] unenroll 之后，设备在控制台里显示已撤销，它原来的子域名打不开 — Actual native UI removal returned complete cleanup; a fresh console login rendered Revoked and PostgreSQL confirmed it. The former subdomain reached the live public TCP listener but could no longer complete TLS. [Evidence and private CA/1 GiB scope](../deploy/validation-native-gui-lifecycle.md).
 - [x] Relay certificate renewal automatically issues and applies changed material, retries application without reissuing, verifies the served certificate and records recovery time. — Exact-source Linux/root deployment logs confirm real timer execution, failed application/verified rollback, persisted-candidate retry and two official clients. [Requirement map, measurements and limits](../deploy/validation-relay-maintenance.md).
 - [x] Public trust distribution records authenticated applied generations and exercises an offline-device/root-transition recovery path; issuer private keys remain outside application runtime containers. — The unsigned 0.0.16 appliance confirmed generations 5/6, was powered off during the protected authority switch and generation-7 retirement, then confirmed generation 7 through genuine package cron after boot. Native identity/key persistence, immutable SQL applications/audits, UI removal and original native/14-service restoration were independently checked. Issuer-key separation retains its accepted deployment boundary. [Measurements, separation evidence and private-CA/1 GiB limits](../deploy/validation-native-offline-root-recovery.md).
-- [ ] The external reverse-proxy path owns console TLS, exposes no unprotected origin listener, and rejects spoofed forwarding headers. Router GUI certificate issuance, installation and renewal are required in v1; test wrong-host/key rejection, rollback, offline recovery and reboot persistence.
+- [x] The external reverse-proxy path owns console TLS, exposes no unprotected origin listener, and rejects spoofed forwarding headers. Router GUI certificate issuance, installation and renewal are required in v1; test wrong-host/key rejection, rollback, offline recovery and reboot persistence. — Real public-CA issuance, genuine native cron application and authenticated Chrome access passed without public TLS exceptions or DNS overrides. Earlier accepted proxy isolation, natural renewal, identity refusals, rollback/retry and offline/reboot/root recovery complete the requirement within their documented scope. [Combined evidence and resource limits](../deploy/validation-native-public-certificate.md).
 
 Native GUI certificate progress (2026-10-23): genuine package cron installed and
 confirmed two generations from one native key/CSR through the public NAT relay.
@@ -1560,8 +1560,14 @@ one CA order and the original tunnel PID/key retained. [Rollback and retry](../d
 Controlled native wrong-host/key inputs now pass both installed verification
 boundaries, followed by genuine private-CA application and baseline restoration.
 [Identity controls and limits](../deploy/validation-native-certificate-identity.md).
-Public CA acceptance remains open; the combined certificate
-checkbox is not complete.
+Public CA acceptance passed on 2026-10-24: a fresh enrollment rendered online in
+8.852 seconds, and issuance to native confirmation took 31.496 seconds. The public
+TLS probe and authenticated Chrome GUI used system trust and normal DNS. Normal
+UI removal, immutable previous applications and original native/14-service
+restoration passed independent checks. This closes W4's combined certificate
+requirement with the earlier private-CA renewal/fault controls and the accepted
+1 GiB deviation; public renewal was not waited out. W5-W7 remain open.
+[Final measurements and requirement map](../deploy/validation-native-public-certificate.md).
 
 ### 常见坑
 
