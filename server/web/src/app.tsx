@@ -32,10 +32,79 @@ import {
   clearSession,
   onUnauthorized,
   type DevicePage,
+  type Device,
   type Enrollment,
   type Session,
 } from "./api";
 import { NativeDialog } from "./dialog";
+import {
+  canOpenDevice,
+  certificateLabel,
+  deviceDestination,
+} from "./device-access";
+
+function DeviceAccess({ device }: { device: Device }) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const [grant, setGrant] = useState<{ url: string; expires: string } | null>(
+    null,
+  );
+  async function openDevice() {
+    if (pending || !canOpenDevice(device)) return;
+    // Reserve the tab during the gesture; sever access before any navigation.
+    const tab = window.open("about:blank", "_blank");
+    if (tab) tab.opener = null;
+    setPending(true);
+    setError("");
+    setGrant(null);
+    try {
+      const access = await api.openDevice(device.id);
+      const destination = deviceDestination(device);
+      if (
+        !destination ||
+        new URL(access.url).href !== destination.href ||
+        !(Date.parse(access.gate_expires_at) > Date.now())
+      ) {
+        throw new Error("The console returned an invalid device destination.");
+      }
+      setGrant({ url: destination.href, expires: access.gate_expires_at });
+      if (tab && !tab.closed) tab.location.replace(destination.href);
+    } catch (error) {
+      tab?.close();
+      setError(message(error));
+    } finally {
+      setPending(false);
+    }
+  }
+  const validGrant =
+    grant && Date.parse(grant.expires) > Date.now() && canOpenDevice(device);
+  return (
+    <div className="device-access">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={pending || !canOpenDevice(device)}
+        onClick={() => void openDevice()}
+      >
+        {pending ? "Opening…" : "Open"}
+      </Button>
+      {validGrant && (
+        <p className="muted">
+          <a href={grant.url} target="_blank" rel="noopener noreferrer">
+            Continue to router
+          </a>
+          <br />
+          Allowed until {new Date(grant.expires).toLocaleTimeString()}
+        </p>
+      )}
+      {error && (
+        <p className="error-message" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
 
 const message = (error: unknown) =>
   error instanceof Error
@@ -526,6 +595,8 @@ function Devices() {
                   <TableHead>Status</TableHead>
                   <TableHead>Owner</TableHead>
                   <TableHead>Last seen</TableHead>
+                  <TableHead>GUI certificate</TableHead>
+                  <TableHead>Access</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -543,7 +614,9 @@ function Devices() {
                               device.subdomain}
                           </strong>
                           <span className="device-domain">
-                            {device.subdomain} · {device.platform}
+                            {deviceDestination(device)?.host ||
+                              device.subdomain}{" "}
+                            · {device.platform}
                           </span>
                         </span>
                       </div>
@@ -567,6 +640,20 @@ function Devices() {
                       {device.last_seen_at
                         ? new Date(device.last_seen_at).toLocaleString()
                         : "Not observed"}
+                    </TableCell>
+                    <TableCell>
+                      {certificateLabel(device)}
+                      {device.gui_certificate?.valid_until && (
+                        <p className="muted">
+                          Valid until{" "}
+                          {new Date(
+                            device.gui_certificate.valid_until,
+                          ).toLocaleString()}
+                        </p>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <DeviceAccess device={device} />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -607,7 +694,10 @@ function Devices() {
       </section>
       <p className="observation-note">
         Online reflects a recent tunnel observation. This list updates
-        automatically while visible.
+        automatically while visible. Certificate status is reported by the
+        device; your browser verifies the connection. Open allows your current
+        network for 30 minutes. Click again to renew, or after changing
+        networks. The router still requires its own login.
       </p>
       <EnrollmentDialog
         open={open}
