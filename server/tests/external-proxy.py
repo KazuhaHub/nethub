@@ -62,7 +62,12 @@ try:
     assert "caddy" not in config["services"]
     for name, port in (("nethub-web", web_port), ("nethub-authz", device_port)):
         ports = config["services"][name]["ports"]
-        assert len(ports) == 1 and ports[0]["host_ip"] == "127.0.0.1" and int(ports[0]["published"]) == port
+        expected = {port: 8080 if name == "nethub-web" else 8081}
+        if name == "nethub-authz":
+            expected[9000] = 9000
+        assert len(ports) == len(expected)
+        assert {int(value["published"]): value["target"] for value in ports} == expected
+        assert all(value["host_ip"] == "127.0.0.1" and value["protocol"] == "tcp" for value in ports)
         assert "172.30.87.1/32" in config["services"][name]["command"]
     run(compose + ["up", "--detach", "--no-build", "--wait", "--wait-timeout", "120"], "start", timeout=150)
     run(compose + ["run", "--rm", "-T", "admin-bootstrap", "--email", "external@example.com", "--password-stdin"],
@@ -136,7 +141,7 @@ try:
                  if entry["family"] == "inet" and entry["local"] != "127.0.0.1"}
     assert addresses
     for address in addresses:
-        for port in (web_port, device_port):
+        for port in (web_port, device_port, 9000):
             with socket.socket() as probe:
                 probe.settimeout(0.5)
                 assert probe.connect_ex((address, port)) != 0, "HTTP origin reachable through a non-loopback address"
