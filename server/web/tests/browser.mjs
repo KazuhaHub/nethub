@@ -379,6 +379,24 @@ try {
   });
   await revokeButton.click();
   await revokeDialog.waitFor();
+  assert.ok(
+    await revokeDialog.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+    "Confirmation copy overflowed horizontally",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(
+    await revokeDialog.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+    "Mobile confirmation copy overflowed horizontally",
+  );
+  await page.screenshot({
+    path: join(evidence, "revoke-confirmation-mobile.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({
     path: join(evidence, "revoke-confirmation.png"),
     fullPage: true,

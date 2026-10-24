@@ -146,12 +146,12 @@ function DeviceAccess({
         title="Revoke device?"
         onClose={() => setConfirm(false)}
       >
-        <p>
+        <p className="revocation-copy">
           Revoke {device.label || device.hostname || device.subdomain}? This
           permanently disables this enrollment. Restoring access requires
           enrolling again.
         </p>
-        <p>
+        <p className="revocation-copy">
           New connections will be denied. The tunnel disconnects through
           heartbeat checks; existing browser streams may continue briefly. Keep
           another way to reach the router.
@@ -161,20 +161,22 @@ function DeviceAccess({
             {error}
           </p>
         )}
-        <Button
-          variant="outline"
-          disabled={revoking}
-          onClick={() => setConfirm(false)}
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="destructive"
-          disabled={revoking}
-          onClick={() => void revokeDevice()}
-        >
-          {revoking ? "Revoking…" : "Permanently revoke"}
-        </Button>
+        <div className="revocation-actions">
+          <Button
+            variant="outline"
+            disabled={revoking}
+            onClick={() => setConfirm(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={revoking}
+            onClick={() => void revokeDevice()}
+          >
+            {revoking ? "Revoking…" : "Permanently revoke"}
+          </Button>
+        </div>
       </NativeDialog>
       {validGrant && (
         <p className="muted">
