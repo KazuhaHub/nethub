@@ -34,6 +34,7 @@ type Device struct {
 	LastReconcileSuccess *bool                `json:"last_reconcile_success"`
 	LastReconcileAt      *time.Time           `json:"last_reconcile_at"`
 	GUICertificate       GUICertificateStatus `json:"gui_certificate"`
+	Disconnect           *DeviceDisconnect    `json:"disconnect"`
 }
 
 // GUICertificateStatus describes an authenticated installation report, not an
@@ -63,6 +64,7 @@ type EnrollToken struct {
 
 var ErrDeviceUnavailable = errors.New("device unavailable")
 var ErrDeviceRevoked = errors.New("device revoked")
+var ErrDeviceNotRevoked = errors.New("device is not revoked")
 
 type DeviceAccess struct {
 	Subdomain string    `json:"-"`
@@ -75,6 +77,13 @@ type DeviceRevocation struct {
 	RevokedAt time.Time `json:"revoked_at"`
 }
 
+type DeviceDisconnect struct {
+	RequestID   string     `json:"request_id"`
+	RequestedAt time.Time  `json:"requested_at"`
+	ArmedAt     *time.Time `json:"armed_at"`
+	State       string     `json:"state"`
+}
+
 // Repository is tenant-bound at startup; HTTP cannot choose the tenant or pass
 // an authorization role. Implementations recheck the active actor in SQL.
 type Repository interface {
@@ -83,5 +92,6 @@ type Repository interface {
 	IssueEnrollToken(context.Context, string, netip.Addr) (EnrollToken, error)
 	OpenDevice(context.Context, string, string, netip.Addr) (DeviceAccess, error)
 	RevokeDevice(context.Context, string, string, netip.Addr) (DeviceRevocation, error)
+	RequestDisconnect(context.Context, string, string, netip.Addr) (DeviceDisconnect, error)
 	LoginFailed(context.Context, netip.Addr) error
 }

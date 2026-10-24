@@ -33,6 +33,7 @@ import {
   onUnauthorized,
   type DevicePage,
   type Device,
+  type Disconnect,
   type Enrollment,
   type Session,
 } from "./api";
@@ -56,6 +57,12 @@ function DeviceAccess({
   const [revoking, setRevoking] = useState(false);
   const [revokedHere, setRevokedHere] = useState(false);
   const revoked = device.revoked || revokedHere;
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [disconnect, setDisconnect] = useState<Disconnect | null>(null);
+  const currentDisconnect =
+    device.disconnect?.state === "armed"
+      ? device.disconnect
+      : disconnect || device.disconnect;
   const [grant, setGrant] = useState<{ url: string; expires: string } | null>(
     null,
   );
@@ -109,6 +116,33 @@ function DeviceAccess({
       setRevoking(false);
     }
   }
+  async function requestDisconnect() {
+    if (!revoked || disconnecting || currentDisconnect?.state === "armed")
+      return;
+    setDisconnecting(true);
+    setError("");
+    try {
+      const result = await api.requestDisconnect(device.id);
+      if (
+        !["pending", "armed"].includes(result.state) ||
+        !Number.isFinite(Date.parse(result.requested_at)) ||
+        (result.state === "armed" &&
+          (!result.armed_at ||
+            !Number.isFinite(Date.parse(result.armed_at)))) ||
+        (result.state === "pending" && result.armed_at !== null) ||
+        !result.request_id
+      )
+        throw new Error(
+          "Disconnect request was not confirmed. Refresh before retrying.",
+        );
+      setDisconnect(result);
+      onRevoked();
+    } catch (error) {
+      setError(message(error));
+    } finally {
+      setDisconnecting(false);
+    }
+  }
   const validGrant =
     !revoked &&
     grant &&
@@ -140,6 +174,29 @@ function DeviceAccess({
           Revoked. Heartbeat disconnection may take time; existing browser
           streams may continue.
         </p>
+      )}
+      {revoked && (
+        <>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={disconnecting || currentDisconnect?.state === "armed"}
+            onClick={() => void requestDisconnect()}
+          >
+            {disconnecting
+              ? "Requesting…"
+              : currentDisconnect?.state === "pending"
+                ? "Retry disconnect request"
+                : "Request disconnect"}
+          </Button>
+          {currentDisconnect && (
+            <p role="status">
+              {currentDisconnect.state === "armed"
+                ? "Heartbeat rejection ready. Existing streams may continue; this is not a connection-closure receipt."
+                : "Disconnect request pending. Authz has not confirmed heartbeat rejection yet."}
+            </p>
+          )}
+        </>
       )}
       <NativeDialog
         open={confirm}

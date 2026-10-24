@@ -29,6 +29,7 @@ type repository struct {
 	populated  bool
 	shortToken bool
 	revoked    bool
+	disconnect *web.DeviceDisconnect
 }
 
 func (r *repository) PasswordCandidate(_ context.Context, email string) (auth.Candidate, error) {
@@ -86,6 +87,10 @@ func (r *repository) Devices(_ context.Context, _ string, query web.DeviceQuery)
 		}
 		page.Items = append(page.Items, web.Device{ID: fmt.Sprintf("00000000-0000-4000-8000-%012d", i+1), Label: name, Hostname: name, Subdomain: []string{"branch", "home", "lab"}[i], Platform: "opnsense", Online: online, LastSeenAt: &now, EnrolledAt: now, Owner: web.Owner{ID: "fixture", Email: "ui-test@example.com"}, Capabilities: []string{"remote.web"}, GUICertificate: certificate})
 		page.Items[len(page.Items)-1].Revoked = isRevoked
+		if i == 0 && r.disconnect != nil {
+			value := *r.disconnect
+			page.Items[len(page.Items)-1].Disconnect = &value
+		}
 	}
 	return page, nil
 }
@@ -109,6 +114,21 @@ func (r *repository) RevokeDevice(_ context.Context, _, id string, _ netip.Addr)
 	}
 	r.revoked = true
 	return web.DeviceRevocation{Revoked: true, RevokedAt: time.Now().UTC()}, nil
+}
+
+func (r *repository) RequestDisconnect(_ context.Context, _, id string, _ netip.Addr) (web.DeviceDisconnect, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if id != "00000000-0000-4000-8000-000000000001" {
+		return web.DeviceDisconnect{}, web.ErrDeviceUnavailable
+	}
+	if !r.revoked {
+		return web.DeviceDisconnect{}, web.ErrDeviceNotRevoked
+	}
+	if r.disconnect == nil {
+		r.disconnect = &web.DeviceDisconnect{RequestID: "00000000-0000-4000-8000-000000000099", RequestedAt: time.Now().UTC(), State: "pending"}
+	}
+	return *r.disconnect, nil
 }
 
 func (r *repository) IssueEnrollToken(context.Context, string, netip.Addr) (web.EnrollToken, error) {
@@ -155,6 +175,14 @@ func main() {
 				repository.populated = true
 			case "/test/short-token":
 				repository.shortToken = true
+			case "/test/disconnect-armed":
+				if repository.disconnect == nil {
+					http.Error(w, "not requested", 409)
+					return
+				}
+				now := time.Now().UTC()
+				repository.disconnect.ArmedAt = &now
+				repository.disconnect.State = "armed"
 			default:
 				http.NotFound(w, r)
 				return
