@@ -70,3 +70,11 @@ HTTP directly. The additional W5 suite exercises current source grants, role
 isolation, expiry during an unchanged row-lock wait, and two actual official
 clients through generated frps. Ping-based interruption and the remaining native
 W5 acceptance are still pending.
+
+The host-local Compose fixture measures a nonce-bound TCP peer independently of
+its socket bind address. When Docker applies different source translations to
+console ingress and local relay probes, the fixture records the console Open and
+adds the measured local source through the same narrow web-role grant/audit
+transaction. This compensation is confined to the isolated fixture. Each denial
+requires an actual NewUserConn decision; public/native source preservation and
+the complete console-to-router flow remain separate acceptance.
