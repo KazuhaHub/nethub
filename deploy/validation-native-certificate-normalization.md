@@ -51,6 +51,8 @@ The lightweight host helper completed the actual single guarded start at the
 unchanged 1 GiB allocation, with a successful Windows asynchronous job and no
 job error; it changed no VM settings or unrelated processes.
 
-Full corrected-package offline renewal, rollback, public CA and the remaining
-W4-W7 acceptance are still open. This diagnostic does not turn the earlier
-failed lifecycle into a pass.
+The corrected 0.0.15 package subsequently passed a separate native offline
+renewal and reboot-persistence experiment; see [the measurements and scope](validation-native-offline-renewal.md).
+Wrong-host/key rejection, native restart failure/rollback, public CA and the
+remaining W4-W7 acceptance remain open. The earlier failed lifecycle retains
+its original outcome.

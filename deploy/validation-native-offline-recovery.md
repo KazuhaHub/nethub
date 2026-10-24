@@ -1,5 +1,9 @@
 # Native online display and offline recovery
 
+Follow-up: the corrected 0.0.15 package passed a separate guarded offline-renewal
+and reboot-persistence experiment. See [its measurements and scope](validation-native-offline-renewal.md).
+The failed 0.0.14 result below remains unchanged.
+
 The corrected runtime from source `ab20628` passed all six jobs in run
 39953411565 before PR #138 merged as `4ae1caa`. Actual job logs were checked for
 the session-expiry, dialog, browser, compiled observation and retained deployment
