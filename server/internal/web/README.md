@@ -6,6 +6,15 @@ assets, first-admin creation, Compose/Caddy startup, and real deployed browser
 flows pass their checks, including clean-host public deployment acceptance;
 see [deployment validation](../../../deploy/validation-w3.md).
 
+The W5 access-grant foundation adds `POST /api/v1/console/devices/{id}/open`.
+It accepts an empty JSON object and grants the server-resolved exact source IP
+for PostgreSQL's fixed 30 minutes. Current actor/assignment checks, the grant and
+its device-bound audit share one transaction. The URL is read after acquiring the
+assignment lock and constructed from the configured domain; the caller cannot
+choose an IP, destination, actor or expiry. Reads never renew a grant.
+The Open button and `NewUserConn` enforcement remain separate W5 work; this
+endpoint alone does not establish an enforced gate or a successful GUI connection.
+
 The server binds to one configured origin and a startup-selected tenant. Requests
 cannot choose a tenant or role. It resolves client IP only through explicit
 trusted proxy prefixes, warns on ignored forwarding headers, and applies bounded
