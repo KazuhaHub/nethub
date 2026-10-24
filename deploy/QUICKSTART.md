@@ -6,7 +6,7 @@ external reachability, and complete deployed browser acceptance must be verified
 before calling the deployment ready. The isolated acceptance script uses an
 internal test CA, not a public certificate.
 
-Use a Linux Docker host with Docker Engine and Compose supporting `!override`
+Use a Linux Docker host with Docker Engine 28 or newer and Compose supporting `!override`
 ([Compose 2.24.4 or later](https://docs.docker.com/reference/compose-file/merge/#replace-value)). Keep the source checkout available for image builds.
 Build the console with Node 24.14.0, then the CLI with Go 1.26.10, or use the pinned
 three-stage deploy/Dockerfile. Runtime is static distroless nonroot (UID 65532).
@@ -25,8 +25,11 @@ docker version
 docker compose version
 ```
 
-It used Docker 26.1.5 and Compose 2.26.1. Check the required Compose version on
-other distributions. The Docker-only path below needs no host Go, Node, or npm.
+That earlier run used Docker 26.1.5 and Compose 2.26.1, before the loopback
+callback publication. Current bundles require Docker Engine 28 or newer with
+default NAT bridge behavior for [localhost port isolation](https://docs.docker.com/engine/network/port-publishing/).
+Check the installed Engine and Compose versions; upgrade the distribution packages
+if they are below these requirements. The Docker-only path below needs no host Go, Node, or npm.
 Keep the source checkout and protected state/backup parents available.
 
 1. Arrange the console DNS hostname outside the device wildcard, wildcard DNS,

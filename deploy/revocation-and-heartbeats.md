@@ -15,6 +15,8 @@ The private frps admin API must remain private; it is not a console endpoint.
 Generated deployments publish the hook port only on host loopback
 (`127.0.0.1:9000`), which host-network frps uses. Authz still binds its exact
 private bridge address and accepts only the configured bridge gateway peer.
+Use Docker Engine 28 or newer with default NAT bridge behavior; older engines
+have a [documented localhost-publication isolation issue](https://docs.docker.com/engine/network/port-publishing/).
 When authz stops, the removed loopback publication refuses new callbacks instead
 of leaving frps dialing a removed bridge endpoint. Existing deployments need a
 reviewed Compose and frps configuration migration together; the external HTTPS
