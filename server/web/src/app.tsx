@@ -697,7 +697,8 @@ function Devices() {
         automatically while visible. Certificate status is reported by the
         device; your browser verifies the connection. Open allows your current
         network for 30 minutes. Click again to renew, or after changing
-        networks. The router still requires its own login.
+        networks. The router still requires its own login. Others may share your
+        public IP (CGNAT); IPv4 and IPv6 routes may use different addresses.
       </p>
       <EnrollmentDialog
         open={open}

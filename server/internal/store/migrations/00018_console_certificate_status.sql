@@ -9,7 +9,8 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $$
      WHEN d.revoked THEN 'revoked'
      WHEN d.gui_public_key IS NULL THEN 'unsupported'
      WHEN applied.valid_until>statement_timestamp() THEN
-       CASE WHEN work.generation>applied.generation AND work.state<>'cancelled' THEN 'renewing' ELSE 'applied' END
+       CASE WHEN work.generation>applied.generation AND work.state='failed' THEN 'renewal_failed'
+            WHEN work.generation>applied.generation AND work.state<>'cancelled' THEN 'renewing' ELSE 'applied' END
      WHEN applied.valid_until<=statement_timestamp() THEN 'expired'
      WHEN work.state='failed' THEN 'failed'
      ELSE 'pending' END,

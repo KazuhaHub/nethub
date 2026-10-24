@@ -28,6 +28,7 @@ export type Device = {
       | "failed"
       | "applied"
       | "renewing"
+      | "renewal_failed"
       | "expired"
       | "revoked";
     assigned_host: string | null;

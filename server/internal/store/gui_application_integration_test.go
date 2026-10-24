@@ -112,6 +112,13 @@ func testGUIApplicationReports(t *testing.T, f *enrollmentFixture, queue *GUIJob
 		t.Fatal("disposable second generation job", err)
 	}
 	checkMetadata("renewing")
+	if _, err := f.owner.ExecContext(f.ctx, `UPDATE gui_certificate_jobs SET state='failed' WHERE id=$1`, secondJob); err != nil {
+		t.Fatal(err)
+	}
+	checkMetadata("renewal_failed")
+	if _, err := f.owner.ExecContext(f.ctx, `UPDATE gui_certificate_jobs SET state='issued' WHERE id=$1`, secondJob); err != nil {
+		t.Fatal(err)
+	}
 	if err := f.owner.QueryRowContext(f.ctx, `INSERT INTO gui_certificate_generations(tenant_id,device_id,request_id,job_id,generation,chain_pem,leaf_fingerprint,not_before,not_after,valid_until,renew_after,completed_lease,completed_version) SELECT tenant_id,device_id,request_id,$2,2,chain_pem,leaf_fingerprint,not_before,not_after,valid_until,renew_after,gen_random_uuid(),1 FROM gui_certificate_generations WHERE id=$1 RETURNING id`, issued.ID, secondJob).Scan(&secondID); err != nil {
 		t.Fatal("disposable second generation material", err)
 	}
