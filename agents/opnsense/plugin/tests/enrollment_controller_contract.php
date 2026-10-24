@@ -38,6 +38,10 @@ namespace OPNsense\Core {
             if ($request !== ['origin' => 'https://console.example.com', 'token' => str_repeat('A', 43)]) {
                 throw new \RuntimeException('incorrect private request');
             }
+            if ($GLOBALS['service_busy']) {
+                return json_encode(['success' => false, 'action' => 'busy',
+                    'message' => 'Never forward device_secret ' . str_repeat('A', 43)]);
+            }
             unlink($path);
             return json_encode(['success' => true, 'assignment' => $GLOBALS['assignment']]);
         }
@@ -96,11 +100,12 @@ namespace {
     $source = str_replace($needle, 'private const REQUESTS = ' . var_export($argv[3], true) . ';', $source);
     eval(substr($source, 5));
     $passed = [];
-    foreach (['success', 'start-failed', 'bad-response', 'model-invalid', 'existing', 'get-only', 'readonly', 'busy'] as $case) {
+    foreach (['success', 'start-failed', 'bad-response', 'model-invalid', 'existing', 'get-only', 'readonly', 'busy', 'service-busy'] as $case) {
         $GLOBALS['events'] = [];
         $GLOBALS['assignment'] = $input;
         $GLOBALS['start_ready'] = $case !== 'start-failed';
         $GLOBALS['model_invalid'] = $case === 'model-invalid';
+        $GLOBALS['service_busy'] = $case === 'service-busy';
         \OPNsense\NetHubAgent\NetHubAgent::$saved = $case === 'existing' ? ['device_id' => 'existing'] : [];
         if ($case === 'bad-response') {
             $GLOBALS['assignment']['server_name'] = 'bad/path';
@@ -135,6 +140,10 @@ namespace {
             }
         }
         $snapshotEvents = $GLOBALS['events'];
+        if ($case === 'service-busy' && (($response['code'] ?? null) !== 'service_busy' ||
+            ($response['message'] ?? '') !== 'Another service operation is running. Please retry enrollment shortly.')) {
+            exit(18);
+        }
         $success = in_array($case, ['success', 'start-failed', 'existing'], true);
         if ($response['success'] !== $success || glob($argv[3] . '/enroll-*.json')) {
             fwrite(STDERR, json_encode(['case' => $case, 'events' => $events, 'success' => $response['success'],

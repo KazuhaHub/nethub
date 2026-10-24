@@ -63,8 +63,9 @@ def test_enrollment_handoff_has_no_credentials_or_cached_output():
     parser.read(ROOT / 'src/usr/local/opnsense/service/conf/actions.d/actions_nethub-agent.conf')
     command = shlex.split(parser['enroll']['command'])
     assert command[:4] == ['/usr/bin/timeout', '-k', '2', '30']
-    assert command[4:10] == ['/usr/bin/lockf', '-sk', '-t', '0', LOCK, '/usr/local/bin/python3.13']
-    assert command[-3:] == ['--locked', 'enroll', '--request-file']
+    assert command[4] == '/usr/local/bin/python3.13'
+    assert command[-2:] == ['enroll', '--request-file']
+    assert '--locked' not in command
     assert parser['enroll']['parameters'] == '%s'
     assert parser['enroll']['cache_ttl'] == '0'
     assert parser['enroll']['errors'] == 'no'

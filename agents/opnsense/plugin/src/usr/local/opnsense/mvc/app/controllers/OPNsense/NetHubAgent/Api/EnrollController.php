@@ -83,6 +83,11 @@ class EnrollController extends \OPNsense\Base\ApiControllerBase
             }
             $response = json_decode($raw, true, 16);
             unset($raw);
+            if (is_array($response) && ($response['success'] ?? null) === false &&
+                ($response['action'] ?? null) === 'busy') {
+                return ['success' => false, 'code' => 'service_busy',
+                    'message' => gettext('Another service operation is running. Please retry enrollment shortly.')];
+            }
             $assignment = is_array($response) && ($response['success'] ?? null) === true
                 ? Enrollment::assignment($response['assignment'] ?? null) : null;
             if ($assignment === null) {
