@@ -71,12 +71,12 @@ def test_enrollment_handoff_has_no_credentials_or_cached_output():
     assert parser['enroll']['errors'] == 'no'
 
 
-@pytest.mark.parametrize('name', ['report', 'unenroll', 'forget', 'trust'])
+@pytest.mark.parametrize('name', ['report', 'unenroll', 'forget', 'trust', 'disable', 'enable'])
 def test_lifecycle_actions_are_bounded_locked_and_uncached(name):
     parser = configparser.ConfigParser(delimiters=(':',), interpolation=None)
     parser.read(ROOT / 'src/usr/local/opnsense/service/conf/actions.d/actions_nethub-agent.conf')
     command = shlex.split(parser[name]['command'])
-    if name in ('trust', 'forget'):
+    if name in ('trust', 'forget', 'disable', 'enable'):
         deadline = '95' if name == 'trust' else '35'
         assert command[:3] == ['/usr/local/bin/python3.13', '/usr/local/opnsense/scripts/nethub-agent/run_bounded.py', deadline]
         command = command[3:]

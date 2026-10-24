@@ -454,6 +454,20 @@ class Agent:
             path.unlink(missing_ok=True)
         return {'success': True, 'action': 'forget', 'message': 'Enrollment removed'}
 
+    def circuit_marker(self, disabled):
+        marker = self.state / 'disabled'
+        if disabled:
+            self.atomic(marker, b'Local circuit breaker\n')
+        else:
+            if marker.is_symlink() or marker.exists() and not marker.is_file():
+                raise AgentError('Local circuit breaker marker needs review')
+            marker.unlink(missing_ok=True)
+        descriptor = os.open(self.state, os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
     def apply(self, action, locked=False):
         for directory in [self.config, self.state]:
             directory.mkdir(parents=True, exist_ok=True)
@@ -466,6 +480,19 @@ class Agent:
             except BlockingIOError:
                 return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
             try:
+                if action == 'disable':
+                    # Stop remains available when XML or trust recovery is broken.
+                    self.circuit_marker(True)
+                    try:
+                        if self.running():
+                            self.checked(self.service('onestop'), 'Could not stop the tunnel; local circuit breaker remains enabled')
+                        if self.running():
+                            raise AgentError('Tunnel still running; local circuit breaker remains enabled')
+                    finally:
+                        self.rc_enable(False)
+                    return self.record(True, 'Remote access stopped by the local circuit breaker', 'stop')
+                if action == 'enable':
+                    self.circuit_marker(False)
                 if action == 'report':
                     return self.report_locked()
                 if action == 'certificate':
@@ -562,6 +589,7 @@ def main():
     parser.add_argument('--locked', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--request-file', help=argparse.SUPPRESS)
     parser.add_argument('action', choices=['reconcile', 'status', 'start', 'stop', 'restart',
+                                          'disable', 'enable',
                                           'enroll', 'unenroll', 'report', 'certificate', 'trust', 'forget', 'rotate'])
     arguments = parser.parse_args()
     action = arguments.action
@@ -579,7 +607,7 @@ def main():
             finally:
                 signal.setitimer(signal.ITIMER_REAL, 0)
                 signal.signal(signal.SIGALRM, previous)
-    elif action in ('report', 'unenroll', 'certificate', 'trust'):
+    elif action in ('report', 'unenroll', 'certificate', 'trust', 'disable', 'enable'):
         def timed_out(signum, frame):
             raise AgentError('Device operation timed out; inspect status before retrying')
         previous = signal.signal(signal.SIGALRM, timed_out)
