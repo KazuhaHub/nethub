@@ -26,6 +26,19 @@ type fixtureRepository struct {
 	issued   int
 	failure  error
 	page     DevicePage
+	opened   int
+	openID   string
+	access   DeviceAccess
+	openErr  error
+}
+
+func (f *fixtureRepository) OpenDevice(_ context.Context, _ string, device string, ip netip.Addr) (DeviceAccess, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.opened++
+	f.openID = device
+	f.lastIP = ip
+	return f.access, f.openErr
 }
 
 func (f *fixtureRepository) PasswordCandidate(context.Context, string) (auth.Candidate, error) {

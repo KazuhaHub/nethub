@@ -34,6 +34,7 @@ type Server struct {
 	logger                              *slog.Logger
 	host, consoleHostname, deviceDomain string
 	enrollLimits                        *auth.AttemptLimiter
+	openLimits                          *auth.AttemptLimiter
 }
 
 func New(config Config, service *auth.Service, repository Repository) (*Server, error) {
@@ -62,7 +63,7 @@ func New(config Config, service *auth.Service, repository Repository) (*Server, 
 		return nil, err
 	}
 	return &Server{auth: service, repository: repository, origin: origin, clientIP: resolver, logger: config.Logger,
-		host: strings.TrimSuffix(strings.ToLower(u.Host), ":443"), consoleHostname: strings.ToLower(u.Hostname()), deviceDomain: domain, enrollLimits: auth.NewAttemptLimiter()}, nil
+		host: strings.TrimSuffix(strings.ToLower(u.Host), ":443"), consoleHostname: strings.ToLower(u.Hostname()), deviceDomain: domain, enrollLimits: auth.NewAttemptLimiter(), openLimits: auth.NewAttemptLimiter()}, nil
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -128,6 +129,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			s.enroll(w, r, ip)
 		}
 	default:
+		if strings.HasPrefix(r.URL.Path, prefix+"/devices/") && strings.HasSuffix(r.URL.Path, "/open") {
+			if allowMethod(w, r, "POST") {
+				s.openDevice(w, r, ip)
+			}
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			writeError(w, r, 404, "not_found", "Not found")
 		} else {

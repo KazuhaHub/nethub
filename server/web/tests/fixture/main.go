@@ -79,6 +79,10 @@ func (r *repository) Devices(_ context.Context, _ string, query web.DeviceQuery)
 	}
 	return page, nil
 }
+func (r *repository) OpenDevice(context.Context, string, string, netip.Addr) (web.DeviceAccess, error) {
+	return web.DeviceAccess{}, web.ErrDeviceUnavailable
+}
+
 func (r *repository) IssueEnrollToken(context.Context, string, netip.Addr) (web.EnrollToken, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

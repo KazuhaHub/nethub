@@ -1,9 +1,11 @@
 # NetHub console API (draft)
 
-> **Status: partially implemented, updated 2026-10-18 against design v0.3.**
+> **Status: partially implemented, updated 2026-10-24 against design v0.3.**
 > W3 implements health, local login/logout/session, device listing, and enroll-token
 > issuance through `nethub web`. The React console implements these W3 flows;
-> complete deployment remains pending. W4-W7 endpoints below remain proposals.
+> W4 deployment acceptance is recorded separately. W5's scoped Open API is
+> implemented as an access-grant foundation; its UI and NewUserConn enforcement
+> remain pending. Other W5-W7 console endpoints below remain proposals.
 > Update this document in the same pull request as any API contract change.
 > [`DESIGN.md`](DESIGN.md) is the authority on behaviour; where this document
 > and DESIGN disagree, DESIGN wins.
@@ -409,17 +411,30 @@ Changes the display label. Request: `{ "label": "Branch office" }`.
 
 ### `POST /devices/{id}/open`
 
-Response `200`: `{ "url": "https://abcd1234.router.example.com:8443" }`.
+Request: `{}` without query parameters. Response `200`:
+
+```json
+{ "url": "https://abcd1234.router.example.com:8443", "gate_expires_at": "2026-10-24T08:30:00Z" }
+```
+
+The API and transactional database grant are implemented. The console button and
+NewUserConn enforcement remain W5 work; this endpoint alone does not establish
+an enforced gate or verify a successful GUI connection.
 
 The console opens it in a new tab with `noopener,noreferrer`, so the device
 page cannot reach the console tab. It also shows the hostname, so the user
 can check where they are going. This is the user's only defence if the
 console itself is compromised.
 
-- The confirmed source-IP gate (D7) means this call also
-  registers the caller's client IP for this device for 30 minutes, and the
-  response adds `"gate_expires_at"`.
-- Errors: `409 device_revoked`.
+- This explicit call registers the server-resolved exact source IP for 30 minutes
+  using the database clock, and appends a device/actor/source audit in the same
+  transaction. Another explicit call renews the same grant; reads and traffic
+  do not. Caller-supplied IPs, actor, destination and expiry are rejected.
+- Current database ownership/admin and enabled-account checks precede the grant.
+  A non-owner, foreign-tenant or missing device returns `404 not_found` before
+  any revocation state is exposed. An authorized revoked device returns
+  `409 device_revoked`. Invalid session/CSRF and bounded-attempt errors retain
+  the common `401`, `403` and `429` behavior.
 
 ### `POST /devices/{id}/revoke`
 
@@ -681,7 +696,8 @@ Confirmed on 2026-10-18:
   together for revocation. Backend failure and hanging-hook limits remain as
   measured in W0; the API does not promise instantaneous live disconnection.
 - Device revocation is one-way. The database already enforces it, limits web's
-  writes, and provides scoped Open/cutoff functions. Those HTTP routes are W5.
+  writes, and provides scoped Open/cutoff functions. The scoped Open HTTP API is
+  implemented; revocation/cutoff HTTP integration and gate enforcement remain W5.
 - Web's enrollment status-column grants are implemented. Hash read/expiry update
   and token consumption remain unavailable to web.
 - SAML is included in v1 through authcore/saml; its complete HTTP flows, trusted

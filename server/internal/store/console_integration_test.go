@@ -168,6 +168,20 @@ func testConsoleHTTP(t *testing.T, ctx context.Context, owner, db, authz *sql.DB
 	if !seen[memberDevice] || !seen[otherDevice] || seen[foreignDevice] {
 		t.Fatal("admin pagination crossed tenant or omitted visible devices")
 	}
+	openPath := "/api/v1/console/devices/" + memberDevice + "/open"
+	request(client, "POST", openPath, `{}`, "wrong", 403)
+	request(client, "POST", openPath, `{"source_ip":"203.0.113.1"}`, session.CSRFToken, 400)
+	request(client, "POST", "/api/v1/console/devices/"+otherDevice+"/open", `{}`, session.CSRFToken, 404)
+	data, _ = request(client, "POST", openPath, `{}`, session.CSRFToken, 200)
+	var access web.DeviceAccess
+	if err = json.Unmarshal(data, &access); err != nil || access.URL != "https://api-member.router.example.com:8443" {
+		t.Fatal("HTTP open did not return assigned URL", err)
+	}
+	var source string
+	var grantExpiry time.Time
+	if err = owner.QueryRowContext(ctx, `SELECT host(source_ip),expires_at FROM device_access_grants WHERE device_id=$1 AND user_id=$2`, memberDevice, member).Scan(&source, &grantExpiry); err != nil || source != "192.0.2.100" || !grantExpiry.Equal(access.ExpiresAt) {
+		t.Fatal("HTTP open lost authenticated actor and trusted proxy source", err)
+	}
 	request(client, "POST", "/api/v1/console/enroll-tokens", `{}`, "wrong", 403)
 	request(client, "POST", "/api/v1/console/enroll-tokens", `{"expires_at":"2099-01-01T00:00:00Z"}`, session.CSRFToken, 400)
 	data, _ = request(client, "POST", "/api/v1/console/enroll-tokens", `{}`, session.CSRFToken, 201)
