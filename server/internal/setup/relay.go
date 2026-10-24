@@ -72,7 +72,7 @@ func renderRelayConfig(directory string, config Config) ([]byte, error) {
 		}
 		credentials = append(credentials, value)
 	}
-	gateway, _, _, authz := edgeAddresses(config)
+	gateway, _, _, _ := edgeAddresses(config)
 	source, err := templates.ReadFile("templates/frps.toml.tmpl")
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func renderRelayConfig(directory string, config Config) ([]byte, error) {
 	}
 	var output bytes.Buffer
 	if err := tmpl.Execute(&output, map[string]string{"Domain": config.DeviceDomain, "Gateway": gateway,
-		"User": credentials[0], "Password": credentials[1], "Hook": authz + ":9000"}); err != nil {
+		"User": credentials[0], "Password": credentials[1], "Hook": "127.0.0.1:9000"}); err != nil {
 		return nil, errors.New("relay template rendering failed")
 	}
 	return bytes.ReplaceAll(output.Bytes(), []byte("\r\n"), []byte("\n")), nil

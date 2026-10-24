@@ -7,13 +7,15 @@ if [ "$(id -u)" != 0 ]; then
     exit 2
 fi
 python3 - <<'PY'
-import socket
-for port in (7000,8443):
+import socket,subprocess
+engine=subprocess.check_output(['docker','version','--format','{{.Server.Version}}'],text=True,timeout=15).strip()
+assert int(engine.split('.')[0])>=28, 'Loopback callback isolation requires Docker Engine 28 or newer'
+for address,port in (('0.0.0.0',7000),('0.0.0.0',8443),('127.0.0.1',9000)):
     with socket.socket() as listener:
         try:
-            listener.bind(('0.0.0.0',port))
+            listener.bind((address,port))
         except OSError:
-            raise SystemExit('Relay acceptance requires unused TCP 7000 and 8443; no existing service was changed')
+            raise SystemExit('Relay acceptance requires unused TCP 7000/8443 and loopback 9000; no existing service was changed')
 PY
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 python3 "$root/server/tests/test_compose_boundaries.py"
@@ -196,7 +198,11 @@ python3 - "$stage" <<'PY'
 import json,pathlib,sys
 s=pathlib.Path(sys.argv[1]);cfg=json.loads((s/'compose.json').read_text());services=cfg['services']
 assert set(services)=={'postgres','migrate','nethub-web','nethub-authz','frps','caddy','admin-bootstrap'}
-assert [name for name,service in services.items() if service.get('ports')]==['caddy']
+assert {name for name,service in services.items() if service.get('ports')}=={'caddy','nethub-authz'}
+hook_ports=services['nethub-authz']['ports']
+assert len(hook_ports)==1
+assert hook_ports[0]['host_ip']=='127.0.0.1' and str(hook_ports[0]['published'])=='9000'
+assert hook_ports[0]['target']==9000 and hook_ports[0]['protocol']=='tcp'
 assert services['nethub-web']['depends_on']['migrate']['condition']=='service_completed_successfully'
 assert services['nethub-authz']['depends_on']['migrate']['condition']=='service_completed_successfully'
 assert services['frps']['network_mode']=='host' and not services['frps'].get('ports')

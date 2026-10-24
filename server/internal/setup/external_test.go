@@ -48,7 +48,11 @@ func TestExternalProxyBundle(t *testing.T) {
 	}
 	for name, port := range map[string]int{"nethub-web": 28080, "nethub-authz": 28081} {
 		s := override.Services[name]
-		if len(s.Ports) != 1 || s.Ports[0].HostIP != "127.0.0.1" || s.Ports[0].Published != port {
+		index := 0
+		if name == "nethub-authz" {
+			index = 1
+		}
+		if len(s.Ports) != index+1 || s.Ports[index].HostIP != "127.0.0.1" || s.Ports[index].Published != port {
 			t.Fatal("origin published beyond loopback or wrong port")
 		}
 		trusted := ""

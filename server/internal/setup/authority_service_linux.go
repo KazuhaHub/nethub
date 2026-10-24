@@ -211,13 +211,17 @@ func (s *BoundRelayAuthorityService) accepts(name string, c authorityContainer, 
 		if requireHealthy && (c.State.Health == nil || c.State.Health.Status != "healthy") {
 			return false
 		}
+		hookPorts := c.HostConfig.PortBindings["9000/tcp"]
+		if len(hookPorts) != 1 || hookPorts[0].HostIP != "127.0.0.1" || hookPorts[0].HostPort != "9000" {
+			return false
+		}
 		if s.binding.Config.externalProxy() {
 			ports := c.HostConfig.PortBindings["8081/tcp"]
 			_, port := s.binding.Config.originPorts()
-			if len(c.HostConfig.PortBindings) != 1 || len(ports) != 1 || ports[0].HostIP != "127.0.0.1" || ports[0].HostPort != strconv.Itoa(int(port)) {
+			if len(c.HostConfig.PortBindings) != 2 || len(ports) != 1 || ports[0].HostIP != "127.0.0.1" || ports[0].HostPort != strconv.Itoa(int(port)) {
 				return false
 			}
-		} else if len(c.HostConfig.PortBindings) != 0 {
+		} else if len(c.HostConfig.PortBindings) != 1 {
 			return false
 		}
 		expected["/run/secrets"] = filepath.Join(s.binding.Directory, "secrets/authz")

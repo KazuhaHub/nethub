@@ -28,6 +28,7 @@ type repository struct {
 	sessions   map[string]auth.SessionRecord
 	populated  bool
 	shortToken bool
+	revoked    bool
 }
 
 func (r *repository) PasswordCandidate(_ context.Context, email string) (auth.Candidate, error) {
@@ -72,7 +73,8 @@ func (r *repository) Devices(_ context.Context, _ string, query web.DeviceQuery)
 	}
 	for i, name := range []string{"Branch office", "Home firewall", "Lab gateway"} {
 		online := i != 1
-		if query.Online != nil && online != *query.Online || query.Revoked != nil && *query.Revoked {
+		isRevoked := i == 0 && r.revoked
+		if query.Online != nil && online != *query.Online || query.Revoked != nil && *query.Revoked != isRevoked {
 			continue
 		}
 		now := time.Now().UTC()
@@ -83,14 +85,30 @@ func (r *repository) Devices(_ context.Context, _ string, query web.DeviceQuery)
 			certificate = web.GUICertificateStatus{State: "pending"}
 		}
 		page.Items = append(page.Items, web.Device{ID: fmt.Sprintf("00000000-0000-4000-8000-%012d", i+1), Label: name, Hostname: name, Subdomain: []string{"branch", "home", "lab"}[i], Platform: "opnsense", Online: online, LastSeenAt: &now, EnrolledAt: now, Owner: web.Owner{ID: "fixture", Email: "ui-test@example.com"}, Capabilities: []string{"remote.web"}, GUICertificate: certificate})
+		page.Items[len(page.Items)-1].Revoked = isRevoked
 	}
 	return page, nil
 }
 func (r *repository) OpenDevice(_ context.Context, _, id string, _ netip.Addr) (web.DeviceAccess, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.revoked {
+		return web.DeviceAccess{}, web.ErrDeviceRevoked
+	}
 	if id != "00000000-0000-4000-8000-000000000001" {
 		return web.DeviceAccess{}, web.ErrDeviceUnavailable
 	}
 	return web.DeviceAccess{Subdomain: "branch", ExpiresAt: time.Now().Add(30 * time.Minute)}, nil
+}
+
+func (r *repository) RevokeDevice(_ context.Context, _, id string, _ netip.Addr) (web.DeviceRevocation, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if id != "00000000-0000-4000-8000-000000000001" {
+		return web.DeviceRevocation{}, web.ErrDeviceUnavailable
+	}
+	r.revoked = true
+	return web.DeviceRevocation{Revoked: true, RevokedAt: time.Now().UTC()}, nil
 }
 
 func (r *repository) IssueEnrollToken(context.Context, string, netip.Addr) (web.EnrollToken, error) {
