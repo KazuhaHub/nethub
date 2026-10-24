@@ -1,6 +1,7 @@
 """Measure real control-session loss and recovery with the pinned official clients."""
 import base64
 import json
+import re
 from pathlib import Path
 import subprocess
 import time
@@ -48,7 +49,45 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
         (work / (label + '.log')).write_bytes(result.stdout + result.stderr)
         assert result.returncode == 0, 'isolated authz lifecycle command failed'
 
+    def control_sockets():
+        result = subprocess.run(['ss', '-tnpH'], capture_output=True, text=True, timeout=3)
+        assert result.returncode == 0, 'isolated control socket inventory failed'
+        peers = set()
+        for line in result.stdout.splitlines():
+            fields = line.split()
+            if len(fields) >= 6 and fields[0] == 'ESTAB' and fields[4].endswith(':7000') and any(
+                    re.search(r'pid=' + str(client.pid) + r'[,)]', line) for client in clients):
+                peers.add((fields[3], fields[4]))
+        return peers
+
+    def diagnose_outage(original, started):
+        # Keep the failed 45s gate failed. Additional samples explain whether
+        # original sockets or only frps proxy cleanup outlive that gate.
+        samples = []
+        deadline = time.monotonic() + 20
+        while True:
+            current = control_sockets()
+            active = online()
+            samples.append({'elapsed_ms': round((time.monotonic() - started) * 1000),
+                            'original_established_sockets': len(original & current),
+                            'current_established_sockets': len(current), 'online_proxy_count': len(active)})
+            if not active or time.monotonic() >= deadline:
+                break
+            time.sleep(0.5)
+        log_counts = []
+        for index in range(len(clients)):
+            raw = (Path(stage) / 'relay-test' / ('client' + str(index) + '.log')).read_text()
+            log_counts.append({'heartbeat_timeout': raw.count('heartbeat timeout'),
+                               'pong_error': raw.count('pong message contains error')})
+        result = {'failed_sampling_deadline_seconds': 45, 'samples': samples,
+                  'original_established_socket_count': len(original), 'client_event_counts': log_counts,
+                  'diagnostic_only_not_acceptance': True}
+        (work / 'outage-deadline-diagnostic.json').write_text(json.dumps(result, indent=2))
+        print(json.dumps({'heartbeat_outage_deadline_diagnostic': result}), flush=True)
+
     wait_online(expected, time.monotonic() + 10)
+    original_sockets = control_sockets()
+    assert len(original_sockets) >= len(clients), 'original control sockets were not bound to official client PIDs'
     stopped = False
     try:
         started = time.monotonic()
@@ -56,7 +95,11 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
         stopped = True
         # TLS failure alone cannot prove this: NewUserConn also depends on authz.
         # Query frps directly to observe removal of both actual proxy sessions.
-        wait_online(set(), started + 45)
+        try:
+            wait_online(set(), started + 45)
+        except RuntimeError:
+            diagnose_outage(original_sockets, started)
+            raise
         outage_ms = round((time.monotonic() - started) * 1000)
         assert all(client.poll() is None for client in clients)
     finally:
