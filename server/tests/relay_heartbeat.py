@@ -36,9 +36,12 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
         assert isinstance(rows, list)
         return {row['name'] for row in rows if row['name'] in expected and row.get('status') == 'online'}
 
-    def wait_online(wanted, deadline):
+    def wait_online(wanted, deadline, observe=None):
         while True:
-            if online() == wanted:
+            active = online()
+            if observe is not None:
+                observe(active, active == wanted)
+            if active == wanted:
                 return
             if time.monotonic() >= deadline:
                 raise RuntimeError('official control-session state exceeded the heartbeat deadline')
@@ -88,19 +91,42 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
     wait_online(expected, time.monotonic() + 10)
     original_sockets = control_sockets()
     assert len(original_sockets) >= len(clients), 'original control sockets were not bound to official client PIDs'
+    identity = subprocess.run(compose + ['ps', '--quiet', 'nethub-authz'], capture_output=True, text=True, timeout=10)
+    container_id = identity.stdout.strip()
+    assert identity.returncode == 0 and re.fullmatch('[a-f0-9]{64}', container_id)
+    outage_samples = []
     stopped = False
     try:
         started = time.monotonic()
         command(['stop', '--timeout', '3', 'nethub-authz'], 'authz-stop')
         stopped = True
+        stop_completed = time.monotonic()
+        stop_command_ms = round((stop_completed - started) * 1000)
+        inspected = subprocess.run(['docker', 'inspect', '--format', '{{json .State}}', container_id], capture_output=True, timeout=5)
+        assert inspected.returncode == 0
+        stopped_state = json.loads(inspected.stdout)
+        assert stopped_state['Running'] is False and stopped_state['OOMKilled'] is False
+        (work / 'authz-stopped-state.json').write_bytes(inspected.stdout)
+        def observe_outage(active, final):
+            elapsed = round((time.monotonic() - started) * 1000)
+            if final or not outage_samples or elapsed - outage_samples[-1]['elapsed_ms'] >= 1000:
+                outage_samples.append({'elapsed_ms': elapsed,
+                    'original_established_sockets': len(original_sockets & control_sockets()),
+                    'online_proxy_count': len(active)})
         # TLS failure alone cannot prove this: NewUserConn also depends on authz.
         # Query frps directly to observe removal of both actual proxy sessions.
         try:
-            wait_online(set(), started + 45)
+            # Bound observation after Docker confirms stop; retain dispatch-to-loss
+            # and command overhead separately instead of subtracting them away.
+            wait_online(set(), stop_completed + 45, observe_outage)
         except RuntimeError:
             diagnose_outage(original_sockets, started)
             raise
         outage_ms = round((time.monotonic() - started) * 1000)
+        after_stop_ms = round((time.monotonic() - stop_completed) * 1000)
+        original_sockets_gone_ms = next((sample['elapsed_ms'] for sample in outage_samples if sample['original_established_sockets'] == 0), None)
+        assert original_sockets_gone_ms is not None
+        (work / 'outage-samples.json').write_text(json.dumps(outage_samples, indent=2))
         assert all(client.poll() is None for client in clients)
     finally:
         if stopped:
@@ -150,6 +176,9 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
     result = {'heartbeat_interval_seconds': 10, 'heartbeat_timeout_seconds': 30,
               'control_state_probe_timeout_seconds': 2,
               'authz_outage_controls_offline_ms': outage_ms, 'authz_restart_recovery_ms': recovery_ms,
+              'authz_stop_command_ms': stop_command_ms, 'authz_stop_exit_code': stopped_state['ExitCode'],
+              'authz_outage_after_confirmed_stop_ms': after_stop_ms,
+              'authz_outage_original_sockets_gone_ms': original_sockets_gone_ms,
               'revoked_control_offline_ms': revoked_ms, 'unrevoked_control_and_verified_TLS_preserved': True,
               'actual_Ping_and_fresh_Login_denials': True, 'passed': True}
     (work / 'result.json').write_text(json.dumps(result, indent=2))
