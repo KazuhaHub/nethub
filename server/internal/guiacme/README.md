@@ -18,6 +18,14 @@ for every operation, so an earlier cached agreement is insufficient. This librar
 does not fetch or accept terms for the operator. External-account-binding CAs need
 a separate explicit credential workflow and currently fail closed.
 
+The contact email is optional. In the protected issuer policy, keep the
+`contact_email` field and use an empty string when no contact is needed. Account
+identity comes from the persisted signing key and expected account URI, never
+from an email address or an echoed contact field. Let's Encrypt has
+[removed stored account email addresses](https://letsencrypt.org/upcoming-features/#shutdown-of-expiration-notification-emails);
+NetHub must track expiry and renewal status itself. TLS protocol tests cover a
+contactless account's consent checks, lost-response recovery and backup restore.
+
 Every request, including endpoints supplied by the CA, must use the configured
 directory origin or an explicitly configured additional HTTPS origin. Comparison
 includes the port. Directory endpoints and returned account identities are checked;

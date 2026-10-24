@@ -7,6 +7,31 @@ import (
 	"testing"
 )
 
+func TestGUIIssuerPolicyAcceptsExplicitlyEmptyContact(t *testing.T) {
+	root := t.TempDir()
+	policy := GUIIssuerPolicy{Version: 1, AccountDirectory: filepath.Join(root, "account"), DirectoryURL: "https://acme.example.test/directory", AdditionalOrigins: []string{}, HTTPPolicyFile: filepath.Join(root, "http01.json"), CleanupTimer: "nethub-http01-cleanup.timer"}
+	data, err := json.Marshal(policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := decodeGUIIssuerPolicy(data)
+	if err != nil || decoded.ContactEmail != "" {
+		t.Fatal("explicit empty contact was refused")
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatal(err)
+	}
+	delete(fields, "contact_email")
+	data, err = json.Marshal(fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := decodeGUIIssuerPolicy(data); err == nil {
+		t.Fatal("missing policy field was silently defaulted")
+	}
+}
+
 func TestGUIIssuerPolicyRequiresExplicitExistingAccountAndCleanupBinding(t *testing.T) {
 	root := t.TempDir()
 	policy := GUIIssuerPolicy{Version: 1, AccountDirectory: filepath.Join(root, "account"), DirectoryURL: "https://acme.example.test/directory", ContactEmail: "issuer@example.test", AdditionalOrigins: []string{}, HTTPPolicyFile: filepath.Join(root, "http01.json"), CleanupTimer: "nethub-http01-cleanup.timer"}
