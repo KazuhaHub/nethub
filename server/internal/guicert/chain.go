@@ -65,9 +65,17 @@ func inspectChain(encoded, csrPEM []byte, assignedHost string, now time.Time) (C
 	var canonical []byte
 	rest := encoded
 	seen := map[[32]byte]bool{}
-	for len(bytes.TrimSpace(rest)) != 0 {
+	for len(bytes.Trim(rest, " \t\r\n\v\f")) != 0 {
+		rest = bytes.TrimLeft(rest, " \t\r\n\v\f")
 		block, tail := pem.Decode(rest)
 		if block == nil || block.Type != "CERTIFICATE" || len(block.Headers) != 0 || len(certificates) == 5 {
+			return Chain{}, nil, ErrChain
+		}
+		encodedBlock := pem.EncodeToMemory(block)
+		// Compare each consumed block so pem.Decode cannot skip malformed input.
+		// Issuers may separate blocks with blank lines or use CRLF line endings.
+		consumed := bytes.ReplaceAll(rest[:len(rest)-len(tail)], []byte("\r\n"), []byte("\n"))
+		if !bytes.Equal(bytes.Trim(consumed, " \t\r\n\v\f"), bytes.TrimSpace(encodedBlock)) {
 			return Chain{}, nil, ErrChain
 		}
 		certificate, err := x509.ParseCertificate(block.Bytes)
@@ -77,10 +85,10 @@ func inspectChain(encoded, csrPEM []byte, assignedHost string, now time.Time) (C
 		}
 		seen[digest] = true
 		certificates = append(certificates, certificate)
-		canonical = append(canonical, pem.EncodeToMemory(block)...)
+		canonical = append(canonical, encodedBlock...)
 		rest = tail
 	}
-	if len(certificates) == 0 || !bytes.Equal(bytes.TrimSpace(encoded), bytes.TrimSpace(canonical)) {
+	if len(certificates) == 0 {
 		return Chain{}, nil, ErrChain
 	}
 	leaf := certificates[0]

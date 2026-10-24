@@ -194,6 +194,27 @@ func TestFinalizeLostRepliesRecoverSameIssuedMaterial(t *testing.T) {
 	}
 }
 
+func TestFinalizeAndRecoverPEMWithBlankLines(t *testing.T) {
+	s, f, _, state, order, csr, public, roots := finalizationFixture(t)
+	canonical := bytes.Clone(state.body)
+	f.mu.Lock()
+	state.body = bytes.ReplaceAll(state.body, []byte("-----\n-----BEGIN"), []byte("-----\n\n-----BEGIN"))
+	f.mu.Unlock()
+	issued, err := s.FinalizeOrder(context.Background(), order, csr, public, roots)
+	if err != nil || !bytes.Equal(issued.Chain.PEM, canonical) {
+		t.Fatal("blank-line response failed trusted finalization", err)
+	}
+	recovered, err := s.FinalizeOrder(context.Background(), order, csr, public, roots)
+	if err != nil || !bytes.Equal(recovered.Chain.PEM, canonical) {
+		t.Fatal("saved order did not recover canonical material", err)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if state.finalizes != 1 || state.fetches != 2 {
+		t.Fatal("recovery created another finalization")
+	}
+}
+
 func TestFinalizeUsesIndependentRootsAndExactWirePEM(t *testing.T) {
 	for _, mutation := range []string{"wrong-roots", "trailing-data", "pem-headers", "wrong-mime", "reordered", "wrong-host", "wrong-key", "expired"} {
 		t.Run(mutation, func(t *testing.T) {

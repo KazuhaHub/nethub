@@ -112,6 +112,43 @@ func TestPublicChainInspectionDoesNotSupplyTrust(t *testing.T) {
 	}
 }
 
+func TestValidateChainPEMWhitespace(t *testing.T) {
+	f := newChainFixture(t)
+	canonical := append(bytes.Clone(f.leafPEM), f.caPEM...)
+	for name, encoded := range map[string][]byte{
+		"blank line":       bytes.ReplaceAll(canonical, []byte("-----\n-----BEGIN"), []byte("-----\n\n-----BEGIN")),
+		"CRLF":             bytes.ReplaceAll(canonical, []byte("\n"), []byte("\r\n")),
+		"ASCII separators": append(append(append([]byte(" \t\r\n"), f.leafPEM...), []byte("\n \t\r\n\v\f")...), append(bytes.Clone(f.caPEM), []byte(" \t\r\n")...)...),
+	} {
+		t.Run(name, func(t *testing.T) {
+			chain, err := ValidateChain(encoded, f.csr, certificateHost, f.roots, f.now)
+			if err != nil || !bytes.Equal(chain.PEM, canonical) {
+				t.Fatal("valid PEM whitespace did not produce the canonical trusted chain", err)
+			}
+		})
+	}
+}
+
+func TestRejectSkippedOrMalformedPEMBlocks(t *testing.T) {
+	f := newChainFixture(t)
+	valid := append(bytes.Clone(f.leafPEM), f.caPEM...)
+	for name, encoded := range map[string][]byte{
+		"prefix":                     append([]byte("garbage\n"), valid...),
+		"interblock text":            append(append(bytes.Clone(f.leafPEM), []byte("garbage\n")...), f.caPEM...),
+		"trailer":                    append(bytes.Clone(valid), []byte("\ntrailer")...),
+		"nested begin":               append([]byte("-----BEGIN CERTIFICATE-----\n"), valid...),
+		"invalid block skipped":      append([]byte("-----BEGIN CERTIFICATE-----\n!invalid!\n-----END CERTIFICATE-----\n"), valid...),
+		"invalid interblock skipped": append(append(bytes.Clone(f.leafPEM), []byte("-----BEGIN CERTIFICATE-----\n!invalid!\n-----END CERTIFICATE-----\n")...), f.caPEM...),
+		"Unicode separator":          append(append(bytes.Clone(f.leafPEM), []byte("\u00a0")...), f.caPEM...),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := ValidateChain(encoded, f.csr, certificateHost, f.roots, f.now); err != ErrChain {
+				t.Fatal("non-whitespace or malformed PEM was skipped")
+			}
+		})
+	}
+}
+
 func TestIssuerExpiryBoundsRouterValidity(t *testing.T) {
 	f := newChainFixture(t)
 	f.issuer.NotAfter = f.now.Add(time.Hour)
