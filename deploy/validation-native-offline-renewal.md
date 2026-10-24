@@ -65,9 +65,11 @@ with no error. Earlier failed starts and lifecycle results remain archived.
 ## Remaining acceptance
 
 This closes the corrected-package offline renewal and reboot-persistence check
-within the private-CA, lab-DNS and 1 GiB scope. Wrong-host/key rejection, native
-restart failure/rollback, public CA and the remaining W4-W7 acceptance remain
-open. The earlier [failed lifecycle](validation-native-offline-recovery.md) and
+within the private-CA, lab-DNS and 1 GiB scope. A separate
+[restart-failure experiment](validation-native-certificate-rollback.md) verified
+rollback and delayed same-generation retry. Wrong-host/key rejection, public CA
+and the remaining W4-W7 acceptance remain open. The earlier
+[failed lifecycle](validation-native-offline-recovery.md) and
 [its diagnosis](validation-native-certificate-normalization.md) retain their
 original outcomes. Private payloads, deployment details, keys and screenshots
 remain outside Git.
