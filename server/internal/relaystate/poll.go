@@ -34,10 +34,11 @@ type Repository interface {
 }
 
 type Config struct {
-	Origin   string
-	User     string `json:"-"`
-	Password string `json:"-"`
-	Logger   *slog.Logger
+	Origin             string
+	User               string `json:"-"`
+	Password           string `json:"-"`
+	Logger             *slog.Logger
+	AnomalyActionLimit int
 }
 
 type Poller struct {
@@ -46,6 +47,7 @@ type Poller struct {
 	repository               Repository
 	logger                   *slog.Logger
 	interval                 time.Duration
+	anomalies                *anomalyWorker
 }
 
 func New(config Config, repository Repository) (*Poller, error) {
@@ -66,10 +68,27 @@ func New(config Config, repository Repository) (*Poller, error) {
 	transport := &http.Transport{Proxy: nil, DialContext: privateDial, DisableCompression: true,
 		TLSHandshakeTimeout: time.Second, ResponseHeaderTimeout: time.Second, MaxResponseHeaderBytes: 16 * 1024,
 		MaxConnsPerHost: 1, MaxIdleConnsPerHost: 1, IdleConnTimeout: 30 * time.Second}
-	return &Poller{endpoint: u.String(), user: config.User, password: config.Password,
+	poller := &Poller{endpoint: u.String(), user: config.User, password: config.Password,
 		repository: repository, logger: config.Logger, interval: Interval,
 		client: &http.Client{Transport: transport, Timeout: 3 * time.Second,
-			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
+			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+	if inspector, ok := repository.(AnomalyRepository); ok {
+		limit := config.AnomalyActionLimit
+		if limit == 0 {
+			limit = 3
+		}
+		tracker, err := NewAnomalyTracker(time.Now(), limit)
+		if err != nil {
+			transport.CloseIdleConnections()
+			return nil, err
+		}
+		reader := &Poller{endpoint: poller.endpoint, user: poller.user, password: poller.password,
+			client: &http.Client{Transport: transport.Clone(), Timeout: 3 * time.Second,
+				CheckRedirect: poller.client.CheckRedirect}}
+		poller.anomalies = &anomalyWorker{reader: reader, repository: inspector, tracker: tracker,
+			logger: config.Logger, interval: AnomalyInterval, now: time.Now}
+	}
+	return poller, nil
 }
 
 func credential(value string, minimum, maximum int) bool {
@@ -135,39 +154,61 @@ func allPrivate(addresses []netip.Addr) bool {
 func (p *Poller) Poll(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+	value, err := p.fetch(ctx)
+	if err != nil {
+		return err
+	}
+	storage, cancelStorage := context.WithTimeout(ctx, 2*time.Second)
+	defer cancelStorage()
+	if err := p.repository.Observe(storage, value.observations); err != nil || storage.Err() != nil {
+		return ErrStorage
+	}
+	return nil
+}
+
+func (p *Poller) fetch(ctx context.Context) (snapshot, error) {
 	httpContext, cancelHTTP := context.WithTimeout(ctx, 3*time.Second)
 	defer cancelHTTP()
 	request, err := http.NewRequestWithContext(httpContext, http.MethodGet, p.endpoint, nil)
 	if err != nil {
-		return ErrTransport
+		return snapshot{}, ErrTransport
 	}
 	request.SetBasicAuth(p.user, p.password)
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Accept-Encoding", "identity")
 	result, err := p.client.Do(request)
 	if err != nil {
-		return ErrTransport
+		return snapshot{}, ErrTransport
 	}
 	defer result.Body.Close()
 	media, parameters, err := mime.ParseMediaType(result.Header.Get("Content-Type"))
 	if result.StatusCode != http.StatusOK || err != nil || media != "application/json" || len(result.Header.Values("Content-Type")) != 1 ||
 		parameters["charset"] != "" && !strings.EqualFold(parameters["charset"], "utf-8") || len(result.Header.Values("Content-Encoding")) != 0 {
-		return ErrResponse
+		return snapshot{}, ErrResponse
 	}
-	observations, err := parse(result.Body)
+	value, err := parseSnapshot(result.Body)
 	if err != nil || ctx.Err() != nil {
-		return ErrResponse
+		return snapshot{}, ErrResponse
 	}
-	storage, cancelStorage := context.WithTimeout(ctx, 2*time.Second)
-	defer cancelStorage()
-	if err := p.repository.Observe(storage, observations); err != nil || storage.Err() != nil {
-		return ErrStorage
-	}
-	return nil
+	return value, nil
 }
 
 func (p *Poller) Run(ctx context.Context) {
 	defer p.client.CloseIdleConnections()
+	if p.anomalies != nil {
+		child, stop := context.WithCancel(ctx)
+		done := make(chan struct{})
+		go func() { defer close(done); p.anomalies.run(child) }()
+		defer func() {
+			stop()
+			timer := time.NewTimer(time.Second)
+			defer timer.Stop()
+			select {
+			case <-done:
+			case <-timer.C:
+			}
+		}()
+	}
 	var previous error
 	attempt := func() {
 		err := p.Poll(ctx)
