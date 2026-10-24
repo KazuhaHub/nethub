@@ -38,6 +38,7 @@ export type Device = {
 };
 export type DevicePage = { items: Device[]; next_cursor: string | null };
 export type Enrollment = { token: string; expires_at: string };
+export type Revocation = { revoked: true; revoked_at: string };
 
 export class ApiError extends Error {
   constructor(
@@ -166,5 +167,8 @@ export const api = {
       `/devices/${encodeURIComponent(id)}/open`,
       {},
     );
+  },
+  revokeDevice(id: string) {
+    return request<Revocation>(`/devices/${encodeURIComponent(id)}/revoke`, {});
   },
 };

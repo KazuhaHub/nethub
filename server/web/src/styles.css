@@ -35,6 +35,8 @@
 }
 .native-dialog {
   margin: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
@@ -675,6 +677,23 @@ p {
 }
 .dialog-description {
   font-size: 13px;
+}
+.revocation-copy {
+  margin: 12px 0;
+  line-height: 1.6;
+}
+.device-access {
+  min-width: 150px;
+  max-width: 240px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.revocation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
 }
 .token-placeholder {
   display: flex;

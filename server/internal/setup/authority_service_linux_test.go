@@ -45,8 +45,9 @@ func authorityServiceFixture(t *testing.T, name string, external bool) (*BoundRe
 		c.State.Health = &struct{ Status string }{Status: "healthy"}
 		mounts["/run/secrets"] = "secrets/authz"
 		mounts["/run/trust"] = "runtime/trust"
+		c.HostConfig.PortBindings = map[string][]struct{ HostIP, HostPort string }{"9000/tcp": {{HostIP: "127.0.0.1", HostPort: "9000"}}}
 		if external {
-			c.HostConfig.PortBindings = map[string][]struct{ HostIP, HostPort string }{"8081/tcp": {{HostIP: "127.0.0.1", HostPort: "18081"}}}
+			c.HostConfig.PortBindings["8081/tcp"] = []struct{ HostIP, HostPort string }{{HostIP: "127.0.0.1", HostPort: "18081"}}
 		}
 	}
 	for target, source := range mounts {
@@ -56,6 +57,32 @@ func authorityServiceFixture(t *testing.T, name string, external bool) (*BoundRe
 		}{Type: "bind", Source: filepath.Join(directory, source), Destination: target})
 	}
 	return s, c
+}
+
+func TestAuthorityServiceRequiresExactHookPublication(t *testing.T) {
+	for _, external := range []bool{false, true} {
+		changes := []func(*authorityContainer){
+			func(c *authorityContainer) { delete(c.HostConfig.PortBindings, "9000/tcp") },
+			func(c *authorityContainer) { c.HostConfig.PortBindings["9000/tcp"][0].HostIP = "0.0.0.0" },
+			func(c *authorityContainer) { c.HostConfig.PortBindings["9000/tcp"][0].HostPort = "9001" },
+			func(c *authorityContainer) {
+				c.HostConfig.PortBindings["9000/tcp"] = append(c.HostConfig.PortBindings["9000/tcp"], c.HostConfig.PortBindings["9000/tcp"][0])
+			},
+			func(c *authorityContainer) {
+				c.HostConfig.PortBindings["9001/tcp"] = c.HostConfig.PortBindings["9000/tcp"]
+			},
+		}
+		for index, change := range changes {
+			s, c := authorityServiceFixture(t, "nethub-authz", external)
+			if !s.accepts("nethub-authz", c, true, true) {
+				t.Fatal("exact hook publication refused")
+			}
+			change(&c)
+			if s.accepts("nethub-authz", c, true, true) {
+				t.Fatalf("unsafe hook publication accepted: external=%t case=%d", external, index)
+			}
+		}
+	}
 }
 
 func TestAuthorityServiceBindingChecksActualRuntimeAuthority(t *testing.T) {
