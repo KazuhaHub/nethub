@@ -180,6 +180,7 @@ func (f *enrollmentFixture) post(t *testing.T, input protocol.EnrollRequest) (in
 
 func testAtomicEnrollment(t *testing.T, ctx context.Context, owner, authz, webRole *sql.DB, tenantA, tenantB string) {
 	f := newEnrollmentFixture(t, ctx, owner, authz)
+	t.Run("disconnect_requests", func(t *testing.T) { testDisconnectRequests(t, f, webRole, tenantA, tenantB) })
 	t.Run("console_revocation", func(t *testing.T) { testConsoleRevocation(t, f, webRole, tenantA, tenantB) })
 	t.Run("immutable_gui_key_binding", func(t *testing.T) { testGUIKeyBinding(t, f, webRole, tenantA, tenantB) })
 	t.Run("revocation_snapshot", func(t *testing.T) { testRevocationSnapshot(t, f, tenantA, tenantB) })
@@ -195,7 +196,7 @@ func testAtomicEnrollment(t *testing.T, ctx context.Context, owner, authz, webRo
 			t.Fatal("owner role accepted as authorization runtime")
 		}
 	})
-	t.Run("compiled_authz_process", func(t *testing.T) { testAuthzRuntime(t, f, tenantA) })
+	t.Run("compiled_authz_process", func(t *testing.T) { testAuthzRuntime(t, f, webRole, tenantA) })
 	t.Run("http_result_matches_schema_and_database_identity", func(t *testing.T) {
 		_, token, actor := f.fresh(t, tenantB)
 		request := f.input

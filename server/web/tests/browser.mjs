@@ -451,6 +451,34 @@ try {
     0,
   );
   assert.equal(revocations, 2, "Only explicit confirmation may call revoke");
+  await branch
+    .getByRole("button", { name: "Request disconnect", exact: true })
+    .click();
+  await branch
+    .getByText(
+      "Disconnect request pending. Authz has not confirmed heartbeat rejection yet.",
+      { exact: true },
+    )
+    .waitFor();
+  await branch
+    .getByRole("button", { name: "Retry disconnect request", exact: true })
+    .click();
+  await page.request.post(origin + "/test/disconnect-armed");
+  await branch
+    .getByText(
+      "Heartbeat rejection ready. Existing streams may continue; this is not a connection-closure receipt.",
+      { exact: true },
+    )
+    .waitFor({ timeout: 8000 });
+  assert.equal(
+    await branch
+      .getByRole("button", { name: "Request disconnect", exact: true })
+      .isDisabled(),
+    true,
+  );
+  console.log(
+    "Disconnect UI passed explicit pending retry and polled heartbeat-ready receipt without claiming closed streams.",
+  );
   await page.screenshot({
     path: join(evidence, "revoked-inventory.png"),
     fullPage: true,
@@ -491,6 +519,7 @@ try {
           "router opener and credential isolation",
           "failed Open popup cleanup",
           "explicit permanent revocation confirmation and failure retry",
+          "disconnect request pending and heartbeat-ready states",
           "non-overlapping inventory requests",
           "hidden inventory polling pause and resume",
           "enrollment",

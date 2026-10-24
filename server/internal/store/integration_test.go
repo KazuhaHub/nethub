@@ -273,12 +273,10 @@ func TestPostgresBoundaries(t *testing.T) {
 		if err := tx.QueryRowContext(ctx, `SELECT open_device($1,$2,'192.0.2.1')`, memberA, deviceA).Scan(&expires); err != nil || time.Until(expires) < 29*time.Minute || time.Until(expires) > 31*time.Minute {
 			t.Fatalf("grant lifetime: %v", err)
 		}
-		if _, err := tx.ExecContext(ctx, `SELECT request_device_disconnect($1,$2)`, memberA, deviceA); err != nil {
-			t.Fatal(err)
-		}
 		if err := tx.Commit(); err != nil {
 			t.Fatal(err)
 		}
+		expectError(web, tenantA, "42501", `SELECT request_device_disconnect($1,$2)`, memberA, deviceA)
 	})
 	t.Run("one_way_revocation", func(t *testing.T) {
 		tx := txFor(web, tenantA)
@@ -290,6 +288,13 @@ func TestPostgresBoundaries(t *testing.T) {
 		}
 		expectError(web, tenantA, "23514", `UPDATE devices SET revoked=false WHERE id=$1`, deviceA)
 		expectError(authz, tenantA, "23514", `UPDATE devices SET revoked=false WHERE id=$1`, deviceA)
+		request := txFor(web, tenantA)
+		if _, err := request.ExecContext(ctx, `SELECT request_device_disconnect($1,$2)`, memberA, deviceA); err != nil {
+			t.Fatal("revoked cutoff request refused", err)
+		}
+		if err := request.Commit(); err != nil {
+			t.Fatal(err)
+		}
 	})
 	t.Run("append_only_audit_chain", func(t *testing.T) {
 		for range 2 {
