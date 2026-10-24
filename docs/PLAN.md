@@ -1557,7 +1557,10 @@ independent restoration. Boot DNS readiness to generation-2 confirmation took
 A separate native restart failure restored the previous configuration and usable
 GUI; genuine cron then confirmed the unchanged generation on attempt 2, with
 one CA order and the original tunnel PID/key retained. [Rollback and retry](../deploy/validation-native-certificate-rollback.md).
-Wrong-host/key and public CA acceptance remain open; the combined certificate
+Controlled native wrong-host/key inputs now pass both installed verification
+boundaries, followed by genuine private-CA application and baseline restoration.
+[Identity controls and limits](../deploy/validation-native-certificate-identity.md).
+Public CA acceptance remains open; the combined certificate
 checkbox is not complete.
 
 ### 常见坑
