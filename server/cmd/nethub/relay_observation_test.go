@@ -31,13 +31,16 @@ func TestObservationConfigurationRequiresBothPrivateCredentialFiles(t *testing.T
 		t.Fatal(err)
 	}
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	if _, err := newObserver("http://127.0.0.1:7500", userFile, passwordFile, nil, logger); err == nil {
+	if _, err := newObserver("http://127.0.0.1:7500", userFile, passwordFile, nil, logger, 3); err == nil {
 		t.Fatal("missing admin password file accepted")
 	}
 	if err := os.WriteFile(passwordFile, []byte("public-test-only-admin-observation-password\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := newObserver("http://127.0.0.1:7500", userFile, passwordFile, nil, logger); err != nil {
+	if _, err := newObserver("http://127.0.0.1:7500", userFile, passwordFile, nil, logger, 3); err != nil {
 		t.Fatal("valid file-based admin configuration rejected")
+	}
+	if _, err := newObserver("http://127.0.0.1:7500", userFile, passwordFile, nil, logger, -1); err == nil {
+		t.Fatal("invalid anomaly action budget accepted")
 	}
 }

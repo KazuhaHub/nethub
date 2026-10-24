@@ -28,7 +28,7 @@ type Anomaly struct {
 	TenantID, DeviceID, ProxyKey string
 }
 
-func (a Anomaly) valid() bool {
+func (a Anomaly) Valid() bool {
 	if !proxyDigest.MatchString(a.ProxyKey) {
 		return false
 	}
@@ -89,7 +89,7 @@ func (t *AnomalyTracker) Sample(at time.Time, anomalies []Anomaly) ([]AnomalyCon
 	invalid := false
 	seen := make(map[Anomaly]bool, len(anomalies))
 	for _, anomaly := range anomalies {
-		invalid = invalid || !anomaly.valid() || seen[anomaly]
+		invalid = invalid || !anomaly.Valid() || seen[anomaly]
 		seen[anomaly] = true
 	}
 	if invalid {

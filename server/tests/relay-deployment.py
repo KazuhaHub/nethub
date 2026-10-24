@@ -40,7 +40,7 @@ def service_log(service, label):
 
 
 def hook_events(label):
-    startup = {b"Read-only relay observation enabled",
+    startup = {b"Read-only relay observation enabled", b"Relay observation and anomaly confirmation enabled",
                b"Device enrollment API and internal relay hooks started"}
     events = []
     for line in service_log("nethub-authz", label).splitlines():
