@@ -90,7 +90,7 @@ func (s *AccountStore) Ready(ctx context.Context) error {
 	}
 	defer accountRelease(lease)
 	state, _, err := s.load()
-	if err != nil || !s.AllowsURL(state.URI) || !s.AllowsURL(state.OrdersURL) {
+	if err != nil || !s.AllowsURL(state.URI) || state.OrdersURL != "" && !s.AllowsURL(state.OrdersURL) {
 		return ErrState
 	}
 	return nil

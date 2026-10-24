@@ -80,7 +80,17 @@ type orderBehavior struct {
 
 func orderFixture(t *testing.T) (*AccountStore, *accountFixture, *orderBehavior) {
 	t.Helper()
+	return orderFixtureWithAccount(t, nil)
+}
+
+func orderFixtureWithAccount(t *testing.T, configure func(*accountFixture)) (*AccountStore, *accountFixture, *orderBehavior) {
+	t.Helper()
 	s, f, _ := storeFixture(t)
+	if configure != nil {
+		f.mu.Lock()
+		configure(f)
+		f.mu.Unlock()
+	}
 	if _, err := s.EnsureAccount(context.Background(), true, f.terms); err != nil {
 		t.Fatal(err)
 	}

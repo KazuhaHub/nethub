@@ -26,6 +26,12 @@ from an email address or an echoed contact field. Let's Encrypt has
 NetHub must track expiry and renewal status itself. TLS protocol tests cover a
 contactless account's consent checks, lost-response recovery and backup restore.
 
+Some providers omit the account's order-list URL; [Boulder tracks this behavior](https://github.com/letsencrypt/boulder/issues/3335).
+Readiness requires the persisted key and registered account URI. A returned
+order-list URL must still match the approved HTTPS origins. New orders use the
+directory endpoint, while recovery uses each persisted order URL. Backup checks
+continue to enforce any order-list metadata already present in a snapshot.
+
 Every request, including endpoints supplied by the CA, must use the configured
 directory origin or an explicitly configured additional HTTPS origin. Comparison
 includes the port. Directory endpoints and returned account identities are checked;
