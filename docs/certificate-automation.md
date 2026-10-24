@@ -9,7 +9,8 @@ NetHub must not create a competing ACME manager for that same hostname.
 This records the confirmed product scope and implementation boundaries.
 [Same-root relay leaf maintenance](../deploy/validation-relay-maintenance.md) passes
 real timer, application rollback/retry and served TLS checks. Controlled native
-[trust transitions](../deploy/validation-relay-authority-native.md) and GUI
+[trust transitions](../deploy/validation-relay-authority-native.md),
+[physical offline root recovery](../deploy/validation-native-offline-root-recovery.md) and GUI
 [issuance/renewal](../deploy/validation-native-gui-lifecycle.md),
 [offline recovery](../deploy/validation-native-offline-renewal.md),
 [rollback](../deploy/validation-native-certificate-rollback.md) and
