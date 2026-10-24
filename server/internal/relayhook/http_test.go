@@ -27,6 +27,10 @@ func (f repositoryFunc) Authorize(ctx context.Context, identity protocol.ClaimPa
 	return f(ctx, identity)
 }
 
+func (f repositoryFunc) AuthorizeConnection(context.Context, protocol.ClaimPayload, netip.Addr) error {
+	return ErrDenied
+}
+
 func fixture(t *testing.T, repository Repository, logs io.Writer) (*Server, string) {
 	t.Helper()
 	signer, err := claim.New("test", map[string][]byte{"test": bytes.Repeat([]byte{19}, 32)})
@@ -52,6 +56,9 @@ func envelope(operation, encoded string) map[string]any {
 	if operation == "NewProxy" {
 		content = map[string]any{"user": map[string]any{"metas": metas, "run_id": "private-run-id-fixture"},
 			"proxy_type": "https", "proxy_name": ProxyName(metas["device_id"].(string)), "subdomain": "abcd1234"}
+	}
+	if operation == "NewUserConn" {
+		content = map[string]any{"user": map[string]any{"metas": metas, "run_id": "private-run-id-fixture"}, "proxy_type": "https", "proxy_name": ProxyName(metas["device_id"].(string)), "remote_addr": "192.0.2.100:42000"}
 	}
 	return map[string]any{"version": "0.1.0", "op": operation, "content": content}
 }

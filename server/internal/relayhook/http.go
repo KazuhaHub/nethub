@@ -28,6 +28,7 @@ var ErrUnavailable = errors.New("relay authorization unavailable")
 
 type Repository interface {
 	Authorize(context.Context, protocol.ClaimPayload) error
+	AuthorizeConnection(context.Context, protocol.ClaimPayload, netip.Addr) error
 }
 
 type Config struct {
@@ -123,7 +124,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	operation, ok := text(object, "op")
-	if !ok || operation != "Login" && operation != "NewProxy" {
+	if !ok || operation != "Login" && operation != "NewProxy" && operation != "NewUserConn" {
 		s.respond(w, 200, "unknown", "invalid_request")
 		return
 	}
@@ -141,7 +142,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	identity := content
-	if operation == "NewProxy" {
+	if operation != "Login" {
 		identity, ok = nested(content, "user")
 		if !ok {
 			s.respond(w, 200, operation, "invalid_request")
@@ -168,7 +169,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.respond(w, 200, operation, "unavailable")
 		return
 	}
-	err = s.repository.Authorize(ctx, payload)
+	if operation == "NewUserConn" {
+		name, nameOK := text(content, "proxy_name")
+		kind, kindOK := text(content, "proxy_type")
+		remote, remoteOK := text(content, "remote_addr")
+		source, sourceError := netip.ParseAddrPort(remote)
+		address := source.Addr().Unmap()
+		if !nameOK || name != ProxyName(payload.DeviceID) || !kindOK || kind != "https" || !remoteOK || sourceError != nil || source.Port() == 0 || source.Addr().Zone() != "" || address.IsUnspecified() || address.IsMulticast() {
+			s.respond(w, 200, operation, "connection_policy")
+			return
+		}
+		err = s.repository.AuthorizeConnection(ctx, payload, address)
+	} else {
+		err = s.repository.Authorize(ctx, payload)
+	}
 	if err != nil || ctx.Err() != nil {
 		decision := "unavailable"
 		if errors.Is(err, ErrDenied) && ctx.Err() == nil {

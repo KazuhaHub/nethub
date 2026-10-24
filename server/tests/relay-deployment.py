@@ -1,6 +1,7 @@
 """Use actual HTTPS enrollment, two official frpc clients and the deployed relay."""
 
 import http.server
+import ipaddress
 import json
 from pathlib import Path
 import ssl
@@ -8,6 +9,7 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 
 from relay_maintenance import exercise
 
@@ -198,6 +200,47 @@ try:
     valid_clients = []
     for index, assignment in enumerate(assignments):
         valid_clients.append(start_client(assignment, f"client{index}", backend.server_port))
+    # The console ingress crosses the fixture Docker bridge, while frps uses
+    # host networking. Bind test TCP sources to the same measured bridge IP.
+    caddy = subprocess.run(compose + ["ps", "--quiet", "caddy"],capture_output=True,timeout=10)
+    assert caddy.returncode == 0
+    inspection = subprocess.run(["docker", "inspect", caddy.stdout.decode().strip()],capture_output=True,timeout=10)
+    assert inspection.returncode == 0
+    networks = json.loads(inspection.stdout)[0]["NetworkSettings"]["Networks"]
+    assert len(networks) == 1
+    gateway = str(ipaddress.ip_address(next(iter(networks.values()))["Gateway"]))
+
+    def sql(query):
+        result = subprocess.run(compose + ["exec","-T","postgres","psql","-X","--set","ON_ERROR_STOP=1","-U","postgres","-d","nethub","-tAc",query],capture_output=True,timeout=10)
+        assert result.returncode == 0, "isolated source-grant inspection failed"
+        return result.stdout.decode().strip()
+
+    def probe(assignment,source):
+        host = assignment["subdomain"] + ".router.example.com"
+        destination = "127.0.0.1" if source == "127.0.0.1" else gateway
+        return subprocess.run(["curl","--silent","--fail","--noproxy","*","--max-time","2","--interface",source,
+            "--cacert",str(work/"backend-cert.pem"),"--connect-to",f"{host}:443:{destination}:8443",f"https://{host}/"],capture_output=True,timeout=4)
+
+    deadline = time.monotonic()+20
+    while sum(event.get("operation")=="NewProxy" and event.get("decision")=="allowed" for event in hook_events("source-gate-ready")) < 2:
+        assert time.monotonic()<deadline, "legitimate proxies did not register before source-gate controls"
+        time.sleep(.1)
+    denied_before = sum(event.get("operation")=="NewUserConn" and event.get("decision")=="device_denied" for event in hook_events("before-source-denial"))
+    deadline = time.monotonic()+10
+    while True:
+        assert probe(assignments[0],gateway).returncode != 0, "missing source grant reached the backend"
+        denied_after = sum(event.get("operation")=="NewUserConn" and event.get("decision")=="device_denied" for event in hook_events("after-source-denial"))
+        if denied_after > denied_before:
+            break
+        assert time.monotonic()<deadline, "source denial was not observed through actual NewUserConn"
+        time.sleep(.1)
+    for assignment in assignments:
+        device = str(uuid.UUID(assignment["device_id"]))
+        opened = curl("/api/v1/console/devices/"+device+"/open",{},authenticated=True)
+        assert opened["url"] == "https://"+assignment["subdomain"]+".router.example.com:8443" and opened["gate_expires_at"]
+        actor = str(uuid.UUID(login["user"]["id"]))
+        assert sql("SELECT host(source_ip) FROM device_access_grants WHERE device_id='"+device+"' AND user_id='"+actor+"';") == gateway
+
     def check_tunnels():
         deadline = time.monotonic() + 30
         for assignment in assignments:
@@ -205,8 +248,9 @@ try:
             while time.monotonic() < deadline:
                 result = subprocess.run([
                     "curl", "--silent", "--fail", "--noproxy", "*", "--max-time", "2",
+                    "--interface", gateway,
                     "--cacert", str(work / "backend-cert.pem"),
-                    "--connect-to", f"{host}:443:127.0.0.1:8443", f"https://{host}/",
+                    "--connect-to", f"{host}:443:{gateway}:8443", f"https://{host}/",
                 ], capture_output=True, timeout=4)
                 if result.returncode == 0 and result.stdout.decode() == host:
                     break
@@ -216,6 +260,15 @@ try:
         assert all(client.poll() is None for client in valid_clients)
 
     check_tunnels()
+    assert probe(assignments[0],"127.0.0.1").returncode != 0, "another source reused the explicit grant"
+    device = str(uuid.UUID(assignments[0]["device_id"]))
+    sql("UPDATE device_access_grants SET granted_at=granted_at-interval '31 minutes',expires_at=expires_at-interval '31 minutes' WHERE device_id='"+device+"';")
+    expired = sql("SELECT expires_at::text FROM device_access_grants WHERE device_id='"+device+"';")
+    assert probe(assignments[0],gateway).returncode != 0, "expired source grant reached the backend"
+    assert sql("SELECT expires_at::text FROM device_access_grants WHERE device_id='"+device+"';") == expired
+    curl("/api/v1/console/devices/"+device+"/open",{},authenticated=True)
+    check_tunnels()
+    print("Official frps NewUserConn denied absent, wrong-source and expired grants; explicit authenticated Open restored verified TLS without traffic-based renewal")
     for _ in range(90):
         devices = curl("/api/v1/console/devices", authenticated=True)["items"]
         observed = {device["id"] for device in devices if device["online"]}
