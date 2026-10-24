@@ -143,6 +143,13 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
     wait_online(expected, time.monotonic() + 10)
     recovery_ms = round((time.monotonic() - started) * 1000)
     assert all(client.poll() is None for client in clients)
+    print(json.dumps({'official_frp_authz_outage': {
+        'authz_stop_command_ms': stop_command_ms, 'authz_stop_exit_code': stopped_state['ExitCode'],
+        'stopped_authz_loopback_callback_refused_ms': callback_refusal_ms,
+        'authz_outage_original_sockets_gone_ms': original_sockets_gone_ms,
+        'authz_outage_controls_offline_ms': outage_ms,
+        'authz_outage_after_confirmed_stop_ms': after_stop_ms,
+        'authz_restart_recovery_ms': recovery_ms}}), flush=True)
 
     # Later authority tests retain the original two enrollments. Revocation is
     # irreversible: create a separate authenticated identity for this control.

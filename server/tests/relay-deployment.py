@@ -78,10 +78,14 @@ def curl(path, payload=None, authenticated=False, expect_json=True):
             args += ["-H", "@" + str(work / "csrf-header")]
     if path.endswith("/login"):
         args += ["-c", str(work / "cookies")]
-    result = subprocess.run(args + ["https://console.example.com" + path], capture_output=True, timeout=10)
+    result = subprocess.run(args + ["--write-out", "\n%{http_code}", "https://console.example.com" + path], capture_output=True, timeout=10)
+    body, _, status = result.stdout.rpartition(b"\n")
     if result.returncode != 0:
+        print(json.dumps({"verified_console_failure": {"curl_exit": result.returncode,
+            "http_code": int(status) if len(status) == 3 and status.isdigit() else 0}}), flush=True)
+        (work / "last-console-request-error.log").write_bytes(result.stderr)
         raise RuntimeError("verified console request failed")
-    return json.loads(result.stdout) if expect_json else result.stdout
+    return json.loads(body) if expect_json else body
 
 
 class Backend(http.server.BaseHTTPRequestHandler):
@@ -326,7 +330,10 @@ try:
     exercise(stage, sys.argv[3], assignments, check_tunnels)
 
     def revocation_client():
-        token = curl("/api/v1/console/enroll-tokens", {}, authenticated=True)["token"]
+        # First-start acceptance reserved this genuine, unused console token.
+        # Browser and relay cases already issue five tokens in the same minute;
+        # a faster outage test must not depend on that rate-limit window expiring.
+        token = json.loads((stage / "token.json").read_bytes())["token"]
         request = {"agent_protocol_version": "1.0.0", "enroll_token": token, "platform": "opnsense",
                    "platform_version": "26.7.7", "agent_version": "0.0.2", "capabilities": ["remote.web"],
                    "hostname": "heartbeat-control.example.com", "cluster_hint": False}
