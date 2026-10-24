@@ -6,11 +6,22 @@ certificate issuance, installation and renewal into v1 as well. Console HTTPS be
 Caddy in the bundled deployment, or the administrator's external reverse proxy.
 NetHub must not create a competing ACME manager for that same hostname.
 
-This records the confirmed product scope and a proposed implementation. Certificate
-automation is not established by the protocol foundation. Same-root relay
-renewal/application is implemented and tested; authenticated trust transitions
-and the full router GUI lifecycle remain open. The earlier private
-manual-renewal proposal is superseded; it is not an accepted operational design.
+This records the confirmed product scope and implementation boundaries.
+[Same-root relay leaf maintenance](../deploy/validation-relay-maintenance.md) passes
+real timer, application rollback/retry and served TLS checks. Controlled native
+[trust transitions](../deploy/validation-relay-authority-native.md) and GUI
+[issuance/renewal](../deploy/validation-native-gui-lifecycle.md),
+[offline recovery](../deploy/validation-native-offline-renewal.md),
+[rollback](../deploy/validation-native-certificate-rollback.md) and
+[identity rejection](../deploy/validation-native-certificate-identity.md) have
+private-CA evidence under the accepted 1 GiB lab exception. Public CA and combined
+W4 acceptance remain incomplete. Console TLS still belongs to the reverse proxy.
+The earlier private manual-renewal proposal is superseded.
+
+## Earlier implementation checkpoints
+
+The notes below retain their original scope. The current acceptance records above
+supersede historical statements that a subsequently tested component is pending.
 
 The HTTP-01 publication foundation now has an issuer-owned public file store and
 an optional HTTP-only Caddy route accepted by genuine proxy tests. It does not
