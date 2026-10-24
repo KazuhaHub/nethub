@@ -38,6 +38,7 @@ type accountFixture struct {
 	orderHandler             http.HandlerFunc
 	profiles                 map[string]string
 	expectedContact          []string
+	omitOrders               bool
 }
 
 type counts struct{ creates, lookups, orders, requests int }
@@ -119,7 +120,11 @@ func (f *accountFixture) serve(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte(`{"private":"untrusted response"}`))
 			return
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"status": f.status, "orders": f.server.URL + "/account/one/orders"})
+		response := map[string]any{"status": f.status}
+		if !f.omitOrders {
+			response["orders"] = f.server.URL + "/account/one/orders"
+		}
+		_ = json.NewEncoder(w).Encode(response)
 	case "/new-order":
 		f.orders++
 		if f.orderHandler != nil {
