@@ -13,6 +13,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -36,6 +37,7 @@ type accountFixture struct {
 	malformedAccount         bool
 	orderHandler             http.HandlerFunc
 	profiles                 map[string]string
+	expectedContact          []string
 }
 
 type counts struct{ creates, lookups, orders, requests int }
@@ -52,7 +54,7 @@ func fixture(t *testing.T) (*accountFixture, Config) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &accountFixture{key: key, nonces: map[string]bool{}, status: "valid"}
+	f := &accountFixture{key: key, nonces: map[string]bool{}, status: "valid", expectedContact: []string{"mailto:admin@example.test"}}
 	f.server = httptest.NewTLSServer(http.HandlerFunc(f.serve))
 	t.Cleanup(f.server.Close)
 	f.terms = "https://terms.example.test/current"
@@ -97,7 +99,7 @@ func (f *accountFixture) serve(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else {
-			if f.terms != "" && !payload.TermsAgreed || len(payload.Contact) != 1 || payload.Contact[0] != "mailto:admin@example.test" {
+			if f.terms != "" && !payload.TermsAgreed || !slices.Equal(payload.Contact, f.expectedContact) {
 				w.WriteHeader(400)
 				return
 			}
