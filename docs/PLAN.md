@@ -1554,8 +1554,11 @@ The corrected 0.0.15 package also passed natural renewal while the guest was off
 cron-driven application after boot, native UUID/key/reference retention and
 independent restoration. Boot DNS readiness to generation-2 confirmation took
 77.521 seconds, with 95.703 seconds of validity remaining. [Offline measurements](../deploy/validation-native-offline-renewal.md).
-Wrong-host/key, native application failure/rollback and public CA acceptance
-remain open; the combined certificate checkbox is not complete.
+A separate native restart failure restored the previous configuration and usable
+GUI; genuine cron then confirmed the unchanged generation on attempt 2, with
+one CA order and the original tunnel PID/key retained. [Rollback and retry](../deploy/validation-native-certificate-rollback.md).
+Wrong-host/key and public CA acceptance remain open; the combined certificate
+checkbox is not complete.
 
 ### 常见坑
 

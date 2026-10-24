@@ -15,7 +15,16 @@
 
 ### Current state (updated 2026-10-23)
 
-- **Corrected native offline renewal verified (2026-10-23):** unsigned 0.0.15 from accepted source `4965310` passed genuine generation-1 installation, natural generation-2 issuance while the guarded guest was off, and cron-driven generation-2 application after boot. Native UUID, reference and key were retained; both served leaves passed independent TLS checks. Browser online display took 7.788 seconds without reload/manual refresh. Exactly two real orders and immutable first applications, native UI removal and original native/14-service restoration were independently verified. [Measurements and private-CA/1 GiB limits](../deploy/validation-native-offline-renewal.md). Wrong-host/key, native failure/rollback, public CA and remaining W4-W7 acceptance stay open.
+- **W4 remains in progress.** Native offline renewal and one restart-failure rollback/retry case now pass within the private-CA, lab-DNS and 1 GiB scope. Wrong-host/key and public CA checks, combined certificate acceptance and W5-W7 remain incomplete. No released package is available.
+
+- **Native restart failure and retry verified (2026-10-23):** the accepted 0.0.15 package restored the previous complete native configuration and a usable pinned GUI after one injected restart failure. Genuine cron retried the unchanged generation on attempt 2 after the normal 300-second delay; the CA issued only once. Tunnel PID/key stability, immutable application records, normal UI removal and original native/trust/14-service restoration passed independent checks. [Measurements and limits](../deploy/validation-native-certificate-rollback.md).
+
+- **Corrected native offline renewal verified (2026-10-23):** unsigned 0.0.15 from accepted source `4965310` passed genuine generation-1 installation, natural generation-2 issuance while the guarded guest was off, and cron-driven generation-2 application after boot. Native UUID, reference and key were retained; both served leaves passed independent TLS checks. Browser online display took 7.788 seconds without reload/manual refresh. Exactly two real orders and immutable first applications, native UI removal and original native/14-service restoration were independently verified. [Measurements and private-CA/1 GiB limits](../deploy/validation-native-offline-renewal.md).
+
+### Earlier checkpoints
+
+Status claims below describe their recorded checkpoint. The current state above
+supersedes them; failed experiments retain their original outcomes.
 
 - **Post-boot certificate mismatch isolated (2026-10-23):** an exact native PHP shadow probe reproduced the last-good rejection. Core had added its UUID, empty CA/CSR fields and native field order; the selected reference, device, description, certificate and private key were unchanged. The corrected hash matches the original managed identity and retains eleven changed-material/shape denials. Actual FreeBSD/PHP contracts failed both new serialization cases against the old store and passed all 29 cases with the correction. PR #141 merged as `85af224` after six exact-head jobs in run 40039202976, actual log checks and DCO. [Diagnostic and scope](../deploy/validation-native-certificate-normalization.md).
 
