@@ -3,6 +3,8 @@
 The stack includes PostgreSQL, one-shot migration, the nonroot web/authz
 services, frps, Caddy, and an opt-in initial-administrator service. Use the
 [deployment workflow](QUICKSTART.md) for the current commands and limits.
+Review [heartbeat availability and revocation](revocation-and-heartbeats.md)
+before restarting authz or migrating an existing callback configuration.
 
 The initializer generates service-separated files, verifies an independent backup,
 requires an exact acknowledgement, and assigns Linux container UIDs. It refuses
@@ -26,8 +28,10 @@ The version-3 initializer also backs up the private deployment CA, initial leaf
 snapshot and rendered private frps config. Mutable runtime leaf/trust directories
 are separate. A renewed leaf under the same authority does not invalidate the
 immutable backup acknowledgement. CA signing state is not mounted into runtime
-services. Automated issuance/application and trust rotation still need lifecycle
-implementation; creating an initial certificate does not complete those features.
+services. Issuance/application and trust rotation have scoped lab validation;
+see the [native public-certificate record](validation-native-public-certificate.md)
+and [authority operations](relay-authority-operations.md). Those measurements do
+not establish signed-release or production acceptance.
 
 Use `sudo sh server/tests/compose.sh` to exercise an isolated fresh project with
 new volumes and private-loopback test TLS. It verifies first start, admin login,

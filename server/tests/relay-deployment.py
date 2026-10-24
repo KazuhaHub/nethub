@@ -14,6 +14,7 @@ import time
 import uuid
 
 from relay_maintenance import exercise
+from relay_heartbeat import exercise_heartbeats
 
 
 stage, port = Path(sys.argv[1]), int(sys.argv[2])
@@ -323,6 +324,22 @@ try:
     print("Deployed relay passed verified HTTPS enrollment, tampered-claim denial, two simultaneous TLS tunnels and actual frps-to-console observations")
     print("Both legitimate assigned subdomains passed verified TLS after the operation-specific Login and NewProxy denials")
     exercise(stage, sys.argv[3], assignments, check_tunnels)
+
+    def revocation_client():
+        token = curl("/api/v1/console/enroll-tokens", {}, authenticated=True)["token"]
+        request = {"agent_protocol_version": "1.0.0", "enroll_token": token, "platform": "opnsense",
+                   "platform_version": "26.7.7", "agent_version": "0.0.2", "capabilities": ["remote.web"],
+                   "hostname": "heartbeat-control.example.com", "cluster_hint": False}
+        assignment = curl("/api/v1/devices/enroll", request)
+        (work / "heartbeat-only-assignment.json").write_text(json.dumps(assignment), encoding="utf-8")
+        opened = curl("/api/v1/console/devices/" + assignment["device_id"] + "/open", {}, authenticated=True)
+        assert opened["url"] == "https://" + assignment["subdomain"] + ".router.example.com:8443"
+        grant_local_fixture_source(assignment)
+        start_client(assignment, "heartbeat-only-client", backend.server_port)
+        return assignment
+
+    exercise_heartbeats(stage, compose, assignments, valid_clients, gateway, sql,
+                        check_tunnels, probe, local_source, hook_events, revocation_client)
 finally:
     for client in clients:
         stop_client(client)
