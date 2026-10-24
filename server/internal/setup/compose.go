@@ -24,6 +24,10 @@ func composeOverride(config Config) ([]byte, error) {
 		},
 		"networks": map[string]any{"edge": map[string]any{"ipam": map[string]any{"config": []map[string]string{{"subnet": config.NetworkSubnet, "gateway": gateway}}}}},
 	}
+	// frps uses host networking. A loopback publication refuses new callbacks
+	// promptly when authz stops instead of dialing its removed bridge endpoint.
+	authzService := result["services"].(map[string]any)["nethub-authz"].(map[string]any)
+	authzService["ports"] = []map[string]any{{"host_ip": "127.0.0.1", "published": 9000, "target": 9000, "protocol": "tcp"}}
 	if config.externalProxy() {
 		services := result["services"].(map[string]any)
 		delete(services, "caddy")
@@ -40,7 +44,8 @@ func composeOverride(config Config) ([]byte, error) {
 			if name == "nethub-authz" {
 				target = 8081
 			}
-			service["ports"] = []map[string]any{{"host_ip": "127.0.0.1", "published": port, "target": target, "protocol": "tcp"}}
+			ports, _ := service["ports"].([]map[string]any)
+			service["ports"] = append(ports, map[string]any{"host_ip": "127.0.0.1", "published": port, "target": target, "protocol": "tcp"})
 		}
 	}
 	return json.MarshalIndent(result, "", "  ")

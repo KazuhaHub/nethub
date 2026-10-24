@@ -2,6 +2,7 @@
 import base64
 import json
 import re
+import socket
 from pathlib import Path
 import subprocess
 import time
@@ -107,6 +108,12 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
         stopped_state = json.loads(inspected.stdout)
         assert stopped_state['Running'] is False and stopped_state['OOMKilled'] is False
         (work / 'authz-stopped-state.json').write_bytes(inspected.stdout)
+        callback_probe_started = time.monotonic()
+        try:
+            with socket.create_connection(('127.0.0.1', 9000), timeout=1):
+                raise AssertionError('stopped authz still accepts loopback callbacks')
+        except ConnectionRefusedError:
+            callback_refusal_ms = round((time.monotonic() - callback_probe_started) * 1000)
         def observe_outage(active, final):
             elapsed = round((time.monotonic() - started) * 1000)
             if final or not outage_samples or elapsed - outage_samples[-1]['elapsed_ms'] >= 1000:
@@ -177,6 +184,7 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
               'control_state_probe_timeout_seconds': 2,
               'authz_outage_controls_offline_ms': outage_ms, 'authz_restart_recovery_ms': recovery_ms,
               'authz_stop_command_ms': stop_command_ms, 'authz_stop_exit_code': stopped_state['ExitCode'],
+              'stopped_authz_loopback_callback_refused_ms': callback_refusal_ms,
               'authz_outage_after_confirmed_stop_ms': after_stop_ms,
               'authz_outage_original_sockets_gone_ms': original_sockets_gone_ms,
               'revoked_control_offline_ms': revoked_ms, 'unrevoked_control_and_verified_TLS_preserved': True,

@@ -12,6 +12,15 @@ reconnect when authz returns, unless their identity was revoked. Keep access to
 the host and router that does not depend on NetHub before deploying this change.
 The private frps admin API must remain private; it is not a console endpoint.
 
+Generated deployments publish the hook port only on host loopback
+(`127.0.0.1:9000`), which host-network frps uses. Authz still binds its exact
+private bridge address and accepts only the configured bridge gateway peer.
+When authz stops, the removed loopback publication refuses new callbacks instead
+of leaving frps dialing a removed bridge endpoint. Existing deployments need a
+reviewed Compose and frps configuration migration together; the external HTTPS
+origin ports and proxy trust remain separate. This does not impose a total
+transport deadline on upstream frp or make a suspended process responsive.
+
 Authz loads a revocation snapshot before serving callbacks and refreshes it every
 five seconds. Ping checks only this memory set after signature/peer validation.
 Login, NewProxy and NewUserConn continue to check current SQL state. Revoked IDs
