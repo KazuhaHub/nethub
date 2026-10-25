@@ -521,11 +521,23 @@ Response `201`:
 
 Admin only. A paginated list of user objects.
 
+The implemented backend accepts `limit` (1–200, default 50) and an opaque
+`cursor`, returning `{ "items": [...], "next_cursor": null | "..." }`.
+Passwords, hashes, identity subjects and provider secrets are never projected.
+The user-management interface and invitation/SSO flows remain W6 work.
+
 ### `PATCH /users/{id}`
 
 Admin only. Request: any of `{ "role": "admin" | "member", "disabled": true | false }`.
 
 - Disabling a user revokes all of their sessions immediately.
+- A later re-enable does not restore deleted sessions. Role changes take effect
+  on the next authenticated request. Actor authority is checked again inside the
+  transaction after acquiring account locks; request-supplied roles are never
+  used as authority.
+- Account changes, session deletion and the `user.updated` /
+  `auth.sessions_revoked` audit records commit atomically. An unchanged request
+  returns the current user without appending another change event.
 - Errors:
   - `409 last_admin`, when the change would leave no active admin. This
     includes disabling or demoting yourself as the last admin.

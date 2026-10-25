@@ -33,6 +33,13 @@ type repository struct {
 	alerts     []web.RelayAlert
 }
 
+func (r *repository) Users(context.Context, string, web.UserQuery) (web.UserPage, error) {
+	return web.UserPage{Items: []web.ManagedUser{}}, nil
+}
+func (r *repository) UpdateUser(context.Context, string, string, web.UserPatch, netip.Addr) (web.ManagedUser, error) {
+	return web.ManagedUser{}, web.ErrUserUnavailable
+}
+
 func (r *repository) PasswordCandidate(_ context.Context, email string) (auth.Candidate, error) {
 	if email != "ui-test@example.com" {
 		return auth.Candidate{}, auth.ErrInvalidCredentials

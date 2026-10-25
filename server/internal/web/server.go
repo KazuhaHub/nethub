@@ -126,11 +126,21 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if allowMethod(w, r, "GET") {
 			s.devices(w, r)
 		}
+	case prefix + "/users":
+		if allowMethod(w, r, "GET") {
+			s.users(w, r)
+		}
 	case prefix + "/enroll-tokens":
 		if allowMethod(w, r, "POST") {
 			s.enroll(w, r, ip)
 		}
 	default:
+		if strings.HasPrefix(r.URL.Path, prefix+"/users/") {
+			if allowMethod(w, r, "PATCH") {
+				s.updateUser(w, r, ip)
+			}
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, prefix+"/devices/") && strings.HasSuffix(r.URL.Path, "/disconnect") {
 			if allowMethod(w, r, "POST") {
 				s.requestDisconnect(w, r, ip)
