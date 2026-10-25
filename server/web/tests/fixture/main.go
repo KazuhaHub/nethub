@@ -24,15 +24,18 @@ import (
 )
 
 type repository struct {
-	mu         sync.Mutex
-	hash       string
-	sessions   map[string]auth.SessionRecord
-	populated  bool
-	shortToken bool
-	revoked    bool
-	disconnect *web.DeviceDisconnect
-	alerts     []web.RelayAlert
-	users      map[string]web.ManagedUser
+	mu             sync.Mutex
+	hash           string
+	sessions       map[string]auth.SessionRecord
+	populated      bool
+	shortToken     bool
+	revoked        bool
+	disconnect     *web.DeviceDisconnect
+	alerts         []web.RelayAlert
+	users          map[string]web.ManagedUser
+	invites        map[string]fixtureInvitation
+	inviteSequence int
+	passwords      map[string]string
 }
 
 func fixtureUsers() map[string]web.ManagedUser {
@@ -48,18 +51,6 @@ func fixtureUsers() map[string]web.ManagedUser {
 	return users
 }
 
-func (r *repository) IssueInvitation(context.Context, string, web.InvitationInput, netip.Addr) (web.IssuedInvitation, error) {
-	return web.IssuedInvitation{}, auth.ErrUnavailable
-}
-func (r *repository) Invitations(context.Context, string, web.UserQuery) (web.InvitationPage, error) {
-	return web.InvitationPage{Items: []web.Invitation{}}, nil
-}
-func (r *repository) WithdrawInvitation(context.Context, string, string, netip.Addr) error {
-	return auth.ErrInviteInvalid
-}
-func (r *repository) InspectInvitation(context.Context, []byte) (auth.InvitationInfo, error) {
-	return auth.InvitationInfo{}, auth.ErrInviteInvalid
-}
 func (r *repository) InvitationFailed(context.Context, netip.Addr) error { return nil }
 
 func (r *repository) Users(_ context.Context, actor string, query web.UserQuery) (web.UserPage, error) {
@@ -146,8 +137,14 @@ func (r *repository) PasswordCandidate(_ context.Context, email string) (auth.Ca
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, u := range r.users {
-		if u.Email == email && (email == "ui-test@example.com" || email == "ui-member@example.com") {
-			return auth.Candidate{User: u.User, PasswordHash: r.hash, Disabled: u.Disabled}, nil
+		if u.Email == email {
+			hash := r.passwords[u.ID]
+			if email == "ui-test@example.com" || email == "ui-member@example.com" {
+				hash = r.hash
+			}
+			if hash != "" {
+				return auth.Candidate{User: u.User, PasswordHash: hash, Disabled: u.Disabled}, nil
+			}
 		}
 	}
 	return auth.Candidate{}, auth.ErrInvalidCredentials
@@ -271,7 +268,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	repository := &repository{hash: hash, sessions: map[string]auth.SessionRecord{}, users: fixtureUsers()}
+	repository := &repository{hash: hash, sessions: map[string]auth.SessionRecord{}, users: fixtureUsers(), passwords: map[string]string{}, invites: map[string]fixtureInvitation{}}
 	service, err := auth.NewService(repository, auth.Config{})
 	if err != nil {
 		panic(err)
@@ -287,6 +284,17 @@ func main() {
 			repository.mu.Lock()
 			defer repository.mu.Unlock()
 			switch r.URL.Path {
+			case "/test/invitations-reset":
+				repository.resetInvitationsLocked()
+			case "/test/invitation-bound":
+				provider := "11111111-1111-4111-8111-111111111111"
+				grant, err := repository.issueInvitationLocked("00000000-0000-4000-8000-000000000001", web.InvitationInput{Email: "bound@example.com", Role: "member", ProviderID: &provider})
+				if err != nil {
+					http.Error(w, "fixture invitation failed", 500)
+					return
+				}
+				json.NewEncoder(w).Encode(map[string]string{"url": origin + "/invite#" + grant.Token})
+				return
 			case "/test/expire":
 				repository.sessions = map[string]auth.SessionRecord{}
 			case "/test/users-reset":

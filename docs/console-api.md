@@ -7,9 +7,9 @@
 > implemented with NewUserConn enforcement in generated relay bundles. Open,
 > Revoke and disconnect UI/API are implemented; combined native/public W5 acceptance
 > remains pending. W6 user listing and role/disable UI/API are implemented.
-> Invitation administration/inspection/local-acceptance APIs are implemented;
-> the invitation UI, provider login and other W6-W7 console endpoints below
-> remain proposals.
+> Invitation administration/inspection/local-acceptance UI and APIs are implemented;
+> browser validation is in progress. Provider login and other W6-W7 console endpoints
+> below remain proposals.
 > Update this document in the same pull request as any API contract change.
 > [`DESIGN.md`](DESIGN.md) is the authority on behaviour; where this document
 > and DESIGN disagree, DESIGN wins.
@@ -615,8 +615,8 @@ The token consumption, new account, first session and both audit entries commit
 atomically. Existing emails and provider-restricted local claims are refused;
 no account is attached by email. Validity is checked after invitation/mailbox
 lock waits. An uncertain delivery does not permit token replay: the holder can
-explicitly sign in with the chosen password. The invitation UI and SSO claim
-remain unfinished; see [backend scope](../deploy/invitations.md).
+explicitly sign in with the chosen password. The invitation pages support this
+local-password flow; SSO claim support remains unfinished. See [scope and evidence](../deploy/invitations.md).
 
 ## 7. OIDC providers
 

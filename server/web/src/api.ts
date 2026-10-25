@@ -7,6 +7,31 @@ export type ManagedUser = User & {
 };
 export type UserPage = { items: ManagedUser[]; next_cursor: string | null };
 export type UserPatch = { role?: User["role"]; disabled?: boolean };
+export type Invitation = {
+  id: string;
+  email: string;
+  role: User["role"];
+  provider_id: string | null;
+  created_at: string;
+  expires_at: string;
+  created_by: { id: string; email: string };
+};
+export type InvitationPage = {
+  items: Invitation[];
+  next_cursor: string | null;
+};
+export type IssuedInvitation = {
+  id: string;
+  invite_url: string;
+  expires_at: string;
+};
+export type InvitationInfo = {
+  email: string;
+  role: User["role"];
+  expires_at: string;
+  password_allowed: boolean;
+  providers: { slug: string; display_name: string; kind: "oidc" | "saml" }[];
+};
 export type Session = {
   user: User;
   csrf_token: string;
@@ -128,8 +153,9 @@ async function request<T>(
   if (background) headers["X-NetHub-Background"] = "1";
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
-    if (csrf) headers["X-CSRF-Token"] = csrf;
   }
+  if (method !== "GET" && method !== "HEAD" && csrf)
+    headers["X-CSRF-Token"] = csrf;
   let response: Response;
   try {
     response = await fetch(`/api/v1/console${path}`, {
@@ -181,6 +207,32 @@ async function request<T>(
 }
 
 export const api = {
+  invitations(cursor: string | null, signal?: AbortSignal) {
+    const query = new URLSearchParams({ limit: "50" });
+    if (cursor) query.set("cursor", cursor);
+    return request<InvitationPage>(`/invites?${query}`, undefined, signal);
+  },
+  issueInvitation(email: string, role: User["role"]) {
+    return invitationMutation<IssuedInvitation>("/invites", { email, role });
+  },
+  withdrawInvitation(id: string) {
+    return invitationMutation<void>(
+      `/invites/${encodeURIComponent(id)}`,
+      undefined,
+      "DELETE",
+    );
+  },
+  inspectInvitation(token: string, signal?: AbortSignal) {
+    return request<InvitationInfo>("/invites/inspect", { token }, signal);
+  },
+  async acceptInvitation(token: string, password: string) {
+    const result = await invitationMutation<Session>("/invites/accept", {
+      token,
+      password,
+    });
+    csrf = result.csrf_token;
+    return result;
+  },
   users(cursor: string | null, signal?: AbortSignal, background = false) {
     const query = new URLSearchParams({ limit: "50" });
     if (cursor) query.set("cursor", cursor);
@@ -262,3 +314,27 @@ export const api = {
     );
   },
 };
+
+async function invitationMutation<T>(
+  path: string,
+  body?: object,
+  method = "POST",
+): Promise<T> {
+  const deadline = AbortSignal.timeout(15000);
+  try {
+    return await request<T>(path, body, deadline, false, method);
+  } catch (error) {
+    if (
+      deadline.aborted ||
+      !(error instanceof ApiError) ||
+      error.status === 0 ||
+      error.status >= 500
+    )
+      throw new ApiError(
+        0,
+        "invitation_unconfirmed",
+        "The result could not be confirmed. Do not repeat this request automatically.",
+      );
+    throw error;
+  }
+}

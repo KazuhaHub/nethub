@@ -6,6 +6,7 @@ import { resolve, join, dirname, basename } from "node:path";
 import { createInterface } from "node:readline";
 import { chromium } from "playwright";
 import { verifyUsers } from "./users-browser.mjs";
+import { verifyInvitations } from "./invitations-browser.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 const stage = mkdtempSync(join(tmpdir(), "nethub-ui-"));
@@ -548,6 +549,13 @@ try {
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.getByRole("heading", { name: "Sign in to NetHub" }).waitFor();
   await verifyUsers({ page, origin, evidence, login });
+  await verifyInvitations({
+    page,
+    origin,
+    evidence,
+    login,
+    serverLog: () => serverLog,
+  });
   assert.deepEqual(violations, []);
   assert.deepEqual(failures, []);
   assert.deepEqual(external, []);

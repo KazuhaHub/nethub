@@ -1,9 +1,11 @@
 # Console invitations
 
 The W6 backend implements invitation administration, inspection and local-password
-acceptance. The administrator controls and `/invite` acceptance page are not yet
-implemented. The returned fragment URL describes that planned page; this is not
-a complete invitation or SSO flow, and W6 acceptance remains open.
+acceptance. Administrators use `/invitations` to page through pending grants,
+create a link and withdraw an invitation. Recipients use `/invite` to inspect a
+grant and set a local password. Provider-bound invitations offer no password
+fallback; their SSO launch controls remain separate W6 work. Combined deployed
+W6 and SSO acceptance remain open.
 
 ## Administration and privacy
 
@@ -46,8 +48,9 @@ IP and invitation row IDs, without bearer, password, session or hash material.
 
 A lost response can leave a committed account/session without a delivered cookie.
 The bearer remains consumed. This does not authorize replay or email-based login;
-the user can explicitly sign in with their chosen local password. The future page
-must explain uncertain outcomes rather than automatically resubmitting a claim.
+the user can explicitly sign in with their chosen local password. The page
+explains uncertain outcomes, removes the claim form and offers ordinary sign-in
+rather than automatically resubmitting a claim.
 
 ## Validation scope
 
@@ -56,6 +59,31 @@ binding, cookie privacy, origin/CSRF, role scope, request validation and error p
 The genuine PostgreSQL suite checks 72-hour hash-only grants, concurrent single
 use, mailbox competition, provider restrictions, email-takeover refusal,
 audit/session rollback, expiry after row and mailbox waits, live actor/provider
-changes after observed lock waits, and HTTPS session activation. Hosted execution
-and actual logs must pass before merging. These tests do not establish browser
-invitation UI, real provider login or combined deployed W6 acceptance.
+changes after observed lock waits, and HTTPS session activation. PR #170 passed
+all six hosted checks with actual logs inspected. These database tests do not
+establish browser invitation UI, real provider login or combined deployed W6
+acceptance.
+
+
+## Browser behavior and evidence
+
+The entry point reads and erases a canonical fragment before rendering or making
+API requests. Only the recipient component retains the bearer; it never enters
+query parameters or browser storage. Reloading requires the original link again.
+Inspection does not claim the invitation or replace an existing account session;
+that account must be explicitly signed out before local activation.
+
+Generated links are shown once, checked against the current HTTPS origin and
+copied only on an explicit click. Closing the dialog clears its link. The pending
+inventory uses explicit refresh instead of background requests that extend an
+idle session. Creation and withdrawal block duplicate submission and dialog
+closure while pending. Unconfirmed mutations require inventory review before
+retry, and unconfirmed activation offers explicit password sign-in without replay.
+Bodyless withdrawal still sends the current CSRF token.
+
+Browser tests exercise production authentication and HTTP handlers with a
+loopback-only in-memory repository, including a real accepted response discarded
+before its cookie is delivered. The fixture is not the PostgreSQL boundary proof.
+Only synthetic, secret-free inventory and empty-password recipient screenshots
+and a boolean receipt are published; generated links, passwords and raw requests
+are excluded. Hosted artifact review is required before browser acceptance.
