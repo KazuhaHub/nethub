@@ -78,7 +78,7 @@ itself did not reboot the guest. The approved 1 GiB deviation remains.
 The overall operation remains **failed** because its subsequent normal GUI removal
 returned HTTP 200 with `success=false` and the message that removal was unconfirmed.
 That request overlapped the normal report schedule; its exact failure cause remains
-unconfirmed. Removal retry verification is open. The three preceding recovery
+unconfirmed. That trial did not verify a removal retry. The three preceding recovery
 results and fresh public login passed independent checks without changing that
 failed overall outcome.
 
@@ -89,6 +89,34 @@ database stop guard closed. Original native configuration, trust, restart script
 package and stopped intent, plus all fourteen original server services and listener
 owners, were restored and independently checked. No normal UI cleanup or final
 removed-route observation is claimed for this operation.
+
+## Removal retry with an already revoked profile
+
+A separate guarded test reinstalled the same unsigned 0.0.18 package and restored
+the preceding device's actual Core backup and exported owned files. The device
+remained revoked throughout. No enrollment, GUI certificate order or reactivation
+was performed. The restored GUI passed chain, hostname and exact-leaf checks.
+
+An independently bounded process held the actual shared reconcile lock. Native
+`lockf` returned 75, and the real Remove enrollment button returned the same
+unconfirmed response. The complete native XML and GUI key hashes remained unchanged.
+After the lock was released, one explicit click of the same button succeeded:
+the native model was cleared, runtime credentials and the plugin's GUI key file
+were removed, and the interface reported cleanup complete.
+
+A fresh console login rendered the retained device Revoked. Its old subdomain
+could not complete TLS while the public TCP listener remained reachable. All three
+revoked device records, tokens and certificate request/job/generation/application
+records matched their before-test values. Independent checks verified source
+bindings, native configuration/trust/restart restoration and all fourteen original
+server services. The approved 1 GiB deviation remains.
+
+This reproduces shared-lock contention as a retry condition; it does not establish
+the exact cause of the earlier unconfirmed request. The earlier recovery operation
+remains failed. Two additional harness trials are retained: a duplicate step-log
+failure after the first refusal, and a storage preflight refusal before stack
+startup. Their guarded baselines were restored before the successful retry test.
+The test does not measure live console revocation or heartbeat cutoff.
 
 Native heartbeat cutoff, console Revoke/no reconnect and the W5 mobile Open sample
 remain separate requirements. W5-W7 are incomplete.
