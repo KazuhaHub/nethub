@@ -1665,10 +1665,10 @@ Enroll 前提示用户：请确认你有**不依赖 NetHub** 的其他访问方�
 
 - [ ] 手机关 Wi-Fi、用 4G，从控制台点"打开"，能登录路由器 GUI（录屏，地址打码）
 - [x] 打开熔断开关后隧道立刻停下，`config.xml` 前后 sha256 一致；关掉后恢复 — native 0.0.17 and public TLS verified within the [recorded scope](../deploy/validation-native-w5-open-circuit.md).
-- [ ] 撤销后，隧道按【D6】机制断开，断开时间在 W0 测出的范围内（贴时间记录）；设备之后一直连不回来
-- [ ] 撤销后，浏览器新开的连接也被拒绝
+- [ ] 撤销后，隧道按【D6】机制断开，断开时间在 W0 测出的范围内（贴时间记录）；设备之后一直连不回来 — installed 0.0.18 cut off by 17.218 s and did not reconnect across 374.172 s; this exceeds W0's 2.136–4.958 s range, so the timing comparison remains open. [Measurement and limits](../deploy/validation-native-w5-heartbeat.md).
+- [x] 撤销后，浏览器新开的连接也被拒绝 — a fresh default-trust public browser and TLS route were refused while the Open grant remained valid. [Native evidence](../deploy/validation-native-w5-heartbeat.md).
 - [ ] 如果 W0 发现没有哪种断线机制可用：已经按 DESIGN §5 的另一种取舍（只挡新访问，接受"已建立的隧道断不掉"），并且把这一点写进了文档
-- [ ] 如果用了 `Ping` 机制：停掉 authz，确认在线隧道全部断开，再启动 authz，确认它们自动恢复（贴时间记录）
+- [x] 如果用了 `Ping` 机制：停掉 authz，确认在线隧道全部断开，再启动 authz，确认它们自动恢复（贴时间记录） — the installed client's original control/proxy disappeared by 9.906 s after confirmed stop; public GUI recovered by 17.766 s after restart dispatch with the same frpc PID. [Native evidence and single-device scope](../deploy/validation-native-w5-heartbeat.md).
 - [x] （如果做了门禁）没点"打开"的 IP 访问不了；点了之后可以 — paired desktop public-IP checks passed; the mobile sample remains open.
 - [x] 重启路由器、恢复 `config.xml`、WAN 换 IP 三种情况都自动恢复 — installed 0.0.18 passed all three checks and a fresh public GUI login. Subsequent UI removal remained unconfirmed; the overall operation stays failed. [Measurements and cleanup limits](../deploy/validation-native-w5-recovery.md#installed-0018-recovery-checks).
 - [x] enroll 页面有带外访问的提醒 — observed before actual native 0.0.17 enrollment.
