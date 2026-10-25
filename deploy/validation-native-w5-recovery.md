@@ -11,7 +11,7 @@ The approved 1 GiB allocation remains a resource deviation.
 | Changed WAN to verified public GUI | 23.552 seconds to successful observation |
 | Original WAN restored | Original address and system-trusted public GUI recovered |
 | One guest reboot | SSH became unavailable and the kernel boot epoch changed |
-| Reboot dispatch to verified public GUI | 125.063 seconds to successful observation |
+| Reboot dispatch to verified public GUI | 125.469 seconds to successful observation |
 | Identity after reboot | Device configuration, GUI private key and installed version retained |
 | Native backup and restore | Actual GUI download and Core restore accepted; enabled intent restored |
 | Automatic service recovery after restore | Failed: frpc remained stopped at the 90-second deadline |
