@@ -1,12 +1,13 @@
 # NetHub console API (draft)
 
-> **Status: partially implemented, updated 2026-10-24 against design v0.3.**
+> **Status: partially implemented, updated 2026-10-25 against design v0.3.**
 > W3 implements health, local login/logout/session, device listing, and enroll-token
 > issuance through `nethub web`. The React console implements these W3 flows;
 > W4 deployment acceptance is recorded separately. W5's scoped Open API is
 > implemented with NewUserConn enforcement in generated relay bundles. Open,
 > Revoke and disconnect UI/API are implemented; combined native/public W5 acceptance
-> remains pending. Other W5-W7 console endpoints below
+> remains pending. W6 user listing and role/disable UI/API are implemented.
+> Invitation/provider login and other W6-W7 console endpoints below
 > remain proposals.
 > Update this document in the same pull request as any API contract change.
 > [`DESIGN.md`](DESIGN.md) is the authority on behaviour; where this document
@@ -524,7 +525,10 @@ Admin only. A paginated list of user objects.
 The implemented backend accepts `limit` (1–200, default 50) and an opaque
 `cursor`, returning `{ "items": [...], "next_cursor": null | "..." }`.
 Passwords, hashes, identity subjects and provider secrets are never projected.
-The user-management interface and invitation/SSO flows remain W6 work.
+The user-management interface is available at `/users`; invitation/SSO flows
+remain W6 work. GET `/users` and GET `/session` accept exactly one
+`X-NetHub-Background: 1` header for passive lookup without idle-time renewal.
+Explicit reads and all mutations use active lookup.
 
 ### `PATCH /users/{id}`
 

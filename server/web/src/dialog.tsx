@@ -7,11 +7,13 @@ export function NativeDialog({
   title,
   onClose,
   children,
+  dismissible = true,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   children: ReactNode;
+  dismissible?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -25,6 +27,9 @@ export function NativeDialog({
       ref={ref}
       className="native-dialog"
       aria-labelledby={titleId}
+      onCancel={(event) => {
+        if (!dismissible) event.preventDefault();
+      }}
       onClose={() => {
         if (open) onClose();
       }}
@@ -58,6 +63,7 @@ export function NativeDialog({
           variant="ghost"
           size="icon"
           aria-label="Close dialog"
+          disabled={!dismissible}
           onClick={() => ref.current?.close()}
         >
           <X />

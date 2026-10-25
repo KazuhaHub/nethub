@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import {
   ArrowRight,
   Check,
@@ -15,6 +21,7 @@ import {
   Search,
   ShieldCheck,
   Sun,
+  Users as UsersIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +45,7 @@ import {
   type Session,
 } from "./api";
 import { NativeDialog } from "./dialog";
+import { Users } from "./users";
 import {
   canOpenDevice,
   certificateLabel,
@@ -915,11 +923,28 @@ function Devices({ isAdmin }: { isAdmin: boolean }) {
 }
 
 export function App() {
+  const userView = window.location.pathname === "/users";
   const [session, setSession] = useState<Session | null>(null);
   const [booting, setBooting] = useState(true);
   const [failure, setFailure] = useState("");
   const [retry, setRetry] = useState(0);
   const [leaving, setLeaving] = useState(false);
+  const confirmAuthority = useCallback(async (active = true) => {
+    setBooting(true);
+    setSession(null);
+    setFailure("");
+    try {
+      const value = await api.session(undefined, !active);
+      if (value?.user.role !== "admin")
+        window.history.replaceState(null, "", "/");
+      setSession(value);
+    } catch (error) {
+      clearSession();
+      setFailure(message(error));
+    } finally {
+      setBooting(false);
+    }
+  }, []);
   useEffect(
     () =>
       onUnauthorized(() => {
@@ -982,10 +1007,16 @@ export function App() {
         <Brand />
         <div className="workspace-label">WORKSPACE</div>
         <nav aria-label="Main navigation">
-          <a href="/" aria-current="page">
+          <a href="/" aria-current={userView ? undefined : "page"}>
             <Router size={18} />
             Devices
           </a>
+          {session.user.role === "admin" && (
+            <a href="/users" aria-current={userView ? "page" : undefined}>
+              <UsersIcon size={18} />
+              Users
+            </a>
+          )}
         </nav>
         <div className="sidebar-footer">
           <span className="sidebar-dot" />
@@ -1003,7 +1034,7 @@ export function App() {
         <header className="topbar">
           <span className="breadcrumb">
             Workspace<span>/</span>
-            <strong>Devices</strong>
+            <strong>{userView ? "Users" : "Devices"}</strong>
           </span>
           <div className="account-actions">
             <span className="account-email">{session.user.email}</span>
@@ -1026,7 +1057,23 @@ export function App() {
               {failure}
             </p>
           )}
-          <Devices isAdmin={session.user.role === "admin"} />
+          {userView ? (
+            session.user.role === "admin" ? (
+              <Users
+                currentUserId={session.user.id}
+                onAuthorityChanged={confirmAuthority}
+              />
+            ) : (
+              <section>
+                <h1>Administrator access required</h1>
+                <p>
+                  <a href="/">Return to devices</a>
+                </p>
+              </section>
+            )
+          ) : (
+            <Devices isAdmin={session.user.role === "admin"} />
+          )}
         </main>
         <footer className="workspace-footer">
           NetHub<span>Self-hosted remote management</span>

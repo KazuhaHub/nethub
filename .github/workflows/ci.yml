@@ -64,6 +64,17 @@ jobs:
             | sudo tee /etc/apt/apt.conf.d/80-nethub-ci >/dev/null
           npx playwright install --with-deps chromium
           npm run verify
+      - name: Save synthetic user-management browser evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: user-management-browser-evidence
+          path: |
+            ${{ runner.temp }}/nethub-ui-evidence/users-desktop.png
+            ${{ runner.temp }}/nethub-ui-evidence/users-desktop-dark.png
+            ${{ runner.temp }}/nethub-ui-evidence/users-mobile-dialog.png
+            ${{ runner.temp }}/nethub-ui-evidence/users-results.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Check module integrity and formatting
         run: |
           go mod verify

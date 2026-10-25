@@ -69,6 +69,18 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request, ip netip.Addr) {
 	writeJSON(w, r, 200, result.Session)
 }
 
+func passiveSessionRequest(r *http.Request) bool {
+	if r.Method != http.MethodGet || len(r.Header.Values("X-NetHub-Background")) != 1 || r.Header.Get("X-NetHub-Background") != "1" {
+		return false
+	}
+	switch r.URL.Path {
+	case prefix + "/devices", prefix + "/users", prefix + "/session":
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (auth.Session, string, bool) {
 	token, err := auth.ReadSessionToken(r)
 	if err != nil {
@@ -76,8 +88,7 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (auth.Sess
 		return auth.Session{}, "", false
 	}
 	var session auth.Session
-	if r.Method == http.MethodGet && r.URL.Path == "/api/v1/console/devices" &&
-		len(r.Header.Values("X-NetHub-Background")) == 1 && r.Header.Get("X-NetHub-Background") == "1" {
+	if passiveSessionRequest(r) {
 		session, err = s.auth.AuthenticatePassive(r.Context(), token)
 	} else {
 		session, err = s.auth.Authenticate(r.Context(), token)
@@ -113,7 +124,12 @@ func (s *Server) session(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, r, 200, map[string]bool{"signed_in": false})
 		return
 	}
-	session, err := s.auth.Authenticate(r.Context(), token)
+	var session auth.Session
+	if passiveSessionRequest(r) {
+		session, err = s.auth.AuthenticatePassive(r.Context(), token)
+	} else {
+		session, err = s.auth.Authenticate(r.Context(), token)
+	}
 	if errors.Is(err, auth.ErrUnauthenticated) {
 		http.SetCookie(w, auth.ClearSessionCookie())
 		writeJSON(w, r, 200, map[string]bool{"signed_in": false})

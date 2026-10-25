@@ -1,4 +1,12 @@
 export type User = { id: string; email: string; role: "admin" | "member" };
+export type ManagedUser = User & {
+  disabled: boolean;
+  has_password: boolean;
+  identities: { provider_slug: string; linked_at: string }[];
+  created_at: string;
+};
+export type UserPage = { items: ManagedUser[]; next_cursor: string | null };
+export type UserPatch = { role?: User["role"]; disabled?: boolean };
 export type Session = {
   user: User;
   csrf_token: string;
@@ -114,6 +122,7 @@ async function request<T>(
   body?: object,
   signal?: AbortSignal,
   background = false,
+  method = body === undefined ? "GET" : "POST",
 ): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
   if (background) headers["X-NetHub-Background"] = "1";
@@ -124,7 +133,7 @@ async function request<T>(
   let response: Response;
   try {
     response = await fetch(`/api/v1/console${path}`, {
-      method: body === undefined ? "GET" : "POST",
+      method,
       credentials: "same-origin",
       cache: "no-store",
       headers,
@@ -172,10 +181,35 @@ async function request<T>(
 }
 
 export const api = {
-  async session(signal?: AbortSignal) {
+  users(cursor: string | null, signal?: AbortSignal, background = false) {
+    const query = new URLSearchParams({ limit: "50" });
+    if (cursor) query.set("cursor", cursor);
+    return request<UserPage>(`/users?${query}`, undefined, signal, background);
+  },
+  async updateUser(id: string, patch: UserPatch) {
+    const deadline = AbortSignal.timeout(15000);
+    try {
+      return await request<ManagedUser>(
+        `/users/${encodeURIComponent(id)}`,
+        patch,
+        deadline,
+        false,
+        "PATCH",
+      );
+    } catch (error) {
+      if (deadline.aborted)
+        throw new ApiError(
+          0,
+          "change_unconfirmed",
+          "Could not confirm the change. Refresh before trying again.",
+        );
+      throw error;
+    }
+  },
+  async session(signal?: AbortSignal, background = false) {
     const data = await request<
       ({ signed_in: true } & Session) | { signed_in: false }
-    >("/session", undefined, signal);
+    >("/session", undefined, signal, background);
     csrf = data.signed_in ? data.csrf_token : "";
     return data.signed_in ? data : null;
   },

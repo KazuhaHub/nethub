@@ -132,10 +132,45 @@ func testConsoleHTTP(t *testing.T, ctx context.Context, owner, db, authz *sql.DB
 	if session.User.ID != member || adminSession.User.ID != admin {
 		t.Fatal("login actor mismatch")
 	}
+	var memberLastSeen time.Time
+	for _, test := range []struct {
+		client     *http.Client
+		user, path string
+	}{{client, member, "/api/v1/console/session"}, {adminClient, admin, "/api/v1/console/users"}} {
+		var before, after time.Time
+		if err = owner.QueryRowContext(ctx, `SELECT last_seen_at FROM sessions WHERE user_id=$1`, test.user).Scan(&before); err != nil {
+			t.Fatal(err)
+		}
+		r, e := http.NewRequestWithContext(ctx, "GET", origin+test.path, nil)
+		if e != nil {
+			t.Fatal(e)
+		}
+		r.Header.Set("X-NetHub-Background", "1")
+		response, e := test.client.Do(r)
+		if e != nil {
+			t.Fatal(e)
+		}
+		_, e = io.Copy(io.Discard, response.Body)
+		response.Body.Close()
+		if e != nil || response.StatusCode != 200 {
+			t.Fatal("passive HTTP read failed", test.path, response.StatusCode, e)
+		}
+		if err = owner.QueryRowContext(ctx, `SELECT last_seen_at FROM sessions WHERE user_id=$1`, test.user).Scan(&after); err != nil || !after.Equal(before) {
+			t.Fatal("background read extended session activity", test.path, err)
+		}
+		if test.user == member {
+			memberLastSeen = before
+		}
+	}
 	data, _ := request(client, "GET", "/api/v1/console/session", "", "", 200)
 	if !bytes.Contains(data, []byte(session.CSRFToken)) || !bytes.Contains(data, []byte(`"signed_in":true`)) {
 		t.Fatal("session recovery failed")
 	}
+	var activeLastSeen time.Time
+	if err = owner.QueryRowContext(ctx, `SELECT last_seen_at FROM sessions WHERE user_id=$1`, member).Scan(&activeLastSeen); err != nil || !activeLastSeen.After(memberLastSeen) {
+		t.Fatal("explicit session read did not record activity", err)
+	}
+	t.Log("Background user inventory and authority refresh preserved actual PostgreSQL last_seen_at; explicit session lookup advanced it")
 	data, _ = request(client, "GET", "/api/v1/console/devices?online=true&limit=1", "", "", 200)
 	var page web.DevicePage
 	if err = json.Unmarshal(data, &page); err != nil {
