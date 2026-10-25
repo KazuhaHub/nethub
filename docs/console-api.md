@@ -4,8 +4,9 @@
 > W3 implements health, local login/logout/session, device listing, and enroll-token
 > issuance through `nethub web`. The React console implements these W3 flows;
 > W4 deployment acceptance is recorded separately. W5's scoped Open API is
-> implemented with NewUserConn enforcement in generated relay bundles; its UI and
-> native gate acceptance remain pending. Other W5-W7 console endpoints below
+> implemented with NewUserConn enforcement in generated relay bundles. Open,
+> Revoke and disconnect UI/API are implemented; combined native/public W5 acceptance
+> remains pending. Other W5-W7 console endpoints below
 > remain proposals.
 > Update this document in the same pull request as any API contract change.
 > [`DESIGN.md`](DESIGN.md) is the authority on behaviour; where this document
@@ -210,7 +211,7 @@ cookie/CSRF values, and enrollment tokens are absent from application/audit logs
 | `PATCH /devices/{id}` | admin, or owner | W4 | yes |
 | `POST /devices/{id}/open` | admin, or owner | W5 | yes |
 | `POST /devices/{id}/revoke` | admin, or owner | W5 | yes |
-| `POST /devices/{id}/cut-now` | admin (open, see §10) | W5 | yes |
+| `POST /devices/{id}/disconnect` | admin, or owner; already revoked | W5 | yes |
 | `POST /enroll-tokens` | signed in | W3 | yes |
 | `GET /users` | admin | W6 | no |
 | `PATCH /users/{id}` | admin | W6 | yes |
@@ -392,6 +393,15 @@ Lists devices. Admins see all devices; members see only their own.
   Limit is 1-200 (default 50). Unknown, repeated, or malformed query parameters
   return `400 invalid_request`.
 
+An enabled current admin can also receive an optional `relay_alerts` array of up
+to 100 latest active incidents, independent of the device-page filter. Members
+never receive it; an empty array is omitted. Each item contains canonical `id`,
+nullable `device_id`, `kind` (`unknown_proxy`, `domain_mismatch`, `revoked_online`),
+`response` (`alarm_only`, `revoked`, `already_revoked`) and `confirmed_at`.
+Unknown proxies have no device ID and are always alarm-only. Raw relay names and
+digest keys are excluded. These are confirmed observations/decisions, not receipts
+that every browser stream closed. See [anomaly policy](../deploy/relay-anomalies.md).
+
 ### `GET /devices/{id}`
 
 Returns one device object. `404 not_found` if it does not exist, or if the
@@ -440,23 +450,31 @@ console itself is compromised.
 
 ### `POST /devices/{id}/revoke`
 
-Marks the device revoked. Request: `{}`. Response: the updated device object.
+Marks the device revoked. Request: `{}`. Response `200`:
+`{ "revoked": true, "revoked_at": "RFC3339 timestamp" }`.
 
 - Revocation is one-way in the recommended design: a revoked device must
   re-enroll (DESIGN §6; enforced in the database).
 - D6 denies Ping, Login, and NewProxy together. Live tunnel interruption uses
   the confirmed heartbeat mechanism, subject to the W0 backend-failure/hang limits.
-  This HTTP route and authz integration remain W5; no immediate cutoff is promised.
+  Concurrent exact retries preserve the first timestamp and audit. No immediate
+  all-stream cutoff is promised.
 
-### `POST /devices/{id}/cut-now`
+### `POST /devices/{id}/disconnect`
 
 The manual "confirmed stolen, cut now" bypass (DESIGN §5).
 
 - It requires the device to be revoked already.
 - `nethub web` only records the request. `nethub authz` carries it out,
   because only authz holds the relay credentials.
-- Response `202`: `{ "requested_at": "…" }`.
-- Who may call it, and where the request is stored, are open (§10).
+- An enabled owner or tenant admin can call it with `{}`. An owned active device
+  returns `409 device_not_revoked`; a missing/foreign device returns `404` first.
+- Response `200` contains `request_id`, `requested_at`, nullable `armed_at` and
+  `state` (`pending` or `armed`). The first request and processing time are immutable.
+- Authz arms the request only after its published memory snapshot denies the
+  tenant/device; audit and status commit together. `armed` means heartbeat rejection
+  is ready, not that all established streams were observed closed. Inventory
+  includes the same narrow receipt for authorized devices.
 
 ### `POST /enroll-tokens`
 

@@ -581,7 +581,7 @@ function EnrollmentDialog({
   );
 }
 
-function Devices() {
+function Devices({ isAdmin }: { isAdmin: boolean }) {
   const [page, setPage] = useState<DevicePage>({
     items: [],
     next_cursor: null,
@@ -639,9 +639,13 @@ function Devices() {
     };
   }, [cursor, status, refresh]);
   const visible = page.items.filter((device) =>
-    [device.label, device.hostname, device.subdomain, device.owner.email].some(
-      (value) => value.toLowerCase().includes(search.toLowerCase()),
-    ),
+    [
+      device.id,
+      device.label,
+      device.hostname,
+      device.subdomain,
+      device.owner.email,
+    ].some((value) => value.toLowerCase().includes(search.toLowerCase())),
   );
   return (
     <>
@@ -656,6 +660,55 @@ function Devices() {
           Add device
         </Button>
       </header>
+      {isAdmin && !!page.relay_alerts?.length && (
+        <section className="relay-alerts" aria-label="Relay alerts">
+          <h2>Relay alerts</h2>
+          <p role="status">
+            Showing {page.relay_alerts.length} active relay{" "}
+            {page.relay_alerts.length === 1 ? "alert" : "alerts"}
+          </p>
+          <p className="muted">
+            Repeated relay inconsistencies need review. Use the device’s Revoke
+            action to bypass automatic confirmation.
+          </p>
+          {page.relay_alerts.length === 100 && (
+            <p className="muted">Showing the latest 100 active alerts.</p>
+          )}
+          <ul tabIndex={0} aria-label="Active relay alerts">
+            {page.relay_alerts.map((alert) => {
+              const device = page.items.find(
+                (item) => item.id === alert.device_id,
+              );
+              const title =
+                alert.kind === "unknown_proxy"
+                  ? "Unassigned relay proxy"
+                  : alert.kind === "domain_mismatch"
+                    ? "Domain assignment mismatch"
+                    : "Revoked proxy still observed online";
+              const detail =
+                alert.response === "alarm_only"
+                  ? "Manual review required; automatic revocation was not applied."
+                  : alert.response === "revoked"
+                    ? "Enrollment was revoked. Existing connections may take time to close."
+                    : "Enrollment remains revoked; existing connections may remain.";
+              return (
+                <li key={alert.id}>
+                  <strong>{title}</strong>
+                  {alert.device_id && (
+                    <span className="relay-alert-device">
+                      {device?.label || device?.hostname || alert.device_id}
+                    </span>
+                  )}
+                  <p>{detail}</p>
+                  <time dateTime={alert.confirmed_at}>
+                    Confirmed {new Date(alert.confirmed_at).toLocaleString()}
+                  </time>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
       <section
         className="device-panel"
         aria-label="Device inventory"
@@ -973,7 +1026,7 @@ export function App() {
               {failure}
             </p>
           )}
-          <Devices />
+          <Devices isAdmin={session.user.role === "admin"} />
         </main>
         <footer className="workspace-footer">
           NetHub<span>Self-hosted remote management</span>

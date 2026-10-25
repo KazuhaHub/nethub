@@ -13,13 +13,14 @@ import (
 const BackupPhrase = "I HAVE VERIFIED THE NETHUB SECRET BACKUP"
 
 type Config struct {
-	ConsoleHost     string `json:"console_host"`
-	DeviceDomain    string `json:"device_domain"`
-	SourceDirectory string `json:"source_directory"`
-	NetworkSubnet   string `json:"network_subnet"`
-	ProxyMode       string `json:"proxy_mode,omitempty"`
-	WebPort         uint16 `json:"web_port,omitempty"`
-	DevicePort      uint16 `json:"device_port,omitempty"`
+	ConsoleHost        string `json:"console_host"`
+	DeviceDomain       string `json:"device_domain"`
+	SourceDirectory    string `json:"source_directory"`
+	NetworkSubnet      string `json:"network_subnet"`
+	ProxyMode          string `json:"proxy_mode,omitempty"`
+	WebPort            uint16 `json:"web_port,omitempty"`
+	DevicePort         uint16 `json:"device_port,omitempty"`
+	AnomalyActionLimit int    `json:"anomaly_action_limit,omitempty"`
 }
 
 func (c Config) externalProxy() bool { return c.ProxyMode == "external" }
@@ -38,6 +39,9 @@ func (c Config) originPorts() (uint16, uint16) {
 var dnsLabel = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
 
 func validateIdentity(config Config) error {
+	if config.AnomalyActionLimit < 0 || config.AnomalyActionLimit > 1024 {
+		return errors.New("anomaly action limit must be 1-1024, or omitted for the default")
+	}
 	if config.ProxyMode != "" && config.ProxyMode != "bundled" && !config.externalProxy() {
 		return errors.New("proxy mode must be bundled or external")
 	}

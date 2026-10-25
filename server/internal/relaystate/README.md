@@ -1,6 +1,6 @@
 # Relay observations
 
-The authz runtime polls frps immediately, then every five seconds without overlapping
+Display observation polls frps immediately, then every five seconds without overlapping
 requests. Enable it with `--frps-admin-origin`, `--frps-admin-user-file` and
 `--frps-admin-password-file`; partial configuration fails startup. Credentials
 come from private regular files. The origin has an explicit port and no path,

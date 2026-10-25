@@ -4,9 +4,53 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
+
+func TestAnomalyLimitConfigurationAndLegacyOmission(t *testing.T) {
+	for _, mode := range []string{"bundled", "external"} {
+		for _, limit := range []int{0, 1, 7, 1024} {
+			config := fixtureConfig(t)
+			config.ProxyMode = mode
+			config.AnomalyActionLimit = limit
+			if err := Validate(config); err != nil {
+				t.Fatal(err)
+			}
+			raw, err := composeOverride(config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var output struct {
+				Services map[string]struct{ Command []string }
+			}
+			if json.Unmarshal(raw, &output) != nil {
+				t.Fatal("invalid generated override")
+			}
+			count := 0
+			args := output.Services["nethub-authz"].Command
+			for index, arg := range args {
+				if arg == "--anomaly-action-limit" {
+					count++
+					if index+1 >= len(args) || args[index+1] != strconv.Itoa(limit) {
+						t.Fatal("anomaly allowance changed during generation")
+					}
+				}
+			}
+			if limit == 0 && count != 0 || limit != 0 && count != 1 {
+				t.Fatal("legacy command changed or explicit limit duplicated")
+			}
+		}
+	}
+	for _, limit := range []int{-1, 1025} {
+		config := fixtureConfig(t)
+		config.AnomalyActionLimit = limit
+		if Validate(config) == nil {
+			t.Fatal("invalid managed allowance accepted")
+		}
+	}
+}
 
 func TestGeneratedHookLoopbackPublication(t *testing.T) {
 	for _, mode := range []string{"bundled", "external"} {

@@ -3,6 +3,7 @@ package setup
 import (
 	"encoding/json"
 	"net/netip"
+	"strconv"
 )
 
 func edgeAddresses(config Config) (gateway, caddy, web, authz string) {
@@ -28,6 +29,9 @@ func composeOverride(config Config) ([]byte, error) {
 	// promptly when authz stops instead of dialing its removed bridge endpoint.
 	authzService := result["services"].(map[string]any)["nethub-authz"].(map[string]any)
 	authzService["ports"] = []map[string]any{{"host_ip": "127.0.0.1", "published": 9000, "target": 9000, "protocol": "tcp"}}
+	if config.AnomalyActionLimit != 0 {
+		authzService["command"] = append(authzService["command"].([]string), "--anomaly-action-limit", strconv.Itoa(config.AnomalyActionLimit))
+	}
 	if config.externalProxy() {
 		services := result["services"].(map[string]any)
 		delete(services, "caddy")

@@ -53,8 +53,31 @@ type DeviceQuery struct {
 }
 
 type DevicePage struct {
-	Items      []Device `json:"items"`
-	NextCursor *string  `json:"next_cursor"`
+	Items       []Device     `json:"items"`
+	NextCursor  *string      `json:"next_cursor"`
+	RelayAlerts []RelayAlert `json:"relay_alerts,omitempty"`
+}
+
+type RelayAlert struct {
+	ID          string    `json:"id"`
+	DeviceID    *string   `json:"device_id"`
+	Kind        string    `json:"kind"`
+	Response    string    `json:"response"`
+	ConfirmedAt time.Time `json:"confirmed_at"`
+}
+
+func (a RelayAlert) Valid() bool {
+	if !uuidPattern.MatchString(a.ID) || a.ConfirmedAt.IsZero() {
+		return false
+	}
+	if a.Kind == "unknown_proxy" {
+		return a.DeviceID == nil && a.Response == "alarm_only"
+	}
+	if a.DeviceID == nil || !uuidPattern.MatchString(*a.DeviceID) {
+		return false
+	}
+	return a.Kind == "domain_mismatch" && (a.Response == "revoked" || a.Response == "alarm_only") ||
+		a.Kind == "revoked_online" && (a.Response == "already_revoked" || a.Response == "alarm_only")
 }
 
 type EnrollToken struct {

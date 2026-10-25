@@ -30,6 +30,7 @@ type repository struct {
 	shortToken bool
 	revoked    bool
 	disconnect *web.DeviceDisconnect
+	alerts     []web.RelayAlert
 }
 
 func (r *repository) PasswordCandidate(_ context.Context, email string) (auth.Candidate, error) {
@@ -68,7 +69,7 @@ func (r *repository) LoginFailed(context.Context, netip.Addr) error { return nil
 func (r *repository) Devices(_ context.Context, _ string, query web.DeviceQuery) (web.DevicePage, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	page := web.DevicePage{Items: []web.Device{}}
+	page := web.DevicePage{Items: []web.Device{}, RelayAlerts: append([]web.RelayAlert(nil), r.alerts...)}
 	if !r.populated {
 		return page, nil
 	}
@@ -183,6 +184,24 @@ func main() {
 				now := time.Now().UTC()
 				repository.disconnect.ArmedAt = &now
 				repository.disconnect.State = "armed"
+			case "/test/relay-alerts":
+				home := "00000000-0000-4000-8000-000000000002"
+				branch := "00000000-0000-4000-8000-000000000001"
+				now := time.Now().UTC()
+				repository.alerts = []web.RelayAlert{
+					{ID: "11111111-1111-4111-8111-111111111111", DeviceID: &home, Kind: "domain_mismatch", Response: "alarm_only", ConfirmedAt: now},
+					{ID: "22222222-2222-4222-8222-222222222222", Kind: "unknown_proxy", Response: "alarm_only", ConfirmedAt: now},
+					{ID: "33333333-3333-4333-8333-333333333333", DeviceID: &branch, Kind: "revoked_online", Response: "already_revoked", ConfirmedAt: now},
+				}
+			case "/test/member", "/test/admin":
+				role := "member"
+				if r.URL.Path == "/test/admin" {
+					role = "admin"
+				}
+				for key, record := range repository.sessions {
+					record.User.Role = role
+					repository.sessions[key] = record
+				}
 			default:
 				http.NotFound(w, r)
 				return

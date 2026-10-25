@@ -486,6 +486,56 @@ try {
   console.log(
     "Console revoke passed native confirmation, Cancel/Escape without mutation, retained error retry, disabled Open and cleared continuation after success.",
   );
+  await page.request.post(origin + "/test/relay-alerts");
+  const relayAlerts = page.getByRole("region", {
+    name: "Relay alerts",
+    exact: true,
+  });
+  await relayAlerts.waitFor({ timeout: 8000 });
+  await relayAlerts
+    .getByText("Unassigned relay proxy", { exact: true })
+    .waitFor();
+  await relayAlerts
+    .getByText("Domain assignment mismatch", { exact: true })
+    .waitFor();
+  await relayAlerts
+    .getByText("Revoked proxy still observed online", { exact: true })
+    .waitFor();
+  assert.equal(revocations, 2, "Alert polling must not issue a revocation");
+  await page.screenshot({
+    path: join(evidence, "relay-alerts-desktop.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  );
+  await page.screenshot({
+    path: join(evidence, "relay-alerts-mobile.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.request.post(origin + "/test/member");
+  await page.reload();
+  await page.getByRole("heading", { name: "Devices", exact: true }).waitFor();
+  const memberInventory = await page.request.get(
+    origin + "/api/v1/console/devices",
+  );
+  assert.equal((await memberInventory.json()).relay_alerts, undefined);
+  assert.equal(
+    await page
+      .getByRole("region", { name: "Relay alerts", exact: true })
+      .count(),
+    0,
+  );
+  await page.request.post(origin + "/test/admin");
+  await page.reload();
+  await relayAlerts.waitFor();
+  console.log(
+    "Relay alert UI passed polled admin-only summaries, member removal, mobile layout and no automatic revocation.",
+  );
   await opener.click();
   await page.request.post(origin + "/test/expire");
   await page
@@ -520,6 +570,7 @@ try {
           "failed Open popup cleanup",
           "explicit permanent revocation confirmation and failure retry",
           "disconnect request pending and heartbeat-ready states",
+          "admin-only relay alerts without automatic revocation",
           "non-overlapping inventory requests",
           "hidden inventory polling pause and resume",
           "enrollment",

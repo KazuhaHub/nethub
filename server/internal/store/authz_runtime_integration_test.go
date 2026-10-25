@@ -47,6 +47,12 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, webRole *sql.DB, tenan
 	var adminData atomic.Value
 	adminData.Store([]byte(`{"proxies":[]}`))
 	adminRequests := make(chan time.Time, 8)
+	type adminRead struct {
+		peer     string
+		at       time.Time
+		snapshot []byte
+	}
+	adminReads := make(chan adminRead, 128)
 	admin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, password, ok := r.BasicAuth()
 		if !ok || user != adminUser || password != adminPassword || r.Method != http.MethodGet || r.URL.RequestURI() != "/api/proxy/https" {
@@ -59,7 +65,12 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, webRole *sql.DB, tenan
 		default:
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(adminData.Load().([]byte))
+		snapshot := adminData.Load().([]byte)
+		select {
+		case adminReads <- adminRead{r.RemoteAddr, time.Now(), snapshot}:
+		default:
+		}
+		_, _ = w.Write(snapshot)
 	}))
 	defer admin.Close()
 	directory := t.TempDir()
@@ -349,6 +360,75 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, webRole *sql.DB, tenan
 		t.Fatal("compiled cutoff lacks one processing audit", err)
 	}
 	t.Log("Compiled authz processed the genuine web-role cutoff request only after published Ping denial with one armed audit")
+	registration, _, _ := f.fresh(t, tenant)
+	anomalyTarget, err := f.repository.Register(f.ctx, registration, f.issue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	anomalyProxy := relayhook.ProxyName(anomalyTarget.ID)
+	frame, err := json.Marshal(map[string]any{"proxies": []map[string]any{{"name": anomalyProxy, "status": "online",
+		"conf": map[string]any{"name": anomalyProxy, "type": "https", "subdomain": "wrong099"}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	anomalyStarted := time.Now()
+	adminData.Store(frame)
+	for {
+		var revoked bool
+		if err = f.owner.QueryRowContext(f.ctx, `SELECT revoked FROM devices WHERE id=$1`, anomalyTarget.ID).Scan(&revoked); err != nil {
+			t.Fatal(err)
+		}
+		if revoked {
+			if time.Since(anomalyStarted) < 2*relaystate.AnomalyInterval {
+				t.Fatal("compiled anomaly worker confirmed before three 15-second observations")
+			}
+			break
+		}
+		if time.Since(anomalyStarted) > 70*time.Second {
+			t.Fatal("compiled anomaly worker did not persist the confirmed mismatch")
+		}
+		select {
+		case <-completed:
+			exited = true
+			t.Fatal("authz exited during anomaly confirmation")
+		default:
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	reads := map[string][]time.Time{}
+	for len(adminReads) > 0 {
+		entry := <-adminReads
+		if bytes.Contains(entry.snapshot, []byte(anomalyTarget.ID)) {
+			reads[entry.peer] = append(reads[entry.peer], entry.at)
+		}
+	}
+	productionCadence := false
+	for _, samples := range reads {
+		if len(samples) < 3 {
+			continue
+		}
+		valid := true
+		for index := 1; index < len(samples); index++ {
+			gap := samples[index].Sub(samples[index-1])
+			if gap < relaystate.AnomalyInterval-100*time.Millisecond || gap > relaystate.AnomalyInterval+8*time.Second {
+				valid = false
+			}
+		}
+		if valid {
+			productionCadence = true
+		}
+	}
+	if !productionCadence {
+		t.Fatal("no independent admin connection used the actual 15-second anomaly cadence")
+	}
+	var anomalyAudits, anomalyIncidents int
+	if err = f.owner.QueryRowContext(f.ctx, `SELECT count(*) FROM relay_anomaly_incidents WHERE device_id=$1 AND response='revoked'`, anomalyTarget.ID).Scan(&anomalyIncidents); err != nil || anomalyIncidents != 1 {
+		t.Fatal("compiled anomaly receipt missing or duplicated", err)
+	}
+	if err = f.owner.QueryRowContext(f.ctx, `SELECT count(*) FROM audit_log WHERE action='relay.anomaly_decisions' AND payload->'decisions' @> jsonb_build_array(jsonb_build_object('device_id',$1::text))`, anomalyTarget.ID).Scan(&anomalyAudits); err != nil || anomalyAudits != 1 {
+		t.Fatal("compiled anomaly decision/audit not atomic", err)
+	}
+	t.Log("Compiled authz used three real fifteen-second samples on an independent admin connection before one atomic anomaly revocation and audit")
 	_ = command.Process.Signal(syscall.SIGTERM)
 	select {
 	case err := <-completed:

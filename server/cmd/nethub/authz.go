@@ -83,6 +83,7 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 	adminOrigin := flags.String("frps-admin-origin", "", "Private frps admin origin with an explicit port")
 	adminUserFile := flags.String("frps-admin-user-file", "", "Private frps admin username file")
 	adminPasswordFile := flags.String("frps-admin-password-file", "", "Private frps admin password file")
+	anomalyActionLimit := flags.Int("anomaly-action-limit", 3, "Maximum confirmed anomalies before the whole batch becomes alarm-only (1-1024)")
 	var peers hookPeers
 	flags.Var(&peers, "hook-peer", "Exact relay socket IP; repeat for multiple relays")
 	var proxies proxyFlags
@@ -112,6 +113,10 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 	}
 	if !validObservationFlags(*adminOrigin, *adminUserFile, *adminPasswordFile) {
 		fmt.Fprintln(stderr, "Relay observation requires an admin origin and both credential file paths")
+		return 2
+	}
+	if *anomalyActionLimit < 1 || *anomalyActionLimit > relaystate.MaxProxies {
+		fmt.Fprintln(stderr, "Anomaly action limit must be between 1 and 1024")
 		return 2
 	}
 	key, keyError := readAuthzHex(*claimFile)
@@ -167,7 +172,7 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 	}
 	var observer *relaystate.Poller
 	if *adminOrigin != "" {
-		observer, err = newObserver(*adminOrigin, *adminUserFile, *adminPasswordFile, db, logger)
+		observer, err = newObserver(*adminOrigin, *adminUserFile, *adminPasswordFile, db, logger, *anomalyActionLimit)
 		if err != nil {
 			fmt.Fprintln(stderr, "Relay observation origin or credential configuration is invalid")
 			return 1
@@ -221,7 +226,7 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 			case <-timer.C:
 			}
 		}()
-		fmt.Fprintln(stdout, "Read-only relay observation enabled")
+		fmt.Fprintln(stdout, "Relay observation and anomaly confirmation enabled")
 	}
 	if hooks == nil {
 		fmt.Fprintln(stdout, "Device enrollment API started; relay hooks disabled")
