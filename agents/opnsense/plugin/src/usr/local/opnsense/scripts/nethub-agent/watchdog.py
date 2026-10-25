@@ -172,6 +172,11 @@ class Watchdog:
             return {'success': True, 'action': 'disabled'}
         if running:
             return {'success': True, 'action': 'running'}
+        gate = self.root / 'etc/rc.conf.d/nethub_agent_frpc'
+        if gate.is_file() and gate.read_bytes() == b'nethub_agent_frpc_enable="NO"\n':
+            # Restored enabled intent must pass reconcile after an intentional stop.
+            # Do not spend the crash-recovery budget before that validation.
+            return {'success': True, 'action': 'awaiting_reconcile'}
         if self.journal.exists():
             prior = json.loads(self.journal.read_text())
             if (not isinstance(prior, dict) or prior.get('version') != 1

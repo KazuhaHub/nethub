@@ -116,6 +116,26 @@ def test_watchdog_rejects_unbound_backup_after_first_managed_generation(managed)
     assert managed.mutations() == []
 
 
+def test_restored_enabled_intent_waits_for_reconcile_without_quarantining(managed):
+    assert managed.agent.apply('reconcile')['success'] is True
+    path = managed.root/'conf/config.xml'
+    tree = ET.parse(path)
+    tree.find('OPNsense/NetHubAgent/enabled').text = '0'
+    tree.write(path, encoding='utf-8')
+    assert managed.agent.apply('reconcile')['action'] == 'stop'
+    assert not managed.active
+    tree.find('OPNsense/NetHubAgent/enabled').text = '1'
+    tree.write(path, encoding='utf-8')
+    managed.calls.clear()
+    watchdog = WATCHDOG.Watchdog(managed.root, managed.command)
+    assert watchdog.apply()['action'] == 'awaiting_reconcile'
+    assert not watchdog.journal.exists()
+    assert managed.mutations() == []
+    assert managed.agent.apply('reconcile')['action'] == 'start'
+    assert managed.active
+    assert watchdog.apply()['action'] == 'running'
+
+
 def test_watchdog_can_recover_a_backup_under_the_same_managed_ca(managed):
     assert managed.agent.apply('reconcile')['success'] is True
     managed.agent.backup.write_bytes(managed.agent.live.read_bytes())
