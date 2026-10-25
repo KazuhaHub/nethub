@@ -8,7 +8,7 @@ The approved 1 GiB allocation remains a resource deviation.
 | Native observation | Result |
 | --- | --- |
 | WAN address changed on the owned WAN adapter | Same frpc PID logged in and restored its proxy; the new source address was observed in sockstat |
-| Changed WAN to verified public GUI | 23.552 seconds to successful observation |
+| Changed WAN to observed frpc login/proxy and new socket source | 23.552 seconds; the subsequent system-trusted public GUI probe passed |
 | Original WAN restored | Original address and system-trusted public GUI recovered |
 | One guest reboot | SSH became unavailable and the kernel boot epoch changed |
 | Reboot dispatch to verified public GUI | 125.469 seconds to successful observation |
