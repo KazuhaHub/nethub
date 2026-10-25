@@ -25,6 +25,10 @@ func composeOverride(config Config) ([]byte, error) {
 		},
 		"networks": map[string]any{"edge": map[string]any{"ipam": map[string]any{"config": []map[string]string{{"subnet": config.NetworkSubnet, "gateway": gateway}}}}},
 	}
+	webService := result["services"].(map[string]any)["nethub-web"].(map[string]any)
+	for _, authority := range config.OIDCPrivateHosts {
+		webService["command"] = append(webService["command"].([]string), "--oidc-private-host", authority)
+	}
 	// frps uses host networking. A loopback publication refuses new callbacks
 	// promptly when authz stops instead of dialing its removed bridge endpoint.
 	authzService := result["services"].(map[string]any)["nethub-authz"].(map[string]any)

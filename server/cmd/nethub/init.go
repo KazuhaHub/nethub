@@ -33,6 +33,8 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 	expected := flags.String("expected-address", "", "Expected public relay address for DNS preflight")
 	skipDNS := flags.Bool("offline", false, "Prepare an offline test bundle; DNS and public readiness remain unverified")
 	resume := flags.Bool("resume", false, "Resume only an existing unconfirmed bundle without regenerating secrets")
+	var oidcHosts oidcHostFlags
+	flags.Var(&oidcHosts, "oidc-private-host", "Allow a private OIDC authority; repeat exact host[:port] values")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -93,8 +95,12 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	config := setup.Config{ConsoleHost: *console, DeviceDomain: *device, SourceDirectory: absSource, NetworkSubnet: *subnet,
-		ProxyMode: *proxyMode, WebPort: uint16(*webPort), DevicePort: uint16(*devicePort), AnomalyActionLimit: *anomalyActionLimit}
+		ProxyMode: *proxyMode, WebPort: uint16(*webPort), DevicePort: uint16(*devicePort), AnomalyActionLimit: *anomalyActionLimit, OIDCPrivateHosts: oidcHosts}
 	if *resume {
+		if len(oidcHosts) > 0 {
+			fmt.Fprintln(stderr, "Resume cannot replace the saved OIDC outbound policy")
+			return 2
+		}
 		config = previous.Config
 	}
 	if err = setup.Validate(config); err != nil {

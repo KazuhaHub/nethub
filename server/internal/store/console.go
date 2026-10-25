@@ -18,6 +18,7 @@ import (
 type ConsoleStore struct {
 	AuthStore
 	ProviderSecrets *providersecret.Cipher
+	ValidateOIDC    func(context.Context, web.OIDCProviderInput) error
 }
 
 var _ web.Repository = (*ConsoleStore)(nil)

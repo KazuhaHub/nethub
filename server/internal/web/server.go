@@ -131,6 +131,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if allowMethod(w, r, "GET") {
 			s.users(w, r)
 		}
+	case prefix + "/oidc-providers":
+		switch r.Method {
+		case "GET", "HEAD":
+			s.oidcProviders(w, r)
+		case "POST":
+			s.createOIDCProvider(w, r, ip)
+		default:
+			w.Header().Set("Allow", "GET, HEAD, POST")
+			writeError(w, r, 405, "method_not_allowed", "Method not allowed")
+		}
 	case prefix + "/invites/inspect":
 		if allowMethod(w, r, "POST") {
 			s.inspectInvitation(w, r, ip)
@@ -154,6 +164,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			s.enroll(w, r, ip)
 		}
 	default:
+		if strings.HasPrefix(r.URL.Path, prefix+"/oidc-providers/") {
+			switch r.Method {
+			case "PATCH", "DELETE":
+				s.mutateOIDCProvider(w, r, ip)
+			default:
+				w.Header().Set("Allow", "PATCH, DELETE")
+				writeError(w, r, 405, "method_not_allowed", "Method not allowed")
+			}
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, prefix+"/invites/") {
 			if allowMethod(w, r, "DELETE") {
 				s.withdrawInvitation(w, r, ip)

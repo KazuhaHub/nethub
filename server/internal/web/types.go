@@ -112,6 +112,7 @@ type DeviceDisconnect struct {
 type Repository interface {
 	UserRepository
 	InvitationRepository
+	OIDCProviderRepository
 	Health(context.Context) error
 	Devices(context.Context, string, DeviceQuery) (DevicePage, error)
 	IssueEnrollToken(context.Context, string, netip.Addr) (EnrollToken, error)

@@ -1716,6 +1716,10 @@ Enroll 前提示用户：请确认你有**不依赖 NetHub** 的其他访问方�
 
 **W6-4 OIDC 登录流程。** 用 `github.com/coreos/go-oidc/v3` 和 `golang.org/x/oauth2`。
 
+Import these protocol capabilities through the shared `authcore/oidc` module,
+as requested by Kazuha. NetHub supplies outbound-network policy and durable,
+browser-bound one-use state; accounts and invitation admission remain in NetHub.
+
 1. **发起**：
    - 通过 Issuer 的 discovery 拿到端点（可以缓存）；
    - 生成 `state`、`nonce`、PKCE verifier（用 `oauth2.GenerateVerifier()`），存在服务端，有效期很短，并用一个 cookie 绑定到当前浏览器；
