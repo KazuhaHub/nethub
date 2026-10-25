@@ -73,6 +73,9 @@ func TestConsoleProviderKeyLoadingAndEarlyRefusal(t *testing.T) {
 		if err := os.WriteFile(path, []byte(encoded), 0644); err != nil {
 			t.Fatal(err)
 		}
+		if err := os.Chmod(path, 0644); err != nil {
+			t.Fatal(err)
+		}
 		refuse()
 		if err := os.Chmod(path, 0600); err != nil {
 			t.Fatal(err)
