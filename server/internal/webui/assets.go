@@ -26,7 +26,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	name := strings.TrimPrefix(r.URL.Path, "/")
-	if name == "" {
+	if name == "" || name == "users" {
 		name = "index.html"
 	}
 	if !fs.ValidPath(name) || strings.Contains(name, "..") || strings.Contains(name, "\\") || strings.HasPrefix(name, ".") || strings.Contains(name, "/.") {

@@ -40,6 +40,87 @@ test("relay alerts reject ambiguous identities, unsafe modes and duplicate recei
   }
 });
 
+test("user updates use PATCH and CSRF while passive user pages stay read-only", async () => {
+  const previous = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, init });
+    if (url.endsWith("/login"))
+      return Response.json({
+        csrf_token: "fixture-csrf",
+        user: { id: "fixture" },
+      });
+    if (url.endsWith("/session"))
+      return Response.json({
+        signed_in: true,
+        csrf_token: "fixture-csrf",
+        user: { id: "fixture" },
+      });
+    return Response.json({ items: [], next_cursor: null });
+  };
+  try {
+    await api.login("member@example.com", "fixture-password");
+    await api.session(undefined, true);
+    assert.equal(calls.at(-1).init.method, "GET");
+    assert.equal(calls.at(-1).init.headers["X-NetHub-Background"], "1");
+    await api.users("opaque-cursor", undefined, true);
+    assert.equal(calls.at(-1).init.method, "GET");
+    assert.equal(calls.at(-1).init.headers["X-NetHub-Background"], "1");
+    assert.equal(calls.at(-1).init.body, undefined);
+    assert.ok(calls.at(-1).url.includes("cursor=opaque-cursor"));
+    await api.users(null);
+    assert.equal(calls.at(-1).init.method, "GET");
+    assert.equal(calls.at(-1).init.headers["X-NetHub-Background"], undefined);
+    await api.updateUser("00000000-0000-4000-8000-000000000099", {
+      disabled: true,
+    });
+    const call = calls.at(-1);
+    assert.equal(call.init.method, "PATCH");
+    assert.equal(call.init.headers["X-CSRF-Token"], "fixture-csrf");
+    assert.equal(call.init.headers["X-NetHub-Background"], undefined);
+    assert.equal(call.init.credentials, "same-origin");
+    assert.equal(call.init.cache, "no-store");
+    assert.equal(call.init.body, '{"disabled":true}');
+  } finally {
+    globalThis.fetch = previous;
+    clearSession();
+  }
+});
+
+test("a user-change deadline reports an unconfirmed result without replay", async () => {
+  const previous = globalThis.fetch,
+    timeout = AbortSignal.timeout;
+  const controller = new AbortController();
+  let calls = 0;
+  AbortSignal.timeout = () => controller.signal;
+  globalThis.fetch = (_url, init) => {
+    calls++;
+    return new Promise((_resolve, reject) =>
+      init.signal.addEventListener(
+        "abort",
+        () => reject(controller.signal.reason),
+        { once: true },
+      ),
+    );
+  };
+  try {
+    const pending = api.updateUser("00000000-0000-4000-8000-000000000099", {
+      disabled: true,
+    });
+    controller.abort(new DOMException("deadline", "TimeoutError"));
+    await assert.rejects(
+      pending,
+      (error) =>
+        error.code === "change_unconfirmed" &&
+        error.message.includes("Refresh"),
+    );
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = previous;
+    AbortSignal.timeout = timeout;
+  }
+});
+
 test("the request wrapper attaches CSRF, clears it on 401, and never puts credentials in URLs", async () => {
   const previous = globalThis.fetch;
   const calls = [];

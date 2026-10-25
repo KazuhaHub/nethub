@@ -14,6 +14,7 @@ import (
 	"net/netip"
 	"os"
 	"os/signal"
+	"sort"
 	"sync"
 	"syscall"
 	"time"
@@ -31,25 +32,120 @@ type repository struct {
 	revoked    bool
 	disconnect *web.DeviceDisconnect
 	alerts     []web.RelayAlert
+	users      map[string]web.ManagedUser
 }
 
-func (r *repository) Users(context.Context, string, web.UserQuery) (web.UserPage, error) {
-	return web.UserPage{Items: []web.ManagedUser{}}, nil
+func fixtureUsers() map[string]web.ManagedUser {
+	users := map[string]web.ManagedUser{}
+	add := func(id, email, role string) {
+		users[id] = web.ManagedUser{User: auth.User{ID: id, Email: email, Role: role}, HasPassword: true, Identities: []web.UserIdentity{}, CreatedAt: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)}
+	}
+	add("00000000-0000-4000-8000-000000000001", "ui-test@example.com", "admin")
+	add("00000000-0000-4000-8000-000000000099", "ui-member@example.com", "member")
+	for i := range 50 {
+		add(fmt.Sprintf("00000000-0000-4000-8000-%012d", 100+i), fmt.Sprintf("extra-%02d@example.com", i), "member")
+	}
+	return users
 }
-func (r *repository) UpdateUser(context.Context, string, string, web.UserPatch, netip.Addr) (web.ManagedUser, error) {
-	return web.ManagedUser{}, web.ErrUserUnavailable
+
+func (r *repository) Users(_ context.Context, actor string, query web.UserQuery) (web.UserPage, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	actorUser, ok := r.users[actor]
+	if !ok || actorUser.Disabled {
+		return web.UserPage{}, auth.ErrUnauthenticated
+	}
+	if actorUser.Role != "admin" {
+		return web.UserPage{}, web.ErrForbidden
+	}
+	ids := []string{}
+	for id := range r.users {
+		if id > query.AfterID {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	page := web.UserPage{Items: []web.ManagedUser{}}
+	for _, id := range ids {
+		page.Items = append(page.Items, r.users[id])
+	}
+	if len(page.Items) > query.Limit {
+		page.Items = page.Items[:query.Limit]
+		cursor := base64.RawURLEncoding.EncodeToString([]byte(page.Items[len(page.Items)-1].ID))
+		page.NextCursor = &cursor
+	}
+	return page, nil
+}
+func (r *repository) UpdateUser(_ context.Context, actor, target string, patch web.UserPatch, _ netip.Addr) (web.ManagedUser, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	a, ok := r.users[actor]
+	if !ok || a.Disabled {
+		return web.ManagedUser{}, auth.ErrUnauthenticated
+	}
+	if a.Role != "admin" {
+		return web.ManagedUser{}, web.ErrForbidden
+	}
+	u, ok := r.users[target]
+	if !ok {
+		return web.ManagedUser{}, web.ErrUserUnavailable
+	}
+	next := u
+	if patch.Role != nil {
+		next.Role = *patch.Role
+	}
+	if patch.Disabled != nil {
+		next.Disabled = *patch.Disabled
+	}
+	if u.Role == "admin" && !u.Disabled && (next.Role != "admin" || next.Disabled) {
+		admins, local := 0, 0
+		for id, other := range r.users {
+			if id != target && !other.Disabled && other.Role == "admin" {
+				admins++
+				if other.HasPassword {
+					local++
+				}
+			}
+		}
+		if admins == 0 {
+			return web.ManagedUser{}, web.ErrLastAdmin
+		}
+		if u.HasPassword && local == 0 {
+			return web.ManagedUser{}, web.ErrLastLocalAdmin
+		}
+	}
+	r.users[target] = next
+	for key, record := range r.sessions {
+		if record.User.ID == target {
+			if next.Disabled {
+				delete(r.sessions, key)
+			} else {
+				record.User = next.User
+				r.sessions[key] = record
+			}
+		}
+	}
+	return next, nil
 }
 
 func (r *repository) PasswordCandidate(_ context.Context, email string) (auth.Candidate, error) {
-	if email != "ui-test@example.com" {
-		return auth.Candidate{}, auth.ErrInvalidCredentials
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, u := range r.users {
+		if u.Email == email && (email == "ui-test@example.com" || email == "ui-member@example.com") {
+			return auth.Candidate{User: u.User, PasswordHash: r.hash, Disabled: u.Disabled}, nil
+		}
 	}
-	return auth.Candidate{User: auth.User{ID: "00000000-0000-4000-8000-000000000001", Email: email, Role: "admin"}, PasswordHash: r.hash}, nil
+	return auth.Candidate{}, auth.ErrInvalidCredentials
 }
 func (r *repository) CreateSession(_ context.Context, c auth.Candidate, record auth.SessionRecord) (auth.SessionRecord, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	record.User = c.User
+	u, ok := r.users[c.ID]
+	if !ok || u.Disabled {
+		return auth.SessionRecord{}, auth.ErrInvalidCredentials
+	}
+	record.User = u.User
 	r.sessions[string(record.TokenHash)] = record
 	return record, nil
 }
@@ -161,7 +257,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	repository := &repository{hash: hash, sessions: map[string]auth.SessionRecord{}}
+	repository := &repository{hash: hash, sessions: map[string]auth.SessionRecord{}, users: fixtureUsers()}
 	service, err := auth.NewService(repository, auth.Config{})
 	if err != nil {
 		panic(err)
@@ -178,6 +274,9 @@ func main() {
 			defer repository.mu.Unlock()
 			switch r.URL.Path {
 			case "/test/expire":
+				repository.sessions = map[string]auth.SessionRecord{}
+			case "/test/users-reset":
+				repository.users = fixtureUsers()
 				repository.sessions = map[string]auth.SessionRecord{}
 			case "/test/devices":
 				repository.populated = true
@@ -206,9 +305,14 @@ func main() {
 					role = "admin"
 				}
 				for key, record := range repository.sessions {
-					record.User.Role = role
-					repository.sessions[key] = record
+					if record.User.ID == "00000000-0000-4000-8000-000000000001" {
+						record.User.Role = role
+						repository.sessions[key] = record
+					}
 				}
+				u := repository.users["00000000-0000-4000-8000-000000000001"]
+				u.Role = role
+				repository.users[u.ID] = u
 			default:
 				http.NotFound(w, r)
 				return

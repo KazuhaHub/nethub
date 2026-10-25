@@ -358,6 +358,10 @@ p {
   letter-spacing: 0.15em;
   font-weight: 650;
 }
+.sidebar nav {
+  display: grid;
+  gap: 8px;
+}
 .sidebar nav a {
   display: flex;
   align-items: center;
@@ -368,6 +372,29 @@ p {
   padding: 11px 13px;
   font-size: 13px;
   font-weight: 550;
+}
+.sidebar nav a:not([aria-current="page"]) {
+  background: transparent;
+  color: #b7d0c2;
+}
+.user-form {
+  display: grid;
+  gap: 14px;
+}
+.user-form select {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: inherit;
+}
+.user-disable {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.user-empty {
+  padding: 24px;
 }
 .sidebar-footer {
   margin-top: auto;
@@ -908,6 +935,9 @@ p {
     padding: 8px 10px;
     font-size: 11px;
     gap: 7px;
+  }
+  .sidebar nav {
+    display: flex;
   }
   .app-shell {
     display: block;

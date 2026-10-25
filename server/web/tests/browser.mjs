@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { resolve, join, dirname, basename } from "node:path";
 import { createInterface } from "node:readline";
 import { chromium } from "playwright";
+import { verifyUsers } from "./users-browser.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 const stage = mkdtempSync(join(tmpdir(), "nethub-ui-"));
@@ -546,6 +547,7 @@ try {
   await login();
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.getByRole("heading", { name: "Sign in to NetHub" }).waitFor();
+  await verifyUsers({ page, origin, evidence, login });
   assert.deepEqual(violations, []);
   assert.deepEqual(failures, []);
   assert.deepEqual(external, []);
@@ -584,6 +586,7 @@ try {
           "mobile",
           "401 redirect",
           "logout",
+          "user management pagination, mutations and authority changes",
         ],
         backend:
           "isolated in-memory fixture using production authentication and HTTP handlers; PostgreSQL boundaries are tested separately",
