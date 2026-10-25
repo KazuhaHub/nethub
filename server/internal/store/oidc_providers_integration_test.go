@@ -34,6 +34,7 @@ func testConsoleOIDCProviders(t *testing.T, ctx context.Context, owner, db *sql.
 		return id
 	}
 	admin := user(tenant, "oidc-admin@example.com", "admin")
+	user(tenant, "oidc-backup@example.com", "admin")
 	member := user(tenant, "oidc-member@example.com", "member")
 	foreign := user(foreignTenant, "oidc-foreign@example.com", "admin")
 	cipher, err := providersecret.New(bytes.Repeat([]byte{0x47}, 32))
@@ -141,13 +142,18 @@ func testConsoleOIDCProviders(t *testing.T, ctx context.Context, owner, db *sql.
 	// A remote validation callback can acquire the actor row immediately: neither
 	// the actor nor provider SQL locks are held during the remote operation.
 	client := "changed-client"
+	var demotionErr error
 	repo.ValidateOIDC = func(callCtx context.Context, _ web.OIDCProviderInput) error {
 		short, cancel := context.WithTimeout(callCtx, 500*time.Millisecond)
 		defer cancel()
-		_, err := owner.ExecContext(short, `UPDATE users SET role='member' WHERE id=$1`, admin)
-		return err
+		_, demotionErr = owner.ExecContext(short, `UPDATE users SET role='member' WHERE id=$1`, admin)
+		return demotionErr
 	}
-	if _, e = repo.UpdateOIDCProvider(ctx, admin, p.ID, web.OIDCProviderPatch{ClientID: &client}, ip); !errors.Is(e, web.ErrForbidden) {
+	_, e = repo.UpdateOIDCProvider(ctx, admin, p.ID, web.OIDCProviderPatch{ClientID: &client}, ip)
+	if demotionErr != nil {
+		t.Fatal("fixture administrator demotion did not commit", demotionErr)
+	}
+	if !errors.Is(e, web.ErrForbidden) {
 		t.Fatal("authority change during discovery accepted or actor lock retained", e)
 	}
 	if _, e = owner.ExecContext(ctx, `UPDATE users SET role='admin' WHERE id=$1`, admin); e != nil {
