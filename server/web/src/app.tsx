@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Sun,
   Users as UsersIcon,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,7 @@ import {
 } from "./api";
 import { NativeDialog } from "./dialog";
 import { Users } from "./users";
+import { Invitations } from "./invitations";
 import {
   canOpenDevice,
   certificateLabel,
@@ -265,7 +267,7 @@ const message = (error: unknown) =>
   error instanceof Error
     ? error.message
     : "The request could not be completed.";
-function Brand() {
+export function Brand() {
   return (
     <span className="brand">
       <span className="brand-symbol">
@@ -276,7 +278,7 @@ function Brand() {
   );
 }
 
-function ThemeButton() {
+export function ThemeButton() {
   const [dark, setDark] = useState(() => {
     try {
       const saved = localStorage.getItem("nethub-theme");
@@ -924,6 +926,8 @@ function Devices({ isAdmin }: { isAdmin: boolean }) {
 
 export function App() {
   const userView = window.location.pathname === "/users";
+  const invitationView = window.location.pathname === "/invitations";
+  const adminView = userView || invitationView;
   const [session, setSession] = useState<Session | null>(null);
   const [booting, setBooting] = useState(true);
   const [failure, setFailure] = useState("");
@@ -1007,10 +1011,19 @@ export function App() {
         <Brand />
         <div className="workspace-label">WORKSPACE</div>
         <nav aria-label="Main navigation">
-          <a href="/" aria-current={userView ? undefined : "page"}>
+          <a href="/" aria-current={adminView ? undefined : "page"}>
             <Router size={18} />
             Devices
           </a>
+          {session.user.role === "admin" && (
+            <a
+              href="/invitations"
+              aria-current={invitationView ? "page" : undefined}
+            >
+              <Mail size={18} />
+              Invitations
+            </a>
+          )}
           {session.user.role === "admin" && (
             <a href="/users" aria-current={userView ? "page" : undefined}>
               <UsersIcon size={18} />
@@ -1034,7 +1047,9 @@ export function App() {
         <header className="topbar">
           <span className="breadcrumb">
             Workspace<span>/</span>
-            <strong>{userView ? "Users" : "Devices"}</strong>
+            <strong>
+              {userView ? "Users" : invitationView ? "Invitations" : "Devices"}
+            </strong>
           </span>
           <div className="account-actions">
             <span className="account-email">{session.user.email}</span>
@@ -1057,12 +1072,16 @@ export function App() {
               {failure}
             </p>
           )}
-          {userView ? (
+          {adminView ? (
             session.user.role === "admin" ? (
-              <Users
-                currentUserId={session.user.id}
-                onAuthorityChanged={confirmAuthority}
-              />
+              invitationView ? (
+                <Invitations onAuthorityChanged={confirmAuthority} />
+              ) : (
+                <Users
+                  currentUserId={session.user.id}
+                  onAuthorityChanged={confirmAuthority}
+                />
+              )
             ) : (
               <section>
                 <h1>Administrator access required</h1>

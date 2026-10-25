@@ -9,6 +9,95 @@ const { api, clearSession, onUnauthorized, validRelayAlerts } = await import(
   `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`
 );
 
+test("invitation administration uses CSRF on bodyless DELETE and secret POST bodies", async () => {
+  const previous = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, init });
+    if (url.endsWith("/login"))
+      return Response.json({ csrf_token: "admin-csrf" });
+    if (url.endsWith("/accept"))
+      return Response.json({ csrf_token: "accepted-csrf" });
+    if (init.method === "DELETE") return new Response(null, { status: 204 });
+    return Response.json({ items: [], next_cursor: null });
+  };
+  try {
+    await api.login("admin@example.com", "fixture password");
+    await api.invitations("next-page");
+    assert.equal(calls.at(-1).init.method, "GET");
+    assert.equal(calls.at(-1).init.headers["X-NetHub-Background"], undefined);
+    await api.issueInvitation("new@example.com", "member");
+    assert.deepEqual(JSON.parse(calls.at(-1).init.body), {
+      email: "new@example.com",
+      role: "member",
+    });
+    await api.withdrawInvitation("canonical-id");
+    assert.equal(calls.at(-1).init.method, "DELETE");
+    assert.equal(calls.at(-1).init.headers["X-CSRF-Token"], "admin-csrf");
+    assert.equal(calls.at(-1).init.headers["Content-Type"], undefined);
+    assert.equal(calls.at(-1).init.body, undefined);
+    await api.inspectInvitation("private-bearer");
+    assert.equal(calls.at(-1).init.method, "POST");
+    assert.equal(calls.at(-1).url, "/api/v1/console/invites/inspect");
+    assert.deepEqual(JSON.parse(calls.at(-1).init.body), {
+      token: "private-bearer",
+    });
+    await api.acceptInvitation("private-bearer", "new invitation password");
+    assert.deepEqual(JSON.parse(calls.at(-1).init.body), {
+      token: "private-bearer",
+      password: "new invitation password",
+    });
+    await api.withdrawInvitation("canonical-id");
+    assert.equal(calls.at(-1).init.headers["X-CSRF-Token"], "accepted-csrf");
+    assert.ok(calls.every(({ url }) => !url.includes("private-bearer")));
+  } finally {
+    globalThis.fetch = previous;
+    clearSession();
+  }
+});
+
+test("invitation mutations report uncertain delivery without automatic replay", async () => {
+  const previous = globalThis.fetch;
+  const timeout = AbortSignal.timeout;
+  try {
+    for (const failure of ["connection", "server", "deadline"]) {
+      let attempts = 0;
+      AbortSignal.timeout = () => timeout(1);
+      globalThis.fetch = async (_, init) => {
+        attempts++;
+        if (failure === "connection") throw new TypeError("connection lost");
+        if (failure === "server")
+          return Response.json(
+            { error: { code: "internal", message: "Unavailable" } },
+            { status: 500 },
+          );
+        return new Promise((_, reject) =>
+          init.signal.addEventListener(
+            "abort",
+            () => reject(init.signal.reason),
+            { once: true },
+          ),
+        );
+      };
+      // Keep the event loop alive while the unref'd deadline expires.
+      const keepAlive = setTimeout(() => {}, 1000);
+      try {
+        await assert.rejects(
+          api.acceptInvitation("private-bearer", "new invitation password"),
+          (error) => error.code === "invitation_unconfirmed",
+        );
+      } finally {
+        clearTimeout(keepAlive);
+      }
+      assert.equal(attempts, 1);
+    }
+  } finally {
+    globalThis.fetch = previous;
+    AbortSignal.timeout = timeout;
+    clearSession();
+  }
+});
+
 test("relay alerts reject ambiguous identities, unsafe modes and duplicate receipts", () => {
   const alert = {
     id: "11111111-1111-4111-8111-111111111111",
