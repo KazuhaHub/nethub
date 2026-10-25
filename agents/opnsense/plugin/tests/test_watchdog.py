@@ -108,6 +108,18 @@ class WatchdogTests(unittest.TestCase):
                 self.assertFalse(self.agent.apply('reconcile')['success'])
         self.assertEqual(self.fixture.mutations(), [])
 
+    def test_disabled_rc_gate_does_not_clear_existing_quarantine(self):
+        self.assertTrue(self.watchdog.apply()['success'])
+        prior = self.watchdog.journal.read_bytes()
+        self.agent.rc_enable(False)
+        self.fixture.active = False
+        self.fixture.calls.clear()
+        self.assertEqual(self.watchdog.apply()['action'], 'awaiting_reconcile')
+        self.assertEqual(self.watchdog.journal.read_bytes(), prior)
+        self.assertEqual(self.agent.apply('reconcile')['action'], 'quarantined')
+        self.assertFalse(self.fixture.active)
+        self.assertEqual(self.fixture.mutations(), [])
+
     @unittest.skipUnless(Path('/usr/bin/lockf').exists(), 'Native FreeBSD lockf check')
     def test_native_lockf_excludes_both_python_operations(self):
         import fcntl
