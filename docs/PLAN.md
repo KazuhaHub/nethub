@@ -1664,14 +1664,14 @@ Enroll 前提示用户：请确认你有**不依赖 NetHub** 的其他访问方�
 ### 验收（对应 DESIGN §10 W5）
 
 - [ ] 手机关 Wi-Fi、用 4G，从控制台点"打开"，能登录路由器 GUI（录屏，地址打码）
-- [ ] 打开熔断开关后隧道立刻停下，`config.xml` 前后 sha256 一致；关掉后恢复
+- [x] 打开熔断开关后隧道立刻停下，`config.xml` 前后 sha256 一致；关掉后恢复 — native 0.0.17 and public TLS verified within the [recorded scope](../deploy/validation-native-w5-open-circuit.md).
 - [ ] 撤销后，隧道按【D6】机制断开，断开时间在 W0 测出的范围内（贴时间记录）；设备之后一直连不回来
 - [ ] 撤销后，浏览器新开的连接也被拒绝
 - [ ] 如果 W0 发现没有哪种断线机制可用：已经按 DESIGN §5 的另一种取舍（只挡新访问，接受"已建立的隧道断不掉"），并且把这一点写进了文档
 - [ ] 如果用了 `Ping` 机制：停掉 authz，确认在线隧道全部断开，再启动 authz，确认它们自动恢复（贴时间记录）
-- [ ] （如果做了门禁）没点"打开"的 IP 访问不了；点了之后可以
+- [x] （如果做了门禁）没点"打开"的 IP 访问不了；点了之后可以 — paired desktop public-IP checks passed; the mobile sample remains open.
 - [ ] 重启路由器、恢复 `config.xml`、WAN 换 IP 三种情况都自动恢复
-- [ ] enroll 页面有带外访问的提醒
+- [x] enroll 页面有带外访问的提醒 — observed before actual native 0.0.17 enrollment.
 
 ### 常见坑
 
