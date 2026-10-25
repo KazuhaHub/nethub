@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/auth"
+	"github.com/KazuhaHub/nethub/server/internal/providersecret"
 	"github.com/KazuhaHub/nethub/server/internal/store"
 	"github.com/KazuhaHub/nethub/server/internal/web"
 	"github.com/KazuhaHub/nethub/server/internal/webui"
@@ -48,6 +49,7 @@ func runWeb(args []string, stdout, stderr io.Writer) int {
 	port := flags.Uint("port", 5432, "Database port")
 	database := flags.String("database", "nethub", "Database name")
 	passwordFile := flags.String("password-file", "", "Web-role password file")
+	secretsKeyFile := flags.String("secrets-key-file", "/run/secrets/secrets_key", "Private deployment provider-encryption key file")
 	tls := flags.String("sslmode", "verify-full", "verify-full, or disable for an isolated local database")
 	listen := flags.String("listen", "127.0.0.1:8080", "Private console listen address")
 	origin := flags.String("origin", "", "External HTTPS console origin, without a path")
@@ -62,13 +64,18 @@ func runWeb(args []string, stdout, stderr io.Writer) int {
 		}
 		return 2
 	}
-	if flags.NArg() != 0 || *port == 0 || *port > 65535 || *passwordFile == "" || *origin == "" || *deviceDomain == "" {
+	if flags.NArg() != 0 || *port == 0 || *port > 65535 || *passwordFile == "" || *secretsKeyFile == "" || *origin == "" || *deviceDomain == "" {
 		fmt.Fprintln(stderr, "web requires an origin, device domain, web password file, and valid database settings")
 		return 2
 	}
 	if _, err := auth.NewOriginPolicy(*origin); err != nil {
 		fmt.Fprintln(stderr, "Console origin must be an absolute HTTPS origin without a path")
 		return 2
+	}
+	providerSecrets, err := loadProviderSecrets(*secretsKeyFile)
+	if err != nil {
+		fmt.Fprintln(stderr, "Console provider-encryption key is missing or invalid")
+		return 1
 	}
 	if !webui.Ready() {
 		fmt.Fprintln(stderr, "Build the console assets before starting web")
@@ -89,7 +96,7 @@ func runWeb(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Console startup requires migrated tables and exactly one tenant")
 		return 1
 	}
-	repository := &store.ConsoleStore{AuthStore: store.AuthStore{DB: db, Tenant: tenant}}
+	repository := &store.ConsoleStore{AuthStore: store.AuthStore{DB: db, Tenant: tenant}, ProviderSecrets: providerSecrets}
 	service, err := auth.NewService(&repository.AuthStore, auth.Config{IdleTimeout: *idle, AbsoluteTimeout: *absolute})
 	if err != nil {
 		fmt.Fprintln(stderr, "Console authentication configuration is invalid")
@@ -113,6 +120,15 @@ func runWeb(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+func loadProviderSecrets(path string) (*providersecret.Cipher, error) {
+	key, err := readAuthzHex(path)
+	if err != nil {
+		return nil, providersecret.ErrUnavailable
+	}
+	defer clear(key)
+	return providersecret.New(key)
 }
 
 func serveHTTP(ctx context.Context, server *http.Server, listener net.Listener) error {

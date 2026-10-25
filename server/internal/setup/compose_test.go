@@ -9,6 +9,36 @@ import (
 	"testing"
 )
 
+func TestGeneratedWebProviderKeyBinding(t *testing.T) {
+	for _, mode := range []string{"bundled", "external"} {
+		config := fixtureConfig(t)
+		config.ProxyMode = mode
+		raw, err := composeOverride(config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var output struct {
+			Services map[string]struct{ Command []string }
+		}
+		if err = json.Unmarshal(raw, &output); err != nil {
+			t.Fatal(err)
+		}
+		args := output.Services["nethub-web"].Command
+		found := 0
+		for i, value := range args {
+			if value == "--secrets-key-file" {
+				found++
+				if i+1 >= len(args) || args[i+1] != "/run/secrets/secrets_key" {
+					t.Fatal("web encryption key does not match its existing private mount")
+				}
+			}
+		}
+		if found != 1 {
+			t.Fatal("generated web command did not bind exactly one encryption key", mode)
+		}
+	}
+}
+
 func TestAnomalyLimitConfigurationAndLegacyOmission(t *testing.T) {
 	for _, mode := range []string{"bundled", "external"} {
 		for _, limit := range []int{0, 1, 7, 1024} {

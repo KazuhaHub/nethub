@@ -11,10 +11,14 @@ import (
 	"net/netip"
 
 	"github.com/KazuhaHub/nethub/server/internal/auth"
+	"github.com/KazuhaHub/nethub/server/internal/providersecret"
 	"github.com/KazuhaHub/nethub/server/internal/web"
 )
 
-type ConsoleStore struct{ AuthStore }
+type ConsoleStore struct {
+	AuthStore
+	ProviderSecrets *providersecret.Cipher
+}
 
 var _ web.Repository = (*ConsoleStore)(nil)
 
