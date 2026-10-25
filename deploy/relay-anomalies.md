@@ -1,8 +1,8 @@
 # Relay anomaly confirmation
 
-Implementation and genuine PostgreSQL acceptance are in progress. The following
-describes the intended runtime in this change, not completed installed/public W5
-acceptance.
+The implementation was accepted in PR #161 at `a69fa27` after all six checks in
+run `40145347040`, actual log inspection and thirteen signed commits. This is
+backend and browser acceptance; installed/public W5 acceptance remains open.
 
 Authz checks relay anomalies separately from the five-second online display. Its
 own private admin HTTP connection pool prevents a stalled check from consuming the
@@ -51,7 +51,20 @@ HTTP has a three-second budget, classification and persistence two seconds each,
 within an eight-second attempt. Failures log fixed unavailable/resumed transitions.
 Admin alert projection is scoped to an enabled current admin and excludes internal
 keys. Inventory displays its latest 100 active entries, including honest decision
-state and confirmation time; members receive none. Local strict-CSP/browser and
-genuine PostgreSQL concurrency/rollback checks have passed at their recorded heads.
-Final checks of the committed version and compiled production-cadence evidence must
-pass before this feature is accepted.
+state and confirmation time; members receive none.
+
+The accepted run exercised all five PostgreSQL anomaly cases: scoped classification
+and locked recheck, immutable mass alarms after restart, unknown/admin/member and
+cluster projections, busy-target/concurrent retries, and audit-failure rollback.
+The compiled authz process used three real fifteen-second observations on an
+independent admin connection before one atomic revocation and audit. Its admin
+snapshot came from an HTTP fixture; this does not prove anomaly injection on an
+installed appliance. Strict-CSP browser checks covered admin polling, member alert
+removal, mobile layout and absence of automatic UI mutations.
+
+The same run retained the official-frp heartbeat regression: original sockets
+closed in 9.106 seconds, proxies disappeared in 9.119 seconds after stop dispatch,
+recovery took 1.269 seconds after the start command returned, and the revoked
+device disappeared in 9.843 seconds. These measurements are hosted regression
+evidence. The earlier nullable cluster-label failure and formatting failure remain
+recorded with their corrections.
