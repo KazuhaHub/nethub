@@ -48,8 +48,12 @@ func (s *AuthStore) PasswordCandidate(ctx context.Context, email string) (auth.C
 	return candidate, tx.Commit()
 }
 
+func validSessionRecord(record auth.SessionRecord) bool {
+	return len(record.TokenHash) == 32 && len(record.CSRFHash) == 32 && record.IP.IsValid() && record.IP.Zone() == "" && len(record.UserAgent) <= 1024 && record.ExpiresAt.After(record.CreatedAt)
+}
+
 func (s *AuthStore) CreateSession(ctx context.Context, candidate auth.Candidate, record auth.SessionRecord) (auth.SessionRecord, error) {
-	if len(record.TokenHash) != 32 || len(record.CSRFHash) != 32 || !record.IP.IsValid() || record.IP.Zone() != "" || len(record.UserAgent) > 1024 || !record.ExpiresAt.After(record.CreatedAt) {
+	if !validSessionRecord(record) {
 		return auth.SessionRecord{}, errors.New("invalid session record")
 	}
 	tx, err := s.begin(ctx, false)

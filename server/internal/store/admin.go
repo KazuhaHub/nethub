@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"strings"
-	"unicode/utf8"
 
 	"github.com/KazuhaHub/nethub/server/internal/auth"
 )
@@ -20,7 +18,7 @@ func CreateInitialAdmin(ctx context.Context, db *sql.DB, email, password string)
 	if err != nil {
 		return errors.New("a valid administrator email is required")
 	}
-	if !utf8.ValidString(password) || utf8.RuneCountInString(password) < 15 || len(password) > auth.MaxPasswordBytes || strings.ContainsAny(password, "\r\n\x00") {
+	if auth.ValidateNewPassword(password) != nil {
 		return errors.New("administrator password must contain at least 15 characters and at most 1024 UTF-8 bytes")
 	}
 	var role string

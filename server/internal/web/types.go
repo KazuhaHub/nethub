@@ -111,6 +111,7 @@ type DeviceDisconnect struct {
 // an authorization role. Implementations recheck the active actor in SQL.
 type Repository interface {
 	UserRepository
+	InvitationRepository
 	Health(context.Context) error
 	Devices(context.Context, string, DeviceQuery) (DevicePage, error)
 	IssueEnrollToken(context.Context, string, netip.Addr) (EnrollToken, error)

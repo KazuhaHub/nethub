@@ -19,6 +19,18 @@ import (
 )
 
 type fixtureRepository struct {
+	inviteAuditError      error
+	inviteGrant           IssuedInvitation
+	invitePage            InvitationPage
+	inviteInfo            auth.InvitationInfo
+	inviteError           error
+	inviteIssued          int
+	inviteWithdrawn       int
+	inviteInspected       int
+	inviteAccepted        int
+	inviteFailures        int
+	inviteInput           InvitationInput
+	inviteDigest          []byte
 	disconnect            DeviceDisconnect
 	disconnectErr         error
 	disconnected          int
@@ -41,6 +53,54 @@ type fixtureRepository struct {
 	userErr               error
 	userReads, userWrites int
 	userPatch             UserPatch
+}
+
+func (f *fixtureRepository) IssueInvitation(_ context.Context, _ string, input InvitationInput, ip netip.Addr) (IssuedInvitation, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.inviteIssued++
+	f.inviteInput = input
+	f.lastIP = ip
+	return f.inviteGrant, f.inviteError
+}
+func (f *fixtureRepository) Invitations(context.Context, string, UserQuery) (InvitationPage, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.invitePage, f.inviteError
+}
+func (f *fixtureRepository) WithdrawInvitation(_ context.Context, _ string, id string, ip netip.Addr) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.inviteWithdrawn++
+	f.openID = id
+	f.lastIP = ip
+	return f.inviteError
+}
+func (f *fixtureRepository) InspectInvitation(_ context.Context, digest []byte) (auth.InvitationInfo, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.inviteInspected++
+	f.inviteDigest = append([]byte(nil), digest...)
+	return f.inviteInfo, f.inviteError
+}
+func (f *fixtureRepository) InvitationFailed(_ context.Context, ip netip.Addr) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.inviteFailures++
+	f.lastIP = ip
+	return f.inviteAuditError
+}
+func (f *fixtureRepository) AcceptInvitation(_ context.Context, digest []byte, _ string, record auth.SessionRecord) (auth.SessionRecord, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.inviteAccepted++
+	f.inviteDigest = append([]byte(nil), digest...)
+	if f.inviteError != nil {
+		return auth.SessionRecord{}, f.inviteError
+	}
+	record.User = auth.User{ID: "00000000-0000-4000-8000-000000000099", Email: "invited@example.com", Role: "member"}
+	f.sessions[string(record.TokenHash)] = record
+	return record, nil
 }
 
 func (f *fixtureRepository) Users(context.Context, string, UserQuery) (UserPage, error) {

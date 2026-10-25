@@ -1,6 +1,10 @@
 # Local console authentication
 
 This package implements the W3 password/session service and HTTP policy helpers.
+It also prepares local invitation sessions with the same cookie/CSRF machinery
+and hashing budget; the repository atomically consumes the invitation and creates
+the account/session/audit. Account policy remains application code. See the
+[invitation backend](../../../deploy/invitations.md) for scope and remaining UI/SSO.
 The console API wires these helpers, and real deployed browser flows pass.
 Clean-host public deployment acceptance also passed; see
 [deployment validation](../../../deploy/validation-w3.md).

@@ -7,7 +7,8 @@
 > implemented with NewUserConn enforcement in generated relay bundles. Open,
 > Revoke and disconnect UI/API are implemented; combined native/public W5 acceptance
 > remains pending. W6 user listing and role/disable UI/API are implemented.
-> Invitation/provider login and other W6-W7 console endpoints below
+> Invitation administration/inspection/local-acceptance APIs are implemented;
+> the invitation UI, provider login and other W6-W7 console endpoints below
 > remain proposals.
 > Update this document in the same pull request as any API contract change.
 > [`DESIGN.md`](DESIGN.md) is the authority on behaviour; where this document
@@ -565,6 +566,8 @@ Admin only. Request: any of `{ "role": "admin" | "member", "disabled": true | fa
 ### `POST /invites`
 
 Admin only. Request: `{ "email": "alice@example.com", "role": "member" }`.
+An optional `provider_id` restricts the invitation to an enabled provider; null
+means unrestricted. A restricted invitation cannot use local-password acceptance.
 
 Response `201`:
 
@@ -572,17 +575,21 @@ Response `201`:
 { "id": "…", "invite_url": "https://console.example.com/invite#…", "expires_at": "2026-10-19T08:00:00Z" }
 ```
 
-- The lifetime is proposed at 72 hours (open, §10).
+- The approved lifetime is 72 hours, generated from one database timestamp.
 - Errors: `409 user_exists`.
 
 ### `GET /invites`
 
 Admin only. Lists pending invites (`id`, `email`, `role`, `created_at`,
 `expires_at`, `created_by`), never the token.
+The implemented page accepts `limit` (1–200, default 50) and `cursor`, and returns
+`{ "items": [...], "next_cursor": null | "..." }`. `created_by` has `id`/`email`.
 
 ### `DELETE /invites/{id}`
 
 Admin only. Withdraws a pending invite. Response `204`.
+No request body is accepted. Session CSRF and Origin checks still apply. An exact
+withdrawal retry preserves the first timestamp and audit.
 
 ### `POST /invites/inspect`
 
@@ -591,7 +598,7 @@ Request: `{ "token": "…" }`.
 Response `200`:
 
 ```json
-{ "email": "alice@example.com", "role": "member", "expires_at": "…", "providers": [ { "slug": "company-sso", "display_name": "Company SSO" } ] }
+{ "email": "alice@example.com", "role": "member", "expires_at": "…", "password_allowed": true, "providers": [ { "slug": "company-sso", "display_name": "Company SSO", "kind": "oidc" } ] }
 ```
 
 Errors: `404 invite_invalid`, for an unknown, used, expired or withdrawn
@@ -603,6 +610,13 @@ Accepts with a local password. Request: `{ "token": "…", "password": "…" }`.
 
 - Response `200`: same body as `POST /login`, with the session cookie set.
 - Errors: `404 invite_invalid`, `422 weak_password`, `429 rate_limited`.
+
+The token consumption, new account, first session and both audit entries commit
+atomically. Existing emails and provider-restricted local claims are refused;
+no account is attached by email. Validity is checked after invitation/mailbox
+lock waits. An uncertain delivery does not permit token replay: the holder can
+explicitly sign in with the chosen password. The invitation UI and SSO claim
+remain unfinished; see [backend scope](../deploy/invitations.md).
 
 ## 7. OIDC providers
 
