@@ -160,9 +160,11 @@ func testRelayAnomalies(t *testing.T, f *enrollmentFixture, webRole *sql.DB, ten
 		if err := repository.Commit(f.ctx, routes, inspect(t, routes), confirm(t, inspect(t, routes), 10)); err != nil {
 			t.Fatal(err)
 		}
-		_,immutableError:=f.owner.ExecContext(f.ctx,`UPDATE relay_anomaly_incidents SET response='revoked' WHERE proxy_key=$1`,routes[0].ProxyKey)
+		_, immutableError := f.owner.ExecContext(f.ctx, `UPDATE relay_anomaly_incidents SET response='revoked' WHERE proxy_key=$1`, routes[0].ProxyKey)
 		var receiptError *pgconn.PgError
-		if !errors.As(immutableError,&receiptError) || receiptError.Code!="23514" {t.Fatal("owner update bypassed immutable incident response",immutableError)}
+		if !errors.As(immutableError, &receiptError) || receiptError.Code != "23514" {
+			t.Fatal("owner update bypassed immutable incident response", immutableError)
+		}
 		for index, value := range values {
 			if isRevoked(t, value.ID) || countIncidents(t, routes[index].ProxyKey) != 1 {
 				t.Fatal("persisted alarm escalated or duplicated")
