@@ -96,3 +96,12 @@ An existing host reverse proxy can own console HTTPS and its certificates. Use
 loopback HTTP origins and explicit proxy trust. The generated stack then omits
 bundled Caddy entirely. Relay TLS and per-router GUI certificates have separate
 lifecycles.
+
+
+## Provider encryption key
+
+Web loads the existing private `secrets/web/secrets_key` through
+`--secrets-key-file`; generated bundles bind `/run/secrets/secrets_key`. Preserve
+this file with the deployment backup. Missing or invalid material prevents Web
+startup. The [credential envelope and startup checks](provider-secrets.md) are
+implemented; provider administration and SSO acceptance remain W6 work.

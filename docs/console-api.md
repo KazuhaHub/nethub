@@ -8,7 +8,7 @@
 > Revoke and disconnect UI/API are implemented; combined native/public W5 acceptance
 > remains pending. W6 user listing and role/disable UI/API are implemented.
 > Invitation administration/inspection/local-acceptance UI and APIs are implemented;
-> browser validation is in progress. Provider login and other W6-W7 console endpoints
+> isolated browser validation passed in PR #171. Provider login and other W6-W7 console endpoints
 > below remain proposals.
 > Update this document in the same pull request as any API contract change.
 > [`DESIGN.md`](DESIGN.md) is the authority on behaviour; where this document
@@ -659,7 +659,9 @@ Request:
     deployer explicitly allows a host (for example a Dex instance inside the
     compose stack for testing).
 - `client_secret` is encrypted with `NETHUB_SECRETS_KEY` before it is stored
-  (DESIGN §6).
+  (DESIGN §6). The key is supplied by the private `--secrets-key-file`, not its
+  plaintext environment value. [Envelope/startup foundation](../deploy/provider-secrets.md)
+  is implemented; the provider write API and actual database-write proof remain pending.
 - Response `201`: the provider object.
 - Errors: `409 slug_taken`, `422 oidc_discovery_failed`.
 

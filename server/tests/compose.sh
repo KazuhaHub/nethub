@@ -27,6 +27,7 @@ postgres_image=${NETHUB_POSTGRES_TEST_IMAGE:-"$image-postgres"}
 caddy_image=${NETHUB_CADDY_TEST_IMAGE:-"$image-caddy"}
 frps_image=${NETHUB_FRPS_TEST_IMAGE:-"$image-frps"}
 frps_container="$project-frps-smoke"
+provider_key_container="$project-provider-key-smoke"
 http01_test_image="$project-http01-test:local"
 http01_binary_holder="$project-http01-binary"
 guiacme_test_image="$project-guiacme-test:local"
@@ -55,7 +56,7 @@ cleanup() {
             if [ -f "$log" ]; then tail -n 60 "$log" >&2; fi
         done
     fi
-    for container in "$frps_container" "$http01_binary_holder" "$guiacme_binary_holder" "$guiissuer_binary_holder" "$setup_binary_holder"; do
+    for container in "$frps_container" "$provider_key_container" "$http01_binary_holder" "$guiacme_binary_holder" "$guiissuer_binary_holder" "$setup_binary_holder"; do
         timeout --kill-after=5 15 docker rm -f "$container" >/dev/null 2>&1 || true
     done
     for test_image in "$http01_test_image" "$guiacme_test_image" "$guiissuer_test_image" "$setup_test_image"; do
@@ -208,6 +209,8 @@ assert services['nethub-authz']['depends_on']['migrate']['condition']=='service_
 assert services['frps']['network_mode']=='host' and not services['frps'].get('ports')
 assert services['frps']['depends_on']['nethub-authz']['condition']=='service_healthy'
 web=services['nethub-web'];assert len(web['volumes'])==1 and web['volumes'][0]['source'].endswith('/secrets/web')
+assert web['command'].count('--secrets-key-file')==1
+assert web['command'][web['command'].index('--secrets-key-file')+1]=='/run/secrets/secrets_key'
 assert services['admin-bootstrap']['volumes'][0]['source'].endswith('/secrets/migrate')
 assert services['nethub-web']['networks']['edge']['ipv4_address']!=services['caddy']['networks']['edge']['ipv4_address']
 manifest=json.loads((s/'deployment/setup.json').read_text());assert manifest['confirmed_at']
@@ -229,6 +232,30 @@ docker run --rm --network none --entrypoint /frps-official \
 echo 'Official checksum-verified frps accepted the generated production configuration'
 echo 'Starting the isolated Compose services (210-second command deadline, 150-second health wait)'
 compose up -d --wait --wait-timeout 150 > "$stage/start.log" 2>&1
+for key_case in missing malformed unsafe; do
+    printf '%s\n' 'invalid-provider-key-fixture' > "$stage/provider-key-fixture"
+    chmod 600 "$stage/provider-key-fixture"
+    chown 65532 "$stage/provider-key-fixture"
+    key_path=/run/provider-key-fixture
+    if [ "$key_case" = missing ]; then key_path=/run/missing-provider-key; fi
+    if [ "$key_case" = unsafe ]; then
+        openssl rand -hex 32 > "$stage/provider-key-fixture"
+        chmod 644 "$stage/provider-key-fixture"
+    fi
+    key_status=0
+    timeout --signal=TERM --kill-after=5 30 docker run --rm --name "$provider_key_container" \
+        --network none --read-only --cap-drop ALL --security-opt no-new-privileges \
+        -v "$stage/provider-key-fixture:/run/provider-key-fixture:ro" "$image" web \
+        --password-file /run/unused-database-password --origin https://console.example.com \
+        --device-domain router.example.com --secrets-key-file "$key_path" \
+        > "$stage/provider-key-$key_case.log" 2>&1 || key_status=$?
+    if [ "$key_status" -ne 1 ] || ! grep -Fqx 'Console provider-encryption key is missing or invalid' "$stage/provider-key-$key_case.log"; then
+        echo "Console provider-key refusal failed for $key_case (exit $key_status)" >&2
+        exit 1
+    fi
+done
+chmod 600 "$stage/provider-key-fixture"
+echo 'Actual web container loaded its generated provider key and refused missing, malformed and unsafe keys without database or network access'
 echo 'Isolated Compose startup completed; creating the initial administrator (90-second deadline)'
 openssl rand -hex 24 > "$stage/admin-password"
 compose_for 90 run --rm -T admin-bootstrap --email compose-admin@example.com --password-stdin < "$stage/admin-password" > "$stage/admin.log" 2>&1
