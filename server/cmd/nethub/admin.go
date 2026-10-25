@@ -10,7 +10,6 @@ import (
 	"io"
 	"os"
 	"time"
-	"unicode/utf8"
 
 	"github.com/KazuhaHub/nethub/server/internal/auth"
 	"github.com/KazuhaHub/nethub/server/internal/store"
@@ -118,7 +117,7 @@ func readPasswordInput(input io.Reader) ([]byte, error) {
 }
 
 func validateAdminPassword(password []byte) error {
-	if !utf8.Valid(password) || utf8.RuneCount(password) < 15 || len(password) > auth.MaxPasswordBytes || bytes.ContainsAny(password, "\r\n\x00") {
+	if auth.ValidateNewPassword(string(password)) != nil {
 		return errors.New("Use a password of at least 15 characters and at most 1024 UTF-8 bytes, without embedded line endings or NUL")
 	}
 	return nil

@@ -37,6 +37,7 @@ type Server struct {
 	openLimits                          *auth.AttemptLimiter
 	revokeLimits                        *auth.AttemptLimiter
 	disconnectLimits                    *auth.AttemptLimiter
+	inviteInspectLimits                 *auth.AttemptLimiter
 }
 
 func New(config Config, service *auth.Service, repository Repository) (*Server, error) {
@@ -65,7 +66,7 @@ func New(config Config, service *auth.Service, repository Repository) (*Server, 
 		return nil, err
 	}
 	return &Server{auth: service, repository: repository, origin: origin, clientIP: resolver, logger: config.Logger,
-		host: strings.TrimSuffix(strings.ToLower(u.Host), ":443"), consoleHostname: strings.ToLower(u.Hostname()), deviceDomain: domain, enrollLimits: auth.NewAttemptLimiter(), openLimits: auth.NewAttemptLimiter(), revokeLimits: auth.NewAttemptLimiter(), disconnectLimits: auth.NewAttemptLimiter()}, nil
+		host: strings.TrimSuffix(strings.ToLower(u.Host), ":443"), consoleHostname: strings.ToLower(u.Hostname()), deviceDomain: domain, enrollLimits: auth.NewAttemptLimiter(), openLimits: auth.NewAttemptLimiter(), revokeLimits: auth.NewAttemptLimiter(), disconnectLimits: auth.NewAttemptLimiter(), inviteInspectLimits: auth.NewAttemptLimiter()}, nil
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -130,11 +131,35 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if allowMethod(w, r, "GET") {
 			s.users(w, r)
 		}
+	case prefix + "/invites/inspect":
+		if allowMethod(w, r, "POST") {
+			s.inspectInvitation(w, r, ip)
+		}
+	case prefix + "/invites/accept":
+		if allowMethod(w, r, "POST") {
+			s.acceptInvitation(w, r, ip)
+		}
+	case prefix + "/invites":
+		switch r.Method {
+		case "GET", "HEAD":
+			s.invitations(w, r)
+		case "POST":
+			s.issueInvitation(w, r, ip)
+		default:
+			w.Header().Set("Allow", "GET, HEAD, POST")
+			writeError(w, r, 405, "method_not_allowed", "Method not allowed")
+		}
 	case prefix + "/enroll-tokens":
 		if allowMethod(w, r, "POST") {
 			s.enroll(w, r, ip)
 		}
 	default:
+		if strings.HasPrefix(r.URL.Path, prefix+"/invites/") {
+			if allowMethod(w, r, "DELETE") {
+				s.withdrawInvitation(w, r, ip)
+			}
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, prefix+"/users/") {
 			if allowMethod(w, r, "PATCH") {
 				s.updateUser(w, r, ip)

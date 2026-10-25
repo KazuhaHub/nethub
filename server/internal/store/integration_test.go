@@ -569,4 +569,5 @@ func TestPostgresBoundaries(t *testing.T) {
 	// bootstrap-only lifecycle fixtures must run before that explicit rotation.
 	t.Run("atomic_device_enrollment", func(t *testing.T) { testAtomicEnrollment(t, ctx, owner, authz, web, tenantA, tenantB) })
 	t.Run("console_user_administration", func(t *testing.T) { testConsoleUsers(t, ctx, owner, web) })
+	t.Run("console_invitations", func(t *testing.T) { testConsoleInvitations(t, ctx, owner, web) })
 }

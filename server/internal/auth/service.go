@@ -65,11 +65,12 @@ type Config struct {
 }
 
 type Service struct {
-	repository Repository
-	config     Config
-	dummyHash  string
-	workers    chan struct{}
-	limits     *AttemptLimiter
+	repository   Repository
+	config       Config
+	dummyHash    string
+	workers      chan struct{}
+	limits       *AttemptLimiter
+	inviteLimits *AttemptLimiter
 }
 
 func NewService(repository Repository, config Config) (*Service, error) {
@@ -93,7 +94,7 @@ func NewService(repository Repository, config Config) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Service{repository: repository, config: config, dummyHash: hash, workers: make(chan struct{}, 2), limits: newLoginLimiter(10000)}, nil
+	return &Service{repository: repository, config: config, dummyHash: hash, workers: make(chan struct{}, 2), limits: newLoginLimiter(10000), inviteLimits: newLoginLimiter(10000)}, nil
 }
 
 func NormalizeEmail(email string) (string, error) {
@@ -146,21 +147,16 @@ func (s *Service) Login(ctx context.Context, email, password string, ip netip.Ad
 	if err != nil || verifyErr != nil || !valid || candidate.Disabled || candidate.PasswordHash == "" {
 		return LoginResult{}, ErrInvalidCredentials
 	}
-	token, err := newToken()
-	if err != nil {
-		return LoginResult{}, ErrUnavailable
-	}
-	digest, _ := tokenHash(token)
-	csrf := csrfFor(token)
-	now := time.Now().UTC()
-	record, err := s.repository.CreateSession(ctx, candidate, SessionRecord{TokenHash: digest, CSRFHash: csrfHash(csrf), CreatedAt: now, ExpiresAt: now.Add(s.config.AbsoluteTimeout), IP: ip.Unmap(), UserAgent: userAgent})
+	result, err := s.establishSession(ctx, ip, userAgent, func(record SessionRecord) (SessionRecord, error) {
+		return s.repository.CreateSession(ctx, candidate, record)
+	})
 	if errors.Is(err, ErrInvalidCredentials) {
 		return LoginResult{}, err
 	}
 	if err != nil {
 		return LoginResult{}, ErrUnavailable
 	}
-	return LoginResult{Session: Session{User: record.User, CSRFToken: csrf, ExpiresAt: record.ExpiresAt}, Token: token}, nil
+	return result, nil
 }
 
 func (s *Service) Authenticate(ctx context.Context, token string) (Session, error) {

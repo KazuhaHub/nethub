@@ -48,6 +48,20 @@ func fixtureUsers() map[string]web.ManagedUser {
 	return users
 }
 
+func (r *repository) IssueInvitation(context.Context, string, web.InvitationInput, netip.Addr) (web.IssuedInvitation, error) {
+	return web.IssuedInvitation{}, auth.ErrUnavailable
+}
+func (r *repository) Invitations(context.Context, string, web.UserQuery) (web.InvitationPage, error) {
+	return web.InvitationPage{Items: []web.Invitation{}}, nil
+}
+func (r *repository) WithdrawInvitation(context.Context, string, string, netip.Addr) error {
+	return auth.ErrInviteInvalid
+}
+func (r *repository) InspectInvitation(context.Context, []byte) (auth.InvitationInfo, error) {
+	return auth.InvitationInfo{}, auth.ErrInviteInvalid
+}
+func (r *repository) InvitationFailed(context.Context, netip.Addr) error { return nil }
+
 func (r *repository) Users(_ context.Context, actor string, query web.UserQuery) (web.UserPage, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
