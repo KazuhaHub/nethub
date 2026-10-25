@@ -19,23 +19,40 @@ import (
 )
 
 type fixtureRepository struct {
-	disconnect    DeviceDisconnect
-	disconnectErr error
-	disconnected  int
-	mu            sync.Mutex
-	hash          string
-	sessions      map[string]auth.SessionRecord
-	lastIP        netip.Addr
-	issued        int
-	failure       error
-	page          DevicePage
-	opened        int
-	openID        string
-	access        DeviceAccess
-	openErr       error
-	revoked       int
-	revocation    DeviceRevocation
-	revokeErr     error
+	disconnect            DeviceDisconnect
+	disconnectErr         error
+	disconnected          int
+	mu                    sync.Mutex
+	hash                  string
+	sessions              map[string]auth.SessionRecord
+	lastIP                netip.Addr
+	issued                int
+	failure               error
+	page                  DevicePage
+	opened                int
+	openID                string
+	access                DeviceAccess
+	openErr               error
+	revoked               int
+	revocation            DeviceRevocation
+	revokeErr             error
+	userPage              UserPage
+	userResult            ManagedUser
+	userErr               error
+	userReads, userWrites int
+	userPatch             UserPatch
+}
+
+func (f *fixtureRepository) Users(context.Context, string, UserQuery) (UserPage, error) {
+	f.userReads++
+	return f.userPage, f.userErr
+}
+func (f *fixtureRepository) UpdateUser(_ context.Context, _ string, id string, patch UserPatch, ip netip.Addr) (ManagedUser, error) {
+	f.userWrites++
+	f.openID = id
+	f.userPatch = patch
+	f.lastIP = ip
+	return f.userResult, f.userErr
 }
 
 func (f *fixtureRepository) RequestDisconnect(_ context.Context, _ string, id string, ip netip.Addr) (DeviceDisconnect, error) {
