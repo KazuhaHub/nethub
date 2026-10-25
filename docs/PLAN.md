@@ -1670,7 +1670,7 @@ Enroll 前提示用户：请确认你有**不依赖 NetHub** 的其他访问方�
 - [ ] 如果 W0 发现没有哪种断线机制可用：已经按 DESIGN §5 的另一种取舍（只挡新访问，接受"已建立的隧道断不掉"），并且把这一点写进了文档
 - [ ] 如果用了 `Ping` 机制：停掉 authz，确认在线隧道全部断开，再启动 authz，确认它们自动恢复（贴时间记录）
 - [x] （如果做了门禁）没点"打开"的 IP 访问不了；点了之后可以 — paired desktop public-IP checks passed; the mobile sample remains open.
-- [ ] 重启路由器、恢复 `config.xml`、WAN 换 IP 三种情况都自动恢复
+- [x] 重启路由器、恢复 `config.xml`、WAN 换 IP 三种情况都自动恢复 — installed 0.0.18 passed all three checks and a fresh public GUI login. Subsequent UI removal remained unconfirmed; the overall operation stays failed. [Measurements and cleanup limits](../deploy/validation-native-w5-recovery.md#installed-0018-recovery-checks).
 - [x] enroll 页面有带外访问的提醒 — observed before actual native 0.0.17 enrollment.
 
 ### 常见坑
