@@ -41,6 +41,10 @@ dialog submits only changed role/disable fields. It preserves a last-admin error
 for review, supports Cancel/Escape without a mutation, and refuses dismissal
 while a save is pending. Desktop light/dark and mobile layouts use the existing
 console components and CSP; no inline-style exception is needed.
+Table hover transitions animate the background only. Tests switch the theme
+within one rendering frame and require account-text contrast of at least 4.5:1;
+screenshots capture completed animations. This prevents inherited text from
+briefly retaining its previous theme color against the new background.
 
 The save request has a fifteen-second client deadline. A timeout reports an
 unconfirmed change and never replays the mutation automatically; it does not

@@ -36,11 +36,55 @@ export async function verifyUsers({ page, origin, evidence, login }) {
       exact: true,
     });
     if (await light.count()) await light.click();
-    await page.screenshot({ path: join(evidence, "users-desktop.png") });
+    const contrastSamples = await page.evaluate(() => {
+      const root = document.documentElement,
+        cell = document.querySelector("tbody tr td"),
+        panel = document.querySelector(".device-panel");
+      const original = root.classList.contains("dark");
+      const luminance = (color) => {
+        const rgb = color
+          .match(/[\d.]+/g)
+          .slice(0, 3)
+          .map(Number)
+          .map((value) => value / 255);
+        const linear = rgb.map((value) =>
+          value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4,
+        );
+        return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+      };
+      getComputedStyle(cell).color;
+      const measure = (dark) => {
+        root.classList.toggle("dark", dark);
+        const foreground = luminance(getComputedStyle(cell).color),
+          background = luminance(getComputedStyle(panel).backgroundColor);
+        return {
+          dark,
+          ratio:
+            (Math.max(foreground, background) + 0.05) /
+            (Math.min(foreground, background) + 0.05),
+        };
+      };
+      try {
+        return [measure(!original), measure(original)];
+      } finally {
+        root.classList.toggle("dark", original);
+      }
+    });
+    assert.ok(
+      contrastSamples.every((sample) => sample.ratio >= 4.5),
+      `Account text lost contrast on a theme change: ${JSON.stringify(contrastSamples)}`,
+    );
+    await page.screenshot({
+      path: join(evidence, "users-desktop.png"),
+      animations: "disabled",
+    });
     await page
       .getByRole("button", { name: "Use dark theme", exact: true })
       .click();
-    await page.screenshot({ path: join(evidence, "users-desktop-dark.png") });
+    await page.screenshot({
+      path: join(evidence, "users-desktop-dark.png"),
+      animations: "disabled",
+    });
     await page.getByRole("button", { name: "Next user page" }).click();
     await users.getByText("extra-49@example.com", { exact: true }).waitFor();
     assert.equal(await member().count(), 0);
@@ -95,6 +139,7 @@ export async function verifyUsers({ page, origin, evidence, login }) {
     );
     await page.screenshot({
       path: join(evidence, "users-mobile-dialog.png"),
+      animations: "disabled",
     });
     let release;
     const delayed = new Promise((resolve) => {
@@ -261,6 +306,10 @@ export async function verifyUsers({ page, origin, evidence, login }) {
           self_demotion_refreshed_authority: true,
           self_disable_signed_out: true,
           fixture_backend: true,
+          theme_contrast_verified: true,
+          minimum_text_contrast: Math.min(
+            ...contrastSamples.map((sample) => sample.ratio),
+          ),
         },
         null,
         2,
