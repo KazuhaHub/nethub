@@ -105,13 +105,42 @@ try {
     path: join(evidence, "login-light.png"),
     fullPage: true,
   });
-  async function login() {
+  async function login({ waitForRateLimit = false } = {}) {
     await page.getByLabel("Email address").fill("ui-test@example.com");
     await page
       .getByLabel("Password", { exact: true })
       .fill("isolated UI fixture passphrase");
-    await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    await page.getByRole("heading", { name: "Devices", exact: true }).waitFor();
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const reply = page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === "/api/v1/console/login" &&
+          response.request().method() === "POST",
+      );
+      await page.getByRole("button", { name: "Sign in", exact: true }).click();
+      const response = await reply;
+      if (response.status() === 429 && waitForRateLimit && attempt === 0) {
+        const delay = Number(response.headers()["retry-after"]);
+        assert.ok(Number.isInteger(delay) && delay >= 1 && delay <= 60);
+        console.log(
+          "Browser fixture honored the production login Retry-After before one explicit retry.",
+        );
+        await page.waitForTimeout(delay * 1000 + 100);
+        await page
+          .getByLabel("Password", { exact: true })
+          .fill("isolated UI fixture passphrase");
+        continue;
+      }
+      assert.equal(
+        response.status(),
+        200,
+        "Fixture password login must succeed",
+      );
+      await page
+        .getByRole("heading", { name: "Devices", exact: true })
+        .waitFor();
+      return;
+    }
+    assert.fail("Fixture login did not recover after Retry-After");
   }
   await login();
   await page

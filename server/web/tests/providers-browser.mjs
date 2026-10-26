@@ -44,7 +44,7 @@ export async function verifyProviders({ page, origin, evidence, login }) {
     await page.request.post(origin + "/test/providers-reset");
     await page.context().clearCookies();
     await page.goto(origin + "/login");
-    await login();
+    await login({ waitForRateLimit: true });
     await page
       .getByRole("link", { name: "Identity providers", exact: true })
       .click();
@@ -443,7 +443,7 @@ export async function verifyProviders({ page, origin, evidence, login }) {
         { exact: true },
       )
       .waitFor();
-    await login();
+    await login({ waitForRateLimit: true });
     await page.getByRole("heading", { name: "Devices", exact: true }).waitFor();
     await page.unroute("**/api/v1/console/oidc/providers");
     writeFileSync(
