@@ -16,6 +16,7 @@ type Purpose string
 const (
 	OIDCClientSecret Purpose = "oidc-client-secret"
 	SAMLSigningKey   Purpose = "saml-signing-key"
+	OIDCFlowState    Purpose = "oidc-flow-state"
 )
 
 // Binding authenticates the storage row and credential purpose without exposing
@@ -49,7 +50,7 @@ func (c *Cipher) GoString() string { return c.String() }
 
 func associatedData(b Binding) ([]byte, error) {
 	if len(b.TenantID) < 1 || len(b.TenantID) > 64 || len(b.ProviderID) < 1 || len(b.ProviderID) > 64 ||
-		b.Purpose != OIDCClientSecret && b.Purpose != SAMLSigningKey {
+		b.Purpose != OIDCClientSecret && b.Purpose != SAMLSigningKey && b.Purpose != OIDCFlowState {
 		return nil, ErrUnavailable
 	}
 	data := []byte("nethub/provider-secret/v1")

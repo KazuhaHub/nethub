@@ -309,6 +309,10 @@ Errors:
 
 ### OIDC sign-in
 
+The backend routes are implemented. Provider/sign-in/claim pages, actual
+two-provider/public-provider deployment and combined W6 acceptance remain open.
+See [browser state and admission scope](../deploy/oidc-login.md).
+
 The flow follows DESIGN §6 and decision #22: authorization code with PKCE,
 `state` and `nonce` kept server-side, identities bound by `(issuer, subject)`.
 
@@ -324,6 +328,10 @@ The flow follows DESIGN §6 and decision #22: authorization code with PKCE,
   user arrived from an invite link (see [§6](#6-users-and-invites)).
 - The server creates the flow record, which holds `state`, `nonce`, the PKCE
   verifier and, if present, the invite. It sets a short-lived flow cookie.
+  State/browser bearers and the invitation are stored as digests; nonce/verifier
+  and configuration binding use a separate authenticated encrypted envelope.
+  The database lifetime is five minutes. An explicitly provided invite token
+  must be canonical; empty/null values do not fall back to ordinary sign-in.
 - Response `200`: `{ "redirect_url": "https://idp.example.com/authorize?…" }`.
   The console then navigates the browser to that URL.
 
@@ -335,6 +343,9 @@ provider. It is a browser endpoint, not a JSON one.
 
 - The server checks `state` against the flow cookie and exchanges the code
   using the PKCE verifier.
+  Matching state is atomically consumed before remote I/O, and its encrypted
+  payload is cleared. Replay and failed-exchange retry require a new flow.
+  HEAD does not invoke the callback. Duplicate parameters/cookies are refused.
 - It verifies the ID token (issuer, audience, expiry) and checks `nonce`.
 - Then it decides:
   - if `(issuer, subject)` is bound to an active user, it signs that user in;
@@ -349,6 +360,7 @@ provider. It is a browser endpoint, not a JSON one.
 - On success it redirects to the console home page.
 - On any failure it redirects to `/login?error=sso_failed`. The reason is
   recorded in the audit log, not shown to the browser.
+  Reasons are fixed categories; raw upstream diagnostics are never retained.
 
 ## 5. Devices and enroll tokens
 

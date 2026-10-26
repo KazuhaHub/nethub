@@ -290,9 +290,11 @@ OIDC without changing the existing package APIs. It is not a new release tag.
 Authcore owns protocol verification. NetHub owns persistent browser/replay state,
 tenant/account admission, invitations, roles, cookies, outbound network policy,
 credential encryption and audit. Login and proxy-IP policy remain in NetHub.
-The [provider backend](../deploy/oidc-providers.md) implements administrator APIs;
-provider pages, actual OIDC/SAML admission and combined W6 deployment acceptance
-remain unfinished. Optional `captcha`, `geoip` and later `passkey` integrations
+The [provider backend](../deploy/oidc-providers.md) implements administrator APIs.
+The [OIDC callback backend](../deploy/oidc-login.md) implements durable browser
+state and transactional identity/invitation admission; hosted acceptance,
+provider/sign-in pages, deployed OIDC/SAML flows and combined W6 acceptance remain
+unfinished. Optional `captcha`, `geoip` and later `passkey` integrations
 remain separate decisions.
 
 ## Data model

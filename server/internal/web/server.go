@@ -13,6 +13,7 @@ import (
 
 	"github.com/KazuhaHub/nethub/server/internal/auth"
 	"github.com/KazuhaHub/nethub/server/internal/clientip"
+	"github.com/KazuhaHub/nethub/server/internal/sso"
 	"github.com/KazuhaHub/nethub/server/internal/webui"
 )
 
@@ -20,10 +21,18 @@ const prefix = "/api/v1/console"
 
 var hostnameLabel = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
 
+type SSOBackend interface {
+	Providers(context.Context) ([]sso.Choice, error)
+	Start(context.Context, string, string) (sso.StartResult, error)
+	Complete(ctx context.Context, slug, state, code, responseIssuer, browser string, ip netip.Addr, userAgent string) (auth.LoginResult, bool, error)
+	Failed(context.Context, netip.Addr, string) error
+}
+
 type Config struct {
 	Origin, DeviceDomain string
 	TrustedProxies       []netip.Prefix
 	Logger               *slog.Logger
+	SSO                  SSOBackend
 }
 
 type Server struct {
@@ -38,6 +47,8 @@ type Server struct {
 	revokeLimits                        *auth.AttemptLimiter
 	disconnectLimits                    *auth.AttemptLimiter
 	inviteInspectLimits                 *auth.AttemptLimiter
+	sso                                 SSOBackend
+	ssoStartLimits, ssoCallbackLimits   *auth.AttemptLimiter
 }
 
 func New(config Config, service *auth.Service, repository Repository) (*Server, error) {
@@ -66,6 +77,7 @@ func New(config Config, service *auth.Service, repository Repository) (*Server, 
 		return nil, err
 	}
 	return &Server{auth: service, repository: repository, origin: origin, clientIP: resolver, logger: config.Logger,
+		sso: config.SSO, ssoStartLimits: auth.NewAttemptLimiter(), ssoCallbackLimits: auth.NewAttemptLimiter(),
 		host: strings.TrimSuffix(strings.ToLower(u.Host), ":443"), consoleHostname: strings.ToLower(u.Hostname()), deviceDomain: domain, enrollLimits: auth.NewAttemptLimiter(), openLimits: auth.NewAttemptLimiter(), revokeLimits: auth.NewAttemptLimiter(), disconnectLimits: auth.NewAttemptLimiter(), inviteInspectLimits: auth.NewAttemptLimiter()}, nil
 }
 
@@ -131,6 +143,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if allowMethod(w, r, "GET") {
 			s.users(w, r)
 		}
+	case prefix + "/oidc/providers":
+		if allowMethod(w, r, "GET") {
+			s.loginProviders(w, r)
+		}
 	case prefix + "/oidc-providers":
 		switch r.Method {
 		case "GET", "HEAD":
@@ -164,6 +180,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			s.enroll(w, r, ip)
 		}
 	default:
+		if strings.HasPrefix(r.URL.Path, prefix+"/oidc/") {
+			s.oidcBrowser(w, r, ip)
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, prefix+"/oidc-providers/") {
 			switch r.Method {
 			case "PATCH", "DELETE":
