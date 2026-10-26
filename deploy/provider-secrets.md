@@ -2,9 +2,11 @@
 
 The Web process now loads the deployment's existing provider-encryption key and
 holds a cipher on its console repository. The bounded, versioned envelope is
-implemented and tested. Provider administration, actual credential database
-writes, discovery and OIDC/SAML login are still W6 work; this foundation does not
-establish that provider secrets are already stored or managed through the API.
+implemented and tested. PR #172 accepted the foundation after all six hosted
+checks in run `40194445864`, actual logs, DCO and container key/refusal checks.
+The [OIDC provider API](oidc-providers.md) now implements encrypted database writes
+and their SQL acceptance cases. Hosted acceptance for that API, provider pages
+and OIDC/SAML login remain unfinished W6 work.
 
 ## Key ownership and startup
 
@@ -43,7 +45,7 @@ when the deployment key is the same. Identifiers are opaque, nonempty values up
 to 64 bytes; account/provider policy remains outside the cipher package.
 
 Plaintext is bounded to 1–16384 bytes. Absence or explicit removal of an optional
-credential must be represented by the future storage contract, not an encrypted
+credential is represented by SQL NULL, not an encrypted
 empty string. Unknown versions, truncated or oversized envelopes, tampering and
 wrong context/key return one fixed error and no partial plaintext. Cipher debug
 and JSON formatting do not expose its expanded key material.
@@ -59,8 +61,7 @@ with its generated key and verify missing, malformed and unsafe-key refusal in
 separate containers with no network or database access. Hosted execution and
 actual logs are required before accepting that deployment behavior.
 
-Future provider tests must prove encryption before actual database writes,
-write-only credential fields, atomic audits, live administrator checks and
-discovery safety. This package is application storage policy; SAML protocol
-orchestration continues to use authcore, and matching OIDC orchestration belongs
-there as well.
+Provider tests cover encryption before database writes, write-only credential
+fields, atomic audits, live administrator checks and discovery safety. Hosted
+results must be inspected before accepting those new boundaries. This package is
+application storage policy; SAML and OIDC protocol orchestration use authcore.

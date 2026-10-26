@@ -19,6 +19,12 @@ import (
 )
 
 type fixtureRepository struct {
+	oidcPage              OIDCProviderPage
+	oidcResult            OIDCProvider
+	oidcInput             OIDCProviderInput
+	oidcPatch             OIDCProviderPatch
+	oidcErr               error
+	oidcReads, oidcWrites int
 	inviteAuditError      error
 	inviteGrant           IssuedInvitation
 	invitePage            InvitationPage

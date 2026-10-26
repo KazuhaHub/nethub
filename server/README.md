@@ -9,7 +9,8 @@ services on the device. That boundary is deliberate — see the top-level
 the reasoning.
 
 > **Status:** the W3 console deployment evidence is complete. The Go
-> module directly imports authcore/saml v0.6.2; the SAML adapter delegates protocol
+> module directly imports authcore's OIDC/SAML packages at verified commit
+> `211d823f478c` through a development pseudo-version; the adapters delegate protocol
 > processing and enforces console policy. The CLI provides the console API, migrate,
 > init, scoped doctor checks, and help/version. Authz remains unfinished. Database bootstrap,
 > migrations, and actual-role PostgreSQL/HTTPS API tests pass. The React console
@@ -205,7 +206,7 @@ server/
     authz/             device API, frps httpPlugins handler, frps admin poller
     claim/             domain-claim format, signing, verification
     auth/              local password (argon2id), sessions, CSRF, login throttling
-    oidc/              OIDC relying party (coreos/go-oidc v3 + x/oauth2)
+    sso/               OIDC/SAML authcore adapters and outbound-network policy
     store/             Postgres access, roles, migrations
     audit/             audit_log writer + hash chain
     clientip/          trusted-proxy client IP resolution
@@ -281,23 +282,18 @@ of this same binary, not separate tools.
 
 ## Shared auth code: authcore
 
-Shared authentication code lives in a separate Go module,
-`KazuhaHub/authcore` (Apache-2.0, license-compatible), whose extraction is
-finished. It is at v0.6.1 with the packages `captcha`, `geoip`, `passkey` and
-`saml`; it has no `oidc` package, and `audit`, `ratelimit` and `clientip` are
-not part of it (authcore ADRs 0002 and 0003).
+Shared authentication code lives in `KazuhaHub/authcore` (Apache-2.0). NetHub
+directly imports its `oidc` and `saml` packages for v1. The current verified
+development pin is merge `211d823f478ccdbf6bde8e5b85487e56bbdfe671`, which adds
+OIDC without changing the existing package APIs. It is not a new release tag.
 
-NetHub follows authcore's own admission logic: adopt a package only where it
-removes something NetHub would otherwise have to get right, and pin a verified
-tag (for example `@v0.6.1`).
-
-- v1 needs none of its packages. Optional: `captcha` after N failed logins;
-  `geoip` for login location in the audit view.
-- v1.1: `saml`.
-- Later: `passkey` as a console login option.
-- The OIDC relying party, the audit hash chain, login throttling and
-  trusted-proxy IP resolution stay in NetHub's own code (`internal/oidc`,
-  `internal/audit`, `internal/auth`, `internal/clientip`).
+Authcore owns protocol verification. NetHub owns persistent browser/replay state,
+tenant/account admission, invitations, roles, cookies, outbound network policy,
+credential encryption and audit. Login and proxy-IP policy remain in NetHub.
+The [provider backend](../deploy/oidc-providers.md) implements administrator APIs;
+provider pages, actual OIDC/SAML admission and combined W6 deployment acceptance
+remain unfinished. Optional `captcha`, `geoip` and later `passkey` integrations
+remain separate decisions.
 
 ## Data model
 

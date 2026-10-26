@@ -16,14 +16,28 @@ import (
 	"syscall"
 	"time"
 
+	authoidc "github.com/KazuhaHub/authcore/oidc"
 	"github.com/KazuhaHub/nethub/server/internal/auth"
 	"github.com/KazuhaHub/nethub/server/internal/providersecret"
+	"github.com/KazuhaHub/nethub/server/internal/sso"
 	"github.com/KazuhaHub/nethub/server/internal/store"
 	"github.com/KazuhaHub/nethub/server/internal/web"
 	"github.com/KazuhaHub/nethub/server/internal/webui"
 )
 
 type proxyFlags []netip.Prefix
+
+type oidcHostFlags []string
+
+func (p *oidcHostFlags) String() string { return strings.Join(*p, ",") }
+func (p *oidcHostFlags) Set(value string) error {
+	normalized, err := sso.NormalizePrivateHost(value)
+	if err != nil || len(*p) >= 16 {
+		return errors.New("oidc-private-host requires an exact HTTPS host[:port], at most 16 entries")
+	}
+	*p = append(*p, normalized)
+	return nil
+}
 
 func (p *proxyFlags) String() string {
 	parts := []string{}
@@ -58,6 +72,8 @@ func runWeb(args []string, stdout, stderr io.Writer) int {
 	absolute := flags.Duration("session-timeout", 12*time.Hour, "Absolute session timeout")
 	var proxies proxyFlags
 	flags.Var(&proxies, "trusted-proxy", "Trusted proxy CIDR; repeat for multiple proxies")
+	var oidcHosts oidcHostFlags
+	flags.Var(&oidcHosts, "oidc-private-host", "Allow private OIDC endpoints at an exact host[:port]; repeat for multiple authorities")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -77,6 +93,12 @@ func runWeb(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Console provider-encryption key is missing or invalid")
 		return 1
 	}
+	outbound, err := sso.NewOutbound(oidcHosts)
+	if err != nil {
+		fmt.Fprintln(stderr, "Console OIDC outbound policy is invalid")
+		return 2
+	}
+	defer outbound.CloseIdleConnections()
 	if !webui.Ready() {
 		fmt.Fprintln(stderr, "Build the console assets before starting web")
 		return 1
@@ -97,6 +119,10 @@ func runWeb(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	repository := &store.ConsoleStore{AuthStore: store.AuthStore{DB: db, Tenant: tenant}, ProviderSecrets: providerSecrets}
+	repository.ValidateOIDC = func(ctx context.Context, input web.OIDCProviderInput) error {
+		_, err := sso.NewOIDCProvider(ctx, authoidc.Config{IssuerURL: input.IssuerURL, ClientID: input.ClientID, ClientSecret: input.ClientSecret, Scopes: input.Scopes, RedirectURL: strings.TrimSuffix(*origin, "/") + "/api/v1/console/oidc/" + input.Slug + "/callback"}, outbound)
+		return err
+	}
 	service, err := auth.NewService(&repository.AuthStore, auth.Config{IdleTimeout: *idle, AbsoluteTimeout: *absolute})
 	if err != nil {
 		fmt.Fprintln(stderr, "Console authentication configuration is invalid")

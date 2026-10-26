@@ -630,6 +630,7 @@ in a response.
   "display_name": "Company SSO",
   "issuer_url": "https://idp.example.com",
   "client_id": "nethub",
+  "has_client_secret": true,
   "scopes": ["openid", "email", "profile"],
   "enabled": true,
   "redirect_uri": "https://console.example.com/api/v1/console/oidc/company-sso/callback",
@@ -661,7 +662,9 @@ Request:
 - `client_secret` is encrypted with `NETHUB_SECRETS_KEY` before it is stored
   (DESIGN §6). The key is supplied by the private `--secrets-key-file`, not its
   plaintext environment value. [Envelope/startup foundation](../deploy/provider-secrets.md)
-  is implemented; the provider write API and actual database-write proof remain pending.
+  is implemented. Provider writes and their SQL acceptance tests are implemented;
+  [backend scope and validation limits](../deploy/oidc-providers.md) distinguish
+  them from the unfinished management page and SSO admission flow.
 - Response `201`: the provider object.
 - Errors: `409 slug_taken`, `422 oidc_discovery_failed`.
 
@@ -669,6 +672,10 @@ Request:
 
 Any field of the create request except `slug`. Sending `client_secret`
 replaces it; omitting it keeps the stored one. Response: the provider object.
+JSON null is invalid. An explicit empty secret removes it only if discovery
+accepts a public client. Display-name edits and disabling work while the IdP is
+offline; protocol edits and enabling require discovery. An edit that loses a
+concurrent revision race returns `409 provider_changed`; reload before editing.
 
 `issuer_url` cannot be changed once any user is bound to the provider
 (`409 provider_in_use`): bindings are by issuer.
@@ -679,8 +686,10 @@ Response `204`.
 
 - If users are still bound to the provider, deletion is refused with
   `409 provider_in_use`. Disable it instead (`"enabled": false`).
-- Proposed: deleting a provider with no bound users also withdraws invites
-  restricted to it, if invite restriction is implemented.
+- Deleting an unbound provider withdraws its unused restricted invitations and
+  clears its credential atomically. A disabled tombstone preserves provider and
+  invitation history; its immutable slug remains reserved. It is excluded from
+  listing and editing. Repeated deletion returns 404. See [lifecycle](../deploy/oidc-providers.md).
 
 ## 8. Audit log and traffic
 

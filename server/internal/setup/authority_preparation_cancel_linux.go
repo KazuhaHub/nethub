@@ -55,7 +55,7 @@ func (h *RelayAuthoritySnapshotHost) VerifyPreparation(ctx context.Context, oper
 	}
 	baseline.OriginalBackupManifest = authorityHash(backupManifest)
 	backup, err := Load(manifest.BackupDirectory)
-	if err != nil || backup.Config != manifest.Config || !bytes.Equal(authorityJSON(backup.Files), authorityJSON(manifest.Files)) {
+	if err != nil || !sameConfig(backup.Config, manifest.Config) || !bytes.Equal(authorityJSON(backup.Files), authorityJSON(manifest.Files)) {
 		return "", "", ErrRelayAuthority
 	}
 	baseline.Maintenance, baseline.MaintenancePresent, err = authorityTree(filepath.Join(o.Directory, "secrets/issuer/maintenance"))

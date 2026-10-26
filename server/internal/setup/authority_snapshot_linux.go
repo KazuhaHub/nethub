@@ -517,7 +517,7 @@ func verifyAuthoritySnapshot(operation string, o RelayAuthoritySnapshotOptions) 
 		return "", ErrRelayAuthority
 	}
 	originalBackup, err := Load(before.BackupDirectory)
-	if err != nil || originalBackup.Config != before.Config || !bytes.Equal(authorityJSON(originalBackup.Files), authorityJSON(before.Files)) {
+	if err != nil || !sameConfig(originalBackup.Config, before.Config) || !bytes.Equal(authorityJSON(originalBackup.Files), authorityJSON(before.Files)) {
 		return "", ErrRelayAuthority
 	}
 	newBackupManifest, err := authorityRead(filepath.Join(o.SuccessorBackup, "setup.json"), 0, 32768)

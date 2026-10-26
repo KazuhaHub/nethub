@@ -54,6 +54,14 @@ retains its own license. The console build includes runtime dependency license
 texts at /third-party-licenses.txt; the build fails if a runtime package lacks
 an included license file.
 
+The console directly imports authcore's OIDC and SAML packages. OIDC uses
+github.com/coreos/go-oidc/v3 (Apache-2.0), github.com/go-jose/go-jose/v4
+(Apache-2.0), and golang.org/x/oauth2 (BSD-3-Clause). The deployed console image
+includes these module licenses and applicable notices, together with authcore's
+license/notice and their exact versions, under /licenses/oidc. CoreOS's original
+NOTICE is retained there. This does not replace the remaining release-wide
+dependency and disclosure review.
+
 --------------------------------------------------------------------------------
 shadcn/ui New York components
 --------------------------------------------------------------------------------

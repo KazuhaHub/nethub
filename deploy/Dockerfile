@@ -14,6 +14,14 @@ COPY server/ ./
 COPY --from=console /src/server/internal/webui/dist ./internal/webui/dist
 RUN go build -p 2 -trimpath -ldflags="-s -w" -o /out/nethub ./cmd/nethub
 RUN cp /usr/local/go/LICENSE /out/GO-LICENSE
+RUN set -eu; mkdir -p /out/oidc-licenses; \
+    for module in github.com/KazuhaHub/authcore github.com/coreos/go-oidc/v3 github.com/go-jose/go-jose/v4 golang.org/x/oauth2; do \
+      directory="$(go list -m -f '{{.Dir}}' "$module")"; \
+      label="$(printf '%s' "$module" | tr / _)"; \
+      cp "$directory/LICENSE" "/out/oidc-licenses/$label-LICENSE"; \
+      if [ -f "$directory/NOTICE" ]; then cp "$directory/NOTICE" "/out/oidc-licenses/$label-NOTICE"; fi; \
+      go list -m "$module" >> /out/oidc-licenses/MODULES; \
+    done
 
 FROM build AS http01-tests-build
 RUN go test -c -o /out/http01.test ./internal/http01
@@ -44,5 +52,6 @@ FROM gcr.io/distroless/static-debian13:nonroot@sha256:e2e927ec666bae08560abb3c55
 COPY --from=build /out/nethub /nethub
 COPY LICENSE NOTICE /licenses/
 COPY --from=build /out/GO-LICENSE /licenses/GO-LICENSE
+COPY --from=build /out/oidc-licenses /licenses/oidc/
 USER 65532:65532
 ENTRYPOINT ["/nethub"]
