@@ -108,7 +108,11 @@ func (r *repository) InspectInvitation(_ context.Context, digest []byte) (auth.I
 	}
 	info := auth.InvitationInfo{Email: invite.Email, Role: invite.Role, ExpiresAt: invite.ExpiresAt, PasswordAllowed: invite.ProviderID == nil, Providers: []auth.InvitationProvider{}}
 	if invite.ProviderID != nil {
-		info.Providers = append(info.Providers, auth.InvitationProvider{Slug: "restricted", DisplayName: "Restricted", Kind: "oidc"})
+		if p, ok := r.providers[*invite.ProviderID]; ok && p.Enabled {
+			info.Providers = append(info.Providers, auth.InvitationProvider{Slug: p.Slug, DisplayName: p.DisplayName, Kind: "oidc"})
+		} else {
+			info.Providers = append(info.Providers, auth.InvitationProvider{Slug: "restricted", DisplayName: "Restricted", Kind: "oidc"})
+		}
 	}
 	return info, nil
 }

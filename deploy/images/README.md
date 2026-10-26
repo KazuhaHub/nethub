@@ -11,6 +11,9 @@ binaries with the compiler pinned in `server/.go-version`.
   for CVE-2026-111497, as recorded in the
   [Alpine 3.23 security database](https://secdb.alpinelinux.org/v3.23/main.json).
   This updates the inherited OS libraries without changing the Caddy module set.
+  Its inherited curl and libcurl packages are upgraded to 8.23.0-r0 for
+  [CVE-2026-92392](https://curl.se/docs/CVE-2026-92392.html), matching the Alpine
+  3.23 security database. The assembled-image HIGH/CRITICAL scan remains required.
 - PostgreSQL uses the pinned official 16 Alpine image. Only gosu is replaced,
   rebuilt from the upstream 1.19 commit (`6456aaa0f3c8`); Go records that tag as
   a pseudo-version because the upstream tag does not use a `v` prefix. The

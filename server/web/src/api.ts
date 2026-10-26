@@ -6,6 +6,28 @@ export type ManagedUser = User & {
   created_at: string;
 };
 export type UserPage = { items: ManagedUser[]; next_cursor: string | null };
+export type OIDCProvider = {
+  id: string;
+  slug: string;
+  display_name: string;
+  issuer_url: string;
+  client_id: string;
+  has_client_secret: boolean;
+  scopes: string[];
+  enabled: boolean;
+  redirect_uri: string;
+  created_at: string;
+};
+export type OIDCProviderPage = {
+  items: OIDCProvider[];
+  next_cursor: string | null;
+};
+export type OIDCProviderInput = Pick<
+  OIDCProvider,
+  "slug" | "display_name" | "issuer_url" | "client_id" | "scopes" | "enabled"
+> & { client_secret?: string };
+export type OIDCProviderPatch = Partial<Omit<OIDCProviderInput, "slug">>;
+export type LoginProvider = { slug: string; display_name: string };
 export type UserPatch = { role?: User["role"]; disabled?: boolean };
 export type Invitation = {
   id: string;
@@ -207,13 +229,81 @@ async function request<T>(
 }
 
 export const api = {
+  oidcProviders(
+    cursor: string | null,
+    signal?: AbortSignal,
+    background = false,
+  ) {
+    const query = new URLSearchParams({ limit: "50" });
+    if (cursor) query.set("cursor", cursor);
+    return request<OIDCProviderPage>(
+      `/oidc-providers?${query}`,
+      undefined,
+      signal,
+      background,
+    );
+  },
+  createOIDCProvider(input: OIDCProviderInput) {
+    return providerMutation<OIDCProvider>("/oidc-providers", input);
+  },
+  updateOIDCProvider(id: string, patch: OIDCProviderPatch) {
+    return providerMutation<OIDCProvider>(
+      `/oidc-providers/${encodeURIComponent(id)}`,
+      patch,
+      "PATCH",
+    );
+  },
+  deleteOIDCProvider(id: string) {
+    return providerMutation<void>(
+      `/oidc-providers/${encodeURIComponent(id)}`,
+      undefined,
+      "DELETE",
+    );
+  },
+  async loginProviders(signal?: AbortSignal) {
+    const value = await request<{ items: LoginProvider[] }>(
+      "/oidc/providers",
+      undefined,
+      signal,
+    );
+    if (
+      !Array.isArray(value.items) ||
+      !value.items.every(
+        (p) =>
+          p &&
+          typeof p.slug === "string" &&
+          /^[a-z0-9][a-z0-9-]{0,62}$/.test(p.slug) &&
+          typeof p.display_name === "string" &&
+          p.display_name.length > 0 &&
+          p.display_name.length <= 200,
+      )
+    )
+      throw new Error("SSO choices could not be verified.");
+    return value;
+  },
+  async startOIDC(slug: string, invite?: string) {
+    const result = await request<{ redirect_url: string }>(
+      `/oidc/${encodeURIComponent(slug)}/start`,
+      invite ? { invite_token: invite } : {},
+      AbortSignal.timeout(15000),
+    );
+    if (!validSSODestination(result.redirect_url))
+      throw new Error(
+        "The sign-in destination could not be verified. Try starting again.",
+      );
+    return result.redirect_url;
+  },
   invitations(cursor: string | null, signal?: AbortSignal) {
     const query = new URLSearchParams({ limit: "50" });
     if (cursor) query.set("cursor", cursor);
     return request<InvitationPage>(`/invites?${query}`, undefined, signal);
   },
-  issueInvitation(email: string, role: User["role"]) {
-    return invitationMutation<IssuedInvitation>("/invites", { email, role });
+  issueInvitation(email: string, role: User["role"], providerId?: string) {
+    return invitationMutation<IssuedInvitation>("/invites", {
+      email,
+      role,
+      ...(providerId ? { provider_id: providerId } : {}),
+    });
   },
   withdrawInvitation(id: string) {
     return invitationMutation<void>(
@@ -314,6 +404,46 @@ export const api = {
     );
   },
 };
+
+export function validSSODestination(value: unknown): value is string {
+  if (typeof value !== "string" || value.length > 8192) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      url.hostname !== "" &&
+      !url.username &&
+      !url.password &&
+      !url.hash
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function providerMutation<T>(
+  path: string,
+  body?: object,
+  method = "POST",
+): Promise<T> {
+  const deadline = AbortSignal.timeout(15000);
+  try {
+    return await request<T>(path, body, deadline, false, method);
+  } catch (error) {
+    if (
+      deadline.aborted ||
+      !(error instanceof ApiError) ||
+      error.status === 0 ||
+      error.status >= 500
+    )
+      throw new ApiError(
+        0,
+        "provider_unconfirmed",
+        "The change could not be confirmed. Close this dialog and refresh providers before trying again.",
+      );
+    throw error;
+  }
+}
 
 async function invitationMutation<T>(
   path: string,

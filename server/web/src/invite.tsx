@@ -19,6 +19,28 @@ export function Invite({ takeToken }: { takeToken: () => string | null }) {
   const [error, setError] = useState("");
   const [uncertain, setUncertain] = useState(false);
   const [retry, setRetry] = useState(0);
+  async function sso(slug: string) {
+    if (!token || !info || existing || pending.current || uncertain) return;
+    pending.current = true;
+    setBusy(true);
+    setError("");
+    setPassword("");
+    setConfirm("");
+    try {
+      const destination = await api.startOIDC(slug, token);
+      window.location.assign(destination);
+    } catch (failure) {
+      if (alive.current) {
+        setError(
+          failure instanceof Error
+            ? failure.message
+            : "Could not start sign-in. Try again.",
+        );
+        setBusy(false);
+      }
+      pending.current = false;
+    }
+  }
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
@@ -290,17 +312,38 @@ export function Invite({ takeToken }: { takeToken: () => string | null }) {
               ) : (
                 <div>
                   <p>SSO is required for this invitation.</p>
-                  <p className="muted">
-                    Ask your administrator to complete SSO setup before claiming
-                    it.
-                  </p>
+                  {info.providers.filter((p) => p.kind === "oidc").length ===
+                    0 && (
+                    <p className="muted">
+                      No available sign-in method. Ask your administrator for
+                      help.
+                    </p>
+                  )}
                 </div>
               )}
-              {info.password_allowed && info.providers.length > 0 && (
-                <p className="signin-note">
-                  SSO claim support is being configured. You can set a local
-                  password instead.
-                </p>
+              {!existing && info.providers.some((p) => p.kind === "oidc") && (
+                <div className="sso-choices" aria-label="SSO invitation claim">
+                  <span className="sso-divider">
+                    {info.password_allowed
+                      ? "or use single sign-on"
+                      : "Use your invited identity"}
+                  </span>
+                  <p className="muted">
+                    Choose the account for {info.email} at your provider.
+                  </p>
+                  {info.providers
+                    .filter((p) => p.kind === "oidc")
+                    .map((provider) => (
+                      <Button
+                        key={provider.slug}
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => void sso(provider.slug)}
+                      >
+                        Continue with {provider.display_name}
+                      </Button>
+                    ))}
+                </div>
               )}
               {error && (
                 <p className="error-message" role="alert">

@@ -1,9 +1,29 @@
 # OIDC provider administration
 
 The administrator API supports listing, creating, editing and deleting OIDC
-providers. The management page and durable login/invitation callback flow remain
-unfinished W6 work. A successful discovery check does not establish a working
+providers. The administrator console exposes these operations at `/providers`.
+A successful discovery check does not establish a working
 client registration or an accepted user identity.
+
+## Console page
+
+Only administrators see the navigation entry or fetch the provider inventory.
+The page uses 50-item keyset pagination. Automatic visible-page refreshes are
+non-overlapping and use passive session validation, so they do not extend idle
+expiry. Explicit refreshes and mutations retain active session validation.
+An authority loss clears the loaded inventory and open editor.
+
+New providers start disabled. Editing sends changed fields only; leaving the
+replacement secret blank preserves the saved credential. Removing it requires
+the explicit public-client checkbox. Secret inputs clear when a write is sent.
+The saved credential is never retrieved. Copying a callback address requires an
+explicit click and an exact match to the current console HTTPS origin and slug.
+
+Pending native dialogs cannot be dismissed. A network failure, deadline, server
+failure or invalid success projection leaves the result unconfirmed and blocks
+another submission until the operator closes and refreshes. This cannot prove
+whether the original write committed; the console never replays it automatically.
+Bound providers must be disabled instead of deleted or moved to another issuer.
 
 ## Shared protocol and network policy
 
@@ -81,5 +101,8 @@ encrypted writes, tenant/admin isolation, omitted-secret preservation, nonce
 rotation, live authority changes, concurrent revision refusal, identity guards,
 audit rollback and retained invitation restrictions. The SQL test's discovery
 callback is controlled; transport behavior is proven separately. Hosted execution
-and actual logs are required before accepting the complete backend. Two-Dex,
-public IdP, browser provider management and actual SSO admission remain pending.
+and actual logs are required for hosted acceptance. Browser fixtures additionally
+check pagination, changed-field writes, secret handling, callback copy, authority
+loss, pending dialogs and a committed write with a lost result. Their synthetic
+SSO target only records navigation and cannot create an account or session.
+Two-Dex, public IdP and combined deployed SSO admission remain pending.

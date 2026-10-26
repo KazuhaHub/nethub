@@ -24,18 +24,20 @@ import (
 )
 
 type repository struct {
-	mu             sync.Mutex
-	hash           string
-	sessions       map[string]auth.SessionRecord
-	populated      bool
-	shortToken     bool
-	revoked        bool
-	disconnect     *web.DeviceDisconnect
-	alerts         []web.RelayAlert
-	users          map[string]web.ManagedUser
-	invites        map[string]fixtureInvitation
-	inviteSequence int
-	passwords      map[string]string
+	mu               sync.Mutex
+	hash             string
+	sessions         map[string]auth.SessionRecord
+	populated        bool
+	shortToken       bool
+	revoked          bool
+	disconnect       *web.DeviceDisconnect
+	alerts           []web.RelayAlert
+	users            map[string]web.ManagedUser
+	invites          map[string]fixtureInvitation
+	inviteSequence   int
+	passwords        map[string]string
+	providers        map[string]web.OIDCProvider
+	providerSequence int
 }
 
 func fixtureUsers() map[string]web.ManagedUser {
@@ -275,15 +277,22 @@ func main() {
 	}
 	server := httptest.NewUnstartedServer(nil)
 	origin := "https://" + server.Listener.Addr().String()
-	handler, err := web.New(web.Config{Origin: origin, DeviceDomain: "router.example.com", Logger: slog.New(slog.NewJSONHandler(os.Stderr, nil))}, service, repository)
+	handler, err := web.New(web.Config{Origin: origin, DeviceDomain: "router.example.com", Logger: slog.New(slog.NewJSONHandler(os.Stderr, nil)), SSO: &fixtureSSO{repository: repository, origin: origin}}, service, repository)
 	if err != nil {
 		panic(err)
 	}
 	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" && r.URL.Path == "/test/oidc-authorize" {
+			w.Header().Set("Content-Type", "text/plain")
+			fmt.Fprint(w, "SSO navigation reached")
+			return
+		}
 		if r.Method == "POST" && len(r.URL.Path) > 6 && r.URL.Path[:6] == "/test/" {
 			repository.mu.Lock()
 			defer repository.mu.Unlock()
 			switch r.URL.Path {
+			case "/test/providers-reset":
+				repository.resetProvidersLocked()
 			case "/test/invitations-reset":
 				repository.resetInvitationsLocked()
 			case "/test/invitation-bound":

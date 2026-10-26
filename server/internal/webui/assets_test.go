@@ -11,7 +11,7 @@ func TestAssetPathsAndMissingBuild(t *testing.T) {
 	for _, test := range []struct {
 		path   string
 		status int
-	}{{"/", 200}, {"/users", 200}, {"/invitations", 200}, {"/invite", 200}, {"/invitations/unknown", 404}, {"/invite/unknown", 404}, {"/users/unknown", 404}, {"/assets/app-abc.js", 200}, {"/.gitkeep", 404}, {"/assets/", 404}, {"/assets/app.js.map", 404}, {"/../index.html", 404}, {"/api/v1/console/login", 404}, {"/unknown", 404}} {
+	}{{"/", 200}, {"/login", 200}, {"/providers", 200}, {"/login/unknown", 404}, {"/providers/unknown", 404}, {"/users", 200}, {"/invitations", 200}, {"/invite", 200}, {"/invitations/unknown", 404}, {"/invite/unknown", 404}, {"/users/unknown", 404}, {"/assets/app-abc.js", 200}, {"/.gitkeep", 404}, {"/assets/", 404}, {"/assets/app.js.map", 404}, {"/../index.html", 404}, {"/api/v1/console/login", 404}, {"/unknown", 404}} {
 		r := httptest.NewRequest("GET", test.path, nil)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
