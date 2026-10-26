@@ -27,6 +27,28 @@ func fixtureBinding() Binding {
 	return Binding{TenantID: "tenant-a", ProviderID: "provider-a", Purpose: OIDCClientSecret}
 }
 
+func TestProviderCredentialAndFlowPurposeIsolation(t *testing.T) {
+	c, _ := fixtureCipher(t)
+	for _, purpose := range []Purpose{OIDCClientSecret, SAMLSigningKey, OIDCFlowState, SAMLFlowState} {
+		binding := Binding{TenantID: "tenant-a", ProviderID: "row-a", Purpose: purpose}
+		sealed, err := c.Seal(binding, []byte("isolated protocol state"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, other := range []Purpose{OIDCClientSecret, SAMLSigningKey, OIDCFlowState, SAMLFlowState} {
+			binding.Purpose = other
+			opened, err := c.Open(binding, sealed)
+			if other == purpose {
+				if err != nil || string(opened) != "isolated protocol state" {
+					t.Fatal("same-purpose state did not restore", err)
+				}
+			} else if !errors.Is(err, ErrUnavailable) || opened != nil {
+				t.Fatal("credential or flow crossed its protocol purpose")
+			}
+		}
+	}
+}
+
 func TestEnvelopeRandomizationBindingAndTamper(t *testing.T) {
 	c, key := fixtureCipher(t)
 	plaintext := []byte("isolated provider credential fixture")

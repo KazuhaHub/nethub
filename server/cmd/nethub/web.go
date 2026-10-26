@@ -150,7 +150,12 @@ func runWeb(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Console SSO configuration is invalid")
 		return 1
 	}
-	handler, err := web.New(web.Config{Origin: *origin, DeviceDomain: *deviceDomain, TrustedProxies: proxies, Logger: logger, SSO: ssoService}, service, repository)
+	samlService, err := sso.NewSAMLService(*origin, repository, service, outbound)
+	if err != nil {
+		fmt.Fprintln(stderr, "Console SAML configuration is invalid")
+		return 1
+	}
+	handler, err := web.New(web.Config{Origin: *origin, DeviceDomain: *deviceDomain, TrustedProxies: proxies, Logger: logger, SSO: ssoService, SAML: samlService}, service, repository)
 	if err != nil {
 		fmt.Fprintln(stderr, "Console origin, domain, or proxy configuration is invalid")
 		return 1

@@ -1,5 +1,11 @@
 # SAML provider administration
 
+PR #179 was accepted at final main-based source `cb7c2dfc0775` and merged as
+`2820debc6b4d`. Run `40394350562` passed all six jobs. Actual SQL and inherited
+deployment/two-Dex logs, three DCOs and both final regression images/hashes passed
+review. The earlier fixture compilation failure remains retained. This is
+provider backend acceptance, not complete SAML login or W6 acceptance.
+
 Administrators can list, create, update and delete SAML providers through
 `/api/v1/console/saml-providers`. Mutations require the normal console Origin,
 session and CSRF token. The repository independently checks the current active

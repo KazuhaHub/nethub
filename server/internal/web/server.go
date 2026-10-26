@@ -28,11 +28,19 @@ type SSOBackend interface {
 	Failed(context.Context, netip.Addr, string) error
 }
 
+type SAMLBackend interface {
+	Providers(context.Context) ([]sso.Choice, error)
+	Start(context.Context, string, string) (sso.StartResult, error)
+	Complete(context.Context, string, string, string, string, netip.Addr, string) (auth.LoginResult, bool, error)
+	Failed(context.Context, netip.Addr, string) error
+}
+
 type Config struct {
 	Origin, DeviceDomain string
 	TrustedProxies       []netip.Prefix
 	Logger               *slog.Logger
 	SSO                  SSOBackend
+	SAML                 SAMLBackend
 }
 
 type Server struct {
@@ -48,6 +56,7 @@ type Server struct {
 	disconnectLimits                    *auth.AttemptLimiter
 	inviteInspectLimits                 *auth.AttemptLimiter
 	sso                                 SSOBackend
+	saml                                SAMLBackend
 	ssoStartLimits, ssoCallbackLimits   *auth.AttemptLimiter
 }
 
@@ -77,7 +86,7 @@ func New(config Config, service *auth.Service, repository Repository) (*Server, 
 		return nil, err
 	}
 	return &Server{auth: service, repository: repository, origin: origin, clientIP: resolver, logger: config.Logger,
-		sso: config.SSO, ssoStartLimits: auth.NewAttemptLimiter(), ssoCallbackLimits: auth.NewAttemptLimiter(),
+		sso: config.SSO, saml: config.SAML, ssoStartLimits: auth.NewAttemptLimiter(), ssoCallbackLimits: auth.NewAttemptLimiter(),
 		host: strings.TrimSuffix(strings.ToLower(u.Host), ":443"), consoleHostname: strings.ToLower(u.Hostname()), deviceDomain: domain, enrollLimits: auth.NewAttemptLimiter(), openLimits: auth.NewAttemptLimiter(), revokeLimits: auth.NewAttemptLimiter(), disconnectLimits: auth.NewAttemptLimiter(), inviteInspectLimits: auth.NewAttemptLimiter()}, nil
 }
 
@@ -147,6 +156,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if allowMethod(w, r, "GET") {
 			s.loginProviders(w, r)
 		}
+	case prefix + "/saml/providers":
+		if allowMethod(w, r, "GET") {
+			s.samlLoginProviders(w, r)
+		}
 	case prefix + "/oidc-providers":
 		switch r.Method {
 		case "GET", "HEAD":
@@ -191,7 +204,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	default:
 		if strings.HasPrefix(r.URL.Path, prefix+"/saml/") {
-			s.samlMetadata(w, r)
+			s.samlBrowser(w, r, ip)
 			return
 		}
 		if strings.HasPrefix(r.URL.Path, prefix+"/saml-providers/") {

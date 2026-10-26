@@ -18,6 +18,20 @@ func (s *AuthStore) CreateExternalSession(ctx context.Context, identity auth.Ext
 	if !validSessionRecord(record) || identity.Subject == "" || identity.ProviderRevision < 1 {
 		return auth.SessionRecord{}, auth.ErrInvalidCredentials
 	}
+	protocol := identity.Protocol
+	if protocol == "" {
+		protocol = "oidc"
+	}
+	flowTable := "oidc_flows"
+	providerQuery := `SELECT p.revision,o.issuer_url FROM identity_providers p JOIN oidc_providers o ON o.tenant_id=p.tenant_id AND o.id=p.id WHERE p.id=$1 AND p.enabled AND p.deleted_at IS NULL FOR SHARE OF p`
+	switch protocol {
+	case "oidc":
+	case "saml":
+		flowTable = "saml_flows"
+		providerQuery = `SELECT p.revision,s.entity_id FROM identity_providers p JOIN saml_providers s ON s.tenant_id=p.tenant_id AND s.id=p.id WHERE p.id=$1 AND p.enabled AND p.deleted_at IS NULL FOR SHARE OF p`
+	default:
+		return auth.SessionRecord{}, auth.ErrInvalidCredentials
+	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	tx, err := s.begin(ctx, false)
@@ -27,30 +41,32 @@ func (s *AuthStore) CreateExternalSession(ctx context.Context, identity auth.Ext
 	defer tx.Rollback()
 	var revision int64
 	var issuer string
-	err = tx.QueryRowContext(ctx, `SELECT p.revision,o.issuer_url FROM identity_providers p JOIN oidc_providers o ON o.tenant_id=p.tenant_id AND o.id=p.id WHERE p.id=$1 AND p.enabled AND p.deleted_at IS NULL FOR SHARE OF p`, identity.ProviderID).Scan(&revision, &issuer)
+	err = tx.QueryRowContext(ctx, providerQuery, identity.ProviderID).Scan(&revision, &issuer)
 	if err != nil || revision != identity.ProviderRevision || issuer != identity.Issuer {
 		return auth.SessionRecord{}, auth.ErrInvalidCredentials
 	}
 	var invitation []byte
-	err = tx.QueryRowContext(ctx, `SELECT invitation_hash FROM oidc_flows WHERE id=$1 AND provider_id=$2 AND provider_revision=$3 AND consumed_at IS NOT NULL AND admitted_at IS NULL FOR UPDATE`, identity.FlowID, identity.ProviderID, revision).Scan(&invitation)
+	// The table name is selected only by the closed protocol switch above.
+	err = tx.QueryRowContext(ctx, `SELECT invitation_hash FROM `+flowTable+` WHERE id=$1 AND provider_id=$2 AND provider_revision=$3 AND consumed_at IS NOT NULL AND admitted_at IS NULL FOR UPDATE`, identity.FlowID, identity.ProviderID, revision).Scan(&invitation)
 	if err != nil {
 		return auth.SessionRecord{}, auth.ErrInvalidCredentials
 	}
 	key, _ := json.Marshal([]string{identity.Issuer, identity.Subject})
-	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, s.Tenant+":oidc-identity:"+string(key)); err != nil {
+	if _, err = tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, s.Tenant+":"+protocol+"-identity:"+string(key)); err != nil {
 		return auth.SessionRecord{}, err
 	}
 	var userID string
-	err = tx.QueryRowContext(ctx, `SELECT user_id FROM user_identities WHERE protocol='oidc' AND issuer=$1 AND subject=$2`, identity.Issuer, identity.Subject).Scan(&userID)
+	err = tx.QueryRowContext(ctx, `SELECT user_id FROM user_identities WHERE protocol=$1 AND issuer=$2 AND subject=$3 AND ($1='oidc' OR provider_id=$4)`, protocol, identity.Issuer, identity.Subject, identity.ProviderID).Scan(&userID)
 	if err == nil {
-		// Identity matching is issuer/subject, independent of the provider record
-		// which originally established it. Email claims never relink an account.
+		// OIDC uses issuer/subject across aliases. SAML additionally retains its
+		// provider/SP scope. Email claims never relink an account.
 		err = tx.QueryRowContext(ctx, `SELECT id,email,role FROM users WHERE id=$1 AND disabled_at IS NULL FOR SHARE`, userID).Scan(&record.ID, &record.Email, &record.Role)
 		if err != nil {
 			return auth.SessionRecord{}, auth.ErrInvalidCredentials
 		}
 	} else if errors.Is(err, sql.ErrNoRows) {
-		if !identity.EmailVerified || len(invitation) != 32 {
+		trustedEmail := protocol == "oidc" && identity.EmailVerified || protocol == "saml" && identity.SignedEmail
+		if !trustedEmail || len(invitation) != 32 {
 			return auth.SessionRecord{}, auth.ErrInvalidCredentials
 		}
 		email, e := auth.NormalizeEmail(identity.Email)
@@ -82,7 +98,7 @@ func (s *AuthStore) CreateExternalSession(ctx context.Context, identity auth.Ext
 		if err != nil {
 			return auth.SessionRecord{}, auth.ErrInvalidCredentials
 		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO user_identities(tenant_id,user_id,provider_id,protocol,issuer,subject,email_at_link) VALUES($1,$2,$3,'oidc',$4,$5,$6)`, s.Tenant, record.ID, identity.ProviderID, identity.Issuer, identity.Subject, email)
+		_, err = tx.ExecContext(ctx, `INSERT INTO user_identities(tenant_id,user_id,provider_id,protocol,issuer,subject,email_at_link) VALUES($1,$2,$3,$4,$5,$6,$7)`, s.Tenant, record.ID, identity.ProviderID, protocol, identity.Issuer, identity.Subject, email)
 		if err != nil {
 			return auth.SessionRecord{}, auth.ErrInvalidCredentials
 		}
@@ -97,7 +113,7 @@ func (s *AuthStore) CreateExternalSession(ctx context.Context, identity auth.Ext
 	}
 	// Check flow expiry after all provider, identity, invitation and account waits.
 	var admitted string
-	err = tx.QueryRowContext(ctx, `UPDATE oidc_flows SET admitted_at=clock_timestamp() WHERE id=$1 AND admitted_at IS NULL AND created_at<=clock_timestamp() AND expires_at>clock_timestamp() RETURNING id`, identity.FlowID).Scan(&admitted)
+	err = tx.QueryRowContext(ctx, `UPDATE `+flowTable+` SET admitted_at=clock_timestamp() WHERE id=$1 AND admitted_at IS NULL AND created_at<=clock_timestamp() AND expires_at>clock_timestamp() RETURNING id`, identity.FlowID).Scan(&admitted)
 	if err != nil {
 		return auth.SessionRecord{}, auth.ErrInvalidCredentials
 	}

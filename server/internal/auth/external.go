@@ -10,10 +10,14 @@ import (
 // ExternalIdentity comes only from a verified protocol assertion and a consumed
 // browser flow. No HTTP endpoint accepts this structure from a client.
 type ExternalIdentity struct {
+	Protocol               string
 	FlowID, ProviderID     string
 	ProviderRevision       int64
 	Issuer, Subject, Email string
 	EmailVerified          bool
+	// SignedEmail is set only from the exact configured attribute in an authcore-
+	// verified SAML assertion. It never substitutes for OIDC email_verified.
+	SignedEmail bool
 }
 
 func (ExternalIdentity) String() string     { return "ExternalIdentity(verified)" }
@@ -24,6 +28,9 @@ type ExternalRepository interface {
 }
 
 func (s *Service) LoginExternal(ctx context.Context, identity ExternalIdentity, ip netip.Addr, userAgent string) (LoginResult, error) {
+	if identity.Protocol != "" && identity.Protocol != "oidc" && identity.Protocol != "saml" {
+		return LoginResult{}, ErrInvalidCredentials
+	}
 	if !ip.IsValid() || ip.Zone() != "" || len(userAgent) > 1024 || identity.FlowID == "" || identity.ProviderID == "" || identity.ProviderRevision < 1 || identity.Issuer == "" || len(identity.Issuer) > 2048 || identity.Subject == "" || len(identity.Subject) > 4096 || !utf8.ValidString(identity.Subject) {
 		return LoginResult{}, ErrInvalidCredentials
 	}
