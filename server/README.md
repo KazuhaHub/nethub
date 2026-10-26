@@ -14,8 +14,8 @@ the reasoning.
 > pseudo-version. The adapters delegate protocol processing and enforce console
 > policy; identity and invitation admission remain in NetHub. Actual PostgreSQL
 > and strict-CSP browser checks cover the applicable boundaries. Two deployed Dex
-> issuers and the SAML backend/pages have accepted records; deployed signed SAML
-> IdP and public-provider acceptance remain separate work. Native device evidence
+> issuers, SAML backend/pages and an independent Keycloak deployment have accepted
+> records; public-provider and complete W6 acceptance remain separate work. Native device evidence
 > and the remaining W5-W7 requirements are tracked in the
 > [handoff](../docs/HANDOFF_PROMPT.md), not implied by passing server tests.
 
@@ -297,7 +297,8 @@ The [OIDC callback backend](../deploy/oidc-login.md) implements durable browser
 state and transactional identity/invitation admission. The
 [two-Dex deployment](../deploy/validation-two-dex.md) and
 [SAML backend/pages](../deploy/saml-console.md) have scoped acceptance records.
-Deployed signed SAML IdP, public-provider and combined W6 acceptance remain open.
+An independent [signed Keycloak deployment](../deploy/validation-keycloak-saml.md)
+is accepted. Public-provider and combined W6 acceptance remain open.
 Optional `captcha`, `geoip` and later `passkey` integrations remain separate decisions.
 
 ## Data model
@@ -444,8 +445,8 @@ Use authcore packages directly for matching capabilities; do not copy or locally
 reimplement them. Reusable gaps can be added to authcore with its own regression
 tests and PR. NetHub owns user, tenant, invitation, session, and device policy.
 [SAML callback routes and persistent replay storage](../deploy/saml-login.md)
-are implemented. Their signed-XML and PostgreSQL tests do not replace the pending
-independent deployed IdP and combined W6 acceptance.
+are implemented and have signed-XML, PostgreSQL and independent Keycloak
+acceptance. Those checks do not replace public-provider or combined W6 acceptance.
 
 Run `GOWORK=off go test ./...`, `go vet ./...`, and `go mod verify` in this directory.
 

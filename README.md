@@ -52,8 +52,7 @@ are in progress; this is not a released deployment.
 - Issue and renew per-device public GUI certificates, with device-local keys
   and verified native application.
 
-That is the planned scope of v1. The final v1 feature list is still to be
-confirmed.
+The execution plan tracks the confirmed scope and its remaining acceptance.
 
 ## What NetHub does not do (yet)
 
@@ -305,8 +304,8 @@ restoration in the approved isolated environment. The
 retains the slower Revoke measurement and the missing mobile Open sample.
 
 Two deployed Dex issuers have [accepted OIDC evidence](deploy/validation-two-dex.md).
-SAML backend/pages are implemented; independent vendor and complete W6 acceptance
-are tracked in the handoff. Public-provider acceptance remains open.
+SAML backend/pages and an independent [Keycloak deployment](deploy/validation-keycloak-saml.md)
+have scoped accepted evidence. Public-provider and complete W6 acceptance remain open.
 
 Scheduled database backups, clean-host restore, credential rotation, full document
 review, friend-from-zero deployment and signed/faulty-version release gates remain

@@ -43,7 +43,7 @@
 - 控制台支持多个用户：`admin` 和 `member` 两种角色，只能通过邀请加入；可以用本地密码登录，也可以通过 authcore 使用 OIDC 或 SAML 登录，可配置多个身份提供方。
 - 为设备签发、续签公共 GUI 证书；私钥保留在设备，安装由设备原生校验后完成。
 
-这就是 v1 的计划范围。v1 的最终功能清单还有待确认。
+执行计划记录了已确认的范围及尚未完成的验收。
 
 ## v1 不做什么
 
@@ -193,7 +193,7 @@ SNI 透传保留设备自己的登录。正常运行时，新连接还需要匹�
 
 [原生公共证书记录](../deploy/validation-native-public-certificate.md)覆盖隔离环境的签发、定时安装、认证公网 GUI 访问和恢复。[心跳与撤销记录](../deploy/validation-native-w5-heartbeat.md)保留撤销速度偏差，以及尚未完成的手机 Open 样本。
 
-两家 Dex 已有 [OIDC 部署验收](../deploy/validation-two-dex.md)。SAML 后端和页面已实现，独立 IdP 联合验收仍按交接记录推进；公开 IdP 和 W6 整体验收尚未完成。
+两家 Dex 已有 [OIDC 部署验收](../deploy/validation-two-dex.md)。SAML 后端、页面及独立 [Keycloak 部署](../deploy/validation-keycloak-saml.md)已有范围明确的验收；公开 IdP 和 W6 整体验收尚未完成。
 
 定时数据库备份、全新主机恢复、凭证轮换、文档全面核对、朋友从零部署和正式签名／故障版本发布仍是 W7 待办。没有正式发布包，也不宣称已适合生产。
 
