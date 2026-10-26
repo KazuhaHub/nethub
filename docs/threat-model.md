@@ -1,19 +1,14 @@
-# NetHub threat model (draft)
+# NetHub threat model
 
-> **Status: draft, written 2026-10-16 against design v0.3.** Nothing described
-> here is implemented: there is no code yet.
->
-> Several statements depend on measurements that have not been made (Weekend 0)
-> or on decisions that are still open. Each of those is marked **(unverified)**
-> or **(open)** and points to the relevant section of [`DESIGN.md`](DESIGN.md),
-> which is the authority on the design.
->
-> This document will be revised after Weekend 0 and again before the first
-> public release.
+> Implementation review: 2026-10-26. NetHub is pre-alpha, without a signed
+> production release. This review reconciles the original 2026-10-16 design
+> draft with current sources and accepted records. It is not an independent
+> penetration test or a claim that W5-W7 are complete.
 
-This document says what NetHub v1 is designed to protect, against whom, how,
-and where the protection stops. It is meant to be read by people deciding
-whether to deploy NetHub and by people reviewing or extending it.
+The [execution plan](PLAN.md) and [handoff](HANDOFF_PROMPT.md) identify the
+remaining gates. Evidence below applies to its recorded source and environment;
+a schema, synthetic browser fixture or green CI badge alone does not establish
+native or public-network behavior.
 
 ## Contents
 
@@ -21,510 +16,372 @@ whether to deploy NetHub and by people reviewing or extending it.
 - [2. System and trust boundaries](#2-system-and-trust-boundaries)
 - [3. Assets](#3-assets)
 - [4. Attackers and what they can do](#4-attackers-and-what-they-can-do)
-- [5. Open findings](#5-open-findings)
+- [5. Findings and remaining work](#5-findings-and-remaining-work)
 - [6. Accepted risks and known open risks](#6-accepted-risks-and-known-open-risks)
 - [7. Out of scope](#7-out-of-scope)
-- [8. Assumptions this model depends on](#8-assumptions-this-model-depends-on)
+- [8. Evidence and unverified assumptions](#8-evidence-and-unverified-assumptions)
 
 ## 1. Scope
 
-In scope: NetHub v1 as designed in `DESIGN.md` v0.3. That is:
+The model covers the control plane's Web/authz roles, PostgreSQL, the HTTPS edge,
+frps, the OPNsense agent and the flows between them. It includes console
+OIDC/SAML, enrollment, source-IP grants, revocation, GUI certificates and relay
+trust. External-proxy mode delegates console HTTPS to the existing host proxy.
 
-- the relay (`frps`);
-- the control plane, one Go binary running as `nethub web` and `nethub authz`,
-  with Postgres behind it and Caddy in front;
-- the OPNsense agent `os-nethub-agent` (`agentctl.py`, a vendored `frpc`, and
-  the plugin's web pages);
-- the enrollment, sign-in, revocation and remote-access flows that connect
-  them.
+NetHub has no general device configuration, firewall or command interface. The
+agent does change its own native settings and tunnel service. Its bounded GUI
+certificate application path can update certificate settings and reload the GUI.
+Those privileged paths are part of this model, not an exception hidden behind a
+claim that the device never changes.
 
-Not in scope: vulnerabilities in OPNsense itself, in frp, or in the operating
-system of the relay host, except where NetHub's design makes them more or less
-reachable. See [§7](#7-out-of-scope).
+Only OPNsense has an implemented/tested platform adapter. The shared protocol is
+extensible; accepting another platform identifier does not establish its safety
+or support. See the [protocol walkthrough](protocol.md).
 
 ## 2. System and trust boundaries
 
-```
- Browser (operator) ──HTTPS :8443──► frps (relay) ◄──TLS :7000── frpc (on the device) ──► OPNsense web GUI 127.0.0.1
-        │                              │   ▲                         │
-        │                              │   │ admin API (internal)    │ HTTPS :443 (enroll, rotate, status)
-        │ HTTPS :443                   ▼   │                         ▼
-        └──────────► Caddy ──► nethub web      nethub authz ◄──── httpPlugins (internal: Login / NewProxy / …)
-                                   │               │
-                                   ▼               ▼
-                              Postgres (role nethub_web)   Postgres (role nethub_authz)
-                                   │
-                                   ▼
-                          OIDC identity providers
+```mermaid
+flowchart LR
+  Browser[Operator browser] -->|Console HTTPS| Edge[Bundled or external HTTPS proxy]
+  Browser -->|GUI TLS on 8443| Relay[frps]
+  Agent[Device agent / frpc] -->|Verified relay TLS on 7000| Relay
+  Relay -->|Multiplexed GUI TLS| Agent
+  Agent -->|Local GUI TLS| GUI[OPNsense GUI]
+  Agent -->|Verified console HTTPS| Edge
+  Edge --> Web[nethub web]
+  Edge --> Authz[nethub authz]
+  Relay -->|Private callbacks| Authz
+  Authz -->|Private admin API| Relay
+  Web -->|Web database role| DB[(PostgreSQL)]
+  Authz -->|Authz database role| DB
+  Browser <-->|OIDC / SAML browser flow| IdP[Configured identity provider]
+  Web -->|OIDC discovery / token / keys| IdP
 ```
 
-The trust boundaries that matter:
+The browser's GUI TLS is carried through frps/frpc without relay decryption. The
+relay control TLS, console HTTPS and GUI certificate are distinct connections
+with separate trust/renewal responsibilities.
 
-| # | Boundary | What crosses it | Protection, as currently designed |
-|---|---|---|---|
-| B1 | Internet → relay port 8443 | Browser TLS to the device, routed by SNI | The relay never decrypts. TLS runs end to end between the browser and the device's own web GUI |
-| B2 | Device → relay port 7000 | frp control channel: login, proxy registration, heartbeats, multiplexed browser streams | TLS (`transport.tls.enable`), frps auth token, signed domain claim checked by authz on `Login` / `NewProxy`. **The server certificate is not verified as currently designed; see [F1](#f1-the-devicerelay-control-channel-is-not-authenticated)** |
-| B3 | Device → Caddy port 443 → `nethub authz` | Enroll, rotate, unenroll, status | HTTPS with a publicly trusted certificate, plus a one-time enroll token. That the agent verifies this certificate against the system CA bundle and never disables verification is an assumption the rest of the model depends on. DESIGN §4 does not yet state it ([§8](#8-assumptions-this-model-depends-on), item 7) |
-| B4 | Operator browser → Caddy port 443 → `nethub web` | Console sign-in and API | Server-side sessions, CSRF tokens, strict CSP, login throttling, argon2id, OIDC with PKCE |
-| B5 | `frps` ↔ `nethub authz` (internal network) | Plugin calls (`Login`, `NewProxy`, optionally `NewUserConn`, `Ping`); admin-API polling | Internal network only; not published |
-| B6 | `nethub web` / `nethub authz` → Postgres | Queries under two different roles | Row-level security per tenant; column-level grants; the web role cannot create devices or write identity columns |
-| B7 | `nethub web` → OIDC providers | Authorization-code flow | PKCE, state, nonce, ID-token verification; identities bound by `(issuer, subject)` |
-| B8 | Plugin web pages → configd → `agentctl.py` | Privileged actions on the device | Only explicitly registered configd actions; no arbitrary shell path |
+| Boundary                               | Current protection                                                                                                     | Limit                                                                                                                                      |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| B1: browser to GUI through 8443        | End-to-end GUI TLS and a NewUserConn source-IP grant.                                                                  | The router still authenticates the user. Existing streams and shared NAT remain relevant.                                                  |
+| B2: agent to relay on 7000             | Explicit CA bundle and server name; frp token plus signed assigned-domain claim checked on admission.                  | Endpoint/host compromise can expose bearer material. This is not mTLS.                                                                     |
+| B3: device to console HTTPS            | System CA/hostname verification, bounded JSON, no credential-following redirects; one-use enrollment or device bearer. | The configured HTTPS origin and its proxy are trusted.                                                                                     |
+| B4: console browser to Web             | Host-only secure session cookies, CSRF/origin checks, strict CSP, password throttling and live account authorization.  | A compromised Web process can issue console sessions and change its served UI.                                                             |
+| B5: frps/authz callbacks and admin API | Generated private/loopback publication and exact peer checks; bounded handler work.                                    | Host-network frps and the local host remain trusted. A frozen process is not made responsive by an internal timeout.                       |
+| B6: runtime roles to PostgreSQL        | Separate grants, tenant RLS, narrow security-definer operations and device identity-column restrictions.               | Runtime-selected tenant/actor context is not protection from a fully compromised runtime. Database owner/root can bypass these boundaries. |
+| B7: console to IdP                     | Authcore protocol validation plus NetHub durable browser/request/replay and account-admission state.                   | The enabled provider's trust configuration and bound identity remain trusted.                                                              |
+| B8: plugin UI/configd/native helpers   | Registered actions, bounded validated input, protected temporary files and native configuration locking.               | The agent is privileged on its device; its code/package is part of that device's trust boundary.                                           |
+| B9: certificate/trust operations       | Enrollment-bound local GUI key, signed CSR, exact generation checks and protected host authority operations.           | Public application reports are device statements, not independent observations of every later GUI connection.                              |
+
+Docker's generated loopback paths require Engine 28 or newer with the expected
+NAT bridge behavior. An external proxy must overwrite incoming forwarding
+headers; Web/authz trust only the configured peer. Internal HTTP/database traffic
+and local processes rely on the trusted host boundary. See
+[deployment operations](deployment.md) and [external proxy configuration](../deploy/external-proxy.md).
 
 ## 3. Assets
 
-| Asset | Where it lives | Why it matters |
-|---|---|---|
-| The device's configuration (`config.xml`), firewall rules, services | The device | What an attacker on a firewall ultimately wants. **The control plane has no designed path to read or change any of it** (DESIGN §1, §8) |
-| The path to the device's admin login | The relay and the tunnel | Whoever can reach the login page can try to log in; whoever can impersonate it can phish credentials |
-| Subdomain ownership ("this hostname is this device") | Postgres `devices` + the signed domain claim | If it can be forged or moved, an attacker can serve a look-alike login page on a real device's hostname |
-| Claim signing key | Only in the `nethub authz` container | Lets its holder mint claims for any subdomain |
-| frps admin credentials, frps auth token | `frps` and `nethub authz` | Admin API access; the first gate on the control channel |
-| Device credentials (`device_secret`, frp token, claim) | The device, in plaintext (accepted, see [§6](#6-accepted-risks-and-known-open-risks)) | Let their holder act as that one device |
-| Enroll tokens and invite links in transit | Wherever the person who created them passes them on (chat, email, paper) | Bearer credentials. A leaked enroll token puts an attacker's device in the victim's device list. Whoever opens an invite link first gets that invite's role: the password path checks no email. An admin invite therefore makes its first holder an admin |
-| Console accounts and sessions | Postgres (`users`, `sessions`, `user_identities`) | Console access: enroll, revoke, see devices and audit |
-| OIDC client secrets | Postgres, encrypted with `NETHUB_SECRETS_KEY` (held by `nethub web` only) | Let their holder act as NetHub towards the identity provider |
-| Audit log | Postgres `audit_log` (hash-chained) | After-the-fact accountability. The chain detects accidental damage, **not** tampering by someone with database write access (DESIGN §6) |
-| Deployment secrets backup | Wherever the deployer keeps it | There is no recovery path if it is lost (DESIGN decision #21) |
-| Availability of remote access | The relay VM, `frps`, `nethub authz` | The reason the product exists |
+| Asset                                        | Custody and consequence                                                                                                                                                                   |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Router configuration and privileged services | Local device. NetHub's restricted certificate/tunnel paths must not become arbitrary configuration or command execution.                                                                  |
+| Assigned hostname and domain claim           | Device identity in PostgreSQL, signed by authz. Compromise of the signer can impersonate routes.                                                                                          |
+| Device secret, claim and frp token           | Protected local device state. Device root can read them; the deployment frp token is shared, so it is only one admission layer.                                                           |
+| Console passwords, sessions and IdP bindings | PostgreSQL/Web. Compromise permits console administration and phishing, subject to the separate device-signing boundary.                                                                  |
+| OIDC secrets and SAML SP signing keys        | Encrypted under Web's key with purpose/tenant/provider binding. Web compromise can decrypt its credential material; authz does not mount that key.                                        |
+| GUI private key                              | Created and retained on the device. The control plane receives a public key/CSR, not this private key.                                                                                    |
+| Deployment CA and issuer/account state       | Protected operator state outside application runtime containers. Host/root or backup compromise can expose it.                                                                            |
+| Enrollment/invitation bearers                | Transit and the recipient's client; stored server-side as digests. The local-password invitation path does not verify mailbox ownership. An admin invitation is therefore high authority. |
+| Audit history                                | Append operations serialize per tenant and link hashes. This detects accidental damage, not hostile rewriting by a database owner or truthful behavior by a compromised actor.            |
+| Backups and availability                     | Operator-controlled storage and the host. A local secret-copy check does not prove recoverable database state or off-host durability.                                                     |
 
 ## 4. Attackers and what they can do
 
-Each subsection lists what the attacker **can** do, what they **cannot** do,
-which defences the design relies on, and what risk remains.
-
 ### 4.1 Anyone on the internet
 
-**Can:**
-- Reach the console login page, the enroll API, `frps` on 7000, and any
-  device's login page on 8443 if they know or guess its hostname.
-- Try passwords against the console, which is throttled per IP and per
-  account.
-- Try passwords against a device's own OPNsense login. NetHub does not
-  throttle that.
+An unauthenticated attacker can reach the public console, enrollment endpoint
+and relay listeners. They can attempt passwords and resource exhaustion within
+the available network/handler limits. NetHub does not replace OPNsense login
+throttling or its own authentication.
 
-**Cannot, as designed:**
-- Enroll a device without a valid one-time enroll token. Tokens are random,
-  stored only as hashes, single-use and expire after 15 minutes.
-- Register a proxy on `frps` without the frps auth token *and* a domain claim
-  that authz accepts.
+Knowing a GUI hostname is insufficient for a new connection while the trusted
+relay/authz source gate is enforced. An authorized Open grants the exact
+source/device for 30 minutes; another Open renews it, not router traffic or
+passive inventory. Public GUI certificates can disclose hostnames through
+Certificate Transparency. Random names are not an access-control mechanism.
 
-**Residual risk:**
-- **The device login page is exposed (open, DESIGN §14 Q7).**
-  - With SNI passthrough, the console's login and SSO do not stand in front of
-    the device's own login.
-  - Subdomains are random, which raises the cost of guessing. But from v1.1,
-    per-device public certificates will appear in Certificate Transparency
-    logs, which makes hostnames enumerable.
-  - The candidate mitigation is a source-IP gate on `frps`'s `NewUserConn`
-    hook. It is **unverified** until Weekend 0 and **open** pending a decision.
-  - Enable OPNsense's own TOTP two-factor authentication on every device
-    regardless.
-- **The device sees every relayed client as `127.0.0.1` (unverified).**
-  `frpc` connects to the GUI on `127.0.0.1:443`, so every browser reaching the
-  device through the relay appears to OPNsense to come from the device itself.
-  As a result, OPNsense's own per-address login lockout and its logs either
-  cannot tell attackers apart, or lock everyone out at once. Check this in
-  Weekend 0.
-- **OPNsense's own hostname checks (open, DESIGN §14 Q9).** OPNsense's
-  DNS-rebind and HTTP_REFERER checks may block access through the relay
-  hostname. The preferred route is to add the hostname to OPNsense's
-  "Alternate Hostnames". Turning the checks off is not.
+The gate identifies a network source, not a person. CGNAT peers can share an
+allowance. Console and GUI traffic using different IPv4/IPv6 addresses can be
+refused. Existing streams may outlive expiry. The phone W0 sample does not close
+W5's full mobile console-Open workflow.
 
-### 4.2 An attacker on the network between the browser and the relay
+### 4.2 An attacker between the browser and relay
 
-**Can:**
-- See which device hostname is being visited. SNI is sent in clear in TLS 1.2
-  and 1.3 unless Encrypted ClientHello (ECH) is used.
-- Interfere with or block the connection.
+This attacker can observe destination addresses and ordinarily visible SNI,
+block traffic and attempt redirection. Normal GUI CA/hostname validation prevents
+silently substituting a different endpoint. Do not bypass certificate warnings.
+Per-device public GUI certificates are in v1 scope and have scoped public/native
+acceptance; they are not deferred to v1.1.
 
-**Cannot:**
-- Read or modify the traffic between the browser and the device, as long as
-  the operator does not accept a forged certificate.
+A certificate installation receipt is not proof of what a later browser reached.
+Keep OPNsense's DNS rebinding and HTTP_REFERER checks enabled and configure the
+exact Alternate Hostname. An Open grant is not a substitute for GUI credentials.
 
-**Residual risk:**
-- **v1 uses the device's self-signed certificate.** The browser warns every
-  time, so users learn to click through the warning. An attacker who can
-  redirect the connection can present their own certificate, and the warning
-  looks the same.
-- Per-device publicly trusted certificates in v1.1 address this (DESIGN
-  decision #9). Until then, the only check is to compare the certificate
-  fingerprint with the one shown in the device's own GUI.
+### 4.3 An attacker between the device and relay
 
-### 4.3 An attacker on the network between the device and the relay
+The agent verifies the relay's assigned TLS server name against its configured
+CA bundle. The original no-CA interception attack is not the intended current
+configuration. Enrollment first verifies console HTTPS before receiving that
+trust; later transitions use authenticated delivery and protected authority
+operations. See [F1](#f1-the-devicerelay-control-channel-is-not-authenticated).
 
-Examples: the ISP or CGNAT operator, a compromised upstream router, or a
-hostile network at a remote site.
-
-**Can, as currently designed (see [F1](#f1-the-devicerelay-control-channel-is-not-authenticated)):**
-- Impersonate the relay towards the device: `frpc` does not verify the relay's
-  TLS certificate.
-- Read the `Login` message, including the domain claim in its metadata.
-- Replay that `Login` message to the real relay. frp's token authentication
-  has no timestamp freshness check, so the attacker does not even need the
-  frps token (from reading the frp source; **unverified**).
-- Keep the real device offline at will by dropping its traffic, and then
-  register the victim's subdomain while the device is away.
-- As the fake relay, reach the device's GUI directly. Any `NewUserConn` gate
-  on the real relay is bypassed.
-
-**Cannot:**
-- Decrypt the browser ↔ device TLS that is multiplexed inside the tunnel.
-
-**Residual risk:**
-- **Subdomain takeover: open finding F1.** The attacker can serve a
-  look-alike login page on a real device's hostname. The impact is the same
-  as DESIGN §13 scenario #1, but it needs no control-plane compromise. It
-  must be fixed before v1.
+A network attacker can still block connections. A compromised trusted relay,
+stolen device credentials or compromised authority can act within their own
+trust boundary. Captured claims remain bearer material; server authentication
+does not turn them into proof of a hardware-bound client or eliminate endpoint
+compromise. Modified-client old-stream behavior remains unverified.
 
 ### 4.4 A compromised console (`nethub web`)
 
-For example: an API authorization bug, SQL injection, XSS that rides an admin
-session, or session forgery.
+A fully compromised Web process can manage console users/providers, issue
+invitations and enrollment tokens, decrypt its provider credentials, change its
+UI, grant source access and revoke devices. It can phish by presenting a different
+hostname or label. Client-side projections/CSP help ordinary request/XSS threats;
+they cannot make a fully compromised server's UI trustworthy.
 
-**Can** (DESIGN §6, "安全论证"):
-- Create enroll tokens, and so enroll a *new* device under a *new* subdomain.
-- Revoke devices (an availability attack).
-- Read device metadata and the audit log.
-- **Phish through the console.**
-  - Even SQL injection alone is enough: insert an enroll token whose value the
-    attacker knows and which is attributed to the victim, enroll the
-    attacker's own box under it, and copy a real device's label onto it.
-  - With code execution, simply return any URL from the console's "Open"
-    action.
-  - Either way, a user who clicks "Open" without checking the hostname can be
-    sent to a look-alike login page.
-- Manage users, invites and OIDC providers, and decrypt the OIDC client
-  secrets: that is, take over the console.
-- Set an arbitrary enroll-token expiry, unless enroll-token columns are
-  granted per column. DESIGN §6 mitigates this with column-level INSERT,
-  database defaults and a maximum age enforced in `consume_enroll_token`.
-- If the Q7 gate is adopted, register any source IP for any device. The gate
-  is only as strong as the console.
-- Un-revoke a stolen device, unless revocation is made one-way. DESIGN §6
-  recommends one-way revocation (**open**).
+The database Web role cannot insert devices or update their assignment, secret
+hash or claim fields. It does not hold the domain-claim signing key, relay admin
+credentials, deployment CA signing key or device GUI private keys. Issuing a new
+enrollment token does not let Web choose an existing device's hostname. These
+boundaries rely on the actual role grants, not only API validation.
 
-**Cannot:**
-- Obtain a valid claim for an *existing* subdomain: the signing key is not in
-  the web container.
-- Change which device owns a subdomain. The web role has no write access to
-  `devices.subdomain` or to the claim and hash columns, and cannot insert
-  devices.
-- Put a look-alike on an existing device's **real** hostname.
-- Read or change any device's configuration.
+Enrollment-token INSERT grants exclude caller-chosen expiry; the consume function
+also enforces age and active issuer state. A database trigger makes revocation
+one-way, including through the Web role. The older draft's arbitrary-expiry and
+un-revoke concerns are not left as undecided controls.
 
-**Defences:**
-- the web/authz process split;
-- separate Postgres roles with column-level grants;
-- row-level security;
-- no server-side templates, a strict CSP, and per-session CSRF tokens.
-
-**Residual risk:** users who do not check the hostname they are opening are
-not protected against console-based phishing.
+This is not complete separation from availability, disclosure or phishing.
+Compromise of the deployment owner/host exceeds the Web runtime boundary.
 
 ### 4.5 A compromised `nethub authz`
 
-**Can:**
-- Mint claims for any subdomain.
-- Accept or reject any device, and assign subdomains.
-- Change `devices` rows. authz needs write access to them, so it can also
-  un-revoke devices and change their owner.
-- Use the frps admin credentials.
+Authz holds the domain signer and relay credentials and can change device records
+and admission decisions. It can impersonate routes. The one-way trigger still
+blocks clearing an existing row's revoked flag; it does not make a compromised
+signing authority safe or prevent abuse of other assignment authority.
 
-This is a compromise of the relay identity layer: an attacker can impersonate
-any device's hostname.
+Its role/mounts do not expose console users/sessions, OIDC secrets, SAML signing
+keys or Web's encryption key. The registered device protocol does not provide a
+general router command channel. A compromised service can still deny access,
+provide hostile protocol input and attack the privileged agent parser; those
+parsers and native application checks are part of the trusted implementation.
 
-**Cannot:**
-- Read or change device configuration. No such path exists, and the device
-  runs only registered configd actions.
-- Sign in to the console. authz has no access to the user, session, invite or
-  OIDC tables, and does not hold `NETHUB_SECRETS_KEY`.
+Authz is a single point of failure for existing tunnels as well as new admission.
+Ping is subscribed in generated configurations. Snapshot refresh, hook errors,
+restart and suspended-host behavior have different failure/recovery semantics;
+see [availability details](../deploy/revocation-and-heartbeats.md).
 
-**Defences:** a small, explicit surface. authz exposes only the device API,
-through Caddy, and an internal plugin endpoint. It keeps strict internal
-timeouts on database calls.
+### 4.6 A compromised relay or HTTPS proxy
 
-**Residual risk:**
-- authz is a single point of failure for new connections.
-- If `frps` also subscribes the `Ping` hook, which is the candidate cut-off
-  mechanism, authz becomes a single point of failure for **all** remote
-  access. This is **unverified**; see DESIGN §5 and §12, and Weekend 0 item ⑥.
+A compromised frps can skip hooks, reroute traffic and read control-channel
+claims. It does not normally decrypt the inner browser/GUI TLS, but can cause
+redirection, denial or phishing if users accept a forged endpoint.
 
-### 4.6 A compromised `frps` or Caddy process
+The HTTPS proxy terminates console/device API TLS. Its compromise exposes
+passwords, sessions, enrollment and device bearers crossing that connection.
+An external proxy carries the same trust, even though NetHub does not manage its
+certificate. Private publication, dropped capabilities and service isolation
+reduce exposure; they do not neutralize a compromised trusted endpoint.
 
-Both processes sit on the public edge and parse untrusted input before
-anything else does.
+### 4.7 A compromised host or database owner
 
-**A compromised `frps`:**
-- Can route any subdomain's port-8443 traffic anywhere.
-- Can skip the plugin calls altogether. authz's verdicts only matter while
-  frps honours them.
-- Reads every device's domain claim from `Login`, because it terminates the
-  control-channel TLS.
+Host root/Docker administration can inspect runtime mounts, change binaries,
+read host authority state and bypass container isolation. The PostgreSQL owner
+can bypass runtime grants/RLS and rewrite data/history. A hash chain does not
+provide forensic integrity against that actor.
 
-The result is hostname impersonation without touching authz or the database.
-
-**A compromised Caddy:**
-- Terminates TLS for the console and the device API.
-- So it sees console passwords and sessions, enroll tokens, and the device
-  credentials (`device_secret`, frp token, claim) in enroll and rotate
-  responses.
-
-**Defences, proposed and not yet in DESIGN:**
-- containers with the least privilege they need;
-- separate internal networks, so that only the web and authz roles can reach
-  Postgres, and only authz can reach the frps admin API;
-- frps holds only its own secrets.
-
-### 4.7 A compromised relay host (root on the VM)
-
-**Can:**
-- Do everything in 4.4 to 4.6. All secrets except the deployer's offline
-  backup live on this host.
-- Stop all tunnels.
-
-**Cannot:**
-- Read or change device configuration.
-- Decrypt browser ↔ device TLS, unless the operator accepts a forged
-  certificate (see 4.2).
-
-**Residual risk:** v1 accepts a single control-plane VM as a single point of
-failure (DESIGN §12). The host's security is the deployer's responsibility.
+There is no ordinary remote configuration API, but a hostile host can manipulate
+its issuance and delivery services and attack the agent. The device-local GUI
+key/CSR and native validation remain important. Do not generalize their tested
+checks into a guarantee that a fully hostile host cannot exploit any native bug.
+The operator must protect host access, DNS credentials, issuer state and backups.
 
 ### 4.8 A malicious console user
 
-**A `member`:**
-- Can manage their own devices and see their own audit entries.
-- Must not be able to see or act on another user's devices. That isolation is
-  enforced in the application (a `store`-layer filter on `owner_user_id`),
-  **not** by row-level security, which only separates tenants (DESIGN §13
-  scenario #2). A missing filter on one endpoint would be a real leak; the W3
-  tests are the defence.
+An ordinary member is restricted to owned device rows and permitted account
+operations. Tenant RLS does not replace owner/role checks. The checks must use the
+current account, not a stale role in a browser view. User disable invalidates
+existing sessions and refuses new valid IdP login.
 
-**A member also controls a sibling origin.**
-- The content served on `<subdomain>.router.example.com` comes from that
-  member's own device.
-- The device's label and hostname are shown to admins in the console.
+A device can serve attacker-controlled content on its sibling origin. Console
+cookies are host-only `__Host-` cookies. Open uses a detached/no-opener tab and no
+console referrer. Authz refuses custom-domain and mismatched proxy registrations;
+a device is not assigned the console hostname. Keep the console outside the
+device suffix and preserve exact proxy/header configuration.
 
-That gives a member three ways to attack the console:
-
-- **Cookies.** The device's pages are same-site with the console, so they can
-  try to set cookies the console will read.
-- **The opened tab.** The tab the console opens can reach back to the console
-  tab through `window.opener`.
-- **The console's own hostname.** If a device could register the console's
-  hostname as a custom domain on port 8443, it would receive the console's
-  cookies, because cookies are not scoped by port. frps 0.71.0 itself accepts
-  custom domains that are not *below* `subDomainHost`.
-
-**Defences (`docs/console-api.md`):**
-- **For cookies:** `__Host-` cookies.
-- **For the opened tab:** opening devices with `noopener`, plus
-  `Cross-Origin-Opener-Policy: same-origin`.
-- **For the console hostname:**
-  - authz rejects every `NewProxy` request that has any custom domain, is not
-    of type `https`, or whose subdomain differs from the device's record;
-  - no device ever serves the console's hostname.
-
-**An `admin`** has full control of the console by design. Within NetHub's
-boundary there is no defence against a malicious admin beyond the audit log.
+An administrator intentionally has broad console authority. Audit records do not
+prevent that administrator acting maliciously or leaking an invitation bearer.
+The local-admin guard preserves a count of enabled password administrators, not
+an irrevocable account for a particular operator against another administrator.
 
 ### 4.9 A compromised identity provider or IdP account
 
-**Can:** sign in to the console as any user bound to that provider. For an
-admin that means sending invites, revoking every device and reading the audit
-log.
+A compromised trusted IdP can authenticate as users already bound to it. For a
+bound administrator this grants console authority; the local emergency admin is
+an independent recovery path, not a defense against that provider acting as an
+already bound user.
 
-**Cannot:**
-- Obtain claims, move subdomains or read device configuration (same boundary
-  as 4.4).
-- Use a matching email address to take over a user or claim an invite.
-  Bindings are by `(issuer, subject)`. A new binding only happens in a flow
-  started from an invite link, with a valid invite token, `email_verified=true`
-  and a matching email (DESIGN decision #22, §13 scenario #13).
+OIDC uses verified issuer/subject, state, nonce and PKCE. New invitation admission
+requires the exact grant/provider, matching email and signed `email_verified=true`.
+SAML uses the trusted IdP and SP-scoped persistent NameID, signed exact-name email
+attribute, browser-bound request and durable replay protection. SAML has no OIDC
+email-verification flag; accepting signed email is an explicit provider trust.
+Neither protocol auto-attaches an existing account by mailbox alone.
 
-**Residual risk:** the local break-glass admin does not depend on any IdP and
-stays available. The console API is designed so that at least one local admin
-always remains.
+The SAML flow cookie is Secure, HttpOnly and SameSite=None for the IdP's cross-site
+POST. This does not relax the normal Lax session/OIDC cookies or general API CSRF
+policy. The ACS validates its one-use browser/request binding and signed response;
+a foreign IdP Origin is not itself an authorization credential.
+
+OIDC outbound traffic is HTTPS, bounded, redirect-refusing and DNS-policy checked.
+Private-network exceptions are operator-configured exact authorities, not
+wildcards, and do not bypass TLS. SAML metadata is explicitly supplied by the
+trusted administrator with XML bounds; it is not an arbitrary metadata URL fetch.
+The bounded parser does not authenticate metadata provenance; obtain the document
+through a trusted channel before importing it.
+These controls do not make a malicious enabled IdP trustworthy.
 
 ### 4.10 A stolen or compromised device
 
-**Can:**
-- With root on the device, read its credentials. They are stored in plaintext,
-  at the same level as OPNsense's own API keys (accepted).
-- Act as that one device, on its own subdomain, until it is revoked.
+Device root can read its local credentials and act as that device. A leaked
+shared frp token does not supply another device's valid assigned claim. It still
+requires a deployment rotation/recovery procedure; operational rotation is not
+implemented merely because its schema exists.
 
-**Cannot:**
-- Act as any other device.
-- Reach the console.
-
-**Residual risk:**
-- **A live tunnel may survive revocation (open).** frps 0.71.0's admin API has
-  no endpoint that disconnects a connected client, and the candidate
-  mechanisms are unverified (DESIGN §5). A revoked device may keep its live
-  tunnel until it reconnects.
-- **A modified `frpc` can outlast revocation.** One that ignores the error
-  response to a rejected heartbeat loses its control connection only after
-  `heartbeatTimeout`. According to the frp source, its open streams may
-  survive even that (DESIGN §12).
+One-way database revocation, combined Ping/Login/NewProxy denial and fresh
+connection denial provide observed cutoff for the tested normal clients. The
+installed measurement was 17.218 seconds from console confirmation dispatch;
+its 374.172-second no-reconnect observation is bounded evidence. It exceeds W0's
+2.136-4.958-second probe range, so the PLAN comparison remains open. It is not a
+guarantee for modified clients, existing streams or a frozen dependency.
 
 ### 4.11 Supply chain
 
-| Component | Trust root, as designed | Gap |
-|---|---|---|
-| frp binaries | The official upstream release, SHA-256 pinned and verified at build time. The same version runs on device and relay (DESIGN decision #19) | — |
-| Plugin package (`os-nethub-agent`) | Signed by the package repository's signing key and built from a tagged release, in a separate packaging repository | Kazuha permits building, signing, and NetHub use on the designated packaging test host (DESIGN #20, revised 2026-10-17). Signing material on that host shares its compromise boundary; other signing hosts remain excluded. Offline signing remains Q4 |
-| Go modules, npm packages | `go.sum` and lock files. Proposed, not yet in DESIGN: `govulncheck` and Dependabot in CI | — |
-| Container images | Not decided: who builds and publishes them, and whether deployers pin digests | **Open** and not yet tracked in DESIGN §14 (F2) |
-| Shared Go module `authcore` | Pinned to a verified tag (DESIGN decision #23) | — |
+| Component                  | Current control                                                                                             | Remaining boundary                                                                                                                          |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Packaged frpc/relay        | frp 0.71.1 source/dependency locks, selected patched compiler and rebuilt-binary checks/scans.              | Official prebuilt archives are interoperability fixtures, not a fallback packaged client. A pin does not prove an upstream dependency safe. |
+| OPNsense package           | Native source/build identity and unsigned development-package acceptance.                                   | Formal recipe, signing, release and faulty-version/canary gates remain separate.                                                            |
+| Go/npm and shared authcore | go.sum/lockfiles, direct authcore commit pin, required vulnerability and integration checks.                | The development authcore pseudo-version is not a new formal tag or attestation.                                                             |
+| Container images           | Pinned base digests, reviewed local builds and exact CI image archive/configuration/rootfs/platform checks. | Formal published-release provenance and upgrade policy remain open; CI image export is not a signed release.                                |
+| Credentials in repository  | Full fetched-history scan and ten exception controls.                                                       | Automated pattern checks do not replace D12's manual disclosure review or prove absence of every operational detail.                        |
 
-### 4.12 The deployer's own mistakes
+Kazuha explicitly permits NetHub use and packaging/signing on the designated test
+host (revised DESIGN decision #20). Signing material present there shares that
+host's compromise boundary. This does not authorize formal release or extend the
+exception to other signing hosts.
 
-| Mistake | Consequence | Defence, as designed or proposed |
-|---|---|---|
-| Losing the secrets backup | No recovery: device claims can no longer be verified, and OIDC secrets cannot be decrypted (DESIGN §13 scenario #12) | `nethub init` forces a backup prompt; `nethub doctor` checks that a backup exists |
-| Misconfigured trusted proxies | Client IPs can be spoofed via `X-Forwarded-For`, defeating login throttling and polluting the audit log | Forwarded headers are honoured only from declared proxies; a loud warning when an undeclared peer sends them |
-| Publishing internal ports (admin API, plugin endpoint, Postgres) | Direct access to internals | The compose stack is designed to publish only 443, 7000 and 8443. `nethub doctor` checks that those three are reachable. A check that the internal ports are **not** reachable is proposed |
-| Turning off OPNsense's DNS-rebind / HTTP_REFERER checks to make access work | Weakens the device's own protection | Documentation says to add the relay hostname to "Alternate Hostnames" instead (Q9) |
-| Installing the agent on a production router without out-of-band access | A NetHub failure can lock the operator out | The enroll page asks the user to confirm independent out-of-band access; a local kill switch exists |
+### 4.12 Deployer mistakes and recovery
 
-## 5. Open findings
+| Mistake                                                 | Consequence and current boundary                                                                                                                                                  |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Losing Web's secret key or authority state              | Stored provider material or trust operations can become unrecoverable. Init/doctor verify a protected local copy; they do not prove off-host durability or a restorable database. |
+| Trusting forged forwarding headers                      | Source gates/throttles can be bypassed and audit IPs falsified. Configure the exact trusted proxy peer and overwrite client-supplied headers.                                     |
+| Publishing internal listeners                           | Exposes privileged APIs/database traffic. Use the generated private/loopback paths; doctor does not prove public/internal reachability.                                           |
+| Accepting GUI TLS warnings or disabling hostname checks | Enables redirection/phishing and weakens OPNsense defenses. Use normal certificate validation and exact Alternate Hostnames.                                                      |
+| Restarting authz without another management path        | Drops tunnels through the subscribed Ping dependency. Preserve independent host/router access.                                                                                    |
+| Treating fresh init as an upgrade/restore               | Can separate existing data from its keys/authority. Preserve original state and use reviewed operation-specific recovery.                                                         |
 
-These weaknesses were found while writing this model. They are not yet
-reflected in a decided design.
+## 5. Findings and remaining work
 
-### F1. The device–relay control channel is not authenticated
+<a id="5-open-findings"></a>
+<a id="f1-the-devicerelay-control-channel-is-not-authenticated"></a>
 
-**What the code does.** Checked against the frp v0.71.0 source:
+### F1. Original relay TLS gap addressed; trust lifecycle remains sensitive
 
-- `pkg/transport/tls.go`, `NewClientTLSConfig`: sets
-  `InsecureSkipVerify = true` whenever no CA file is configured. So `frpc` with
-  `transport.tls.enable = true` and no `transport.tls.trustedCaFile` accepts
-  any certificate. It never falls back to the system root store.
-- `NewServerTLSConfig`: generates a random key pair at every start when no
-  certificate is configured.
-- `frps` loads its certificate once at start-up and never reloads it.
+The original draft analyzed frpc without a CA file, accepting arbitrary server
+certificates. The current agent renders explicit trustedCaFile/serverName and
+verifies initial console HTTPS. Generated deployments keep the CA signing key
+outside application runtime mounts. Native initial trust, overlap/recovery and
+public certificate records are linked from the handoff.
 
-**Consequence.** As currently designed, the control channel is encrypted but
-not authenticated. Section 4.3 describes what an attacker on the device's
-network path can do with that.
+Retain protected publication, overlap/retirement barriers, validity and offline
+recovery requirements. Do not replace trust with a blind CA-file copy or claim
+that normal enrollment proves every future recovery path. Claims remain bearer
+credentials. Modified-client behavior and complete production release acceptance
+are not established by the TLS fix.
 
-**Proposed fix (open, DESIGN §14 Q10):**
+<a id="f2-container-image-provenance-is-undecided"></a>
 
-1. `nethub init` generates a deployment CA and issues a long-lived server
-   certificate for the relay hostname.
-   - `frps` gets only that certificate and its key.
-   - The CA's private key goes into the deployer's secrets backup and is
-     mounted into no container. It is a new secret under DESIGN decision #21.
-   - A publicly trusted certificate would also work, but it renews about every
-     90 days and frps must restart to load it, which drops every tunnel. A
-     long-lived certificate from a deployment CA avoids that.
-2. The enroll and rotate responses deliver the CA certificate as PEM. Those
-   responses travel over the verified HTTPS channel B3. frpc reads only a PEM
-   file and has no fingerprint pinning.
-3. The agent renders `transport.tls.trustedCaFile` and
-   `transport.tls.serverName` into `frpc.toml`.
+### F2. Release provenance and operator workflows remain open
 
-The claim stays a bearer credential even with server authentication. Mutual
-TLS (DESIGN Q1) is the long-term option.
+Pinned builds and CI content verification now exist. Formal signed distribution,
+release provenance, supported upgrade, faulty-version/canary behavior and the
+friend-from-zero deployment remain W7 gates. An exported CI image archive cannot
+be substituted for that release process.
 
-### F2. Container image provenance is undecided
+### F3. Revocation timing and public/mobile coverage remain open
 
-See 4.11. Until it is decided, a deployer has no designed way to verify that
-the images they run were built from a given release. This is not yet an open
-question in DESIGN §14.
+The stock/native measurements prove cutoff in their recorded cases. The W5
+product sample is slower than the W0 probe range. Mobile console Open,
+company/campus filtering and broader dual-stack/modified-client coverage remain
+unmeasured or incomplete. Preserve the actual limits rather than declaring all
+networks or a universal deadline covered.
+
+### F4. Complete restore, operational rotation and doctor coverage remain open
+
+Scheduled database backups/retention, protected off-host durability and a full
+clean-host restore with an existing device reconnecting have not passed W7.
+The rotate wire shapes do not expose a working HTTP/agent/UI operation. Doctor
+checks initialization/secret/backup/relay material and optional DNS, but does not
+complete runtime reachability, scheduled-backup or audit-chain verification.
 
 ## 6. Accepted risks and known open risks
 
-This is a selection, grouped for deployers. DESIGN §12 is the full list.
+- Local device root can read its credentials; shared NAT/source grants identify
+  network position rather than a person.
+- The host, authz, relay and edge are availability/trust dependencies. Authz Ping
+  adoption extends that dependency to existing tunnels.
+- A compromised console can administer accounts, disclose metadata, revoke and
+  phish; runtime signer separation does not protect the integrity of its UI.
+- A compromised configured IdP can act as its bound accounts.
+- Public certificates can disclose GUI hostnames. The router still needs its own
+  authentication; NetHub does not enforce OPNsense TOTP.
+- Login/SSO throttles are in process; restart or another Web instance changes that
+  boundary. v1 assumes one Web instance and one tenant per deployment.
+- Online means recent tunnel observation, not GUI health or current certificate
+  validity. Router-local failures can still prevent management.
+- Development/native evidence includes the owner-approved 1 GiB appliance
+  deviation. It does not establish general capacity or latency.
+- The authorized packaging-host exception retains its signing-material risk.
 
-**Accepted:**
-
-- Device credentials are stored in plaintext on the device.
-- v1 uses self-signed device certificates, so browsers show warnings (fixed
-  in v1.1).
-- The control-plane VM is a single point of failure, with no hot standby.
-- Online status reflects the tunnel, not the health of the OPNsense GUI.
-- `rotate` needs the device to be online; offline devices must re-enroll.
-- The owner-approved packaging test host may also run NetHub (decision #20,
-  revised 2026-10-17). Host compromise can therefore expose signing material
-  present there; the prior signing-host separation does not apply to it.
-- Login throttling is in-process (a single web instance is assumed).
-- A compromised console can revoke every device, read metadata and audit,
-  and phish through the device list (4.4). That is availability, disclosure
-  and phishing, not impersonation of an existing hostname.
-- A compromised IdP account gives console access for the users bound to it,
-  bounded as in 4.9.
-- After a reboot the default route may fail to install, and NetHub has no
-  technical defence against that (DESIGN §12, §13 scenario #9).
-
-**Open until Weekend 0 or a decision:**
-
-- There is no verified way yet to cut a live tunnel (4.10).
-- `nethub authz` is a single point of failure for new connections, and for
-  all tunnels if `Ping` is subscribed (4.5).
-- A modified `frpc` may outlast revocation (4.10).
-- The device login page is exposed through the relay (Q7, 4.1).
-- How `frps` behaves when a plugin call fails or hangs is unverified ([§8](#8-assumptions-this-model-depends-on)).
-- The control channel is unauthenticated (F1, Q10).
+The open findings above are not silently accepted as completed features.
 
 ## 7. Out of scope
 
-- Vulnerabilities in OPNsense, frp, Postgres, Caddy or the relay's operating
-  system themselves. NetHub's job is not to make them more reachable than
-  necessary; Q7 and Q9 are about exactly that.
-- Denial of service against the relay. One VM is accepted.
-- Hostile tenants sharing one instance. v1 has exactly one tenant per
-  instance; multi-tenancy is v3.
-- Compromise of the deployer's own workstation or secrets backup.
-- Physical attacks on the relay host.
+NetHub does not repair independent vulnerabilities in OPNsense, frp, PostgreSQL,
+the proxy or the host OS. Its integration must still avoid exposing them more
+than necessary and maintain dependency checks. Hostile co-tenants, workstation
+or backup compromise, physical host attacks and volumetric denial of service are
+not solved by this single-host v1 model.
 
-## 8. Assumptions this model depends on
+<a id="8-assumptions-this-model-depends-on"></a>
+<a id="w0-decisions-and-measured-limits-2026-10-18"></a>
 
-If any of these turns out false, this document must be revised.
+## 8. Evidence and unverified assumptions
 
-1. **`frps` fails closed** when the plugin backend errors or hangs. This
-   comes from reading the source and is **unverified** (Weekend 0 item ③).
-2. **`NewProxy` plugin requests carry the device identity from `Login`**
-   (`user.metas`), so ownership can be checked in one request. From reading
-   the source; **unverified** (Weekend 0 item ②).
-3. **`NewUserConn` fires for HTTPS vhost proxies and reports the real client
-   IP.** **Unverified** (Weekend 0 item ⑤). It also depends on how `frps` is
-   run under Docker.
-4. **There is a working way to cut a live tunnel.** **Unverified** (Weekend 0
-   item ⑥).
-5. **The column-level grants and one-way revocation** in DESIGN §6 are
-   implemented as written (**open**).
-6. **Users enable OPNsense's own two-factor authentication** on enrolled
-   devices. NetHub cannot enforce this.
-7. **The agent's HTTPS client** for enroll, rotate and status verifies the
-   port-443 certificate against the system CA bundle and never disables
-   verification. The F1 fix depends on it. DESIGN §4 does not yet state it.
-8. **How the device's GUI sees relayed clients** (as `127.0.0.1`), and what
-   that does to OPNsense's own lockout and logs, is **unverified** (4.1).
+| Claim or assumption                                                   | Evidence and limit                                                                                                                                                                                          |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hook identity, source address and failure behavior                    | [W0 report](../weekend0/results-2026-10-17.md). Backend hang produced stale observations/recovery flapping; this does not establish an unconditional deadline.                                              |
+| One-way revoke, token expiry and runtime privileges                   | [Core grants/triggers](../server/internal/store/migrations/00001_core.sql), actual-role PostgreSQL tests and current required CI. Owner/root bypass remains outside the runtime-role claim.                 |
+| Audit serialization/hash links                                        | [append_audit](../server/internal/store/migrations/00002_scoped_operations.sql) locks the tenant row across writers. Complete doctor chain verification remains W7 work; it is not hostile-tamper evidence. |
+| GUI issuance and native/public application                            | [Native public certificate record](../deploy/validation-native-public-certificate.md), with its exact images, device package and cleanup limits.                                                            |
+| Relay trust transition/recovery                                       | [Authority operations](../deploy/relay-authority-operations.md) and the handoff's accepted runtime records; not a promise that arbitrary stale backups or expired originals can recover.                    |
+| Real native cutoff and recovery                                       | [Installed heartbeat/Revoke](../deploy/validation-native-w5-heartbeat.md), including the slower bound and missing mobile sample.                                                                            |
+| Two actual OIDC issuers                                               | [Two-Dex deployment](../deploy/validation-two-dex.md). Public-provider acceptance is separate.                                                                                                              |
+| Actual signed SAML vendor                                             | [Keycloak deployment](../deploy/validation-keycloak-saml.md). Fixture inventory is not agent/tunnel evidence; no assertion-encryption or public/mobile claim.                                               |
+| Device-local client attribution, hostile streams and broader networks | Do not infer complete GUI lockout/logging behavior or malicious-client cutoff from normal browser samples. These remain unverified where no direct measurement exists.                                      |
+| Operational release/restore/disclosure                                | W7 and owner gates remain open. Repository publication does not by itself complete D12 or authorize history rewriting.                                                                                      |
 
-
-## W0 decisions and measured limits (2026-10-18)
-
-Kazuha accepted the [W0 report](../weekend0/results-2026-10-17.md) and confirmed
-D5/D6/D7/D17. These are implementation requirements, not implemented controls.
-
-- Keep the public GUI relay on 8443. Two mobile networks did not trigger Q2;
-  company/campus and IPv6 coverage remain untested.
-- Use explicit 10-second heartbeats and 30-second client/server timeouts. Revoke
-  through combined Ping/Login/NewProxy denial; deny new user connections too.
-  Three stock-client trials disconnected in 2.136–4.958 seconds. A hung hook
-  invalidates any unconditional latency bound: admin state stayed online after
-  heartbeat timeout while API requests failed, and recovery flapped.
-- Authz process loss or HTTP 500 interrupted online access. Bound handler work
-  internally, keep Ping free of blocking database calls, and preserve independent
-  out-of-band access. Health recovery does not remove this availability dependency.
-- Authenticated Open grants device/source-IP access for 30 minutes. Another Open
-  renews the deadline; hook calls and traffic do not. Existing connections can
-  outlive expiry. Shared CGNAT peers can share authorization; this is a network
-  position check, not user identity or a replacement for OPNsense authentication.
-- Require manual exact Alternate Hostnames setup, keeping DNS rebinding and
-  HTTP_REFERER checks enabled. Do not write unrelated system settings automatically.
-
-The control-channel server-authentication gap remains D22 and must be resolved
-before release. Modified clients retaining old streams were not tested.
+Future edits must bind each changed security claim to the relevant source and
+actual test/runtime evidence. Do not turn a scoped success or absence of a known
+failure into proof that the complete threat model or release has passed.
