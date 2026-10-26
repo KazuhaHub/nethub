@@ -163,6 +163,15 @@ def browser_diagnostic(failure):
             result[name] = value
     if failure.get('provider_error') in ('invalid_request', 'oidc_discovery_failed', 'forbidden', 'unauthenticated', 'internal_error', 'slug_taken'):
         result['provider_error'] = failure['provider_error']
+    for name in ('callback_has_code', 'callback_has_state', 'callback_has_iss', 'callback_has_scope', 'callback_has_error', 'callback_unknown_parameter', 'callback_duplicate_parameter', 'callback_binding_cookie_sent', 'sso_landed_on_failure', 'session_cookie_present'):
+        if type(failure.get(name)) is bool:
+            result[name] = failure[name]
+    for name in ('flow_count', 'flow_consumed_count', 'flow_admitted_count', 'identity_count', 'session_count', 'invites_used_count'):
+        value = failure.get(name)
+        if type(value) is int and 0 <= value <= 10000:
+            result[name] = value
+    if failure.get('last_sso_reason') in ('start', 'callback', 'unavailable', 'provider_unavailable', 'invitation_invalid', 'discovery_failed', 'state_unavailable', 'state_invalid', 'exchange_failed', 'token_invalid', 'nonce_invalid', 'admission_denied', 'admission_unavailable'):
+        result['last_sso_reason'] = failure['last_sso_reason']
     return result
 
 

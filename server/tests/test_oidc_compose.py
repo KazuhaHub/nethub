@@ -31,7 +31,9 @@ class OIDCOwnershipBoundaries(unittest.TestCase):
 
     def test_browser_diagnostics_never_publish_assertion_values_or_error_text(self):
         safe = {'failure_line': 472, 'assertion_actual': False, 'assertion_expected': 201,
-                'provider_status': 422, 'provider_error': 'oidc_discovery_failed'}
+                'provider_status': 422, 'provider_error': 'oidc_discovery_failed',
+                'callback_binding_cookie_sent': True, 'callback_has_scope': False,
+                'last_sso_reason': 'admission_denied', 'flow_consumed_count': 1}
         self.assertEqual(suite.browser_diagnostic(dict(safe, stack='private-stack', message='private-message')), safe)
         for unsafe in ('private-secret', ['private-secret'], {'message': 'private-secret'}, None, 100001, -100001):
             self.assertEqual(suite.browser_diagnostic({name: unsafe for name in safe}), {})

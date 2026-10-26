@@ -233,6 +233,18 @@ async function startFromUI(client, slug, grant) {
         .getByRole("button", { name: `Continue with Dex ${slug}`, exact: true })
         .click();
       const response = await received;
+      const submitted = response.request().postDataJSON();
+      if (grant)
+        assert.equal(
+          submitted.invite_token,
+          grant,
+          "UI did not submit its invitation",
+        );
+      else
+        assert.ok(
+          !Object.hasOwn(submitted, "invite_token"),
+          "Ordinary login unexpectedly submitted an invitation",
+        );
       if (response.status() === 429 && attempt === 0) {
         const seconds = Number(response.headers()["retry-after"]);
         assert.ok(Number.isInteger(seconds) && seconds >= 1 && seconds <= 60);
@@ -273,6 +285,40 @@ async function signIn(
   const client = await anonymous();
   const callbackPath = `/api/v1/console/oidc/${slug}/callback`;
   let callback;
+  client.page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.origin !== origin || url.pathname !== callbackPath) return;
+    for (const key of ["code", "state", "iss", "scope", "error"])
+      failureContext["callback_has_" + key] = Boolean(
+        url.searchParams.get(key),
+      );
+    failureContext.callback_unknown_parameter = [
+      ...url.searchParams.keys(),
+    ].some(
+      (key) =>
+        ![
+          "state",
+          "code",
+          "error",
+          "error_description",
+          "error_uri",
+          "session_state",
+          "iss",
+        ].includes(key),
+    );
+    failureContext.callback_duplicate_parameter = [
+      ...url.searchParams.keys(),
+    ].some((key) => url.searchParams.getAll(key).length > 1);
+    headerChecks.push(
+      request
+        .allHeaders()
+        .then((headers) => {
+          failureContext.callback_binding_cookie_sent =
+            /(?:^|;\s*)__Host-nethub_oidc=/.test(headers.cookie || "");
+        })
+        .catch(() => {}),
+    );
+  });
   client.page.on("response", (reply) => {
     const url = new URL(reply.url());
     if (url.origin === origin && url.pathname === callbackPath) {
@@ -302,7 +348,7 @@ async function signIn(
     ).toString();
     await client.context.setExtraHTTPHeaders({});
     const changed = new URL(untampered);
-    changed.searchParams.set("state", "a".repeat(43));
+    changed.searchParams.set("state", "a".repeat(42) + "A");
     await client.page.goto(changed.toString());
   } else {
     await dexLogin(client.page, email);
@@ -310,7 +356,17 @@ async function signIn(
   await client.page.waitForURL(
     (url) => url.origin === origin && !url.pathname.startsWith("/api/"),
   );
+  failureContext.sso_landed_on_failure =
+    new URL(client.page.url()).pathname === "/login";
+  failureContext.session_cookie_present = (
+    await client.context.cookies(origin)
+  ).some((cookie) => cookie.name === "__Host-nethub_session");
   if (success) {
+    assert.equal(
+      failureContext.sso_landed_on_failure,
+      false,
+      "Valid invited SSO returned to sign-in",
+    );
     await client.page
       .getByRole("heading", { name: "Devices", exact: true })
       .waitFor();
@@ -532,8 +588,16 @@ try {
       csrf,
     );
     assert.equal(response.status, 201);
-    privateValues.push(response.data.token);
-    return response.data.token;
+    assert.equal(typeof response.data.invite_url, "string");
+    const link = new URL(response.data.invite_url);
+    assert.equal(link.origin, origin);
+    assert.equal(link.pathname, "/invite");
+    assert.equal(link.search, "");
+    const token = link.hash.slice(1);
+    assert.match(token, /^[A-Za-z0-9_-]{43}$/);
+    assert.equal(Buffer.from(token, "base64url").toString("base64url"), token);
+    privateValues.push(token);
+    return token;
   }
   phase = "signed_false_probe";
   const falseClaim = await signedClaimProbe("one", "unverified@example.com");
@@ -887,6 +951,51 @@ try {
     String(error.stack || error),
     { mode: 0o600 },
   );
+  await Promise.allSettled(headerChecks);
+  try {
+    const diagnostic = JSON.parse(
+      sql(`SELECT json_build_object(
+      'last_sso_reason',(SELECT payload->>'reason' FROM audit_log WHERE action='auth.sso_failed' ORDER BY sequence DESC LIMIT 1),
+      'flow_count',(SELECT count(*) FROM oidc_flows),
+      'flow_consumed_count',(SELECT count(*) FROM oidc_flows WHERE consumed_at IS NOT NULL),
+      'flow_admitted_count',(SELECT count(*) FROM oidc_flows WHERE admitted_at IS NOT NULL),
+      'identity_count',(SELECT count(*) FROM user_identities),
+      'session_count',(SELECT count(*) FROM sessions),
+      'invites_used_count',(SELECT count(*) FROM invites WHERE used_at IS NOT NULL))`),
+    );
+    if (
+      [
+        "start",
+        "callback",
+        "unavailable",
+        "provider_unavailable",
+        "invitation_invalid",
+        "discovery_failed",
+        "state_unavailable",
+        "state_invalid",
+        "exchange_failed",
+        "token_invalid",
+        "nonce_invalid",
+        "admission_denied",
+        "admission_unavailable",
+      ].includes(diagnostic.last_sso_reason)
+    )
+      failureContext.last_sso_reason = diagnostic.last_sso_reason;
+    for (const name of [
+      "flow_count",
+      "flow_consumed_count",
+      "flow_admitted_count",
+      "identity_count",
+      "session_count",
+      "invites_used_count",
+    ])
+      if (
+        Number.isInteger(diagnostic[name]) &&
+        diagnostic[name] >= 0 &&
+        diagnostic[name] <= 10000
+      )
+        failureContext[name] = diagnostic[name];
+  } catch {}
   writeFileSync(
     join(evidence, "results.json"),
     JSON.stringify(
