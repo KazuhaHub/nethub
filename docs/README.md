@@ -26,6 +26,10 @@ acceptance records and the [execution plan](PLAN.md) for remaining requirements.
 | [SAML providers](../deploy/saml-providers.md), [SAML login](../deploy/saml-login.md), [SAML pages](../deploy/saml-console.md)                    | Shared authcore protocol processing, trusted metadata, signed requests, durable replay protection, account admission and administration pages. Deployed vendor IdP acceptance is tracked separately. |
 | [OPNsense plugin](../agents/opnsense/plugin/README.md), [protocol contracts](../proto/README.md)                                                 | Current device implementation and versioned wire contracts. The protocol walkthrough links these contracts and their runtime boundaries.                                                             |
 
+[Read-only audit verification](../deploy/audit-chain.md) describes the explicit
+post-start database mode, versioned encoding and legacy-timezone limits. It does
+not complete scheduled backups, restore or the remaining doctor checks.
+
 ## Contributing docs
 
 If you want to help write any of the above, that's a welcome contribution —

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/setup"
+	"github.com/KazuhaHub/nethub/server/internal/store"
 )
 
 func runDoctor(args []string, stdout, stderr io.Writer) int {
@@ -20,6 +21,14 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	directory := flags.String("directory", ".", "Initialized deployment directory")
 	healthURL := flags.String("health-url", "", "Check a private loopback HTTP health endpoint only")
 	expected := flags.String("expected-address", "", "Also check console/wildcard DNS against this address")
+	audit := flags.Bool("audit", false, "Verify the deployment audit chain in a read-only database snapshot")
+	host := flags.String("host", "postgres", "Audit database hostname")
+	port := flags.Uint("port", 5432, "Audit database port")
+	database := flags.String("database", "nethub", "Audit database name")
+	passwordFile := flags.String("password-file", "", "Web-role password file for read-only audit verification")
+	tls := flags.String("sslmode", "verify-full", "verify-full, or disable for an isolated local database")
+	legacyZone := flags.String("audit-timezone", "UTC", "Original writer timezone for legacy audit records")
+	auditTimeout := flags.Duration("audit-timeout", 30*time.Second, "Total audit check budget, between one second and five minutes")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -28,6 +37,23 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	}
 	if flags.NArg() != 0 {
 		return 2
+	}
+	selected := map[string]bool{}
+	flags.Visit(func(f *flag.Flag) { selected[f.Name] = true })
+	if *audit {
+		if selected["directory"] || selected["health-url"] || selected["expected-address"] || *passwordFile == "" ||
+			*host == "" || *database == "" || *port == 0 || *port > 65535 || (*tls != "verify-full" && *tls != "disable") ||
+			*legacyZone == "" || len(*legacyZone) > 64 || *auditTimeout < time.Second || *auditTimeout > 5*time.Minute {
+			fmt.Fprintln(stderr, "Audit mode requires valid database settings, a Web-role password file and a bounded timeout; run file/DNS/health checks separately")
+			return 2
+		}
+		return runAuditDoctor(auditDoctorOptions{Database: store.DatabaseConfig{Host: *host, Port: uint16(*port), Database: *database, PasswordFile: *passwordFile, SSLMode: *tls}, LegacyZone: *legacyZone, Timeout: *auditTimeout}, stdout, stderr)
+	}
+	for _, name := range []string{"host", "port", "database", "password-file", "sslmode", "audit-timezone", "audit-timeout"} {
+		if selected[name] {
+			fmt.Fprintln(stderr, "Database options require doctor --audit")
+			return 2
+		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

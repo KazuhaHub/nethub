@@ -96,6 +96,11 @@ It does not establish public port/TLS reachability, runtime database grants,
 relay/authz health or scheduled database backups. Those omissions are printed;
 do not treat exit zero as complete deployment acceptance.
 
+For linked audit history, use the separate [read-only audit mode](../deploy/audit-chain.md)
+inside the existing Web container. It verifies a database snapshot without
+running initialization, migrations or repair; it does not replace the other
+readiness checks or the remaining W7 requirements.
+
 Verify console HTTPS with normal CA/hostname checking, local-admin login, logout
 and secure cookies. Public `/healthz` and relay hooks must be denied. On the
 approved test router, verify enrollment, a current certificate application report,
