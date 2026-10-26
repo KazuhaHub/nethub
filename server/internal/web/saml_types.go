@@ -78,7 +78,7 @@ func NormalizeSAMLInput(input SAMLProviderInput) (SAMLProviderInput, error) {
 		}
 		return true
 	}
-	if !providerSlug.MatchString(input.Slug) || !text(input.DisplayName, 200) || !text(input.EntityID, 4096) || !text(input.EmailAttribute, 512) || len(input.MetadataXML) == 0 || len(input.MetadataXML) > 1<<20 || !utf8.ValidString(input.MetadataXML) {
+	if !providerSlug.MatchString(input.Slug) || !text(input.DisplayName, 200) || !text(input.EntityID, 2048) || !text(input.EmailAttribute, 512) || len(input.MetadataXML) == 0 || len(input.MetadataXML) > 1<<20 || !utf8.ValidString(input.MetadataXML) {
 		return SAMLProviderInput{}, ErrProviderInput
 	}
 	return input, nil

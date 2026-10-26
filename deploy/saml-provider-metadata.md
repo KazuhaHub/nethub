@@ -1,5 +1,11 @@
 # SAML provider metadata preparation
 
+PR #178 was accepted at final main-based source `d9127ebf4c68` and merged as
+`b83a72da0fdc`. All six jobs in run `40391796261`, actual logs, inherited
+SQL/deployment/two-Dex gates, three DCOs and both final screenshots/hashes passed
+review. The merged tree equals the tested tree. This establishes the preparation
+scope below, not a working SAML login endpoint.
+
 `sso.ParseSAMLMetadata` validates an administrator-supplied XML document and
 selects the explicitly configured IdP entity ID. It accepts an individual entity
 or a bounded aggregate; it never chooses the first member implicitly. Entity IDs

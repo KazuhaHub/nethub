@@ -6,6 +6,17 @@ import (
 	"testing"
 )
 
+func TestSAMLProviderInputMatchesSessionLimits(t *testing.T) {
+	input := SAMLProviderInput{Slug: "company", DisplayName: "Company", EntityID: strings.Repeat("x", 2048), EmailAttribute: "mail", MetadataXML: "bounded"}
+	if _, err := NormalizeSAMLInput(input); err != nil {
+		t.Fatal("maximum session issuer refused", err)
+	}
+	input.EntityID += "x"
+	if _, err := NormalizeSAMLInput(input); err != ErrProviderInput {
+		t.Fatal("provider accepted an issuer the session service cannot admit", err)
+	}
+}
+
 func TestSAMLProviderAdministrationHTTP(t *testing.T) {
 	s, repo, _ := newFixture(t)
 	cookie, session := fixtureLogin(t, s)
