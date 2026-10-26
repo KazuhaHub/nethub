@@ -32,13 +32,11 @@ const server = createServer((request, response) => {
         '<button id="sso">Start SSO</button><script>document.querySelector("#sso").onclick = async () => { const data = await (await fetch("/start")).json(); location.assign(data.redirect_url); };</script>',
       );
   } else if (url.pathname === "/saml-start") {
-    response
-      .writeHead(200, { "Content-Type": "application/json" })
-      .end(
-        JSON.stringify({
-          redirect_url: `http://localhost:${server.address().port}/saml-auth?SAMLRequest=request-bytes&RelayState=relay-bytes&Signature=signature-bytes&SigAlg=rsa-sha256`,
-        }),
-      );
+    response.writeHead(200, { "Content-Type": "application/json" }).end(
+      JSON.stringify({
+        redirect_url: `http://localhost:${server.address().port}/saml-auth?SAMLRequest=request-bytes&RelayState=relay-bytes&Signature=signature-bytes&SigAlg=rsa-sha256`,
+      }),
+    );
   } else if (url.pathname === "/saml-sso") {
     response
       .writeHead(200, { "Content-Type": "text/html" })
