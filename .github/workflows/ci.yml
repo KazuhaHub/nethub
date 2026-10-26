@@ -209,6 +209,7 @@ jobs:
             | sudo tee /etc/apt/apt.conf.d/80-nethub-ci >/dev/null
           npm ci --ignore-scripts
           npx playwright install --with-deps chromium
+          sudo timeout --signal=TERM --kill-after=5 120 apt-get install -y --no-install-recommends libnss3-tools
       - name: Verify clean Compose startup and migration failure
         env:
           PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/nethub-deployment-browsers
@@ -231,6 +232,28 @@ jobs:
           retention-days: 1
           compression-level: 0
           if-no-files-found: error
+      - name: Verify deployed two-Dex admission
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/nethub-deployment-browsers
+          NETHUB_IMAGE_EVIDENCE: ${{ runner.temp }}/nethub-image-evidence
+          NETHUB_OIDC_EVIDENCE: ${{ runner.temp }}/nethub-oidc-browser-evidence
+        run: |
+          NETHUB_NODE_BINARY="$(command -v node)"
+          export NETHUB_NODE_BINARY
+          python3 server/tests/test_oidc_compose.py
+          node server/web/tests/oidc-callback-test.mjs
+          sudo --preserve-env=NETHUB_NODE_BINARY,PLAYWRIGHT_BROWSERS_PATH python3 server/tests/oidc-compose.py "$NETHUB_IMAGE_EVIDENCE" "$NETHUB_OIDC_EVIDENCE"
+      - name: Save deployed two-Dex evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: deployed-two-dex-browser
+          path: |
+            ${{ runner.temp }}/nethub-oidc-browser-evidence/dex-one-login.png
+            ${{ runner.temp }}/nethub-oidc-browser-evidence/dex-two-login.png
+            ${{ runner.temp }}/nethub-oidc-browser-evidence/results.json
+          retention-days: 7
+          if-no-files-found: warn
       - name: Save only masked browser evidence
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
