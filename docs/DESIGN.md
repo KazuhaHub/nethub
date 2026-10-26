@@ -18,9 +18,10 @@ added SAML to v1 through a direct authcore module import, and required reuse of
 matching shared packages. Reusable gaps may be improved in authcore. Earlier
 2026-09-17/v0.3 records that deferred SAML are superseded by this decision.
 
-OIDC implementation update (2026-10-26): the shared package added through authcore
-PR #32 is now imported directly. NetHub pins verified development commit
-`211d823f478c`; this is not a new formal release. NetHub retains its own account,
+SSO implementation update (2026-10-26): the shared OIDC package added through
+authcore PR #32 is imported directly. The SAML foundation pins verified upstream
+merge `48a74a506790` from PR #33 to preserve signed NameID qualifiers; this is not
+a new formal release. NetHub retains its own account,
 invitation, session, outbound-policy and durable-state responsibilities.
 
 ## 0. v0.3 变更记录
