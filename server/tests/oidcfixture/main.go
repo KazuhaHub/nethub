@@ -111,7 +111,7 @@ func prepare(directory string, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	leaf := &x509.Certificate{SerialNumber: leafSerial, Subject: pkix.Name{CommonName: "NetHub disposable SSO origin"}, DNSNames: []string{"console.example.com", "dex-one.test", "dex-two.test"}, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(2 * time.Hour), BasicConstraintsValid: true, KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
+	leaf := &x509.Certificate{SerialNumber: leafSerial, Subject: pkix.Name{CommonName: "NetHub disposable SSO origin"}, DNSNames: []string{"console.example.com", "dex-one.test", "dex-two.test", "saml.test"}, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(2 * time.Hour), BasicConstraintsValid: true, KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
 	leafDER, err := x509.CreateCertificate(rand.Reader, leaf, root, &leafKey.PublicKey, rootKey)
 	if err != nil {
 		return err
