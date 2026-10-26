@@ -161,6 +161,21 @@ def browser_diagnostic(failure):
     return result
 
 
+def provider_diagnostic(value):
+    result = {}
+    for name in ('dns_resolved', 'metadata_issuer_matches', 'metadata_code_supported', 'metadata_signing_rs256', 'metadata_basic_auth', 'console_discovery_ok'):
+        if type(value.get(name)) is bool:
+            result[name] = value[name]
+    status = value.get('discovery_status')
+    if type(status) is int and 100 <= status <= 599:
+        result['discovery_status'] = status
+    categories = ('none', 'dns', 'certificate_authority', 'certificate_hostname', 'certificate_validity', 'deadline', 'console_outbound', 'console_discovery', 'console_auth_method', 'console_configuration', 'transport_or_protocol')
+    for name in ('network_error', 'console_error'):
+        if value.get(name) in categories:
+            result[name] = value[name]
+    return result
+
+
 def main():
     if sys.platform != 'linux' or os.geteuid() != 0 or len(sys.argv) != 3:
         raise Failure('Linux root, accepted image archive and evidence directory required')
@@ -184,7 +199,8 @@ def main():
     browser_started = False
     dex_preexisting = invoke(['docker', 'image', 'inspect', DEX_IMAGE], 'Dex inventory', check=False).returncode == 0
     dex_id = None
-    result = {'passed': False, 'scope': 'fresh deployment with two real Dex providers', 'public_IdP_or_SAML_acceptance_claimed': False}
+    preflight = []
+    result = {'passed': False, 'scope': 'fresh deployment with two real Dex providers', 'public_IdP_or_SAML_acceptance_claimed': False, 'provider_preflight': preflight}
 
     def compose(*arguments, timeout=60, input=None, check=True):
         label = 'owned SSO Compose ' + arguments[0]
@@ -291,6 +307,18 @@ def main():
         invoke(['certutil', '-A', '-d', 'sql:' + str(database), '-n', project, '-t', 'C,,', '-i', str(fixture / 'root.crt')], 'isolated browser test-CA import')
         database_container = compose('ps', '-q', 'postgres').stdout.decode().strip()
         web_container = compose('ps', '-q', 'nethub-web').stdout.decode().strip()
+        for slug in ('one', 'two'):
+            holder_id = invoke(['docker', 'create', '--network', 'container:' + web_container, '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
+                '--label', 'org.nethub.test=' + project, '--env', 'SSL_CERT_FILE=/fixture/root.crt',
+                '--mount', 'type=bind,source=' + str(fixture / 'root.crt') + ',target=/fixture/root.crt,readonly',
+                '--mount', 'type=bind,source=' + str(fixture / 'credentials.json') + ',target=/fixture/credentials.json,readonly',
+                helper_image, '/oidcfixture', 'check-provider', '/fixture', slug], 'owned provider discovery diagnostic creation').stdout.decode().strip()
+            diagnostic = invoke(['docker', 'start', '--attach', holder_id], 'owned provider discovery diagnostic', timeout=30)
+            safe = dict(provider=slug, **provider_diagnostic(json.loads(diagnostic.stdout)))
+            preflight.append(safe)
+            print('SSO provider diagnostic: ' + json.dumps(safe))
+            invoke(['docker', 'rm', holder_id], 'owned provider discovery diagnostic cleanup')
+            holder_id = None
         browser_evidence = stage / 'browser'
         node = os.environ.get('NETHUB_NODE_BINARY', 'node')
         browser_started = True
@@ -312,6 +340,7 @@ def main():
         # The browser emits only fixed phase/check messages, never response URLs.
         print(browser_result.stdout.decode(), end='')
         result = json.loads((browser_evidence / 'results.json').read_text())
+        result['provider_preflight'] = preflight
         private_values = json.loads((browser_evidence / 'privacy-values.json').read_text())
         logs = compose('logs', '--no-color').stdout.decode(errors='replace')
         if any(value in logs for value in private_values):
@@ -324,15 +353,17 @@ def main():
         successful = True
     finally:
         cleanup_ok = True
+        if holder_id is not None:
+            # A diagnostic can share Web's namespace; remove it before Compose
+            # tears down that namespace and its owned networks.
+            cleanup_ok = invoke(['docker', 'rm', '-f', holder_id], 'fixture holder cleanup', check=False).returncode == 0
         if compose_file.exists():
-            cleanup_ok = compose('down', '-v', '--remove-orphans', timeout=90, check=False).returncode == 0
+            cleanup_ok = compose('down', '-v', '--remove-orphans', timeout=90, check=False).returncode == 0 and cleanup_ok
             remaining = invoke(['docker', 'ps', '-aq', '--filter', 'label=com.docker.compose.project=' + project], 'owned SSO cleanup inventory', check=False)
             cleanup_ok = cleanup_ok and remaining.returncode == 0 and not remaining.stdout.strip()
             for kind in ('volume', 'network'):
                 remaining = invoke(['docker', kind, 'ls', '-q', '--filter', 'label=com.docker.compose.project=' + project], 'owned SSO resource cleanup inventory', check=False)
                 cleanup_ok = cleanup_ok and remaining.returncode == 0 and not remaining.stdout.strip()
-        if holder_id is not None:
-            cleanup_ok = invoke(['docker', 'rm', '-f', holder_id], 'fixture holder cleanup', check=False).returncode == 0 and cleanup_ok
         if helper_created:
             cleanup_ok = remove_image(helper_image, helper_id) and cleanup_ok
         for item in images.values():

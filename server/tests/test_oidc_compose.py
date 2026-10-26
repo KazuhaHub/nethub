@@ -16,6 +16,13 @@ spec.loader.exec_module(suite)
 
 
 class OIDCOwnershipBoundaries(unittest.TestCase):
+    def test_provider_diagnostics_publish_only_fixed_categories_and_scalar_checks(self):
+        safe = {'dns_resolved': True, 'metadata_issuer_matches': False, 'discovery_status': 200,
+                'console_discovery_ok': False, 'console_error': 'console_discovery', 'network_error': 'none'}
+        self.assertEqual(suite.provider_diagnostic(dict(safe, issuer='private-url', token='private-token')), safe)
+        for unsafe in ('private-secret', ['private-secret'], {'error': 'private-secret'}, None, 100001):
+            self.assertEqual(suite.provider_diagnostic({name: unsafe for name in safe}), {})
+
     def test_browser_diagnostics_never_publish_assertion_values_or_error_text(self):
         safe = {'failure_line': 472, 'assertion_actual': False, 'assertion_expected': 201,
                 'provider_status': 422, 'provider_error': 'oidc_discovery_failed'}

@@ -33,6 +33,8 @@ func main() {
 	switch {
 	case len(os.Args) == 2:
 		err = prepare(os.Args[1], time.Now())
+	case len(os.Args) == 4 && os.Args[1] == "check-provider":
+		err = checkProvider(os.Args[2], os.Args[3], os.Stdout)
 	case len(os.Args) == 5 && (os.Args[1] == "probe-begin" || os.Args[1] == "probe-finish"):
 		var port int
 		port, err = strconv.Atoi(os.Args[3])
