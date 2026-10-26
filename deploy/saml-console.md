@@ -31,5 +31,7 @@ protocol-specific invitation/sign-in navigation under strict CSP.
 
 These page checks do not establish genuine IdP or database admission. The
 backend's signed-XML and PostgreSQL results are recorded separately. Final
-hosted page screenshots, deployed signed IdP flows with normal TLS and complete
-W6 acceptance remain required.
+hosted page screenshots were hash-verified and visually reviewed after all six
+checks passed in run `40401585107`; PR #181 merged with the tested tree intact.
+Deployed signed IdP flows with normal TLS and complete W6 acceptance remain
+required.

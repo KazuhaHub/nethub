@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { chromium } from "playwright";
 import { captureCallback, observeAuthorization } from "./oidc-callback.mjs";
+import { observeSAMLAuthorization } from "./saml-callback.mjs";
 
 const callbacks = [];
 const server = createServer((request, response) => {
@@ -30,7 +31,19 @@ const server = createServer((request, response) => {
       .end(
         '<button id="sso">Start SSO</button><script>document.querySelector("#sso").onclick = async () => { const data = await (await fetch("/start")).json(); location.assign(data.redirect_url); };</script>',
       );
-  } else if (url.pathname === "/auth") {
+  } else if (url.pathname === "/saml-start") {
+    response.writeHead(200, { "Content-Type": "application/json" }).end(
+      JSON.stringify({
+        redirect_url: `http://localhost:${server.address().port}/saml-auth?SAMLRequest=request-bytes&RelayState=relay-bytes&Signature=signature-bytes&SigAlg=rsa-sha256`,
+      }),
+    );
+  } else if (url.pathname === "/saml-sso") {
+    response
+      .writeHead(200, { "Content-Type": "text/html" })
+      .end(
+        '<button id="saml">Start SAML</button><script>document.querySelector("#saml").onclick = async () => { const data = await (await fetch("/saml-start")).json(); location.assign(data.redirect_url); };</script>',
+      );
+  } else if (url.pathname === "/auth" || url.pathname === "/saml-auth") {
     response.writeHead(200, { "Content-Type": "text/plain" }).end("IdP login");
   } else {
     response
@@ -82,6 +95,24 @@ try {
   } finally {
     authorization.close();
   }
+  await page.goto(origin + "/saml-sso");
+  const saml = observeSAMLAuthorization(page, idpOrigin, "/saml-auth");
+  try {
+    await page.getByRole("button", { name: "Start SAML", exact: true }).click();
+    await page.waitForURL(
+      (url) => url.origin === idpOrigin && url.pathname === "/saml-auth",
+    );
+    const outgoing = new URL(saml.url);
+    assert.equal(outgoing.searchParams.get("SAMLRequest"), "request-bytes");
+    assert.equal(outgoing.searchParams.get("RelayState"), "relay-bytes");
+    assert.equal(outgoing.searchParams.get("Signature"), "signature-bytes");
+    assert.equal(outgoing.searchParams.get("SigAlg"), "rsa-sha256");
+  } finally {
+    saml.close();
+  }
+  console.log(
+    "Actual browser asynchronous SAML navigation preserved request, relay and signature fields after leaving its response document.",
+  );
   console.log(
     "Actual browser POST/302 callback capture and removal of the test-only parking header passed.",
   );

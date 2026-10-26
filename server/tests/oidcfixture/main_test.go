@@ -71,7 +71,7 @@ func TestDisposableOriginsAndExplicitUnverifiedClaim(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, host := range []string{"console.example.com", "dex-one.test", "dex-two.test"} {
+	for _, host := range []string{"console.example.com", "dex-one.test", "dex-two.test", "saml.test"} {
 		if _, err := leaf.Verify(x509.VerifyOptions{Roots: pool, DNSName: host, CurrentTime: now}); err != nil {
 			t.Fatal("fixture chain/hostname verification failed", host, err)
 		}
