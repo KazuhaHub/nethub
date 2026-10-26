@@ -16,6 +16,22 @@ spec.loader.exec_module(suite)
 
 
 class OIDCOwnershipBoundaries(unittest.TestCase):
+    def test_dex_addresses_do_not_race_reserved_deployment_addresses(self):
+        for subnet, gateway in [('172.30.87.0/24', '172.30.87.1'), ('192.168.19.0/29', '192.168.19.1')]:
+            prefix = gateway.rsplit('.', 1)[0]
+            config = {'networks': {'edge': {'ipam': {'config': [{'subnet': subnet, 'gateway': gateway}]}}},
+                      'services': {name: {'networks': {'edge': {'ipv4_address': prefix + '.' + str(index)}}}
+                                   for index, name in enumerate(('caddy', 'web', 'authz'), 2)}}
+            before = json.dumps(config, sort_keys=True)
+            self.assertEqual(suite.dex_addresses(config), {'one': prefix + '.5', 'two': prefix + '.6'})
+            self.assertEqual(json.dumps(config, sort_keys=True), before)
+            config['services']['extra'] = {'networks': {'edge': {'ipv4_address': prefix + '.5'}}}
+            if subnet.endswith('/29'):
+                with self.assertRaises(suite.Failure):
+                    suite.dex_addresses(config)
+            else:
+                self.assertEqual(suite.dex_addresses(config), {'one': prefix + '.6', 'two': prefix + '.7'})
+
     def archive(self, directory):
         raw = b'owned opaque image archive'
         (directory / 'images.tar.gz').write_bytes(raw)

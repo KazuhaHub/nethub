@@ -1,5 +1,6 @@
 """Run genuine two-Dex browser admission against a fresh disposable deployment."""
 import hashlib
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -86,6 +87,25 @@ def remove_image(reference, expected_id):
     if current.returncode != 0 or json.loads(current.stdout)[0]['Id'] != expected_id:
         return False
     return invoke(['docker', 'image', 'rm', reference], 'owned image cleanup', check=False).returncode == 0
+
+
+def dex_addresses(config):
+    """Avoid dynamic allocation racing the deployment's reserved edge addresses."""
+    pools = config['networks']['edge']['ipam']['config']
+    if len(pools) != 1:
+        raise Failure('SSO edge requires one IPv4 pool')
+    network = ipaddress.ip_network(pools[0]['subnet'])
+    if network.version != 4 or network.prefixlen < 24:
+        raise Failure('SSO edge pool is not a bounded IPv4 subnet')
+    used = {ipaddress.ip_address(pools[0]['gateway'])}
+    for service in config['services'].values():
+        address = service.get('networks', {}).get('edge', {}).get('ipv4_address')
+        if address:
+            used.add(ipaddress.ip_address(address))
+    addresses = [str(address) for address in network.hosts() if address not in used]
+    if len(addresses) < 2:
+        raise Failure('SSO edge lacks two unreserved addresses')
+    return dict(zip(('one', 'two'), addresses[:2]))
 
 
 def startup_diagnostic(stage, raw):
@@ -222,10 +242,11 @@ def main():
         web = services['nethub-web']
         web.setdefault('environment', {})['SSL_CERT_FILE'] = '/test-root.crt'
         web['volumes'].append({'type': 'bind', 'source': str(fixture / 'root.crt'), 'target': '/test-root.crt', 'read_only': True})
+        addresses = dex_addresses(config)
         for slug in ('one', 'two'):
             services['dex-' + slug] = {'image': DEX_IMAGE, 'entrypoint': ['/usr/local/bin/dex'], 'command': ['serve', '/etc/dex/test.json'], 'user': '65532:65532', 'read_only': True,
                 'cap_drop': ['ALL'], 'security_opt': ['no-new-privileges:true'], 'pids_limit': 64, 'mem_limit': '192m',
-                'tmpfs': ['/tmp:rw,nosuid,nodev,size=32m,mode=1777'], 'networks': ['edge'],
+                'tmpfs': ['/tmp:rw,nosuid,nodev,size=32m,mode=1777'], 'networks': {'edge': {'ipv4_address': addresses[slug]}},
                 'volumes': [{'type': 'bind', 'source': str(fixture / ('dex-' + slug + '.json')), 'target': '/etc/dex/test.json', 'read_only': True}]}
         require_empty_namespace(config, project)
         for host, listening_port in [('0.0.0.0', 7000), ('0.0.0.0', 8443), ('127.0.0.1', 7500), ('127.0.0.1', 9000)]:
