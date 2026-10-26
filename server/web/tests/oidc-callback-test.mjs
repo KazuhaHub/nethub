@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { chromium } from "playwright";
-import { captureCallback } from "./oidc-callback.mjs";
+import { captureCallback, observeAuthorization } from "./oidc-callback.mjs";
 
 const callbacks = [];
 const server = createServer((request, response) => {
@@ -18,6 +18,20 @@ const server = createServer((request, response) => {
     response
       .writeHead(200, { "Content-Type": "text/plain" })
       .end("Callback captured");
+  } else if (url.pathname === "/start") {
+    response.writeHead(200, { "Content-Type": "application/json" }).end(
+      JSON.stringify({
+        redirect_url: `http://localhost:${server.address().port}/auth?client_id=demo-client&state=demo-state&nonce=demo-nonce&code_challenge=demo-challenge`,
+      }),
+    );
+  } else if (url.pathname === "/sso") {
+    response
+      .writeHead(200, { "Content-Type": "text/html" })
+      .end(
+        '<button id="sso">Start SSO</button><script>document.querySelector("#sso").onclick = async () => { const data = await (await fetch("/start")).json(); location.assign(data.redirect_url); };</script>',
+      );
+  } else if (url.pathname === "/auth") {
+    response.writeHead(200, { "Content-Type": "text/plain" }).end("IdP login");
   } else {
     response
       .writeHead(200, { "Content-Type": "text/html" })
@@ -54,8 +68,25 @@ try {
   captured.searchParams.set("state", "changed-state");
   await page.goto(captured.toString());
   assert.deepEqual(callbacks[1], { state: "changed-state", parked: false });
+  await page.goto(origin + "/sso");
+  const idpOrigin = `http://localhost:${server.address().port}`;
+  const authorization = observeAuthorization(page, idpOrigin, "demo-client");
+  try {
+    await page.getByRole("button", { name: "Start SSO", exact: true }).click();
+    await page.waitForURL((url) => url.origin === idpOrigin);
+    await page.getByText("IdP login", { exact: true }).waitFor();
+    const outgoing = new URL(authorization.url);
+    assert.equal(outgoing.searchParams.get("state"), "demo-state");
+    assert.equal(outgoing.searchParams.get("nonce"), "demo-nonce");
+    assert.equal(outgoing.searchParams.get("code_challenge"), "demo-challenge");
+  } finally {
+    authorization.close();
+  }
   console.log(
     "Actual browser POST/302 callback capture and removal of the test-only parking header passed.",
+  );
+  console.log(
+    "Actual browser asynchronous SSO navigation preserved state, nonce and PKCE after leaving its response document.",
   );
 } finally {
   await browser?.close();

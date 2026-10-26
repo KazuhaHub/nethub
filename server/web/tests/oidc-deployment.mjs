@@ -6,7 +6,7 @@ import { createServer } from "node:http";
 import { connect } from "node:net";
 import { join } from "node:path";
 import { chromium } from "playwright";
-import { captureCallback } from "./oidc-callback.mjs";
+import { captureCallback, observeAuthorization } from "./oidc-callback.mjs";
 
 const [
   portText,
@@ -217,37 +217,52 @@ async function startFromUI(client, slug, grant) {
       ).includes(grant),
     );
   }
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const received = client.page.waitForResponse(
-      (response) =>
-        new URL(response.url()).pathname ===
-        `/api/v1/console/oidc/${slug}/start`,
-    );
-    await client.page
-      .getByRole("button", { name: `Continue with Dex ${slug}`, exact: true })
-      .click();
-    const response = await received;
-    if (response.status() === 429 && attempt === 0) {
-      const seconds = Number(response.headers()["retry-after"]);
-      assert.ok(Number.isInteger(seconds) && seconds >= 1 && seconds <= 60);
-      await client.page.waitForTimeout(seconds * 1000 + 100);
-      continue;
+  const authorization = observeAuthorization(
+    client.page,
+    `https://dex-${slug}.test`,
+    `nethub-${slug}`,
+  );
+  try {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const received = client.page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname ===
+          `/api/v1/console/oidc/${slug}/start`,
+      );
+      await client.page
+        .getByRole("button", { name: `Continue with Dex ${slug}`, exact: true })
+        .click();
+      const response = await received;
+      if (response.status() === 429 && attempt === 0) {
+        const seconds = Number(response.headers()["retry-after"]);
+        assert.ok(Number.isInteger(seconds) && seconds >= 1 && seconds <= 60);
+        await client.page.waitForTimeout(seconds * 1000 + 100);
+        continue;
+      }
+      assert.equal(
+        response.status(),
+        200,
+        "UI SSO start refused a valid test flow",
+      );
+      await client.page.waitForURL(
+        (url) => url.origin === `https://dex-${slug}.test`,
+      );
+      assert.ok(
+        authorization.url,
+        "UI did not navigate to its IdP authorization endpoint",
+      );
+      const url = new URL(authorization.url);
+      assert.equal(url.origin, `https://dex-${slug}.test`);
+      assert.equal(url.searchParams.get("code_challenge_method"), "S256");
+      assert.ok(url.searchParams.get("code_challenge"));
+      for (const key of ["state", "nonce"])
+        privateValues.push(url.searchParams.get(key));
+      return { redirect_url: authorization.url };
     }
-    assert.equal(
-      response.status(),
-      200,
-      "UI SSO start refused a valid test flow",
-    );
-    const data = await response.json(),
-      url = new URL(data.redirect_url);
-    assert.equal(url.origin, `https://dex-${slug}.test`);
-    assert.equal(url.searchParams.get("code_challenge_method"), "S256");
-    assert.ok(url.searchParams.get("code_challenge"));
-    for (const key of ["state", "nonce"])
-      privateValues.push(url.searchParams.get(key));
-    return data;
+    assert.fail("UI SSO start did not recover after Retry-After");
+  } finally {
+    authorization.close();
   }
-  assert.fail("UI SSO start did not recover after Retry-After");
 }
 async function signIn(
   slug,
