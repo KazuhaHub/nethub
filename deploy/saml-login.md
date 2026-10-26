@@ -1,5 +1,11 @@
 # SAML browser admission
 
+PR #180 was accepted at final source `1904080a2545` and merged as `2503ab23ea2e`.
+All six jobs in run `40397477218`, actual logs, inherited gates, one DCO and both
+final two-Dex regression images/hashes passed review. The tested and merged trees
+match. This accepts the backend boundaries below; deployed signed SAML and
+combined W6 acceptance remain separate requirements.
+
 NetHub delegates SAML protocol processing to the shared module. The imported
 `authcore/saml` package signs login requests, verifies and decrypts assertions,
 checks the destination and request, and prevents assertion replay. Trusted

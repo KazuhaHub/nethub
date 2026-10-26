@@ -38,6 +38,9 @@ type repository struct {
 	passwords        map[string]string
 	providers        map[string]web.OIDCProvider
 	providerSequence int
+	samlProviders    map[string]web.SAMLProvider
+	samlReserved     map[string]bool
+	samlSequence     int
 }
 
 func fixtureUsers() map[string]web.ManagedUser {
@@ -277,12 +280,12 @@ func main() {
 	}
 	server := httptest.NewUnstartedServer(nil)
 	origin := "https://" + server.Listener.Addr().String()
-	handler, err := web.New(web.Config{Origin: origin, DeviceDomain: "router.example.com", Logger: slog.New(slog.NewJSONHandler(os.Stderr, nil)), SSO: &fixtureSSO{repository: repository, origin: origin}}, service, repository)
+	handler, err := web.New(web.Config{Origin: origin, DeviceDomain: "router.example.com", Logger: slog.New(slog.NewJSONHandler(os.Stderr, nil)), SSO: &fixtureSSO{repository: repository, origin: origin}, SAML: &fixtureSAML{repository: repository, origin: origin}}, service, repository)
 	if err != nil {
 		panic(err)
 	}
 	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" && r.URL.Path == "/test/oidc-authorize" {
+		if r.Method == "GET" && (r.URL.Path == "/test/oidc-authorize" || r.URL.Path == "/test/saml-authorize") {
 			w.Header().Set("Content-Type", "text/plain")
 			fmt.Fprint(w, "SSO navigation reached")
 			return
@@ -293,6 +296,8 @@ func main() {
 			switch r.URL.Path {
 			case "/test/providers-reset":
 				repository.resetProvidersLocked()
+			case "/test/saml-providers-reset":
+				repository.resetSAMLProvidersLocked()
 			case "/test/invitations-reset":
 				repository.resetInvitationsLocked()
 			case "/test/invitation-bound":

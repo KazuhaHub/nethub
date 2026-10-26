@@ -19,8 +19,10 @@ import {
   type IssuedInvitation,
   type User,
   type OIDCProvider,
+  type SAMLProvider,
 } from "./api";
 import { providerProjection } from "./provider-form";
+import { samlProjection } from "./saml-provider-form";
 import { NativeDialog } from "./dialog";
 import { validInvitationLink } from "./invitation-safety";
 
@@ -44,7 +46,9 @@ export function Invitations({
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<User["role"]>("member");
   const [providerId, setProviderId] = useState("");
-  const [providers, setProviders] = useState<OIDCProvider[]>([]);
+  const [providers, setProviders] = useState<(OIDCProvider | SAMLProvider)[]>(
+    [],
+  );
   const [providerError, setProviderError] = useState("");
   const [providersLoading, setProvidersLoading] = useState(false);
   const [issued, setIssued] = useState<IssuedInvitation | null>(null);
@@ -63,7 +67,7 @@ export function Invitations({
     setProviderError("");
     setProviders([]);
     async function load() {
-      const result: OIDCProvider[] = [];
+      const result: (OIDCProvider | SAMLProvider)[] = [];
       let after: string | null = null;
       const seen = new Set<string>();
       try {
@@ -74,6 +78,18 @@ export function Invitations({
         do {
           const page = await api.oidcProviders(after, signal);
           if (!page.items.every(providerProjection))
+            throw new Error("Provider data unavailable.");
+          result.push(...page.items.filter((p) => p.enabled));
+          after = page.next_cursor;
+          if (after && seen.has(after))
+            throw new Error("Provider pagination unavailable.");
+          if (after) seen.add(after);
+        } while (after);
+        after = null;
+        seen.clear();
+        do {
+          const page = await api.samlProviders(after, signal);
+          if (!page.items.every(samlProjection))
             throw new Error("Provider data unavailable.");
           result.push(...page.items.filter((p) => p.enabled));
           after = page.next_cursor;
