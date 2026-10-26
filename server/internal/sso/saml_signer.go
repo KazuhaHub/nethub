@@ -34,7 +34,7 @@ func NewSAMLSigningIdentity(now time.Time) ([]byte, error) {
 	certificate := &x509.Certificate{
 		SerialNumber: serial, Subject: pkix.Name{CommonName: "NetHub SAML service provider"},
 		NotBefore: now.UTC().Add(-5 * time.Minute), NotAfter: now.UTC().AddDate(2, 0, 0),
-		KeyUsage: x509.KeyUsageDigitalSignature, BasicConstraintsValid: true,
+		KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment, BasicConstraintsValid: true,
 	}
 	der, err := x509.CreateCertificate(rand.Reader, certificate, certificate, &key.PublicKey, key)
 	if err != nil {

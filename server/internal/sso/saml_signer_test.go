@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"net/url"
 	"strings"
@@ -23,7 +24,7 @@ func TestSAMLSigningIdentityAndSharedRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(bundle) > 16*1024 || certificate.IsCA || certificate.NotAfter.Before(now.AddDate(1, 0, 0)) {
+	if len(bundle) > 16*1024 || certificate.IsCA || certificate.NotAfter.Before(now.AddDate(1, 0, 0)) || certificate.KeyUsage&(x509.KeyUsageDigitalSignature|x509.KeyUsageKeyEncipherment) != x509.KeyUsageDigitalSignature|x509.KeyUsageKeyEncipherment {
 		t.Fatal("invalid SP signing identity")
 	}
 	metadata, err := ParseSAMLMetadata([]byte(metadataDocument(t)), "urn:example:idp")
@@ -35,6 +36,7 @@ func TestSAMLSigningIdentityAndSharedRequest(t *testing.T) {
 	config.Certificate = certificate
 	config.IDPMetadata = metadata
 	config.SignAuthnRequests = true
+	config.AllowEncryptedAssertions = true
 	provider, err := NewSAMLProvider(config)
 	if err != nil {
 		t.Fatal(err)
