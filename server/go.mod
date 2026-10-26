@@ -3,7 +3,7 @@ module github.com/KazuhaHub/nethub/server
 go 1.26.0
 
 require (
-	github.com/KazuhaHub/authcore v0.6.3-0.20261025140127-211d823f478c
+	github.com/KazuhaHub/authcore v0.6.3-0.20261026102635-48a74a506790
 	github.com/crewjam/saml v0.5.1
 	github.com/go-jose/go-jose/v4 v4.1.6
 	github.com/jackc/pgx/v5 v5.11.0

@@ -1,5 +1,5 @@
-github.com/KazuhaHub/authcore v0.6.3-0.20261025140127-211d823f478c h1:5DJVMoVZaC1kFGMRCoAJu1KZp3/nT42g66Mkz7qjObU=
-github.com/KazuhaHub/authcore v0.6.3-0.20261025140127-211d823f478c/go.mod h1:+XpaVjNxkUSUEXLKTNlHmo4zqDe6rsfs9QR7c6OOL/Y=
+github.com/KazuhaHub/authcore v0.6.3-0.20261026102635-48a74a506790 h1:25/B/h1FKq7DVSYpSLz/fcUV92IxwP4ZdJCxOb6hnEs=
+github.com/KazuhaHub/authcore v0.6.3-0.20261026102635-48a74a506790/go.mod h1:+XpaVjNxkUSUEXLKTNlHmo4zqDe6rsfs9QR7c6OOL/Y=
 github.com/beevik/etree v1.7.0 h1:xjBk9O4p4x7D1YajePjfLzdaFC4/uYUENA7P0pv6gXA=
 github.com/beevik/etree v1.7.0/go.mod h1:bh4zJxiIr62SOf9pRzN7UUYaEDa9HEKafK25+sLc0Gc=
 github.com/coreos/go-oidc/v3 v3.21.0 h1:wZo4Q9Pum8dYEj0eMUPrqR+kvuGkeUplbLpNCkBqoWM=
