@@ -296,8 +296,24 @@ export async function verifySAMLProviders({ page, origin, evidence, login }) {
     await page
       .getByRole("button", { name: "Edit Company renamed", exact: true })
       .waitFor();
+    if (
+      await page
+        .getByRole("button", { name: "Use light theme", exact: true })
+        .count()
+    )
+      await page
+        .getByRole("button", { name: "Use light theme", exact: true })
+        .click();
+    await page.waitForFunction(
+      () => !document.documentElement.classList.contains("dark"),
+    );
     await screenshot("saml-providers-light.png");
-    await page.evaluate(() => document.documentElement.classList.add("dark"));
+    await page
+      .getByRole("button", { name: "Use dark theme", exact: true })
+      .click();
+    await page.waitForFunction(() =>
+      document.documentElement.classList.contains("dark"),
+    );
     await screenshot("saml-providers-dark.png");
     await page.evaluate(() =>
       document.documentElement.classList.remove("dark"),
