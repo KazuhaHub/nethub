@@ -19,6 +19,12 @@ import (
 )
 
 type fixtureRepository struct {
+	samlPage              SAMLProviderPage
+	samlResult            SAMLProvider
+	samlInput             SAMLProviderInput
+	samlPatch             SAMLProviderPatch
+	samlErr               error
+	samlReads, samlWrites int
 	oidcPage              OIDCProviderPage
 	oidcResult            OIDCProvider
 	oidcInput             OIDCProviderInput

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -26,16 +27,20 @@ func writeError(w http.ResponseWriter, r *http.Request, status int, code, messag
 }
 
 func readJSON(w http.ResponseWriter, r *http.Request, value any, fields ...string) bool {
+	return readJSONWithLimit(w, r, value, maxBody, fields...)
+}
+
+func readJSONWithLimit(w http.ResponseWriter, r *http.Request, value any, limit int64, fields ...string) bool {
 	media, parameters, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || media != "application/json" || len(r.Header.Values("Content-Type")) != 1 || parameters["charset"] != "" && !strings.EqualFold(parameters["charset"], "utf-8") || r.Header.Get("Content-Encoding") != "" {
 		writeError(w, r, 415, "unsupported_media_type", "Use application/json with UTF-8 encoding")
 		return false
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	data, err := io.ReadAll(r.Body)
 	var tooLarge *http.MaxBytesError
 	if errors.As(err, &tooLarge) {
-		writeError(w, r, 413, "payload_too_large", "Request body exceeds 64 KiB")
+		writeError(w, r, 413, "payload_too_large", fmt.Sprintf("Request body exceeds %d KiB", limit/1024))
 		return false
 	}
 	if err != nil || !utf8.Valid(data) {

@@ -17,10 +17,12 @@ func (s *Server) providerError(w http.ResponseWriter, r *http.Request, err error
 	switch {
 	case errors.Is(err, ErrProviderInput):
 		writeError(w, r, 400, "invalid_request", "Invalid provider configuration")
-	case errors.Is(err, ErrOIDCNotFound):
+	case errors.Is(err, ErrOIDCNotFound), errors.Is(err, ErrSAMLNotFound):
 		writeError(w, r, 404, "not_found", "Provider unavailable")
 	case errors.Is(err, ErrOIDCDiscovery):
 		writeError(w, r, 422, "oidc_discovery_failed", "Provider discovery failed")
+	case errors.Is(err, ErrSAMLMetadata):
+		writeError(w, r, 422, "saml_metadata_invalid", "Provider metadata validation failed")
 	case errors.Is(err, ErrProviderSlugTaken):
 		writeError(w, r, 409, "slug_taken", "Provider slug already exists")
 	case errors.Is(err, ErrProviderInUse):
@@ -32,7 +34,7 @@ func (s *Server) providerError(w http.ResponseWriter, r *http.Request, err error
 	case errors.Is(err, ErrForbidden):
 		writeError(w, r, 403, "forbidden", "Administrator access required")
 	default:
-		s.internal(w, r, "OIDC provider")
+		s.internal(w, r, "Identity provider")
 	}
 }
 

@@ -123,6 +123,22 @@ func runWeb(args []string, stdout, stderr io.Writer) int {
 		_, err := sso.NewOIDCProvider(ctx, authoidc.Config{IssuerURL: input.IssuerURL, ClientID: input.ClientID, ClientSecret: input.ClientSecret, Scopes: input.Scopes, RedirectURL: strings.TrimSuffix(*origin, "/") + "/api/v1/console/oidc/" + input.Slug + "/callback"}, outbound)
 		return err
 	}
+	repository.ValidateSAML = func(ctx context.Context, input web.SAMLProviderInput) error {
+		metadata, err := sso.ParseSAMLMetadata([]byte(input.MetadataXML), input.EntityID)
+		if err != nil {
+			return err
+		}
+		for _, role := range metadata.IDPSSODescriptors {
+			for _, endpoint := range role.SingleSignOnServices {
+				if endpoint.Binding == "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" {
+					if err := outbound.ValidateEndpoint(ctx, endpoint.Location); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		return nil
+	}
 	service, err := auth.NewService(&repository.AuthStore, auth.Config{IdleTimeout: *idle, AbsoluteTimeout: *absolute})
 	if err != nil {
 		fmt.Fprintln(stderr, "Console authentication configuration is invalid")

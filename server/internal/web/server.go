@@ -157,6 +157,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Allow", "GET, HEAD, POST")
 			writeError(w, r, 405, "method_not_allowed", "Method not allowed")
 		}
+	case prefix + "/saml-providers":
+		switch r.Method {
+		case "GET", "HEAD":
+			s.samlProviders(w, r)
+		case "POST":
+			s.createSAMLProvider(w, r, ip)
+		default:
+			w.Header().Set("Allow", "GET, HEAD, POST")
+			writeError(w, r, 405, "method_not_allowed", "Method not allowed")
+		}
 	case prefix + "/invites/inspect":
 		if allowMethod(w, r, "POST") {
 			s.inspectInvitation(w, r, ip)
@@ -180,6 +190,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			s.enroll(w, r, ip)
 		}
 	default:
+		if strings.HasPrefix(r.URL.Path, prefix+"/saml/") {
+			s.samlMetadata(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, prefix+"/saml-providers/") {
+			switch r.Method {
+			case "PATCH", "DELETE":
+				s.mutateSAMLProvider(w, r, ip)
+			default:
+				w.Header().Set("Allow", "PATCH, DELETE")
+				writeError(w, r, 405, "method_not_allowed", "Method not allowed")
+			}
+			return
+		}
 		if strings.HasPrefix(r.URL.Path, prefix+"/oidc/") {
 			s.oidcBrowser(w, r, ip)
 			return

@@ -113,6 +113,7 @@ type Repository interface {
 	UserRepository
 	InvitationRepository
 	OIDCProviderRepository
+	SAMLProviderRepository
 	Health(context.Context) error
 	Devices(context.Context, string, DeviceQuery) (DevicePage, error)
 	IssueEnrollToken(context.Context, string, netip.Addr) (EnrollToken, error)
