@@ -68,7 +68,13 @@ func prepare(directory string, now time.Time) error {
 		return err
 	}
 	write := func(name string, value []byte, mode os.FileMode) error {
-		return os.WriteFile(filepath.Join(directory, name), value, mode)
+		path := filepath.Join(directory, name)
+		if err := os.WriteFile(path, value, mode); err != nil {
+			return err
+		}
+		// The orchestrator's 077 umask must not make public trust unreadable to
+		// Web's non-root UID. Secret modes remain 0600 inside the private directory.
+		return os.Chmod(path, mode)
 	}
 	writeJSON := func(name string, value any) error {
 		raw, err := json.Marshal(value)
