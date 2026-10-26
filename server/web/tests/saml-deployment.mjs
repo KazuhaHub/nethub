@@ -7,6 +7,7 @@ import { request as httpsRequest } from "node:https";
 import { connect } from "node:net";
 import { join } from "node:path";
 import { chromium } from "playwright";
+import { observeSAMLAuthorization } from "./saml-callback.mjs";
 
 const [
   portText,
@@ -257,14 +258,26 @@ async function begin(client, grant) {
     (reply) =>
       new URL(reply.url()).pathname === "/api/v1/console/saml/keycloak/start",
   );
-  await client.page
-    .getByRole("button", {
-      name: "Continue with Keycloak acceptance",
-      exact: true,
-    })
-    .click();
-  assert.equal((await response).status(), 200);
-  const redirect = new URL((await (await response).json()).redirect_url);
+  const authorization = observeSAMLAuthorization(
+    client.page,
+    idpOrigin,
+    "/realms/nethub-saml/protocol/saml",
+  );
+  let redirect;
+  try {
+    await client.page
+      .getByRole("button", {
+        name: "Continue with Keycloak acceptance",
+        exact: true,
+      })
+      .click();
+    assert.equal((await response).status(), 200);
+    await client.page.waitForURL((url) => url.origin === idpOrigin);
+    assert.ok(authorization.url, "Signed SAML navigation was not observed");
+    redirect = new URL(authorization.url);
+  } finally {
+    authorization.close();
+  }
   assert.equal(redirect.origin, idpOrigin);
   for (const field of ["SAMLRequest", "RelayState", "Signature"]) {
     assert.ok(redirect.searchParams.get(field));
@@ -806,6 +819,24 @@ try {
     "Actual Keycloak signed SAML requests/responses passed invitation, stable identity, replay refusal, Web restart, member isolation and live disable with normal TLS verification.",
   );
 } catch (error) {
+  let lastReason;
+  try {
+    const reason = sql(
+      "SELECT payload->>'reason' FROM audit_log WHERE action='auth.sso_failed' ORDER BY sequence DESC LIMIT 1",
+    );
+    if (
+      [
+        "callback",
+        "state_invalid",
+        "state_unavailable",
+        "token_invalid",
+        "admission_denied",
+        "admission_unavailable",
+        "provider_unavailable",
+      ].includes(reason)
+    )
+      lastReason = reason;
+  } catch {}
   writeFileSync(
     join(evidence, "private-diagnostic.log"),
     String(error.stack || error),
@@ -817,6 +848,20 @@ try {
       {
         passed: false,
         phase,
+        last_sso_reason: lastReason,
+        assertion_actual:
+          error instanceof assert.AssertionError &&
+          (typeof error.actual === "boolean" ||
+            (Number.isInteger(error.actual) && Math.abs(error.actual) <= 10000))
+            ? error.actual
+            : null,
+        assertion_expected:
+          error instanceof assert.AssertionError &&
+          (typeof error.expected === "boolean" ||
+            (Number.isInteger(error.expected) &&
+              Math.abs(error.expected) <= 10000))
+            ? error.expected
+            : null,
         failure_line:
           Number(
             /saml-deployment\.mjs:(\d+):\d+/.exec(String(error.stack))?.[1],
