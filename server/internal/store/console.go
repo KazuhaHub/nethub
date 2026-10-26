@@ -19,6 +19,7 @@ type ConsoleStore struct {
 	AuthStore
 	ProviderSecrets *providersecret.Cipher
 	ValidateOIDC    func(context.Context, web.OIDCProviderInput) error
+	ValidateSAML    func(context.Context, web.SAMLProviderInput) error
 }
 
 var _ web.Repository = (*ConsoleStore)(nil)
