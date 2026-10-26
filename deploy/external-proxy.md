@@ -74,6 +74,12 @@ host-network Caddy with explicit fixture TLS, including source-spoof rejection.
 That fixture does not validate an administrator's NGINX configuration or prove
 isolation for arbitrary host firewall/NAT settings.
 
+OIDC callbacks at `/api/v1/console/oidc/<slug>/callback` contain authorization
+codes and state in their query. If access logging is enabled, redact those
+queries or exclude callback access logs; do not log request cookies or bodies.
+NetHub redirects to a fixed clean URL with no-referrer and no-store responses.
+See [SSO state and diagnostic boundaries](oidc-login.md).
+
 This is a fresh-bundle option. Existing bundles keep their recorded proxy mode;
 `init --resume` does not migrate a running bundle or rotate its authority. Stop
 and review existing public services before deliberately changing ingress.

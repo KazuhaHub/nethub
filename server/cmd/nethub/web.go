@@ -129,7 +129,12 @@ func runWeb(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	logger := slog.New(slog.NewJSONHandler(stderr, nil))
-	handler, err := web.New(web.Config{Origin: *origin, DeviceDomain: *deviceDomain, TrustedProxies: proxies, Logger: logger}, service, repository)
+	ssoService, err := sso.NewService(*origin, repository, service, outbound)
+	if err != nil {
+		fmt.Fprintln(stderr, "Console SSO configuration is invalid")
+		return 1
+	}
+	handler, err := web.New(web.Config{Origin: *origin, DeviceDomain: *deviceDomain, TrustedProxies: proxies, Logger: logger, SSO: ssoService}, service, repository)
 	if err != nil {
 		fmt.Fprintln(stderr, "Console origin, domain, or proxy configuration is invalid")
 		return 1

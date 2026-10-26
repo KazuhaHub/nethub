@@ -4,9 +4,10 @@ The Web process now loads the deployment's existing provider-encryption key and
 holds a cipher on its console repository. The bounded, versioned envelope is
 implemented and tested. PR #172 accepted the foundation after all six hosted
 checks in run `40194445864`, actual logs, DCO and container key/refusal checks.
-The [OIDC provider API](oidc-providers.md) now implements encrypted database writes
-and their SQL acceptance cases. Hosted acceptance for that API, provider pages
-and OIDC/SAML login remain unfinished W6 work.
+The [OIDC provider API](oidc-providers.md) passed scoped SQL/HTTP/transport acceptance
+in PR #173, merged as `e7da452` after run `40246502651` and actual-log inspection.
+[Browser-flow admission](oidc-login.md) adds a separate encrypted state purpose;
+its hosted acceptance, provider pages and deployed OIDC/SAML login remain W6 work.
 
 ## Key ownership and startup
 
@@ -39,8 +40,9 @@ The same key must encrypt fewer than 2^32 messages across all its uses.
 
 Authenticated data includes a fixed versioned domain and separately
 length-prefixed tenant ID, provider ID and purpose. Use identifiers read from the
-authoritative storage row. OIDC client secrets and SAML signing keys have distinct
-purposes. Moving ciphertext between tenants, providers or purposes fails even
+authoritative storage row. OIDC client secrets, SAML signing keys and OIDC flow
+state have distinct purposes. Flow state uses its authoritative flow UUID in the
+binding's identifier field. Moving ciphertext between tenants, rows or purposes fails even
 when the deployment key is the same. Identifiers are opaque, nonempty values up
 to 64 bytes; account/provider policy remains outside the cipher package.
 

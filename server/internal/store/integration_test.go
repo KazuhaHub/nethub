@@ -571,4 +571,5 @@ func TestPostgresBoundaries(t *testing.T) {
 	t.Run("console_user_administration", func(t *testing.T) { testConsoleUsers(t, ctx, owner, web) })
 	t.Run("console_invitations", func(t *testing.T) { testConsoleInvitations(t, ctx, owner, web) })
 	t.Run("console_oidc_providers", func(t *testing.T) { testConsoleOIDCProviders(t, ctx, owner, web) })
+	t.Run("oidc_browser_admission", func(t *testing.T) { testOIDCBrowserAdmission(t, ctx, owner, web, authz, backup) })
 }
