@@ -21,6 +21,11 @@ class Failure(Exception):
     pass
 
 
+def docker_project():
+    # mkdtemp suffixes can end in '_' and are not valid image repositories.
+    return 'nethub-oidc-' + os.urandom(8).hex()
+
+
 def invoke(arguments, label, *, timeout=60, input=None, log=None, check=True):
     try:
         result = subprocess.run(arguments, input=input, capture_output=True, timeout=timeout)
@@ -186,7 +191,7 @@ def main():
     evidence = Path(sys.argv[2]).resolve()
     evidence.mkdir(parents=True, exist_ok=False)
     stage = Path(tempfile.mkdtemp(prefix='nethub-oidc-')).resolve()
-    project = stage.name
+    project = docker_project()
     helper_image = project + ':helper'
     holder = project + '-helper'
     images = {}
@@ -267,7 +272,14 @@ def main():
         source = (ROOT / 'deploy/Caddyfile').read_text()
         if source.count('{$NETHUB_CONSOLE_HOST} {') != 1:
             raise Failure('console TLS route template changed')
-        source = source.replace('{$NETHUB_CONSOLE_HOST} {', 'https://console.example.com {\n    tls /fixture/origin.crt /fixture/origin.key', 1)
+        source = source.replace('{$NETHUB_CONSOLE_HOST} {', '''https://console.example.com {
+    tls /fixture/origin.crt /fixture/origin.key
+    respond /claim-probe "Signed claim captured" 200
+    @captureCallback {
+        path /api/v1/console/oidc/one/callback /api/v1/console/oidc/two/callback
+        header X-Nethub-Test-Capture 1
+    }
+    respond @captureCallback "Callback captured" 200''', 1)
         for slug in ('one', 'two'):
             source += '\nhttps://dex-' + slug + '.test {\n    tls /fixture/origin.crt /fixture/origin.key\n    reverse_proxy dex-' + slug + ':5556\n}\n'
         caddy_file.write_text(source)

@@ -15,6 +15,15 @@ client uses `authcore/oidc` to verify the actual signed false claim before the
 NetHub invitation rejection is tested. The probe has its own one-use state and
 cannot create a NetHub session.
 
+The disposable Caddy configuration serves a static claim-probe callback. Browser
+request events capture its real redirect URL; the test does not rely on
+Playwright routing intercepting a later redirect hop. For the state-tampering
+case only, a fixed test header parks the genuine callback at Caddy before Web
+consumes it. The browser then removes that header and navigates to the altered
+state. The normal Web callback and its SQL refusal remain under test, and the
+original valid flow must remain unused. These routes exist only in the generated
+test configuration.
+
 The four deployed images come from the preceding assembled-image acceptance
 archive. Its SHA256, image IDs and filesystem-layer identities must match before
 reuse. The helper is built as a separate Docker target and is absent from the

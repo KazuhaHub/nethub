@@ -6,6 +6,7 @@ import { createServer } from "node:http";
 import { connect } from "node:net";
 import { join } from "node:path";
 import { chromium } from "playwright";
+import { captureCallback } from "./oidc-callback.mjs";
 
 const [
   portText,
@@ -265,20 +266,32 @@ async function signIn(
     }
   });
   let untampered;
-  if (tamper)
-    await client.page.route(`**${callbackPath}?**`, async (route) => {
-      untampered = route.request().url();
-      const changed = new URL(untampered);
-      changed.searchParams.set("state", "a".repeat(43));
-      await route.continue({ url: changed.toString() });
-    });
   const begun = await startFromUI(client, slug, grant);
   const startCookies = (await client.context.cookies(origin)).filter(
     (cookie) => cookie.name === "__Host-nethub_oidc",
   );
   assert.equal(startCookies.length, 1);
   privateValues.push(startCookies[0].value);
-  await dexLogin(client.page, email);
+  if (tamper) {
+    // The disposable Caddy route parks this one callback before Web can consume
+    // its valid state. Remove the marker before sending the tampered callback.
+    await client.context.setExtraHTTPHeaders({ "X-Nethub-Test-Capture": "1" });
+    untampered = (
+      await captureCallback(
+        client.page,
+        origin,
+        callbackPath,
+        () => dexLogin(client.page, email),
+        "Callback captured",
+      )
+    ).toString();
+    await client.context.setExtraHTTPHeaders({});
+    const changed = new URL(untampered);
+    changed.searchParams.set("state", "a".repeat(43));
+    await client.page.goto(changed.toString());
+  } else {
+    await dexLogin(client.page, email);
+  }
   await client.page.waitForURL(
     (url) => url.origin === origin && !url.pathname.startsWith("/api/"),
   );
@@ -342,19 +355,14 @@ async function signedClaimProbe(slug, email) {
   );
   privateValues.push(probeState.Value, probeState.Nonce, probeState.Verifier);
   const client = await newClient();
-  let returned;
-  await client.page.route("**/claim-probe?**", async (route) => {
-    returned = new URL(route.request().url());
-    await route.fulfill({
-      status: 200,
-      contentType: "text/plain",
-      body: "Signed claim captured",
-    });
-  });
   await client.page.goto(begun.redirect_url);
-  await dexLogin(client.page, email);
-  await client.page.waitForURL((url) => url.pathname === "/claim-probe");
-  assert.ok(returned);
+  const returned = await captureCallback(
+    client.page,
+    origin,
+    "/claim-probe",
+    () => dexLogin(client.page, email),
+    "Signed claim captured",
+  );
   for (const key of ["state", "code"])
     privateValues.push(returned.searchParams.get(key));
   const verified = JSON.parse(

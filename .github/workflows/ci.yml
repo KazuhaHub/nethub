@@ -241,6 +241,7 @@ jobs:
           NETHUB_NODE_BINARY="$(command -v node)"
           export NETHUB_NODE_BINARY
           python3 server/tests/test_oidc_compose.py
+          node server/web/tests/oidc-callback-test.mjs
           sudo --preserve-env=NETHUB_NODE_BINARY,PLAYWRIGHT_BROWSERS_PATH python3 server/tests/oidc-compose.py "$NETHUB_IMAGE_EVIDENCE" "$NETHUB_OIDC_EVIDENCE"
       - name: Save deployed two-Dex evidence
         if: always()

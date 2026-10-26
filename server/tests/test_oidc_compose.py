@@ -16,6 +16,12 @@ spec.loader.exec_module(suite)
 
 
 class OIDCOwnershipBoundaries(unittest.TestCase):
+    def test_docker_names_do_not_inherit_unsafe_temporary_directory_suffixes(self):
+        with patch.object(suite.os, 'urandom', return_value=bytes(range(8))):
+            project = suite.docker_project()
+        self.assertRegex(project, r'^nethub-oidc-[a-f0-9]{16}$')
+        self.assertEqual(project, 'nethub-oidc-0001020304050607')
+
     def test_provider_diagnostics_publish_only_fixed_categories_and_scalar_checks(self):
         safe = {'dns_resolved': True, 'metadata_issuer_matches': False, 'discovery_status': 200,
                 'console_discovery_ok': False, 'console_error': 'console_discovery', 'network_error': 'none'}
