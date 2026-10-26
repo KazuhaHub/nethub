@@ -25,6 +25,7 @@ see [Requirements](#requirements) for the full list.
 - [Repository layout](#repository-layout)
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
+- [Documentation](#documentation)
 - [Security model](#security-model)
 - [Project status](#project-status)
 - [Roadmap](#roadmap)
@@ -208,6 +209,16 @@ above.
 | 7 | Click "Open" on the device, see the OPNsense login screen (you still sign in with OPNsense's own account) | — |
 
 **Total: about 10 minutes**, most of it spent on the plugin install.
+
+## Documentation
+
+- [Deployment and operations](docs/deployment.md): current commands, proxy and
+  certificate ownership, troubleshooting, and the remaining backup/restore work.
+- [Device protocol](docs/protocol.md): enrollment, certificate/trust lifecycles,
+  compatibility and the platform adapter boundary.
+- [Documentation index](docs/README.md) and [accepted evidence/remaining work](docs/HANDOFF_PROMPT.md).
+
+These guides do not establish a production release or complete W5-W7 acceptance.
 
 ## Security model
 
