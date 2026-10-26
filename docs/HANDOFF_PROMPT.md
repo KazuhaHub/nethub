@@ -13,7 +13,7 @@
 这样你在任何地方都能打开在 NAT 或 CGNAT 后面的路由器的管理页面。
 项目负责人是 **Kazuha**。凡是要拍板的事都归他，你负责按计划执行，并拿出证据。
 
-### Current state (updated 2026-10-25)
+### Current state (updated 2026-10-26)
 
 - **User management UI accepted:** PR #169 merged as `c21a957` after all six checks in run `40184213325`, actual logs, two DCOs and review of all three hosted images. Pagination, role/disable editing, passive authority refresh, member isolation and self-access changes passed browser checks. The first-frame theme fix measured at least 13.49:1 text contrast; the earlier visual failure remains retained. Combined deployed W6 acceptance is still open.
 
@@ -23,7 +23,9 @@
 
 - **OIDC provider backend accepted:** PR #173 merged as `e7da452` after six checks in run `40246502651`, actual logs, inherited gates and two DCOs. NetHub directly imports authcore OIDC at verified upstream merge `211d823f478c`. Administrator API, DNS-pinned HTTPS discovery, encrypted writes, revision conflicts and retained provider/invitation deletion history passed scoped SQL/HTTP/transport checks. The original SQL-fixture failure remains retained; the correction preserves the local emergency-admin guard. [Scope](../deploy/oidc-providers.md).
 
-- **OIDC browser admission backend accepted:** PR #174 merged as `24d12f3` after six checks in run `40251165365`, actual logs, inherited gates and DCO verification. Five-minute encrypted/digested browser flows, atomic pre-exchange consumption and issuer/subject account admission passed scoped SQL and signed TLS checks. Provider/sign-in/claim pages are being verified separately; actual two-Dex/public-provider flows, SAML admission and combined W6 deployment acceptance remain unfinished. [Scope](../deploy/oidc-login.md).
+- **OIDC browser admission backend accepted:** PR #174 merged as `24d12f3` after six checks in run `40251165365`, actual logs, inherited gates and DCO verification. Five-minute encrypted/digested browser flows, atomic pre-exchange consumption and issuer/subject account admission passed scoped SQL and signed TLS checks. Provider/sign-in/claim pages are accepted separately below; actual two-Dex/public-provider flows, SAML admission and combined W6 deployment acceptance remain unfinished. [Scope](../deploy/oidc-login.md).
+
+- **OIDC console pages accepted:** PR #175 merged as `15e810c` after six checks in run `40292135247`, actual logs, inherited gates, three DCOs and review of all four final hosted images. Provider CRUD, write-only credential editing, restricted invitation navigation and independent password fallback passed synthetic browser checks. The first CI failure and the later green run with insufficient dark-badge contrast remain retained; final state text measures at least 4.91:1. The inherited Caddy curl/libcurl patch passed all four unsuppressed image scans. Actual two-Dex deployment is the next acceptance step; public IdP and SAML remain open.
 
 - **W6 account administration:** PR #168 merged as `5bdf866` after six checks in run `40179871352`, actual SQL logs and DCO inspection. Administrator-only listing and role/disable mutations preserve a local-password admin and atomically update account/session/audit state. The new `/users` management page covers pagination, changed-field edits, pending-dialog protection and current-account authority refresh. Automatic inventory/authority checks stay passive. Local browser/SQL source checks distinguish synthetic UI behavior from genuine PostgreSQL boundaries; combined deployment, invitations and OIDC/SAML login remain unfinished. [Scope and acceptance](../deploy/user-administration.md).
 
