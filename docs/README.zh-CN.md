@@ -185,7 +185,7 @@ SNI 透传保留设备自己的登录。正常运行时，新连接还需要匹�
 
 无论如何，请在每台加入的设备上开启 OPNsense 自带的 TOTP 两步验证。
 
-完整的分析见[威胁模型初稿](threat-model.md)和 [`DESIGN.md`](DESIGN.md)。
+完整的分析见[威胁模型](threat-model.md)和 [`DESIGN.md`](DESIGN.md)。
 
 ## 项目状态
 

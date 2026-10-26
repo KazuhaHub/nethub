@@ -288,7 +288,7 @@ Hostname as required by the [W0 decisions](weekend0/results-2026-10-17.md).
 Either way, enable OPNsense's own TOTP two-factor authentication on every
 enrolled device.
 
-Full write-up: the [threat model draft](docs/threat-model.md) and
+Full write-up: the [threat model](docs/threat-model.md) and
 [`docs/DESIGN.md`](docs/DESIGN.md).
 
 ## Project status
