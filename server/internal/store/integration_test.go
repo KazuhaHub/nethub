@@ -43,7 +43,7 @@ func TestPostgresBoundaries(t *testing.T) {
 	t.Run("platform_forward_migration", func(t *testing.T) {
 		restore := legacyIssuerRoleFixture(t, ctx, owner)
 		defer restore()
-		testPlatformForwardMigration(t, ctx, owner)
+		testPlatformForwardMigration(t, ctx, owner, web, authz)
 		if err := (&EnrollmentStore{DB: authz}).Health(ctx); err != nil {
 			t.Fatal("disabled legacy device APIs require issuer role", err)
 		}

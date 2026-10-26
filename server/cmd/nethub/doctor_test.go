@@ -22,3 +22,23 @@ func TestDoctorLoopbackHealthBoundary(t *testing.T) {
 		}
 	}
 }
+
+func TestDoctorAuditModeBoundary(t *testing.T) {
+	for _, args := range [][]string{
+		{"--audit"},
+		{"--password-file", "unused"},
+		{"--audit-timezone", "UTC"},
+		{"--audit", "--password-file", "unused", "--health-url", "http://127.0.0.1/healthz"},
+		{"--audit", "--password-file", "unused", "--directory", "."},
+		{"--audit", "--password-file", "unused", "--expected-address", "192.0.2.1"},
+		{"--audit", "--password-file", "unused", "--port", "65536"},
+		{"--audit", "--password-file", "unused", "--sslmode", "prefer"},
+		{"--audit", "--password-file", "unused", "--audit-timeout", "0s"},
+		{"--audit", "--password-file", "unused", "--audit-timeout", "6m"},
+	} {
+		var out, diagnostic bytes.Buffer
+		if status := run(append([]string{"doctor"}, args...), &out, &diagnostic); status != 2 || out.Len() != 0 {
+			t.Fatal("ambiguous audit/database mode reached execution", args, status)
+		}
+	}
+}

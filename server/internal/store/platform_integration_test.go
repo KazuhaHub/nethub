@@ -12,7 +12,7 @@ import (
 )
 
 // Start with the actual previous migrations and an existing OPNsense device.
-func testPlatformForwardMigration(t *testing.T, ctx context.Context, owner *sql.DB) {
+func testPlatformForwardMigration(t *testing.T, ctx context.Context, owner, web, authz *sql.DB) {
 	t.Helper()
 	previous := fstest.MapFS{}
 	for _, name := range []string{"00001_core.sql", "00002_scoped_operations.sql"} {
@@ -44,9 +44,11 @@ func testPlatformForwardMigration(t *testing.T, ctx context.Context, owner *sql.
 	if !errors.As(err, &constraint) || constraint.Code != "23514" || constraint.ConstraintName != "devices_platform_check" {
 		t.Fatalf("previous schema did not enforce its platform constraint: %v", err)
 	}
+	auditFixture := prepareAuditForwardFixture(t, ctx, owner)
 	if err := Migrate(ctx, owner); err != nil {
 		t.Fatal(err)
 	}
+	t.Run("audit_hash_forward_and_integrity", func(t *testing.T) { testAuditForwardAndDoctor(t, ctx, owner, web, authz, auditFixture, tenant) })
 	var platform string
 	var guiKey sql.NullString
 	if err := owner.QueryRowContext(ctx, `SELECT platform,gui_public_key FROM devices WHERE id=$1`, device).Scan(&platform, &guiKey); err != nil || platform != "opnsense" || guiKey.Valid {
