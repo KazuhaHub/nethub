@@ -88,6 +88,43 @@ def remove_image(reference, expected_id):
     return invoke(['docker', 'image', 'rm', reference], 'owned image cleanup', check=False).returncode == 0
 
 
+def startup_diagnostic(stage, raw):
+    """Expose bounded pre-login tool errors after masking owned fixture secrets."""
+    values = set()
+    credentials = stage / 'fixture/credentials.json'
+    if credentials.exists():
+        data = json.loads(credentials.read_text())
+        values.add(data['password'])
+        values.update(data['clients'].values())
+    for config in (stage / 'fixture').glob('dex-*.json'):
+        values.update(user['hash'] for user in json.loads(config.read_text())['staticPasswords'])
+    paths = list((stage / 'deployment/secrets').rglob('*'))
+    paths += [stage / 'admin-password', stage / 'fixture/origin.key']
+    for path in paths:
+        if path.is_file() and not path.is_symlink() and path.stat().st_size <= 131072:
+            text = path.read_text(errors='replace').strip()
+            values.add(text)
+            values.update(line for line in text.splitlines() if len(line) >= 16)
+    text = raw.decode(errors='replace')
+    for value in sorted(values, key=len, reverse=True):
+        if len(value) >= 8:
+            text = text.replace(value, '[redacted]')
+    text = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
+    return text.replace(str(stage), '[owned stage]').replace(str(ROOT), '[checkout]')[-3000:]
+
+
+def publish_evidence(directory):
+    uid = int(os.environ.get('SUDO_UID', '0'))
+    gid = int(os.environ.get('SUDO_GID', '0'))
+    for name in ('dex-one-login.png', 'dex-two-login.png', 'results.json'):
+        path = directory / name
+        if path.exists():
+            if not path.is_file() or path.is_symlink():
+                raise Failure('unsafe public evidence path')
+            os.chown(path, uid, gid)
+    os.chown(directory, uid, gid)
+
+
 def main():
     if sys.platform != 'linux' or os.geteuid() != 0 or len(sys.argv) != 3:
         raise Failure('Linux root, accepted image archive and evidence directory required')
@@ -108,12 +145,22 @@ def main():
     helper_id = None
     holder_id = None
     successful = False
+    browser_started = False
     dex_preexisting = invoke(['docker', 'image', 'inspect', DEX_IMAGE], 'Dex inventory', check=False).returncode == 0
     dex_id = None
     result = {'passed': False, 'scope': 'fresh deployment with two real Dex providers', 'public_IdP_or_SAML_acceptance_claimed': False}
 
     def compose(*arguments, timeout=60, input=None, check=True):
-        return invoke(['docker', 'compose', '-p', project, '-f', str(compose_file), *arguments], 'owned SSO Compose operation', timeout=timeout, input=input, check=check)
+        label = 'owned SSO Compose ' + arguments[0]
+        reply = invoke(['docker', 'compose', '-p', project, '-f', str(compose_file), *arguments], label, timeout=timeout, input=input, check=False)
+        if check and reply.returncode:
+            result['failed_compose_operation'] = arguments[0]
+            if not browser_started and arguments[0] in ('up', 'run', 'ps'):
+                diagnostic = startup_diagnostic(stage, reply.stderr)
+                result['startup_diagnostic'] = diagnostic
+                print('SSO startup diagnostic: ' + diagnostic, file=sys.stderr)
+            raise Failure(label + ' failed')
+        return reply
 
     try:
         images, preexisting = archive_images(sys.argv[1])
@@ -209,6 +256,7 @@ def main():
         web_container = compose('ps', '-q', 'nethub-web').stdout.decode().strip()
         browser_evidence = stage / 'browser'
         node = os.environ.get('NETHUB_NODE_BINARY', 'node')
+        browser_started = True
         browser_result = invoke([node, str(ROOT / 'server/web/tests/oidc-deployment.mjs'), str(port), str(admin_password), str(fixture), str(helper), str(browser_home), str(browser_evidence), database_container, web_container], 'real Dex browser admission', timeout=240, log=stage / 'browser-private.log', check=False)
         if browser_result.returncode:
             failed = browser_evidence / 'results.json'
@@ -216,6 +264,9 @@ def main():
                 phase = json.loads(failed.read_text()).get('phase', '')
                 if re.fullmatch('[a-z_]{1,64}', phase):
                     result['failed_phase'] = phase
+                    category = json.loads(failed.read_text()).get('category')
+                    if category in ('assertion', 'certificate_trust', 'timeout', 'runtime'):
+                        result['failed_category'] = category
                     raise Failure('real Dex browser admission failed during ' + phase)
             raise Failure('real Dex browser admission failed')
         # The browser emits only fixed phase/check messages, never response URLs.
@@ -264,6 +315,8 @@ def main():
             # Keep protected bind sources available if Docker cleanup failed.
             # This recovery pointer is deliberately excluded from CI artifacts.
             (evidence / 'private-recovery.json').write_text(json.dumps({'stage': str(stage), 'project': project}))
+        publish_evidence(evidence)
+        if not cleanup_ok:
             raise Failure('owned SSO cleanup could not be confirmed')
     print('Fresh two-Dex browser/SQL admission and owned-resource cleanup passed with normal TLS verification.')
 

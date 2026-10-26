@@ -3,7 +3,6 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
-import subprocess
 import sys
 import tempfile
 from types import SimpleNamespace
@@ -98,6 +97,35 @@ class OIDCOwnershipBoundaries(unittest.TestCase):
     def test_command_deadline_has_no_argument_or_output_leak(self):
         with self.assertRaisesRegex(suite.Failure, '^isolated command deadline exceeded$'):
             suite.invoke([sys.executable, '-c', 'import time;time.sleep(5)', 'private-fixture-argument'], 'isolated command', timeout=0.05)
+
+    def test_startup_diagnostic_masks_fixture_and_deployment_values(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            stage = Path(temporary)
+            fixture = stage / 'fixture'
+            fixture.mkdir()
+            password, client, stored_hash, owner_password = ('public-fixture-password-value', 'public-fixture-client-value', 'public-fixture-bcrypt-value', 'public-fixture-owner-value')
+            (fixture / 'credentials.json').write_text(json.dumps({'password': password, 'clients': {'one': client}}))
+            (fixture / 'dex-one.json').write_text(json.dumps({'staticPasswords': [{'hash': stored_hash}]}))
+            secrets = stage / 'deployment/secrets/web'
+            secrets.mkdir(parents=True)
+            (secrets / 'pg_nethub_web').write_text(owner_password + '\n')
+            raw = f'Invalid option in {stage}: {password} {client} {stored_hash} {owner_password}'.encode()
+            diagnostic = suite.startup_diagnostic(stage, raw)
+            self.assertIn('Invalid option in [owned stage]', diagnostic)
+            self.assertEqual(diagnostic.count('[redacted]'), 4)
+            for value in (password, client, stored_hash, owner_password):
+                self.assertNotIn(value, diagnostic)
+
+    def test_only_safe_evidence_is_published_to_the_runner(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            public = ('dex-one-login.png', 'dex-two-login.png', 'results.json')
+            for name in (*public, 'privacy-values.json', 'private-recovery.json'):
+                (directory / name).write_text('public fixture placeholder')
+            calls = []
+            with patch.dict(suite.os.environ, {'SUDO_UID': '1001', 'SUDO_GID': '1002'}), patch.object(suite.os, 'chown', side_effect=lambda path, uid, gid: calls.append((path, uid, gid)), create=True):
+                suite.publish_evidence(directory)
+            self.assertEqual(calls, [(directory / name, 1001, 1002) for name in public] + [(directory, 1001, 1002)])
 
 
 if __name__ == '__main__':

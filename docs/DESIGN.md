@@ -18,6 +18,11 @@ added SAML to v1 through a direct authcore module import, and required reuse of
 matching shared packages. Reusable gaps may be improved in authcore. Earlier
 2026-09-17/v0.3 records that deferred SAML are superseded by this decision.
 
+OIDC implementation update (2026-10-26): the shared package added through authcore
+PR #32 is now imported directly. NetHub pins verified development commit
+`211d823f478c`; this is not a new formal release. NetHub retains its own account,
+invitation, session, outbound-policy and durable-state responsibilities.
+
 ## 0. v0.3 变更记录
 
 v0.2 写完之后，用户在 2026-09-17 的会话里拍板了一批事项，它们覆盖 v0.2 的原文；2026-10-16 用户解除 HOLD，
@@ -208,7 +213,7 @@ KKazuhaK/OPNsense-repo            ← 只有打包配方，不含 NetHub 源码
 | 20 | 签名私钥主机的部署边界 | Kazuha permits building, signing, and NetHub use on the designated packaging test machine (revised 2026-10-17). Removing its signing keys or build/signing scratch, or relocating signing, is no longer required. Other signing hosts remain outside deployment scope; production routers remain excluded | 在日常路由器上装新插件做验收 | 一旦决策 #4 的劫持路径成立而受害机恰好是私钥主机，攻击者拿到管理员凭证登入 shell 就能拿到签名私钥，把"控制面被攻破"升级成"能对仓库里的全部插件（截至 2026-10-16 共 13 个）重新签名推给所有用户"。这是产品自己给现有生态制造的新攻击面 | 低（纯运维纪律） |
 | 21 | 每部署独立密钥 | **所有密钥由 `nethub init` 在部署者机器上生成，按服务分文件存放，每个容器只拿到自己需要的那几份**：domain-claim 签名密钥（只给 authz）；frps auth token（每部署一份、所有设备共用；frps 与 authz 持有，authz 在 enroll 响应里把它交给设备。它只是进入 frps 的第一道门，每台设备的身份靠签名声明 + `device_secret`，见 §6）；frps admin 用户名/密码（frps + authz）；`nethub_owner` / `nethub_web` / `nethub_authz` / `nethub_backup` 四个 Postgres 角色的密码（各归对应服务：`nethub_owner` 只给 `nethub migrate`，`nethub_backup` 只给 `backup`）；Postgres 引导超级用户的密码（官方镜像的 `POSTGRES_PASSWORD`，只给 postgres 容器首次初始化用，运行时没有服务使用）；`NETHUB_SECRETS_KEY`（只给 web，用于加密 OIDC client secret）；session key（如果需要的话，只给 web）。上游不持有任何全局密钥 | 任何形式的内置默认密钥 / 上游签发；所有密钥写进一个共享 `.env` | 全开源自建的结构性红利：不存在"一把钥匙开所有实例"的东西。按服务分文件让决策 #4 的进程拆分在密钥层面也成立。同时也意味着**没有任何人能替部署者找回密钥**，`init` 必须强制提示备份，`doctor` 检查备份是否存在 | 低 |
 | 22 | 控制台登录与外部身份绑定 | 本地密码（argon2id）+ **OIDC**（Authorization Code + PKCE、state + nonce，`coreos/go-oidc/v3` 做 issuer discovery 与 ID token 校验，支持多个 IdP）；外部身份**只按 `(issuer, subject)` 绑定**；新绑定只发生在从邀请链接发起的 OIDC 流程里，邀请 token 有效（未过期、未使用）、`email_verified=true`、email 与这条邀请一致三者同时成立；SAML in v1 via authcore/saml (Kazuha, 2026-10-18) | 按 email 绑定；只凭 email 认领任意一条待处理邀请；自助注册 / JIT 开户；Duplicate SAML implementation | email 在不同 IdP 之间不能证明是同一个人，按 email 绑定就是 §13 场景 #13 的账号接管。`email_verified` 本身也不能跨 IdP 信任——自建 Dex / Keycloak 的管理员可以把任意 email 标成已验证，也有 IdP 会发出未验证或可变的 email 声明——所以认领邀请的凭据是一次性的邀请 token，email 只是附加校验。SAML deferral from 2026-09-17 was superseded by v1 inclusion on 2026-10-18 | 低 |
-| 23 | 共享认证模块 `authcore` 的用法 | **遵循 authcore 自己的准入逻辑**：只在某个包能替 NetHub 省掉一件"必须自己做对"的事时才引入，并钉到核实过的 tag（当前 `@v0.6.2`）。v1 directly uses `saml`; matching shared capabilities must be reused;可选 `captcha`（N 次登录失败后）与 `geoip`（审计视图里显示登录地点）；以后 `passkey` 作为控制台登录方式 | 为了"复用"而整体引入 | 依赖越少，自建者要信任的东西越少；authcore 为 Apache-2.0，许可证兼容 | 低 |
+| 23 | 共享认证模块 `authcore` 的用法 | **遵循 authcore 自己的准入逻辑**：只在某个包能替 NetHub 省掉一件"必须自己做对"的事时才引入，pin a verified commit or tag (current OIDC development pin `211d823f478c`, not a formal release). v1 directly imports `oidc` and `saml`; matching shared capabilities must be reused;可选 `captcha`（N 次登录失败后）与 `geoip`（审计视图里显示登录地点）；以后 `passkey` 作为控制台登录方式 | 为了"复用"而整体引入 | 依赖越少，自建者要信任的东西越少；authcore 为 Apache-2.0，许可证兼容 | 低 |
 
 ---
 
@@ -614,17 +619,23 @@ member 的设备查询额外按 `owner_user_id` 过滤；RLS 仍然只按租户�
 
 ### authcore 的使用
 
-`KazuhaHub/authcore`（用户 2026-10-16 确认模块拆分已完成）当前为 v0.6.2，包含 `captcha`、`geoip`、`passkey`、`saml`
-四个包；没有 `oidc` 包；`audit` 已移除（authcore ADR 0002）；`ratelimit` 已移除、`clientip` 已回退（authcore ADR 0003）。
+NetHub pins `KazuhaHub/authcore` at
+`v0.6.3-0.20261025140127-211d823f478c`, the verified upstream OIDC merge. The
+module contains `oidc`, `saml`, `captcha`, `geoip` and `passkey`. The earlier
+v0.6.2 description without OIDC is historical. `audit` was removed in ADR 0002;
+`ratelimit` and `clientip` remain application responsibilities under ADR 0003.
 
 NetHub 遵循 authcore 自己的准入逻辑（决策 #23）：
 
-- 某个包能替 NetHub 省掉一件"必须自己做对"的事，才引入；钉到核实过的 tag（当前 `@v0.6.2`）。
-- v1: directly import `authcore/saml`; reuse other matching shared capabilities. 可选 `captcha`（N 次登录失败后）、`geoip`（审计视图里显示登录地点）。
+- Import a package when it replaces a matching required capability; pin a verified
+  commit or tag. The current OIDC dependency is a development pin, not a release.
+- v1 directly imports `authcore/oidc` and `authcore/saml`. Captcha and audit-location
+  enrichment through `geoip` remain optional; protocol reuse does not enable them.
 - Shared capability gaps may be improved in authcore with tests and a separate PR.
 - 以后：`passkey`，作为控制台登录方式之一。
-- 因此 OIDC RP（`internal/oidc`）、审计哈希链（`internal/audit`）、登录限流（`internal/auth`）、
-  可信代理 IP 解析（`internal/clientip`）都在 NetHub 自己的代码里。
+- Shared `oidc` and `saml` verify their protocols. NetHub owns account/invitation
+  admission, sessions, persistent flow/replay state, outbound-network policy,
+  the audit chain, login budgets and trusted-proxy IP parsing.
 - authcore 是 Apache-2.0，许可证兼容。
 
 ### 数据模型
