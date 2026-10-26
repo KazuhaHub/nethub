@@ -220,7 +220,13 @@ def main():
         verify_loaded_images(images)
         if invoke(['docker', 'image', 'inspect', helper_image], 'prior fixture image inventory', check=False).returncode == 0:
             raise Failure('fixture image reference already exists')
-        invoke(['docker', 'build', '--target', 'oidc-acceptance', '-f', str(ROOT / 'deploy/Dockerfile'), '-t', helper_image, str(ROOT)], 'OIDC fixture build', timeout=240, log=stage / 'helper-build.log')
+        build = invoke(['docker', 'build', '--target', 'oidc-acceptance', '-f', str(ROOT / 'deploy/Dockerfile'), '-t', helper_image, str(ROOT)], 'OIDC fixture build', timeout=240, log=stage / 'helper-build.log', check=False)
+        if build.returncode:
+            # No fixture credentials exist yet; still use the bounded redactor.
+            result['failed_preparation'] = 'fixture_build'
+            result['startup_diagnostic'] = startup_diagnostic(stage, build.stdout + build.stderr)
+            print('SSO preparation diagnostic: ' + result['startup_diagnostic'], file=sys.stderr)
+            raise Failure('OIDC fixture build failed')
         helper_created = True
         helper_id = docker_json(['image', 'inspect', helper_image], 'fixture image identity')[0]['Id']
         holder_id = invoke(['docker', 'create', '--network', 'none', '--name', holder, '--label', 'org.nethub.test=' + project, helper_image, '/oidcfixture'], 'fixture extraction container').stdout.decode().strip()
