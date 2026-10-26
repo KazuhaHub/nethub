@@ -178,6 +178,13 @@ func inspectSAMLMetadata(document []byte) (xml.Name, error) {
 		}
 		switch token := token.(type) {
 		case xml.StartElement:
+			attributes := make(map[xml.Name]struct{}, len(token.Attr))
+			for _, attribute := range token.Attr {
+				if _, duplicate := attributes[attribute.Name]; duplicate {
+					return root, ErrSAMLMetadata
+				}
+				attributes[attribute.Name] = struct{}{}
+			}
 			if depth == 0 {
 				roots++
 				root = token.Name
