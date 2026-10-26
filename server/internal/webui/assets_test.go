@@ -33,3 +33,18 @@ func TestAssetPathsAndMissingBuild(t *testing.T) {
 		t.Fatal("HEAD asset response incorrect")
 	}
 }
+
+func TestSAMLProviderPageDoesNotExposeNestedFiles(t *testing.T) {
+	h := handler{fstest.MapFS{"index.html": {Data: []byte("<html>console</html>")}}}
+	for _, path := range []string{"/saml-providers", "/saml-providers/unknown"} {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		expected := 404
+		if path == "/saml-providers" {
+			expected = 200
+		}
+		if w.Code != expected {
+			t.Fatal("SAML console route", path, w.Code)
+		}
+	}
+}

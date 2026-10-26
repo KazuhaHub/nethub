@@ -51,6 +51,7 @@ import { NativeDialog } from "./dialog";
 import { Users } from "./users";
 import { Invitations } from "./invitations";
 import { Providers } from "./providers";
+import { SAMLProviders } from "./saml-providers";
 import {
   canOpenDevice,
   certificateLabel,
@@ -327,11 +328,17 @@ function SignIn({ onLogin }: { onLogin: (session: Session) => void }) {
   useEffect(() => {
     const controller = new AbortController();
     api
-      .loginProviders(
+      .ssoProviders(
         AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
       )
       .then((value) => {
-        if (!controller.signal.aborted) setProviders(value.items);
+        if (!controller.signal.aborted) {
+          setProviders(value.items);
+          if (value.partial)
+            setSsoError(
+              "Some SSO choices are unavailable. You can still use another provider or a local password.",
+            );
+        }
       })
       .catch(() => {
         if (!controller.signal.aborted)
@@ -341,14 +348,16 @@ function SignIn({ onLogin }: { onLogin: (session: Session) => void }) {
       });
     return () => controller.abort();
   }, []);
-  async function sso(slug: string) {
+  async function sso(provider: LoginProvider) {
     if (signInPending.current || busy) return;
     signInPending.current = true;
     setBusy(true);
     setError("");
     setPassword("");
     try {
-      const destination = await api.startOIDC(slug);
+      const destination = await (provider.protocol === "saml"
+        ? api.startSAML(provider.slug)
+        : api.startOIDC(provider.slug));
       window.location.assign(destination);
     } catch (value) {
       setError(message(value));
@@ -459,11 +468,11 @@ function SignIn({ onLogin }: { onLogin: (session: Session) => void }) {
               <span className="sso-divider">or use single sign-on</span>
               {providers.map((provider) => (
                 <Button
-                  key={provider.slug}
+                  key={`${provider.protocol}:${provider.slug}`}
                   type="button"
                   variant="outline"
                   disabled={busy}
-                  onClick={() => void sso(provider.slug)}
+                  onClick={() => void sso(provider)}
                 >
                   Continue with {provider.display_name}
                 </Button>
@@ -992,7 +1001,9 @@ function Devices({ isAdmin }: { isAdmin: boolean }) {
 export function App() {
   const userView = window.location.pathname === "/users";
   const invitationView = window.location.pathname === "/invitations";
-  const providerView = window.location.pathname === "/providers";
+  const samlProviderView = window.location.pathname === "/saml-providers";
+  const providerView =
+    window.location.pathname === "/providers" || samlProviderView;
   const adminView = userView || invitationView || providerView;
   const [session, setSession] = useState<Session | null>(null);
   const [booting, setBooting] = useState(true);
@@ -1156,7 +1167,11 @@ export function App() {
           {adminView ? (
             session.user.role === "admin" ? (
               providerView ? (
-                <Providers onAuthorityChanged={confirmAuthority} />
+                samlProviderView ? (
+                  <SAMLProviders onAuthorityChanged={confirmAuthority} />
+                ) : (
+                  <Providers onAuthorityChanged={confirmAuthority} />
+                )
               ) : invitationView ? (
                 <Invitations onAuthorityChanged={confirmAuthority} />
               ) : (

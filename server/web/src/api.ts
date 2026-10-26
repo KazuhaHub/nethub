@@ -27,7 +27,32 @@ export type OIDCProviderInput = Pick<
   "slug" | "display_name" | "issuer_url" | "client_id" | "scopes" | "enabled"
 > & { client_secret?: string };
 export type OIDCProviderPatch = Partial<Omit<OIDCProviderInput, "slug">>;
-export type LoginProvider = { slug: string; display_name: string };
+export type LoginProvider = {
+  slug: string;
+  display_name: string;
+  protocol?: "oidc" | "saml";
+};
+export type SAMLProvider = {
+  id: string;
+  slug: string;
+  display_name: string;
+  entity_id: string;
+  email_attribute: string;
+  enabled: boolean;
+  has_signing_key: boolean;
+  created_at: string;
+  metadata_uri: string;
+  acs_uri: string;
+};
+export type SAMLProviderPage = {
+  items: SAMLProvider[];
+  next_cursor: string | null;
+};
+export type SAMLProviderInput = Pick<
+  SAMLProvider,
+  "slug" | "display_name" | "entity_id" | "email_attribute" | "enabled"
+> & { metadata_xml: string };
+export type SAMLProviderPatch = Partial<Omit<SAMLProviderInput, "slug">>;
 export type UserPatch = { role?: User["role"]; disabled?: boolean };
 export type Invitation = {
   id: string;
@@ -229,6 +254,91 @@ async function request<T>(
 }
 
 export const api = {
+  samlProviders(
+    cursor: string | null,
+    signal?: AbortSignal,
+    background = false,
+  ) {
+    const query = new URLSearchParams({ limit: "50" });
+    if (cursor) query.set("cursor", cursor);
+    return request<SAMLProviderPage>(
+      `/saml-providers?${query}`,
+      undefined,
+      signal,
+      background,
+    );
+  },
+  createSAMLProvider(input: SAMLProviderInput) {
+    return providerMutation<SAMLProvider>("/saml-providers", input);
+  },
+  updateSAMLProvider(id: string, patch: SAMLProviderPatch) {
+    return providerMutation<SAMLProvider>(
+      `/saml-providers/${encodeURIComponent(id)}`,
+      patch,
+      "PATCH",
+    );
+  },
+  deleteSAMLProvider(id: string) {
+    return providerMutation<void>(
+      `/saml-providers/${encodeURIComponent(id)}`,
+      undefined,
+      "DELETE",
+    );
+  },
+  async ssoProviders(
+    signal?: AbortSignal,
+  ): Promise<{ items: LoginProvider[]; partial: boolean }> {
+    const results = await Promise.allSettled([
+      api.loginProviders(signal),
+      request<{ items: LoginProvider[] }>(
+        "/saml/providers",
+        undefined,
+        signal,
+      ).then((value) => {
+        if (
+          !Array.isArray(value.items) ||
+          !value.items.every(
+            (p) =>
+              p &&
+              p.protocol === "saml" &&
+              typeof p.slug === "string" &&
+              /^[a-z0-9][a-z0-9-]{0,62}$/.test(p.slug) &&
+              typeof p.display_name === "string" &&
+              p.display_name.length > 0 &&
+              p.display_name.length <= 200,
+          )
+        )
+          throw new Error("SSO choices could not be verified.");
+        return value;
+      }),
+    ]);
+    if (results.every((result) => result.status === "rejected"))
+      throw new Error("SSO choices are unavailable.");
+    const items = results.flatMap((result, index) =>
+      result.status === "fulfilled"
+        ? result.value.items.map((p) => ({
+            ...p,
+            protocol: index === 0 ? ("oidc" as const) : ("saml" as const),
+          }))
+        : [],
+    );
+    const partial = results.some((result) => result.status === "rejected");
+    if (partial && items.length === 0)
+      throw new Error("SSO choices are unavailable.");
+    return { items, partial };
+  },
+  async startSAML(slug: string, invite?: string) {
+    const result = await request<{ redirect_url: string }>(
+      `/saml/${encodeURIComponent(slug)}/start`,
+      invite ? { invite_token: invite } : {},
+      AbortSignal.timeout(15000),
+    );
+    if (!validSSODestination(result.redirect_url))
+      throw new Error(
+        "The sign-in destination could not be verified. Try starting again.",
+      );
+    return result.redirect_url;
+  },
   oidcProviders(
     cursor: string | null,
     signal?: AbortSignal,

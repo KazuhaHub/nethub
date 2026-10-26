@@ -19,6 +19,7 @@ import {
   type OIDCProviderInput,
 } from "./api";
 import { NativeDialog } from "./dialog";
+import { ProviderTabs } from "./provider-tabs";
 import {
   providerChanges,
   providerDraft,
@@ -251,6 +252,7 @@ export function Providers({
           </Button>
         </div>
       </header>
+      <ProviderTabs active="oidc" />
       {error && (
         <p role="alert" className="error-message">
           {error}

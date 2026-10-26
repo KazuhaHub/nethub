@@ -19,7 +19,7 @@ export function Invite({ takeToken }: { takeToken: () => string | null }) {
   const [error, setError] = useState("");
   const [uncertain, setUncertain] = useState(false);
   const [retry, setRetry] = useState(0);
-  async function sso(slug: string) {
+  async function sso(provider: InvitationInfo["providers"][number]) {
     if (!token || !info || existing || pending.current || uncertain) return;
     pending.current = true;
     setBusy(true);
@@ -27,7 +27,9 @@ export function Invite({ takeToken }: { takeToken: () => string | null }) {
     setPassword("");
     setConfirm("");
     try {
-      const destination = await api.startOIDC(slug, token);
+      const destination = await (provider.kind === "saml"
+        ? api.startSAML(provider.slug, token)
+        : api.startOIDC(provider.slug, token));
       window.location.assign(destination);
     } catch (failure) {
       if (alive.current) {
@@ -312,8 +314,9 @@ export function Invite({ takeToken }: { takeToken: () => string | null }) {
               ) : (
                 <div>
                   <p>SSO is required for this invitation.</p>
-                  {info.providers.filter((p) => p.kind === "oidc").length ===
-                    0 && (
+                  {info.providers.filter(
+                    (p) => p.kind === "oidc" || p.kind === "saml",
+                  ).length === 0 && (
                     <p className="muted">
                       No available sign-in method. Ask your administrator for
                       help.
@@ -321,30 +324,36 @@ export function Invite({ takeToken }: { takeToken: () => string | null }) {
                   )}
                 </div>
               )}
-              {!existing && info.providers.some((p) => p.kind === "oidc") && (
-                <div className="sso-choices" aria-label="SSO invitation claim">
-                  <span className="sso-divider">
-                    {info.password_allowed
-                      ? "or use single sign-on"
-                      : "Use your invited identity"}
-                  </span>
-                  <p className="muted">
-                    Choose the account for {info.email} at your provider.
-                  </p>
-                  {info.providers
-                    .filter((p) => p.kind === "oidc")
-                    .map((provider) => (
-                      <Button
-                        key={provider.slug}
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => void sso(provider.slug)}
-                      >
-                        Continue with {provider.display_name}
-                      </Button>
-                    ))}
-                </div>
-              )}
+              {!existing &&
+                info.providers.some(
+                  (p) => p.kind === "oidc" || p.kind === "saml",
+                ) && (
+                  <div
+                    className="sso-choices"
+                    aria-label="SSO invitation claim"
+                  >
+                    <span className="sso-divider">
+                      {info.password_allowed
+                        ? "or use single sign-on"
+                        : "Use your invited identity"}
+                    </span>
+                    <p className="muted">
+                      Choose the account for {info.email} at your provider.
+                    </p>
+                    {info.providers
+                      .filter((p) => p.kind === "oidc" || p.kind === "saml")
+                      .map((provider) => (
+                        <Button
+                          key={provider.slug}
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() => void sso(provider)}
+                        >
+                          Continue with {provider.display_name}
+                        </Button>
+                      ))}
+                  </div>
+                )}
               {error && (
                 <p className="error-message" role="alert">
                   {error}
