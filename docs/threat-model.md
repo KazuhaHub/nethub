@@ -6,9 +6,8 @@
 > penetration test or a claim that W5-W7 are complete.
 
 The [execution plan](PLAN.md) and [handoff](HANDOFF_PROMPT.md) identify the
-remaining gates. Evidence below applies to its recorded source and environment;
-a schema, synthetic browser fixture or green CI badge alone does not establish
-native or public-network behavior.
+remaining gates. The evidence table records the source and environment covered
+by each measurement, alongside the remaining unverified assumptions.
 
 ## Contents
 
@@ -381,7 +380,3 @@ not solved by this single-host v1 model.
 | Actual signed SAML vendor                                             | [Keycloak deployment](../deploy/validation-keycloak-saml.md). Fixture inventory is not agent/tunnel evidence; no assertion-encryption or public/mobile claim.                                               |
 | Device-local client attribution, hostile streams and broader networks | Do not infer complete GUI lockout/logging behavior or malicious-client cutoff from normal browser samples. These remain unverified where no direct measurement exists.                                      |
 | Operational release/restore/disclosure                                | W7 and owner gates remain open. Repository publication does not by itself complete D12 or authorize history rewriting.                                                                                      |
-
-Future edits must bind each changed security claim to the relevant source and
-actual test/runtime evidence. Do not turn a scoped success or absence of a known
-failure into proof that the complete threat model or release has passed.
