@@ -824,6 +824,43 @@ p {
   border-top: 1px solid var(--border);
   padding-top: 18px;
 }
+.provider-heading-actions,
+.provider-row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.provider-slug {
+  display: block;
+  font-size: 11px;
+  margin-top: 4px;
+}
+.provider-issuer {
+  display: block;
+  max-width: 26rem;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.provider-form .token-value {
+  width: 100%;
+}
+.sso-choices {
+  display: grid;
+  gap: 10px;
+  margin-top: 22px;
+}
+.sso-choices button {
+  white-space: normal;
+  height: auto;
+  min-height: 40px;
+  padding: 10px 14px;
+  overflow-wrap: anywhere;
+}
+.sso-divider {
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+}
 .notice {
   font-size: 12px;
   padding: 12px;

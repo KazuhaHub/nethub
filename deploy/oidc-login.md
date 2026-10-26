@@ -3,9 +3,22 @@
 The backend implements the enabled-provider catalog, Origin-checked start and
 GET callback routes described in the [console API](../docs/console-api.md).
 Protocol processing directly uses `authcore/oidc`; NetHub owns browser binding,
-durable one-use state and account/invitation admission. Provider and sign-in UI,
-two-Dex deployment, a public provider and SAML admission remain unfinished W6
+durable one-use state and account/invitation admission. The sign-in page displays
+enabled OIDC choices alongside local password access. Two-Dex deployment, a
+public provider and SAML admission remain unfinished W6
 work. These backend tests are not combined deployed SSO acceptance.
+
+The public catalog loads independently of the password form; a catalog failure
+does not prevent local emergency login. Starting SSO requires an explicit click.
+The browser accepts only HTTPS authorization destinations without URL credentials
+or fragments. Callback failures display one fixed message for `error=sso_failed`;
+other query diagnostics are not rendered.
+
+Administrators can restrict a new invitation to an enabled OIDC provider. The
+claim page still erases the fragment before use, keeps the grant only in memory,
+requires explicit logout of an existing account and sends the grant in the start
+POST body. It never places the grant in an IdP URL or persistent browser storage.
+Starting authorization does not consume the invitation or establish an account.
 
 ## Browser and protocol state
 

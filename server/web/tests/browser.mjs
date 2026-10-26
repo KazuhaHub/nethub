@@ -7,6 +7,7 @@ import { createInterface } from "node:readline";
 import { chromium } from "playwright";
 import { verifyUsers } from "./users-browser.mjs";
 import { verifyInvitations } from "./invitations-browser.mjs";
+import { verifyProviders } from "./providers-browser.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 const stage = mkdtempSync(join(tmpdir(), "nethub-ui-"));
@@ -556,6 +557,8 @@ try {
     login,
     serverLog: () => serverLog,
   });
+  assert.deepEqual(violations, []);
+  await verifyProviders({ page, origin, evidence, login });
   assert.deepEqual(violations, []);
   assert.deepEqual(failures, []);
   assert.deepEqual(external, []);

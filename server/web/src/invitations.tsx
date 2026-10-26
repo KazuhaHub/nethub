@@ -18,7 +18,9 @@ import {
   type InvitationPage,
   type IssuedInvitation,
   type User,
+  type OIDCProvider,
 } from "./api";
+import { providerProjection } from "./provider-form";
 import { NativeDialog } from "./dialog";
 import { validInvitationLink } from "./invitation-safety";
 
@@ -41,6 +43,10 @@ export function Invitations({
   const [creating, setCreating] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<User["role"]>("member");
+  const [providerId, setProviderId] = useState("");
+  const [providers, setProviders] = useState<OIDCProvider[]>([]);
+  const [providerError, setProviderError] = useState("");
+  const [providersLoading, setProvidersLoading] = useState(false);
   const [issued, setIssued] = useState<IssuedInvitation | null>(null);
   const [withdrawing, setWithdrawing] = useState<Invitation | null>(null);
   const [busy, setBusy] = useState(false);
@@ -50,6 +56,44 @@ export function Invitations({
   const [copied, setCopied] = useState(false);
   const alive = useRef(true);
   const cursor = cursors.at(-1)!;
+  useEffect(() => {
+    if (!creating || issued) return;
+    const controller = new AbortController();
+    setProvidersLoading(true);
+    setProviderError("");
+    setProviders([]);
+    async function load() {
+      const result: OIDCProvider[] = [];
+      let after: string | null = null;
+      const seen = new Set<string>();
+      try {
+        const signal = AbortSignal.any([
+          controller.signal,
+          AbortSignal.timeout(15000),
+        ]);
+        do {
+          const page = await api.oidcProviders(after, signal);
+          if (!page.items.every(providerProjection))
+            throw new Error("Provider data unavailable.");
+          result.push(...page.items.filter((p) => p.enabled));
+          after = page.next_cursor;
+          if (after && seen.has(after))
+            throw new Error("Provider pagination unavailable.");
+          if (after) seen.add(after);
+        } while (after);
+        if (!controller.signal.aborted) setProviders(result);
+      } catch {
+        if (!controller.signal.aborted)
+          setProviderError(
+            "Provider choices are unavailable. Retry opening this dialog to restrict sign-in.",
+          );
+      } finally {
+        if (!controller.signal.aborted) setProvidersLoading(false);
+      }
+    }
+    void load();
+    return () => controller.abort();
+  }, [creating, issued]);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -106,6 +150,7 @@ export function Invitations({
     setIssued(null);
     setEmail("");
     setRole("member");
+    setProviderId("");
     setOperationError("");
     setUncertain(false);
     setCopied(false);
@@ -131,7 +176,11 @@ export function Invitations({
     setBusy(true);
     setOperationError("");
     try {
-      const value = await api.issueInvitation(email, role);
+      const value = await api.issueInvitation(
+        email,
+        role,
+        providerId || undefined,
+      );
       if (!alive.current) return;
       if (
         !validInvitationLink(
@@ -375,6 +424,25 @@ export function Invitations({
               <option value="member">Member</option>
               <option value="admin">Admin</option>
             </select>
+            <Label htmlFor="invitation-provider">Sign-in restriction</Label>
+            <select
+              id="invitation-provider"
+              value={providerId}
+              disabled={busy || uncertain || providersLoading}
+              onChange={(e) => setProviderId(e.target.value)}
+            >
+              <option value="">Local password or any available SSO</option>
+              {providers.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.display_name} only
+                </option>
+              ))}
+            </select>
+            {providerError && (
+              <p className="muted" role="status">
+                {providerError}
+              </p>
+            )}
             <p className="muted">
               Admins can manage all devices, users and invitations. Members
               manage their own devices.

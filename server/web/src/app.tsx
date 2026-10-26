@@ -23,6 +23,7 @@ import {
   Sun,
   Users as UsersIcon,
   Mail,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,10 +45,12 @@ import {
   type Disconnect,
   type Enrollment,
   type Session,
+  type LoginProvider,
 } from "./api";
 import { NativeDialog } from "./dialog";
 import { Users } from "./users";
 import { Invitations } from "./invitations";
+import { Providers } from "./providers";
 import {
   canOpenDevice,
   certificateLabel,
@@ -313,10 +316,50 @@ function SignIn({ onLogin }: { onLogin: (session: Session) => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(() =>
+    new URLSearchParams(window.location.search).get("error") === "sso_failed"
+      ? "SSO sign-in could not be completed. Start again or contact your administrator."
+      : "",
+  );
+  const [providers, setProviders] = useState<LoginProvider[]>([]);
+  const [ssoError, setSsoError] = useState("");
+  const signInPending = useRef(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    api
+      .loginProviders(
+        AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+      )
+      .then((value) => {
+        if (!controller.signal.aborted) setProviders(value.items);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted)
+          setSsoError(
+            "SSO choices are unavailable. You can still use a local password.",
+          );
+      });
+    return () => controller.abort();
+  }, []);
+  async function sso(slug: string) {
+    if (signInPending.current || busy) return;
+    signInPending.current = true;
+    setBusy(true);
+    setError("");
+    setPassword("");
+    try {
+      const destination = await api.startOIDC(slug);
+      window.location.assign(destination);
+    } catch (value) {
+      setError(message(value));
+      signInPending.current = false;
+      setBusy(false);
+    }
+  }
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || signInPending.current) return;
+    signInPending.current = true;
     const supplied = password;
     setPassword("");
     setBusy(true);
@@ -326,6 +369,7 @@ function SignIn({ onLogin }: { onLogin: (session: Session) => void }) {
     } catch (error) {
       setError(message(error));
     } finally {
+      signInPending.current = false;
       setBusy(false);
     }
   }
@@ -410,6 +454,27 @@ function SignIn({ onLogin }: { onLogin: (session: Session) => void }) {
               <ArrowRight />
             </Button>
           </form>
+          {providers.length > 0 && (
+            <div className="sso-choices" aria-label="SSO sign-in">
+              <span className="sso-divider">or use single sign-on</span>
+              {providers.map((provider) => (
+                <Button
+                  key={provider.slug}
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => void sso(provider.slug)}
+                >
+                  Continue with {provider.display_name}
+                </Button>
+              ))}
+            </div>
+          )}
+          {ssoError && (
+            <p className="signin-note" role="status">
+              {ssoError}
+            </p>
+          )}
           <p className="signin-note">
             Access is managed by your instance administrator.
           </p>
@@ -927,7 +992,8 @@ function Devices({ isAdmin }: { isAdmin: boolean }) {
 export function App() {
   const userView = window.location.pathname === "/users";
   const invitationView = window.location.pathname === "/invitations";
-  const adminView = userView || invitationView;
+  const providerView = window.location.pathname === "/providers";
+  const adminView = userView || invitationView || providerView;
   const [session, setSession] = useState<Session | null>(null);
   const [booting, setBooting] = useState(true);
   const [failure, setFailure] = useState("");
@@ -1030,6 +1096,15 @@ export function App() {
               Users
             </a>
           )}
+          {session.user.role === "admin" && (
+            <a
+              href="/providers"
+              aria-current={providerView ? "page" : undefined}
+            >
+              <Shield size={18} />
+              Identity providers
+            </a>
+          )}
         </nav>
         <div className="sidebar-footer">
           <span className="sidebar-dot" />
@@ -1048,7 +1123,13 @@ export function App() {
           <span className="breadcrumb">
             Workspace<span>/</span>
             <strong>
-              {userView ? "Users" : invitationView ? "Invitations" : "Devices"}
+              {providerView
+                ? "Identity providers"
+                : userView
+                  ? "Users"
+                  : invitationView
+                    ? "Invitations"
+                    : "Devices"}
             </strong>
           </span>
           <div className="account-actions">
@@ -1074,7 +1155,9 @@ export function App() {
           )}
           {adminView ? (
             session.user.role === "admin" ? (
-              invitationView ? (
+              providerView ? (
+                <Providers onAuthorityChanged={confirmAuthority} />
+              ) : invitationView ? (
                 <Invitations onAuthorityChanged={confirmAuthority} />
               ) : (
                 <Users

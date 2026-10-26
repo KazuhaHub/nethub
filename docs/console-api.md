@@ -538,8 +538,8 @@ Admin only. A paginated list of user objects.
 The implemented backend accepts `limit` (1–200, default 50) and an opaque
 `cursor`, returning `{ "items": [...], "next_cursor": null | "..." }`.
 Passwords, hashes, identity subjects and provider secrets are never projected.
-The user-management interface is available at `/users`; invitation/SSO flows
-remain W6 work. GET `/users` and GET `/session` accept exactly one
+The user-management interface is available at `/users`. GET `/users`,
+GET `/oidc-providers` and GET `/session` accept exactly one
 `X-NetHub-Background: 1` header for passive lookup without idle-time renewal.
 Explicit reads and all mutations use active lookup.
 
