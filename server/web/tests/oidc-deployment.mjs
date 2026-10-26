@@ -821,6 +821,10 @@ try {
     "actual signed authorization response with tampered state refused without consuming its valid flow",
   );
   phase = "disabled_account";
+  const originalAliceCookie = (await boundAlice.context.cookies(origin)).find(
+    (cookie) => cookie.name === "__Host-nethub_session",
+  );
+  assert.ok(originalAliceCookie);
   assert.equal(
     (
       await api(
@@ -833,7 +837,47 @@ try {
     ).status,
     200,
   );
-  assert.equal((await api(boundAlice.page, "/session")).status, 401);
+  assert.equal(count("sessions", `user_id=${quote(alice.user.id)}`), 0);
+  const revokedClient = await anonymous();
+  async function requestWithRevokedCookie(path) {
+    // Present the retained credential again so cookie clearing cannot make the
+    // refusal test pass merely because a request became anonymous.
+    await revokedClient.context.addCookies([originalAliceCookie]);
+    const observed = revokedClient.page.waitForRequest(
+      (request) =>
+        new URL(request.url()).pathname === "/api/v1/console" + path &&
+        request.method() === "GET" &&
+        request.headers()["x-nethub-background"] === undefined,
+    );
+    const [response, request] = await Promise.all([
+      api(revokedClient.page, path),
+      observed,
+    ]);
+    const headers = await request.allHeaders();
+    assert.ok(
+      (headers.cookie || "")
+        .split(";")
+        .some(
+          (value) =>
+            value.trim() ===
+            originalAliceCookie.name + "=" + originalAliceCookie.value,
+        ),
+      "The retained revoked credential was not sent",
+    );
+    return response;
+  }
+  const protectedReply = await requestWithRevokedCookie("/devices");
+  assert.equal(protectedReply.status, 401);
+  assert.equal(protectedReply.data.error.code, "unauthenticated");
+  const disabledSession = await requestWithRevokedCookie("/session");
+  assert.equal(disabledSession.status, 200);
+  assert.deepEqual(disabledSession.data, { signed_in: false });
+  assert.ok(
+    !(await revokedClient.context.cookies(origin)).some(
+      (cookie) => cookie.name === originalAliceCookie.name,
+    ),
+  );
+  await revokedClient.context.close();
   await (
     await signIn("one", "alice@example.com", undefined, { success: false })
   ).context.close();
