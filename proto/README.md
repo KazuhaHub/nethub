@@ -27,8 +27,11 @@ pipeline remain separate work.
 | relay-trust-settings-request / relay-trust-settings-response | Authenticated current public trust generation, or explicit pending null |
 | relay-trust-applied-request / relay-trust-applied-response | Exact current trust identity report and original server acceptance receipt |
 
-The public device endpoints are `/api/v1/devices/{enroll,status,rotate,unenroll}`
-under the administrator-selected HTTPS console origin. Enrollment carries its
+The implemented lifecycle endpoints are `/api/v1/devices/{enroll,status,unenroll}`
+under the administrator-selected HTTPS console origin. Rotate schemas reserve the
+wire contract; the current HTTP router does not expose rotation. The command,
+endpoint and UI remain W7 work. See the [protocol walkthrough](../docs/protocol.md).
+Enrollment carries its
 opaque one-use token in the JSON body. Other device endpoints use the device
 secret as `Authorization: Bearer <device_secret>`, with the device ID in the body.
 Never put credentials in query strings, redirects, command arguments or logs.

@@ -7,10 +7,10 @@ VyOS.
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Stars](https://img.shields.io/github/stars/KazuhaHub/nethub?style=social)
 
-**Status: pre-alpha, W4 integration.** W0–W3 are accepted; the development
-control plane and OPNsense plugin include enrollment and certificate-management
-components. Combined native certificate/trust rollout and W5–W7 remain unfinished. See
-[Project status](#project-status) before using the development files.
+**Status: pre-alpha, W6 integration.** The control plane and OPNsense development
+plugin are implemented, with scoped public/native certificate and trust records.
+W5–W7 remain incomplete; there is no production release. See
+[Project status](#project-status) for evidence and remaining gates.
 
 **Before you self-host, you will need:** a domain name you control DNS for, a
 **wildcard DNS record** (`*.router.example.com` → your relay server's public
@@ -25,6 +25,7 @@ see [Requirements](#requirements) for the full list.
 - [Repository layout](#repository-layout)
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
+- [Documentation](#documentation)
 - [Security model](#security-model)
 - [Project status](#project-status)
 - [Roadmap](#roadmap)
@@ -46,18 +47,20 @@ are in progress; this is not a released deployment.
 - Show device online/offline status and basic connection metadata in the
   control plane's web console.
 - Support more than one console user: `admin` and `member` roles, joining by
-  invitation only, signing in with a local password or with OIDC (multiple
-  identity providers can be configured).
+  invitation only, signing in with a local password, OIDC or SAML through
+  authcore. Multiple identity providers can be configured.
+- Issue and renew per-device public GUI certificates, with device-local keys
+  and verified native application.
 
-That is the planned scope of v1. The final v1 feature list is still to be
-confirmed.
+The execution plan tracks the confirmed scope and its remaining acceptance.
 
 ## What NetHub does not do (yet)
 
-- **No configuration management.** The control plane cannot read a device's
-  `config.xml`, change firewall rules, or restart services. This is not an
-  oversight — it's a deliberate v1 boundary, described in
-  [Security model](#security-model) below.
+- **No general device configuration API.** NetHub does not expose a firewall,
+  arbitrary command or configuration-push interface. The plugin manages its
+  own tunnel/settings and bounded GUI certificate installation, which can
+  reload the GUI service. See [Security model](#security-model).
+
 - **No fleet operations.** No bulk upgrades, no scheduled jobs, no
   fleet-wide config push.
 - **No telemetry.** No metrics collection, no dashboards, no alerting beyond
@@ -191,31 +194,43 @@ above.
 
 ## Quick start
 
-> **Note — these commands don't exist yet.** NetHub is pre-alpha (see
-> [Project status](#project-status)). The steps below describe the intended
-> v1 flow so you know what "done" looks like; `nethub init`, the console, and
-> enrollment are not implemented. The development plugin is for isolated tests;
-> the complete self-hosted stack cannot be run yet.
+Use the [deployment guide](docs/deployment.md) and
+[verified command examples](deploy/QUICKSTART.md) on a dedicated test host.
+The development plugin is unsigned; package-repository release and a complete
+friend-from-zero deployment remain separate acceptance. No setup-time estimate
+is established.
 
-| Step | What happens | Time |
-|---|---|---|
-| 1 | `nethub init` — ask for your domain, generate all secrets locally into per-service files, prompt you to back them up, create the first admin (local password), run preflight checks | ~2 min |
-| 2 | `docker compose up -d` — start `nethub web`, `nethub authz`, Postgres, Caddy, `frps` (and a backup job) | ~2 min |
-| 3 | Sign in to the console as the first admin; optionally add OIDC providers and invite other users | ~1 min |
-| 4 | Create a device, copy the one-time enroll token (15-minute expiry) | ~1 min |
-| 5 | Install the NetHub agent plugin on OPNsense, paste the token in its GUI | ~3 min |
-| 6 | Device enrolls, tunnel comes up, status flips to online | ~1 min |
-| 7 | Click "Open" on the device, see the OPNsense login screen (you still sign in with OPNsense's own account) | — |
+1. Prepare DNS, listeners and protected deployment/backup parents.
+2. Run `nethub init`, verify its secret backup and acknowledge it.
+3. Build/start the generated Compose stack; run the separate `admin-bootstrap`
+   service with its hidden password prompt.
+4. Sign in as the local administrator; optionally configure OIDC/SAML providers
+   and issue invitations.
+5. Create a one-use enrollment token, then enter it with the console HTTPS
+   address in the OPNsense plugin.
+6. Verify tunnel observation and the device's current GUI certificate application.
+7. Click Open to grant the current source IP access, then authenticate in
+   OPNsense itself. Verify the public hostname and certificate normally.
 
-**Total: about 10 minutes**, most of it spent on the plugin install.
+## Documentation
+
+- [Deployment and operations](docs/deployment.md): current commands, proxy and
+  certificate ownership, troubleshooting, and the remaining backup/restore work.
+- [Device protocol](docs/protocol.md): enrollment, certificate/trust lifecycles,
+  compatibility and the platform adapter boundary.
+- [Documentation index](docs/README.md) and [accepted evidence/remaining work](docs/HANDOFF_PROMPT.md).
+
+These guides do not establish a production release or complete W5-W7 acceptance.
 
 ## Security model
 
 Summary of what v1 is designed to guarantee:
 
-- **The control plane cannot read or modify device configuration.** This is
-  architectural, not a policy promise — the design contains no path from the
-  control plane into `config.xml`, firewall rules, or service restarts.
+- **There is no general device configuration or command interface.** The
+  plugin owns its local NetHub configuration, tunnel lifecycle and verified GUI
+  certificate application. That bounded certificate path can reload the GUI;
+  it does not grant firewall or arbitrary service control.
+
 - **Enroll tokens are one-time use and expire after 15 minutes.**
 - **Device identity is a signed domain claim** (HMAC-SHA256) issued at enroll
   time. When a device's `frpc` logs in or registers its proxy, `frps` asks
@@ -230,48 +245,45 @@ Summary of what v1 is designed to guarantee:
   under a new subdomain), revoke devices, read device metadata and the audit
   log, and manage users and sign-in providers — that is, take over the
   console. The full boundary is in [`docs/DESIGN.md`](docs/DESIGN.md) §6.
-- **Console sign-in is a local password or OIDC.** `nethub init` creates the
-  first admin with a local password (argon2id), which stays as a break-glass
-  account. OIDC supports multiple providers (SAML is included in v1 through authcore/saml).
-  External identities are bound by `(issuer, subject)`, never by email alone,
+- **Console sign-in supports local passwords, OIDC and SAML.** The separate
+  `admin-bootstrap` service creates the first local-password administrator
+  (argon2id), which stays as a break-glass account. OIDC/SAML use authcore for protocol verification.
+  OIDC identities use `(issuer, subject)`; SAML uses a persistent NameID scoped
+  to its IdP and SP. Neither protocol binds by email alone,
   and there is no self sign-up: other users join by invitation. Sessions are
   server-side, with CSRF protection and a strict Content-Security-Policy.
-- **Open before v1: the device–relay control channel is not yet
-  authenticated.** As currently designed, `frpc` does not verify the relay's
-  certificate. An attacker on the device's network path could therefore pose
-  as the relay and steal the device's claim (`docs/DESIGN.md` §14, Q10;
-  [threat model](docs/threat-model.md) F1). The fix is designed but not yet
-  decided.
+- **The agent verifies relay TLS.** Enrollment supplies the assigned server
+  name and public deployment CA bundle; frpc uses explicit `serverName` and
+  `trustedCaFile`. Preserve authenticated trust delivery and the protected
+  authority-transition procedure. [Native trust evidence](deploy/validation-relay-trust-native.md)
+  is scoped to its recorded runtime; it is not a production security audit.
+
 - **Every device carries a local kill switch file.** An operator can disable
   remote access from the device itself, independent of the control plane.
-- **All secrets are generated locally by `nethub init`**, on the deployer's
+- **Deployment secrets are generated locally by `nethub init`**, on the deployer's
   own machine, and written per service so each container only receives the
   ones it needs. The NetHub project does not hold, issue, or have access to
   any global key, and no central service your instance depends on exists.
 
 ### Exposure of the device web UI
 
-Be clear-eyed about what the passthrough design implies. Anyone who knows or
-guesses a device's hostname can open
-`https://<subdomain>.router.example.com:8443` and reach that device's own
-OPNsense login page. The console's login and SSO do **not** stand in front of
-it — they protect the console, while the device keeps its own login.
-Subdomains are random, which raises the cost of guessing; but once per-device
-public certificates arrive in v1.1 they will be logged in Certificate
-Transparency logs, which makes hostnames enumerable.
+SNI passthrough keeps the device's own authentication. During normal operation,
+NewUserConn also requires an unexpired grant for the device and browser source
+IP. An authorized console Open click grants 30 minutes; another click renews it.
+Traffic and inventory polling do not extend the window. Knowing a hostname alone
+does not grant a new connection. See [Open behavior](deploy/device-open.md).
 
-A candidate mitigation is a source-IP gate: `frps` reports each incoming
-browser connection to `nethub authz` (the `NewUserConn` hook), and authz lets
-it through only if that IP was recently registered by a signed-in console user
-clicking "Open" for that device. Whether the hook fires for this kind of proxy
-and reports the real client IP has to be confirmed in Weekend 0, and whether
-to adopt the gate is still an open decision (`docs/DESIGN.md` §14, Q7). The
-gate would check network location, not the person.
+This gate checks network location, not a person. CGNAT peers can share an IP;
+console/router IPv4 or IPv6 source differences can cause refusal. Existing
+connections can outlive the grant, and a compromised relay can skip its hooks.
+Public GUI certificates are in v1 scope and can disclose hostnames through
+Certificate Transparency; random subdomains are not an authorization control.
 
-OPNsense's own DNS-rebind and HTTP_REFERER checks may also block access
-through the relay hostname (`docs/DESIGN.md` §14, Q9; not yet tested). If
-they do, add the hostname under OPNsense's "Alternate Hostnames" rather than
-switching the checks off.
+Per-device public certificates have [scoped native/public evidence](deploy/validation-native-public-certificate.md).
+A reported installation does not establish what a later external connection
+serves; the browser must verify its CA chain and hostname. Keep OPNsense's DNS
+rebinding and HTTP_REFERER checks enabled and add the exact assigned Alternate
+Hostname as required by the [W0 decisions](weekend0/results-2026-10-17.md).
 
 Either way, enable OPNsense's own TOTP two-factor authentication on every
 enrolled device.
@@ -281,29 +293,23 @@ Full write-up: the [threat model draft](docs/threat-model.md) and
 
 ## Project status
 
-The repository contains the design, accepted [W0 results](weekend0/results-2026-10-17.md),
-and the [W2 development plugin](agents/opnsense/plugin/README.md).
-[Native validation](agents/opnsense/plugin/tests/w2-progress.md) covers tunnel
-startup, authenticated relay TLS, safe configuration application, bounded recovery,
-cron lifecycle, WAN reconnect, reboot, and os-frp coexistence on OPNsense 26.7.7.
-There is no released version or complete deployment. Interfaces remain subject to change.
+The [handoff](docs/HANDOFF_PROMPT.md) binds accepted changes to source revisions,
+CI runs and native/public measurements. W0 and W2 records are historical inputs,
+not complete evidence for later product workflows.
 
-The owner selected shadcn/ui with native dialog, source-IP gating, and explicit
-heartbeat revocation. Source-IP gating and full revocation acceptance remain
-unfinished. Remaining decisions are tracked in [DESIGN](docs/DESIGN.md) §14.
+The [native public-certificate record](deploy/validation-native-public-certificate.md)
+covers issuance, scheduled application, authenticated public GUI access and
+restoration in the approved isolated environment. The
+[installed heartbeat/Revoke record](deploy/validation-native-w5-heartbeat.md)
+retains the slower Revoke measurement and the missing mobile Open sample.
 
-Protected relay authority transitions have passed real PostgreSQL, file/backup,
-service TLS and eleven process-exit recovery checkpoints (PRs #119–#120).
-Prepared-operation cancellation passed real database/Compose acceptance in
-PR #121, including lost-admission recovery. PR #122 passed five actual preparation
-exits with retained partial files/backups and a permanent cancellation decision.
-PR #123 passed compiled-service startup with an expired bootstrap CA against
-the current PostgreSQL trust publication, including authenticated retrieval
-and revocation denial. The isolated appliance subsequently passed native enrollment,
-proxy registration and initial trust application, including a confirmed repeated
-poll with unchanged PID and CA bytes. See the [native validation record](deploy/validation-relay-trust-native.md).
-Overlap deployment, lost-report retry and offline recovery remain separate gates. See the current
-[handoff](docs/HANDOFF_PROMPT.md) for acceptance evidence and limits.
+Two deployed Dex issuers have [accepted OIDC evidence](deploy/validation-two-dex.md).
+SAML backend/pages and an independent [Keycloak deployment](deploy/validation-keycloak-saml.md)
+have scoped accepted evidence. Public-provider and complete W6 acceptance remain open.
+
+Scheduled database backups, clean-host restore, credential rotation, full document
+review, friend-from-zero deployment and signed/faulty-version release gates remain
+W7 work. There is no released package or production-readiness claim.
 
 ## Roadmap
 
@@ -311,7 +317,7 @@ Everything in this table is plan, not shipped.
 
 | Version | Focus |
 |---|---|
-| v1 | Remote web UI access for OPNsense devices behind CGNAT/dynamic IP, plus a multi-user console (admin/member, invitation-only) with OIDC sign-in — no config read/write |
+| v1 | Remote web UI access for OPNsense devices behind CGNAT/dynamic IP, plus a multi-user console (admin/member, invitation-only) with OIDC/SAML sign-in and per-device public GUI certificates — no general configuration API |
 | v1.1 | arm64 |
 | v1.2 | Telemetry: tunnel/device health metrics |
 | v2 | Encrypted config backup: the device encrypts `config.xml` with a key derived on the device before uploading, and the control plane stores ciphertext it cannot decrypt (so no server-side diffing) |
@@ -339,7 +345,7 @@ project and is not affiliated with, endorsed by, or sponsored by Deciso B.V.*
 
 NetHub 是一个自托管的远程访问与设备管理工具：让藏在 CGNAT 或动态 IP 后面的
 开源路由器/防火墙（首发支持 OPNsense）无需端口转发即可远程打开 Web UI。v1
-只做远程访问，不读取、不修改设备配置；批量升级和遥测都不在 v1 范围内。控制台
-计划支持多用户（admin / member，邀请制）、OIDC 和 SAML 登录（可配置多个 IdP）。项目目前处于 pre-alpha 的 W4 集成阶段，W0–W3 已验收，已有控制台、入网与证书管理组件；原生设备证书／信任更新的联合验收及 W5–W7 尚未完成，不能用于生产。中文设计文档见
+不提供通用设备配置接口；插件的隧道及 GUI 证书管理有独立边界，批量升级和遥测不在 v1 范围内。控制台
+已实现多用户（admin / member，邀请制）、OIDC 和 SAML 登录接口及页面。项目处于 pre-alpha 的 W6 集成阶段，已有按环境和版本记录的原生／公网证书验收；W5–W7、公开 IdP 和正式发布仍有未完成项，不能用于生产。中文设计文档见
 [`docs/DESIGN.md`](docs/DESIGN.md)，完整的中文 README 见
 [`docs/README.zh-CN.md`](docs/README.zh-CN.md)。

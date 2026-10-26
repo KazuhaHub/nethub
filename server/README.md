@@ -1,6 +1,6 @@
 # server/ — NetHub control plane
 
-This directory is the home of the planned NetHub control plane: the service
+This directory contains the NetHub control plane: the service
 designed to let a user open a remote OPNsense Web UI that sits behind CGNAT or
 a dynamic IP, without port forwarding, and without the control plane itself
 ever reading the device's `config.xml`, changing firewall rules, or restarting
@@ -8,15 +8,16 @@ services on the device. That boundary is deliberate — see the top-level
 [project README](../README.md) and [`docs/DESIGN.md`](../docs/DESIGN.md) for
 the reasoning.
 
-> **Status:** the W3 console deployment evidence is complete. The Go
-> module directly imports authcore's OIDC/SAML packages at verified commit
-> `211d823f478c` through a development pseudo-version; the adapters delegate protocol
-> processing and enforces console policy. The CLI provides the console API, migrate,
-> init, scoped doctor checks, and help/version. Authz remains unfinished. Database bootstrap,
-> migrations, and actual-role PostgreSQL/HTTPS API tests pass. The React console
-> passes isolated and real deployed browser flows under strict CSP. Initialization and the console
-> Compose stack pass clean-host public deployment checks. Device enrollment
-> and SSO flows remain unfinished.
+> **Status: pre-alpha, no production release.** Web, authz, enrollment and console
+> account administration are implemented. The Go module directly imports
+> authcore's OIDC/SAML packages at `ee68d852d973` through a development
+> pseudo-version. The adapters delegate protocol processing and enforce console
+> policy; identity and invitation admission remain in NetHub. Actual PostgreSQL
+> and strict-CSP browser checks cover the applicable boundaries. Two deployed Dex
+> issuers, SAML backend/pages and an independent Keycloak deployment have accepted
+> records; public-provider and complete W6 acceptance remain separate work. Native device evidence
+> and the remaining W5-W7 requirements are tracked in the
+> [handoff](../docs/HANDOFF_PROMPT.md), not implied by passing server tests.
 
 The local [first-admin command](cmd/nethub/admin-bootstrap.md) is implemented with
 hidden terminal entry or protected stdin, owner-role isolation, and atomic one-time
@@ -284,18 +285,21 @@ of this same binary, not separate tools.
 
 Shared authentication code lives in `KazuhaHub/authcore` (Apache-2.0). NetHub
 directly imports its `oidc` and `saml` packages for v1. The current verified
-development pin is merge `211d823f478ccdbf6bde8e5b85487e56bbdfe671`, which adds
-OIDC without changing the existing package APIs. It is not a new release tag.
+development pin is merge `ee68d852d973d83832dd6eaedd3700a7266e438c`, which includes
+OIDC verification, signed SAML NameID qualifiers and RSA/ECDSA AuthnRequest
+signing. It is not a new release tag.
 
 Authcore owns protocol verification. NetHub owns persistent browser/replay state,
 tenant/account admission, invitations, roles, cookies, outbound network policy,
 credential encryption and audit. Login and proxy-IP policy remain in NetHub.
 The [provider backend](../deploy/oidc-providers.md) implements administrator APIs.
 The [OIDC callback backend](../deploy/oidc-login.md) implements durable browser
-state and transactional identity/invitation admission; hosted acceptance,
-provider/sign-in pages, deployed OIDC/SAML flows and combined W6 acceptance remain
-unfinished. Optional `captcha`, `geoip` and later `passkey` integrations
-remain separate decisions.
+state and transactional identity/invitation admission. The
+[two-Dex deployment](../deploy/validation-two-dex.md) and
+[SAML backend/pages](../deploy/saml-console.md) have scoped acceptance records.
+An independent [signed Keycloak deployment](../deploy/validation-keycloak-saml.md)
+is accepted. Public-provider and combined W6 acceptance remain open.
+Optional `captcha`, `geoip` and later `passkey` integrations remain separate decisions.
 
 ## Data model
 
@@ -440,12 +444,14 @@ in [`docs/DESIGN.md`](../docs/DESIGN.md) §11.
 Use authcore packages directly for matching capabilities; do not copy or locally
 reimplement them. Reusable gaps can be added to authcore with its own regression
 tests and PR. NetHub owns user, tenant, invitation, session, and device policy.
-SAML callback routes and persistent replay storage are W6 work. The current
-adapter is a foundation, not a working SAML login feature.
+[SAML callback routes and persistent replay storage](../deploy/saml-login.md)
+are implemented and have signed-XML, PostgreSQL and independent Keycloak
+acceptance. Those checks do not replace public-provider or combined W6 acceptance.
 
 Run `GOWORK=off go test ./...`, `go vet ./...`, and `go mod verify` in this directory.
 
 Database development and genuine PostgreSQL boundary tests are documented in
 [the store README](internal/store/README.md). Web, migrate, init, scoped doctor,
-and first-admin commands are implemented. Authz/device flows and complete doctor
-coverage remain future work.
+and first-admin commands are implemented. Authz/device flows have scoped hosted
+and native validation records; full doctor coverage and the remaining W5-W7
+acceptance are still open.
