@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -60,6 +61,15 @@ func (s *Server) oidcBrowser(w http.ResponseWriter, r *http.Request, ip netip.Ad
 }
 
 func (s *Server) startOIDC(w http.ResponseWriter, r *http.Request, ip netip.Addr, slug string) {
+	s.startSSO(w, r, ip, slug, s.sso, flowCookie)
+}
+
+type ssoStartBackend interface {
+	Start(context.Context, string, string) (sso.StartResult, error)
+	Failed(context.Context, netip.Addr, string) error
+}
+
+func (s *Server) startSSO(w http.ResponseWriter, r *http.Request, ip netip.Addr, slug string, backend ssoStartBackend, cookie func(string, time.Time) *http.Cookie) {
 	if !s.origin.Check(r, true) {
 		writeError(w, r, 403, "csrf_failed", "A matching console Origin is required")
 		return
@@ -107,20 +117,20 @@ func (s *Server) startOIDC(w http.ResponseWriter, r *http.Request, ip netip.Addr
 	if s.rateFailure(w, r, s.ssoStartLimits.Allow(ip, ip.String()+":"+slug, time.Now())) {
 		return
 	}
-	if s.sso == nil {
+	if backend == nil {
 		writeError(w, r, 503, "sso_unavailable", "SSO sign-in unavailable")
 		return
 	}
-	result, err := s.sso.Start(r.Context(), slug, invite)
+	result, err := backend.Start(r.Context(), slug, invite)
 	if err != nil {
-		if auditErr := s.sso.Failed(r.Context(), ip.Unmap(), sso.FailureReason(err)); auditErr != nil {
+		if auditErr := backend.Failed(r.Context(), ip.Unmap(), sso.FailureReason(err)); auditErr != nil {
 			s.internal(w, r, "SSO failure audit")
 			return
 		}
 		writeError(w, r, 401, "sso_failed", "SSO sign-in failed")
 		return
 	}
-	http.SetCookie(w, flowCookie(result.BrowserToken, result.ExpiresAt))
+	http.SetCookie(w, cookie(result.BrowserToken, result.ExpiresAt))
 	writeJSON(w, r, 200, map[string]string{"redirect_url": result.RedirectURL})
 }
 

@@ -21,6 +21,7 @@ var ErrFlow = errors.New("SSO sign-in failed")
 const FlowLifetime = 5 * time.Minute
 
 type Choice struct {
+	Protocol    string `json:"protocol,omitempty"`
 	Slug        string `json:"slug"`
 	DisplayName string `json:"display_name"`
 }

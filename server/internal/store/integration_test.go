@@ -574,4 +574,5 @@ func TestPostgresBoundaries(t *testing.T) {
 	t.Run("console_saml_providers", func(t *testing.T) { testConsoleSAMLProviders(t, ctx, owner, web) })
 	t.Run("oidc_browser_admission", func(t *testing.T) { testOIDCBrowserAdmission(t, ctx, owner, web, authz, backup) })
 	t.Run("saml_replay_protection", func(t *testing.T) { testSAMLReplayProtection(t, ctx, owner, web, authz, backup) })
+	t.Run("saml_browser_admission", func(t *testing.T) { testSAMLBrowserAdmission(t, ctx, owner, web, authz, backup) })
 }
