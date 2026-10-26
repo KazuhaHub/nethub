@@ -16,6 +16,14 @@ spec.loader.exec_module(suite)
 
 
 class OIDCOwnershipBoundaries(unittest.TestCase):
+    def test_browser_diagnostics_never_publish_assertion_values_or_error_text(self):
+        safe = {'failure_line': 472, 'assertion_actual': False, 'assertion_expected': 201,
+                'provider_status': 422, 'provider_error': 'oidc_discovery_failed'}
+        self.assertEqual(suite.browser_diagnostic(dict(safe, stack='private-stack', message='private-message')), safe)
+        for unsafe in ('private-secret', ['private-secret'], {'message': 'private-secret'}, None, 100001, -100001):
+            self.assertEqual(suite.browser_diagnostic({name: unsafe for name in safe}), {})
+        self.assertEqual(suite.browser_diagnostic({'failure_line': True, 'provider_status': False}), {})
+
     def test_dex_addresses_do_not_race_reserved_deployment_addresses(self):
         for subnet, gateway in [('172.30.87.0/24', '172.30.87.1'), ('192.168.19.0/29', '192.168.19.1')]:
             prefix = gateway.rsplit('.', 1)[0]

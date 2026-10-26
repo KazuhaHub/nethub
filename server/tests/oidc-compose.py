@@ -145,6 +145,22 @@ def publish_evidence(directory):
     os.chown(directory, uid, gid)
 
 
+def browser_diagnostic(failure):
+    """Publish fixed categories and bounded scalars, never assertion strings."""
+    result = {}
+    for name in ('assertion_actual', 'assertion_expected'):
+        value = failure.get(name)
+        if type(value) is bool or type(value) is int and abs(value) <= 10000:
+            result[name] = value
+    for name, lower, upper in [('failure_line', 1, 100000), ('provider_status', 100, 599)]:
+        value = failure.get(name)
+        if type(value) is int and lower <= value <= upper:
+            result[name] = value
+    if failure.get('provider_error') in ('invalid_request', 'oidc_discovery_failed', 'forbidden', 'unauthenticated', 'internal_error', 'slug_taken'):
+        result['provider_error'] = failure['provider_error']
+    return result
+
+
 def main():
     if sys.platform != 'linux' or os.geteuid() != 0 or len(sys.argv) != 3:
         raise Failure('Linux root, accepted image archive and evidence directory required')
@@ -282,12 +298,15 @@ def main():
         if browser_result.returncode:
             failed = browser_evidence / 'results.json'
             if failed.exists():
-                phase = json.loads(failed.read_text()).get('phase', '')
+                failure = json.loads(failed.read_text())
+                phase = failure.get('phase', '')
                 if re.fullmatch('[a-z_]{1,64}', phase):
                     result['failed_phase'] = phase
-                    category = json.loads(failed.read_text()).get('category')
+                    category = failure.get('category')
                     if category in ('assertion', 'certificate_trust', 'timeout', 'runtime'):
                         result['failed_category'] = category
+                    result.update(browser_diagnostic(failure))
+                    print('SSO browser diagnostic: ' + json.dumps(result), file=sys.stderr)
                     raise Failure('real Dex browser admission failed during ' + phase)
             raise Failure('real Dex browser admission failed')
         # The browser emits only fixed phase/check messages, never response URLs.

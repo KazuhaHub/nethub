@@ -51,6 +51,7 @@ const allowed = new Set([
 const checks = [],
   images = [];
 const headerChecks = [];
+const failureContext = {};
 let unexpectedRequests = 0,
   cspViolations = 0,
   browserErrors = 0,
@@ -460,8 +461,20 @@ try {
       .getByRole("button", { name: "Save provider", exact: true })
       .click();
     const response = await created;
-    assert.equal(response.status(), 201);
+    failureContext.provider_status = response.status();
     const provider = await response.json();
+    if (
+      [
+        "invalid_request",
+        "oidc_discovery_failed",
+        "forbidden",
+        "unauthenticated",
+        "internal_error",
+        "slug_taken",
+      ].includes(provider?.error?.code)
+    )
+      failureContext.provider_error = provider.error.code;
+    assert.equal(response.status(), 201);
     assert.ok(provider.has_client_secret);
     assert.equal(
       provider.redirect_uri,
@@ -857,6 +870,24 @@ try {
       {
         passed: false,
         phase,
+        failure_line:
+          Number(
+            /oidc-deployment\.mjs:(\d+):\d+/.exec(String(error.stack))?.[1],
+          ) || null,
+        assertion_actual:
+          error instanceof assert.AssertionError &&
+          (typeof error.actual === "boolean" ||
+            (Number.isInteger(error.actual) && Math.abs(error.actual) <= 10000))
+            ? error.actual
+            : null,
+        assertion_expected:
+          error instanceof assert.AssertionError &&
+          (typeof error.expected === "boolean" ||
+            (Number.isInteger(error.expected) &&
+              Math.abs(error.expected) <= 10000))
+            ? error.expected
+            : null,
+        ...failureContext,
         category: String(error.message).includes("ERR_CERT_")
           ? "certificate_trust"
           : error.name === "TimeoutError"
