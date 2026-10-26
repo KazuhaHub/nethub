@@ -6,6 +6,13 @@ Provider configuration, trusted metadata management, browser-bound requests,
 ACS handling, invitation/session transactions, console pages and signed IdP
 deployment acceptance remain required W6 work.
 
+PR #177 was accepted at final main-based source `3b92f89854ad` and merged as
+`fe20f71eb947`. Run `40340926136` passed all six required jobs. Actual logs
+confirmed the genuine SQL cases below, together with inherited deployment and
+two-Dex gates. Two DCOs and both final hosted screenshots/hashes were reviewed;
+the merge tree equals the tested tree. This remains foundation acceptance rather
+than a working SAML login endpoint.
+
 NetHub imports authcore at the verified upstream merge `48a74a506790`.
 Upstream PR #33 preserves signed NameID qualifiers and passed the full Linux
 suite on both supported compiler versions, race checks, vulnerability scanning

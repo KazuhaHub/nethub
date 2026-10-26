@@ -6,6 +6,12 @@ the existing Compose suite; it does not replace the SQL, signed-IdP unit or nati
 appliance checks. A successful run is scoped to these disposable issuers. It does
 not establish public-provider, SAML, mobile or complete W6 acceptance.
 
+PR #176 was accepted at source `8ca3583c73ff` and merged as `14a12537e340`.
+Run `40338271728` passed all six exact-head jobs. Actual logs, all inherited
+gates, eleven DCO sign-offs, both final hosted screenshots and their hashes were
+reviewed. The merged tree equals the tested tree. The previous failed fixture
+trials remain retained; they are not counted as successful acceptance.
+
 ## Runtime and trust
 
 The test pins official Dex v2.46.1 by its multi-platform registry digest. The
