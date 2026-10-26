@@ -56,6 +56,47 @@ export async function verifyProviders({ page, origin, evidence, login }) {
       exact: true,
     });
     if (await light.count()) await light.click();
+    const contrastSamples = await page.evaluate(() => {
+      const root = document.documentElement,
+        original = root.classList.contains("dark");
+      const luminance = (color) => {
+        const channels = color
+          .match(/[\d.]+/g)
+          .slice(0, 3)
+          .map(Number)
+          .map((value) => value / 255);
+        const linear = channels.map((value) =>
+          value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4,
+        );
+        return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+      };
+      const samples = [];
+      try {
+        for (const dark of [false, true]) {
+          root.classList.toggle("dark", dark);
+          for (const status of ["online", "revoked"]) {
+            const badge = document.querySelector(`.provider-status.${status}`),
+              style = getComputedStyle(badge);
+            const foreground = luminance(style.color),
+              background = luminance(style.backgroundColor);
+            samples.push({
+              dark,
+              status,
+              ratio:
+                (Math.max(foreground, background) + 0.05) /
+                (Math.min(foreground, background) + 0.05),
+            });
+          }
+        }
+      } finally {
+        root.classList.toggle("dark", original);
+      }
+      return samples;
+    });
+    assert.ok(
+      contrastSamples.every((sample) => sample.ratio >= 4.5),
+      `Provider status contrast failed: ${JSON.stringify(contrastSamples)}`,
+    );
     await screenshot("providers-desktop.png");
     await page
       .getByRole("button", { name: "Use dark theme", exact: true })
@@ -453,6 +494,7 @@ export async function verifyProviders({ page, origin, evidence, login }) {
           passed: true,
           fixture_backend: true,
           actual_SSO_admission_claimed: false,
+          contrastSamples,
           checks: [
             "admin isolation",
             "pagination",

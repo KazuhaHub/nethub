@@ -290,7 +290,7 @@ export function Providers({
                   </TableCell>
                   <TableCell>
                     <span
-                      className={`status-badge ${provider.enabled ? "online" : "revoked"}`}
+                      className={`status-badge provider-status ${provider.enabled ? "online" : "revoked"}`}
                     >
                       <span />
                       {provider.enabled ? "Enabled" : "Disabled"}

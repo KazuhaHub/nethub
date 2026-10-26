@@ -683,6 +683,9 @@ p {
   background: #3c2422;
   color: #f3b2a7;
 }
+.dark .provider-status.online {
+  color: #a8d7c2;
+}
 .inventory-error {
   margin: 16px 20px;
 }
