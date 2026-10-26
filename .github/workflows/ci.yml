@@ -98,6 +98,18 @@ jobs:
             ${{ runner.temp }}/nethub-ui-evidence/providers-results.json
           if-no-files-found: error
           retention-days: 7
+      - name: Save synthetic SAML browser evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: saml-provider-browser-evidence
+          path: |
+            ${{ runner.temp }}/nethub-ui-evidence/saml-providers-light.png
+            ${{ runner.temp }}/nethub-ui-evidence/saml-providers-dark.png
+            ${{ runner.temp }}/nethub-ui-evidence/saml-mobile-dialog.png
+            ${{ runner.temp }}/nethub-ui-evidence/saml-mobile-dialog-actions.png
+            ${{ runner.temp }}/nethub-ui-evidence/saml-providers-results.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Check module integrity and formatting
         run: |
           go mod verify
