@@ -70,6 +70,9 @@ func testSAMLReplayProtection(t *testing.T, ctx context.Context, owner, web, aut
 	if seen, err := cache.SeenOrAdd(ctx, assertion, now.Add(3*time.Hour), now.Add(2*time.Hour)); err != nil || !seen {
 		t.Fatal("provider revision or caller clock erased replay protection", err)
 	}
+	if err := owner.QueryRowContext(ctx, `SELECT expires_at FROM saml_replays WHERE tenant_id=$1 AND provider_id=$2 AND assertion_hash=$3`, first, a, digest[:]).Scan(&storedExpiry); err != nil || storedExpiry.Sub(expiry).Abs() > time.Microsecond {
+		t.Fatal("repeated assertion extended or shortened its original protection window", err)
+	}
 	if seen, err := repo.SAMLReplayCache(b).SeenOrAdd(ctx, assertion, expiry, now); err != nil || seen {
 		t.Fatal("independent provider shared an assertion namespace", err)
 	}
@@ -78,6 +81,25 @@ func testSAMLReplayProtection(t *testing.T, ctx context.Context, owner, web, aut
 	}
 	if seen, err := repository(web, foreign).SAMLReplayCache(other).SeenOrAdd(ctx, assertion, expiry, now); err != nil || seen {
 		t.Fatal("independent tenant shared replay state", err)
+	}
+	var forced bool
+	if err := owner.QueryRowContext(ctx, `SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='saml_replays'::regclass`).Scan(&forced); err != nil || !forced {
+		t.Fatal("replay persistence is missing forced tenant RLS", err)
+	}
+	for _, scope := range []struct {
+		tenant string
+		count  int
+	}{{first, 2}, {foreign, 1}} {
+		tx, err := repository(web, scope.tenant).begin(ctx, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var count int
+		err = tx.QueryRowContext(ctx, `SELECT count(*) FROM saml_replays`).Scan(&count)
+		tx.Rollback()
+		if err != nil || count != scope.count {
+			t.Fatal("Web could read another tenant's replay records", err)
+		}
 	}
 	t.Run("concurrent_single_use", func(t *testing.T) {
 		var winners, repeats atomic.Int32

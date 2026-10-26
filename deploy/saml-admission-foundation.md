@@ -13,7 +13,7 @@ and API compatibility. NetHub continues to delegate SAML protocol validation to
 authcore. No XML parser or signature verifier is copied into the application.
 
 `SAMLIdentityPolicy` consumes only an already validated assertion. The initial
-policy requires a persistent NameID; transient, mailbox and unspecified formats
+policy requests and requires a persistent NameID; transient, mailbox and unspecified formats
 do not establish a stable account key. Nonempty IdP and SP qualifiers must match
 the configured entity IDs. An omitted qualifier has the same effective scope as
 its explicit expected value. The subject hashes a versioned tuple of issuer,

@@ -5,6 +5,7 @@ import (
 	"net/url"
 
 	authsaml "github.com/KazuhaHub/authcore/saml"
+	crewjamsaml "github.com/crewjam/saml"
 )
 
 // NewSAMLProvider applies console policy and delegates SAML to authcore.
@@ -26,6 +27,10 @@ func NewSAMLProvider(config authsaml.Config) (*authsaml.Provider, error) {
 	if config.RejectWeakSignatures != nil && !*config.RejectWeakSignatures {
 		return nil, errors.New("SAML weak-signature rejection cannot be disabled")
 	}
+	if config.NameIDFormat != "" && config.NameIDFormat != crewjamsaml.PersistentNameIDFormat {
+		return nil, errors.New("SAML account identity requires a persistent NameID")
+	}
+	config.NameIDFormat = crewjamsaml.PersistentNameIDFormat
 	config.StrictAttributes = true
 	return authsaml.New(config)
 }
