@@ -86,7 +86,7 @@ func testConsoleHTTP(t *testing.T, ctx context.Context, owner, db, authz *sql.DB
 			t.Fatal(err)
 		}
 		r.Header.Set("X-Forwarded-For", "192.0.2.100")
-		if method == "POST" {
+		if method == "POST" || method == "PATCH" {
 			r.Header.Set("Content-Type", "application/json")
 			r.Header.Set("Origin", origin)
 		}

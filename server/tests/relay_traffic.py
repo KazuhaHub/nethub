@@ -89,6 +89,15 @@ def exercise_traffic(stage, port, assignments, gateway, curl, check_tunnels, sql
                                 str(port), str(stage / 'admin-password'), browser_evidence], capture_output=True, timeout=150)
         (work / 'browser-private.log').write_bytes(reply.stdout + reply.stderr)
         assert reply.returncode == 0, 'deployed traffic console verification failed; private log retained'
+        if os.environ.get('NETHUB_BROWSER_EVIDENCE'):
+            # The harness runs under sudo; only these reviewed public artifacts
+            # return to the invoking runner, never the private browser log.
+            uid, gid = int(os.environ.get('SUDO_UID', '0')), int(os.environ.get('SUDO_GID', '0'))
+            for name in ('deployed-traffic.png', 'traffic-deployment-results.json'):
+                artifact = Path(browser_evidence) / name
+                assert artifact.is_file() and not artifact.is_symlink()
+                artifact.chmod(0o600)
+                os.chown(artifact, uid, gid)
         browser_verified = True
     receipt = {'passed': True, 'official_frp': '0.71.1', 'actual_transferred_payload_bytes_per_device': 65536,
                'devices': len(assignments), 'durable_monthly_totals_verified': True,
