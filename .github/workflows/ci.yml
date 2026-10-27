@@ -110,6 +110,18 @@ jobs:
             ${{ runner.temp }}/nethub-ui-evidence/saml-providers-results.json
           if-no-files-found: error
           retention-days: 7
+      - name: Save synthetic traffic browser evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: traffic-browser-evidence
+          path: |
+            ${{ runner.temp }}/nethub-ui-evidence/traffic-light.png
+            ${{ runner.temp }}/nethub-ui-evidence/traffic-dark.png
+            ${{ runner.temp }}/nethub-ui-evidence/traffic-mobile.png
+            ${{ runner.temp }}/nethub-ui-evidence/traffic-mobile-dialog.png
+            ${{ runner.temp }}/nethub-ui-evidence/traffic-results.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Check module integrity and formatting
         run: |
           go mod verify
@@ -294,6 +306,7 @@ jobs:
           path: |
             ${{ runner.temp }}/nethub-deployed-browser-evidence/*.png
             ${{ runner.temp }}/nethub-deployed-browser-evidence/results.json
+            ${{ runner.temp }}/nethub-deployed-browser-evidence/traffic-deployment-results.json
           retention-days: 7
           if-no-files-found: error
 

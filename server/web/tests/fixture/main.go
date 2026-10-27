@@ -41,6 +41,8 @@ type repository struct {
 	samlProviders    map[string]web.SAMLProvider
 	samlReserved     map[string]bool
 	samlSequence     int
+	trafficWarning   string
+	trafficRevision  int64
 }
 
 func fixtureUsers() map[string]web.ManagedUser {

@@ -52,6 +52,7 @@ import { Users } from "./users";
 import { Invitations } from "./invitations";
 import { Providers } from "./providers";
 import { SAMLProviders } from "./saml-providers";
+import { Traffic } from "./traffic";
 import {
   canOpenDevice,
   certificateLabel,
@@ -999,12 +1000,13 @@ function Devices({ isAdmin }: { isAdmin: boolean }) {
 }
 
 export function App() {
+  const trafficView = window.location.pathname === "/traffic";
   const userView = window.location.pathname === "/users";
   const invitationView = window.location.pathname === "/invitations";
   const samlProviderView = window.location.pathname === "/saml-providers";
   const providerView =
     window.location.pathname === "/providers" || samlProviderView;
-  const adminView = userView || invitationView || providerView;
+  const adminView = userView || invitationView || providerView || trafficView;
   const [session, setSession] = useState<Session | null>(null);
   const [booting, setBooting] = useState(true);
   const [failure, setFailure] = useState("");
@@ -1108,6 +1110,11 @@ export function App() {
             </a>
           )}
           {session.user.role === "admin" && (
+            <a href="/traffic" aria-current={trafficView ? "page" : undefined}>
+              <Router size={18} /> Traffic
+            </a>
+          )}
+          {session.user.role === "admin" && (
             <a
               href="/providers"
               aria-current={providerView ? "page" : undefined}
@@ -1134,13 +1141,15 @@ export function App() {
           <span className="breadcrumb">
             Workspace<span>/</span>
             <strong>
-              {providerView
-                ? "Identity providers"
-                : userView
-                  ? "Users"
-                  : invitationView
-                    ? "Invitations"
-                    : "Devices"}
+              {trafficView
+                ? "Traffic"
+                : providerView
+                  ? "Identity providers"
+                  : userView
+                    ? "Users"
+                    : invitationView
+                      ? "Invitations"
+                      : "Devices"}
             </strong>
           </span>
           <div className="account-actions">
@@ -1166,7 +1175,9 @@ export function App() {
           )}
           {adminView ? (
             session.user.role === "admin" ? (
-              providerView ? (
+              trafficView ? (
+                <Traffic onAuthorityChanged={confirmAuthority} />
+              ) : providerView ? (
                 samlProviderView ? (
                   <SAMLProviders onAuthorityChanged={confirmAuthority} />
                 ) : (

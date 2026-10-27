@@ -19,6 +19,11 @@ import (
 )
 
 type fixtureRepository struct {
+	trafficPage           TrafficPage
+	trafficErr            error
+	trafficReads          int
+	trafficWrites         int
+	trafficQuery          TrafficQuery
 	samlPage              SAMLProviderPage
 	samlResult            SAMLProvider
 	samlInput             SAMLProviderInput
@@ -232,7 +237,10 @@ func TestOnlyBackgroundInventoryUsesPassiveAuthentication(t *testing.T) {
 	if response := call(server, "GET", prefix+"/saml-providers", "", cookie, headers); response.Code != 200 || repository.passiveCalls != 5 {
 		t.Fatal("background SAML inventory did not use passive session validation")
 	}
-	for _, path := range []string{prefix + "/users", prefix + "/session", prefix + "/oidc-providers", prefix + "/saml-providers"} {
+	if response := call(server, "GET", prefix+"/traffic", "", cookie, headers); response.Code != 200 || repository.passiveCalls != 6 {
+		t.Fatal("background traffic report did not use passive session validation")
+	}
+	for _, path := range []string{prefix + "/users", prefix + "/session", prefix + "/oidc-providers", prefix + "/saml-providers", prefix + "/traffic"} {
 		if response := call(server, "GET", path, "", cookie, nil); response.Code != 500 {
 			t.Fatal("explicit read bypassed active authentication", path)
 		}
@@ -245,15 +253,19 @@ func TestOnlyBackgroundInventoryUsesPassiveAuthentication(t *testing.T) {
 	}
 	headers["Content-Type"] = "application/json"
 	headers["X-CSRF-Token"] = session.CSRFToken
-	if response := call(server, "POST", prefix+"/enroll-tokens", `{}`, cookie, headers); response.Code != 500 || repository.passiveCalls != 5 {
+	if response := call(server, "POST", prefix+"/enroll-tokens", `{}`, cookie, headers); response.Code != 500 || repository.passiveCalls != 6 {
 		t.Fatal("background marker changed mutation authentication")
 	}
-	if response := call(server, "PATCH", prefix+"/users/00000000-0000-4000-8000-000000000099", `{"disabled":true}`, cookie, headers); response.Code != 500 || repository.passiveCalls != 5 {
+	if response := call(server, "PATCH", prefix+"/users/00000000-0000-4000-8000-000000000099", `{"disabled":true}`, cookie, headers); response.Code != 500 || repository.passiveCalls != 6 {
 		t.Fatal("background marker changed user mutation authentication")
 	}
-	if response := call(server, "PATCH", prefix+"/saml-providers/00000000-0000-4000-8000-000000000099", `{"enabled":false}`, cookie, headers); response.Code != 500 || repository.passiveCalls != 5 || original.samlWrites != 0 {
+	if response := call(server, "PATCH", prefix+"/saml-providers/00000000-0000-4000-8000-000000000099", `{"enabled":false}`, cookie, headers); response.Code != 500 || repository.passiveCalls != 6 || original.samlWrites != 0 {
 		t.Fatal("background marker changed SAML mutation authentication")
 	}
+	if response := call(server, "PATCH", prefix+"/traffic/settings", `{"warning_bytes":"1000","expected_revision":0}`, cookie, headers); response.Code != 500 || repository.passiveCalls != 6 || original.trafficWrites != 0 {
+		t.Fatal("background marker changed traffic settings mutation authentication")
+	}
+
 }
 func (f *fixtureRepository) Health(context.Context) error { return f.failure }
 func (f *fixtureRepository) Devices(context.Context, string, DeviceQuery) (DevicePage, error) {

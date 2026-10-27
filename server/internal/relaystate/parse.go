@@ -8,6 +8,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/boundedjson"
 	"github.com/KazuhaHub/nethub/server/internal/relayhook"
@@ -41,6 +42,9 @@ func (r ObservedRoute) Valid() bool {
 type snapshot struct {
 	observations []Observation
 	routes       []ObservedRoute
+	traffic      []TrafficSample
+	trafficError error
+	observedAt   time.Time
 }
 
 func routeDigest(name, assigned string) string {
@@ -109,7 +113,8 @@ func parseSnapshot(reader io.Reader) (snapshot, error) {
 		observations = append(observations, Observation{DeviceID: deviceID, Subdomain: assigned})
 		routes = append(routes, ObservedRoute{DeviceID: deviceID, Subdomain: assigned, ProxyKey: routeDigest(name, assigned)})
 	}
-	return snapshot{observations: observations, routes: routes}, nil
+	traffic, trafficError := parseTraffic(proxies)
+	return snapshot{observations: observations, routes: routes, traffic: traffic, trafficError: trafficError}, nil
 }
 
 func null(data []byte) bool { return bytes.Equal(bytes.TrimSpace(data), []byte("null")) }

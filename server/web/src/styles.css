@@ -1121,3 +1121,54 @@ p {
   display: grid;
   gap: 10px;
 }
+
+.traffic-toolbar {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.traffic-toolbar input {
+  max-width: 180px;
+}
+.traffic-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.traffic-summary section {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 20px;
+  border-radius: 9px;
+  overflow-wrap: anywhere;
+}
+.traffic-summary strong {
+  display: block;
+  font-size: 26px;
+}
+.traffic-summary small,
+.traffic-device-id {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+}
+.traffic-warning {
+  padding: 16px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.traffic-notes {
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 14px 0;
+}
+@media (max-width: 640px) {
+  .traffic-summary {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}

@@ -48,6 +48,7 @@ type Poller struct {
 	logger                   *slog.Logger
 	interval                 time.Duration
 	anomalies                *anomalyWorker
+	traffic                  *trafficWorker
 }
 
 func New(config Config, repository Repository) (*Poller, error) {
@@ -87,6 +88,9 @@ func New(config Config, repository Repository) (*Poller, error) {
 				CheckRedirect: poller.client.CheckRedirect}}
 		poller.anomalies = &anomalyWorker{reader: reader, repository: inspector, tracker: tracker,
 			logger: config.Logger, interval: AnomalyInterval, now: time.Now}
+	}
+	if storage, ok := repository.(TrafficRepository); ok {
+		poller.traffic = &trafficWorker{repository: storage, queue: make(chan trafficBatch, 1)}
 	}
 	return poller, nil
 }
@@ -158,6 +162,9 @@ func (p *Poller) Poll(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if p.traffic != nil {
+		p.traffic.offer(trafficBatch{at: value.observedAt, samples: value.traffic, err: value.trafficError})
+	}
 	storage, cancelStorage := context.WithTimeout(ctx, 2*time.Second)
 	defer cancelStorage()
 	if err := p.repository.Observe(storage, value.observations); err != nil || storage.Err() != nil {
@@ -167,6 +174,7 @@ func (p *Poller) Poll(ctx context.Context) error {
 }
 
 func (p *Poller) fetch(ctx context.Context) (snapshot, error) {
+	started := time.Now().UTC()
 	httpContext, cancelHTTP := context.WithTimeout(ctx, 3*time.Second)
 	defer cancelHTTP()
 	request, err := http.NewRequestWithContext(httpContext, http.MethodGet, p.endpoint, nil)
@@ -190,11 +198,31 @@ func (p *Poller) fetch(ctx context.Context) (snapshot, error) {
 	if err != nil || ctx.Err() != nil {
 		return snapshot{}, ErrResponse
 	}
+	value.observedAt = started
+	// The relay's generated deployment uses UTC. Do not assign a response that
+	// straddles midnight to either daily counter baseline.
+	if started.Format("2006-01-02") != time.Now().UTC().Format("2006-01-02") {
+		value.traffic, value.trafficError = nil, ErrTrafficResponse
+	}
 	return value, nil
 }
 
 func (p *Poller) Run(ctx context.Context) {
 	defer p.client.CloseIdleConnections()
+	if p.traffic != nil {
+		child, stop := context.WithCancel(ctx)
+		done := make(chan struct{})
+		go func() { defer close(done); p.runTraffic(child) }()
+		defer func() {
+			stop()
+			timer := time.NewTimer(2 * time.Second)
+			defer timer.Stop()
+			select {
+			case <-done:
+			case <-timer.C:
+			}
+		}()
+	}
 	if p.anomalies != nil {
 		child, stop := context.WithCancel(ctx)
 		done := make(chan struct{})

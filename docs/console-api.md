@@ -247,10 +247,12 @@ cookie/CSRF values, and enrollment tokens are absent from application/audit logs
 | `POST /saml-providers`                         | admin                            | W6    | yes                            |
 | `PATCH /saml-providers/{id}`                   | admin                            | W6    | yes                            |
 | `DELETE /saml-providers/{id}`                  | admin                            | W6    | yes                            |
+| `GET /traffic`                                | admin                            | W7    | no                             |
+| `PATCH /traffic/settings`                     | admin                            | W7    | changed setting only           |
 
 The table lists implemented routes. Phase identifies their plan stage, not full
 stage acceptance. These paths are reserved and have no handler: `POST /me/password`,
-`GET /devices/{id}`, `PATCH /devices/{id}`, `GET /audit` and `GET /traffic`.
+`GET /devices/{id}`, `PATCH /devices/{id}` and `GET /audit`.
 Their proposed behavior below is not an available API contract.
 
 All paths below are relative to `/api/v1/console` unless stated otherwise.
@@ -571,7 +573,7 @@ The implemented backend accepts `limit` (1–200, default 50) and an opaque
 `cursor`, returning `{ "items": [...], "next_cursor": null | "..." }`.
 Passwords, hashes, identity subjects and provider secrets are never projected.
 The user-management interface is available at `/users`. GET `/users`,
-GET `/devices`, GET `/oidc-providers`, GET `/saml-providers` and GET `/session`
+GET `/devices`, GET `/oidc-providers`, GET `/saml-providers`, GET `/traffic` and GET `/session`
 accept exactly one `X-NetHub-Background: 1` header for passive lookup without
 idle-time renewal.
 Explicit reads and all mutations use active lookup.
@@ -854,12 +856,13 @@ management-page navigation does not establish signed IdP or SQL admission.
 
 ## 8. Audit log and traffic
 
-**Reserved:** neither endpoint below has a Web handler. These are design
-proposals, not current responses. The implemented read-only
-[`doctor --audit`](../deploy/audit-chain.md) is a separate CLI operation and does
-not expose an audit-list HTTP API or traffic counters.
+The traffic handlers below are implemented; complete W7-2 acceptance remains
+pending actual SQL, relay and browser evidence. The implemented read-only
+[`doctor --audit`](../deploy/audit-chain.md) is a separate CLI operation.
 
 ### `GET /audit`
+
+**Reserved:** no audit-list Web handler exists. The following is proposed behavior.
 
 Admins see every entry; members see entries about themselves and their own
 devices.
@@ -874,17 +877,58 @@ devices.
 
 ### `GET /traffic`
 
-Admin only. Request: `?month=2026-10`. Returns the relay traffic soft counter
-per device and the monthly total for the instance (DESIGN §5, §6). The counter
-is for visibility only; nothing is blocked.
+Administrator only, with live tenant/account authority checks. Query parameters
+are `month=YYYY-MM` (default current UTC month), `limit` (1–200, default 50), and
+an opaque `cursor`. Unknown, repeated or malformed parameters are refused.
+Totals span the tenant's entire selected month, independently of the page.
+All byte and reset counts are exact decimal **strings**, including values above
+JavaScript's safe integer range. Empty months return zero strings, empty items,
+null observation timestamps and no next cursor. Removed devices retain facts.
+Background GETs marked `X-NetHub-Background: 1` do not renew session activity;
+explicit reads remain active. No traffic read extends a device access grant.
 
 ```json
 {
   "month": "2026-10",
-  "total_bytes": 123456789,
-  "devices": [{ "device_id": "…", "bytes": 12345678 }]
+  "in_bytes": "123456789",
+  "out_bytes": "10",
+  "total_bytes": "123456799",
+  "reset_events": "0",
+  "first_observed_at": "2026-10-01T01:00:00Z",
+  "last_observed_at": "2026-10-01T01:00:05Z",
+  "warning_bytes": null,
+  "warning": false,
+  "warning_revision": 0,
+  "items": [{
+    "device_id": "00000000-0000-4000-8000-000000000001",
+    "label": "Office", "hostname": "router.example.com", "removed": false,
+    "in_bytes": "123456789", "out_bytes": "10", "total_bytes": "123456799",
+    "reset_events": "0",
+    "first_observed_at": "2026-10-01T01:00:00Z",
+    "last_observed_at": "2026-10-01T01:00:05Z"
+  }],
+  "next_cursor": null
 }
 ```
+
+These approximate daily relay observations are not billing or complete historical
+accounting. First-day totals can precede enrollment; resets, outages and pruning
+can undercount. See [traffic scope](../deploy/traffic-counters.md).
+
+### `PATCH /traffic/settings`
+
+Administrator and session CSRF required. No query parameters. JSON body contains
+exactly `warning_bytes` (canonical whole decimal string, at most 30 digits) and
+`expected_revision` (nonnegative safe integer from the report). `"0"` disables
+warnings. Example: `{"warning_bytes":"10737418240","expected_revision":0}`.
+Returns `{"warning_bytes":"10737418240","revision":1}`; disabled settings
+return null bytes. Stale revisions return `409 traffic_changed`, including a
+stale no-op. An unchanged value with the current revision creates no audit or
+revision. Changes commit atomically with `traffic.warning_updated`, recording
+actor/source, old/new bytes and revisions. Lost responses must be resolved by a
+fresh read, never by automatic write replay. The current tenant setting applies
+to every viewed month, with a warning only when total bytes strictly exceed it.
+It never blocks, revokes or changes source-IP grants; authz cannot read this setting.
 
 ## 9. Error codes
 
@@ -899,6 +943,7 @@ is for visibility only; nothing is blocked.
 | 404  | `invite_invalid`         | The invite token is unknown, used, expired or withdrawn (deliberately generic)                               |
 | 405  | `method_not_allowed`     | The route does not accept this HTTP method; see Allow                                                        |
 | 409  | `device_revoked`         | The action needs a device that is not revoked                                                                |
+| 409  | `traffic_changed`        | Monthly warning revision changed; reload before editing                                                      |
 | 409  | `last_admin`             | The change would leave no active admin                                                                       |
 | 409  | `last_local_admin`       | The change would leave no active admin with a local password                                                 |
 | 409  | `user_exists`            | A user with this email already exists                                                                        |
@@ -936,7 +981,7 @@ Current implementation preserves these decisions:
   invitation and account policy remain NetHub's tenant-bound operations.
 
 Remaining work includes the reserved HTTP routes above, linking extra identities
-into an existing account, traffic soft counters, operational credential rotation,
+into an existing account, complete traffic acceptance, operational credential rotation,
 other doctor checks, scheduled database backups and full clean-host restoration.
 Public-provider, native mobile/Open, revoke timing comparison, friend deployment,
 disclosure and formal/canary release gates remain open. Accepted isolated SQL,

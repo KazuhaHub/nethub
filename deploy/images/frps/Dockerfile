@@ -11,6 +11,7 @@ RUN go build -p 2 -trimpath -o /out/frps github.com/fatedier/frp/cmd/frps \
     && cp /usr/local/go/LICENSE /out/licenses/GO-LICENSE
 
 FROM gcr.io/distroless/static-debian13:nonroot@sha256:e2e927ec666bae08560abb3c55d0659eceabb657f56b6782ab500a9fc7f555e3
+ENV TZ=UTC
 COPY --from=build /out/frps /frps
 COPY --from=build /out/licenses /licenses
 USER 65532:65532
