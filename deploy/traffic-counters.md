@@ -10,7 +10,8 @@ The existing bounded private `GET /api/proxy/https` snapshot includes frp 0.71.1
 `todayTrafficIn` and `todayTrafficOut` integers. These are daily in-memory proxy
 counters. A normal reconnect updates `lastStartTime` without clearing them, so
 that timestamp is not used as a reset epoch. New generated frps containers set
-`TZ=UTC` explicitly. Existing or externally managed relays must also use UTC
+`TZ=UTC` in the image, preserving the protected authority binding's refusal of
+runtime environment overrides. Existing or externally managed relays must also use UTC
 before sampling; an HTTP Date header cannot establish the process timezone.
 
 Each recognized device and matching assignment gets a durable daily baseline and per-tenant/device/month
