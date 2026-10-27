@@ -856,8 +856,8 @@ management-page navigation does not establish signed IdP or SQL admission.
 
 ## 8. Audit log and traffic
 
-The traffic handlers below are implemented; complete W7-2 acceptance remains
-pending actual SQL, relay and browser evidence. The implemented read-only
+The traffic handlers below passed W7-2 SQL, official-relay and browser acceptance
+through PR #188; see the [accounting limits](../deploy/traffic-counters.md). The implemented read-only
 [`doctor --audit`](../deploy/audit-chain.md) is a separate CLI operation.
 
 ### `GET /audit`

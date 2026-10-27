@@ -96,6 +96,96 @@ It does not establish public port/TLS reachability, runtime database grants,
 relay/authz health or scheduled database backups. Those omissions are printed;
 do not treat exit zero as complete deployment acceptance.
 
+The in-progress W7-3 `--public-tls` option additionally checks the console
+hostname from the initialized manifest on TCP 443, using the operating system's
+normal CA store and hostname verification. It sends no HTTP request, cookie or
+credential, ignores HTTP proxy environment settings and has a bounded TLS
+handshake. The output includes whole days remaining; fewer than 30 days returns
+a failure with a reminder to check the reverse proxy's renewal configuration.
+NetHub does not take over the reverse proxy's certificate issuance or renewal.
+
+```sh
+sudo ./nethub doctor --directory /srv/nethub-deployment --public-tls
+```
+
+This is a probe from the machine running the command, not an independent
+external-network witness. It neither proves external TCP 443/7000/8443
+reachability nor validates HTTP routing, cookies, ACME provenance or every
+reverse proxy address. It uses system trust; there is no insecure/private-CA
+override flag. Runtime container separation, frps/authz loopback, recent database
+backup and version agreement remain separate unfinished W7-3 checks. Hosted
+acceptance for this new option is still pending.
+
+The separate in-progress database metadata mode uses only the Web-role password:
+
+```sh
+docker compose exec -T nethub-web /nethub doctor --database-roles \
+  --password-file /run/secrets/pg_nethub_web --sslmode disable
+```
+
+The generated stack uses an isolated database network; keep normal database TLS
+verification for external databases. This mode requires the actual Web session
+identity, checks Web/authz role flags and memberships, forced device RLS, schema
+creation and Web identity/credential privileges in a read-only snapshot. It does
+not test privileges by trying forbidden writes or reading credentials. It emits
+a fixed repair suggestion rather than database diagnostics. Existing permitted
+label/revocation updates are distinct from immutable device identity. A passing
+database snapshot does not prove the running containers' mounts or ongoing
+security after a later role change. Audit-chain checking is a separate mode.
+The genuine SQL and compiled-command cases passed at the database-role revision;
+the final combined source must repeat all hosted acceptance before merging.
+
+The Linux Docker host also has an in-progress read-only container mode:
+
+```sh
+sudo ./nethub doctor --runtime-containers \
+  --directory /srv/nethub-deployment --project nethub
+```
+
+Use the actual existing Compose project and an absolute protected deployment
+directory. If a separately reviewed protected override is part of that project,
+select it explicitly with `--compose-file /protected/override.yml`. The command
+uses the local Docker socket, requires root and never starts, stops, reloads or
+executes inside a service. It first verifies the protected bundle and existing
+authz/frps binding, then checks the running Web identity/image, exact command,
+unchanged image environment, nonroot user, health, restricted capabilities,
+read-only root, no host/shared process/IPC/UTS/user namespace overrides, no device mappings,
+configured networks and private publication. Web must mount only
+its read-only secret directory, containing exactly its database password and
+provider-encryption key. Extra mounts/files or environment overrides are refused.
+The Web container/image and authz/frps configuration are rechecked before success.
+
+This is an observation of the reviewed running layout, not attestation of an
+arbitrary compromised image or a continuous policy enforcer. It does not replace
+the database metadata mode, prove actual hook traffic or verify public ports,
+recent dumps or published version agreement. Non-Linux hosts refuse this mode.
+The genuine Docker/compiled-command test is added to the existing isolated
+service suite and still awaits final-source hosted execution.
+
+The in-progress relay mode first checks that protected runtime layout, then
+tests its actual loopback TLS Login hook path:
+
+```sh
+sudo ./nethub doctor --relay-hook \
+  --directory /srv/nethub-deployment --project nethub
+```
+
+It uses the deployment's public relay CA and configured server name, submits one
+invalid claim without a token/device secret/proxy, and requires the exact expected
+denial from the configured Login hook. A TLS socket or a generic authentication
+failure alone does not pass. The returned running frp version must match the
+binary's protocol pin. The probe is bounded and does not retry automatically.
+Failures point to TLS trust or `httpPlugins` connectivity without printing
+dependency responses. It creates a deliberate denied-login log event, not an
+enrollment, access grant, audit mutation or proxy. The actual isolated acceptance
+case also checks database row counts and an unavailable authz hook; final-source
+hosted execution is still pending. See [probe scope](../server/internal/relayprobe/README.md).
+
+This tests the configured Login rejection path, not successful device admission
+or every hook operation. Public-network port checks, recent successful dumps and
+comparison with the actual formally published appliance package remain separate
+requirements; a match with the binary's pin does not establish that publication.
+
 For linked audit history, use the separate [read-only audit mode](../deploy/audit-chain.md)
 inside the existing Web container. It verifies a database snapshot without
 running initialization, migrations or repair; it does not replace the other

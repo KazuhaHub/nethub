@@ -30,6 +30,10 @@ def verify():
     )
     if rebuilt_versions != [version]:
         raise ValueError('Rebuilt relay and device versions differ')
+    probe = (ROOT / 'server/internal/relayprobe/probe.go').read_text()
+    probe_versions = re.findall(r'const ProtocolVersion = "([^"]+)"', probe)
+    if probe_versions != [version]:
+        raise ValueError('Doctor relay protocol pin and device versions differ')
     manifest = read_url(f'https://github.com/fatedier/frp/releases/download/v{version}/frp_sha256_checksums.txt')
     if hashlib.sha256(manifest).hexdigest() != lock['checksums_sha256']:
         raise ValueError('Official checksum manifest changed')
