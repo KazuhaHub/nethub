@@ -132,8 +132,35 @@ a fixed repair suggestion rather than database diagnostics. Existing permitted
 label/revocation updates are distinct from immutable device identity. A passing
 database snapshot does not prove the running containers' mounts or ongoing
 security after a later role change. Audit-chain checking is a separate mode.
-The new genuine SQL and compiled-command acceptance cases are not yet executed
-at the final hosted source revision.
+The genuine SQL and compiled-command cases passed at the database-role revision;
+the final combined source must repeat all hosted acceptance before merging.
+
+The Linux Docker host also has an in-progress read-only container mode:
+
+```sh
+sudo ./nethub doctor --runtime-containers \
+  --directory /srv/nethub-deployment --project nethub
+```
+
+Use the actual existing Compose project and an absolute protected deployment
+directory. If a separately reviewed protected override is part of that project,
+select it explicitly with `--compose-file /protected/override.yml`. The command
+uses the local Docker socket, requires root and never starts, stops, reloads or
+executes inside a service. It first verifies the protected bundle and existing
+authz/frps binding, then checks the running Web identity/image, exact command,
+unchanged image environment, nonroot user, health, restricted capabilities,
+read-only root, no host/shared process/IPC/UTS/user namespace overrides, no device mappings,
+configured networks and private publication. Web must mount only
+its read-only secret directory, containing exactly its database password and
+provider-encryption key. Extra mounts/files or environment overrides are refused.
+The Web container/image and authz/frps configuration are rechecked before success.
+
+This is an observation of the reviewed running layout, not attestation of an
+arbitrary compromised image or a continuous policy enforcer. It does not replace
+the database metadata mode, prove actual hook traffic or verify public ports,
+recent dumps or published version agreement. Non-Linux hosts refuse this mode.
+The genuine Docker/compiled-command test is added to the existing isolated
+service suite and still awaits final-source hosted execution.
 
 For linked audit history, use the separate [read-only audit mode](../deploy/audit-chain.md)
 inside the existing Web container. It verifies a database snapshot without

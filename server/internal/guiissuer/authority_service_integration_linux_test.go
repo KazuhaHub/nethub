@@ -42,6 +42,54 @@ func TestNativeRelayAuthorityService(t *testing.T) {
 	for _, name := range []string{"postgres", "nethub-web", "caddy", "nethub-authz", "frps"} {
 		before[name] = id(name)
 	}
+	checkContainers := func(want bool) {
+		t.Helper()
+		if (setup.CheckRuntimeContainers(ctx, directory, project, override) == nil) != want {
+			t.Fatal("actual runtime container doctor returned an unexpected result")
+		}
+		binary := os.Getenv("NETHUB_TEST_AUTHORITY_CLI")
+		if binary == "" {
+			t.Fatal("compiled container doctor is required")
+		}
+		command := exec.CommandContext(ctx, binary, "doctor", "--runtime-containers", "--directory", directory, "--project", project, "--compose-file", override)
+		output, err := command.CombinedOutput()
+		if (err == nil) != want {
+			t.Fatal("compiled runtime container doctor returned an unexpected result")
+		}
+		if want && !strings.Contains(string(output), "inspection did not modify services") {
+			t.Fatal("container doctor omitted its inspection scope")
+		}
+		if !want && !strings.Contains(string(output), "restore reviewed service users") {
+			t.Fatal("container doctor omitted remediation")
+		}
+	}
+	checkContainers(true)
+	extra := filepath.Join(directory, "secrets/web/doctor-unexpected-fixture")
+	file, err := os.OpenFile(extra, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		t.Fatal("could not create owned nonsecret container fixture")
+	}
+	t.Cleanup(func() {
+		if err := os.Remove(extra); err != nil && !os.IsNotExist(err) {
+			t.Error("owned container readiness fixture cleanup failed")
+		}
+	})
+	if _, err := file.WriteString("unexpected nonsecret readiness fixture\n"); err != nil {
+		file.Close()
+		t.Fatal(err)
+	}
+	file.Close()
+	checkContainers(false)
+	if err := os.Remove(extra); err != nil {
+		t.Fatal("owned readiness fixture removal failed")
+	}
+	checkContainers(true)
+	for name, original := range before {
+		if id(name) != original {
+			t.Fatal("read-only container doctor changed a service", name)
+		}
+	}
+	t.Log("Actual Docker and compiled container doctor verified running Web/authz/frps separation, refused an unexpected Web secret file, recovered after owned cleanup and left all five services unchanged")
 	service, err := setup.BindRelayAuthorityService(ctx, directory, project, override, "")
 	if err != nil {
 		t.Fatal("running protected authority service binding", err)

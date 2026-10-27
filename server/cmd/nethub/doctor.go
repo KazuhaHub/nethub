@@ -25,6 +25,9 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	publicTLS := flags.Bool("public-tls", false, "Verify the initialized console hostname on TCP 443 with system certificate trust")
 	audit := flags.Bool("audit", false, "Verify the deployment audit chain in a read-only database snapshot")
 	roles := flags.Bool("database-roles", false, "Check runtime role and device identity privileges through the Web database identity")
+	containers := flags.Bool("runtime-containers", false, "Inspect existing protected Linux Docker service separation without modifying services")
+	project := flags.String("project", "nethub", "Existing Compose project for runtime container inspection")
+	composeFile := flags.String("compose-file", "", "Optional protected Compose override for runtime container inspection")
 	host := flags.String("host", "postgres", "Database hostname for read-only checks")
 	port := flags.Uint("port", 5432, "Database port for read-only checks")
 	database := flags.String("database", "nethub", "Database name for read-only checks")
@@ -43,6 +46,27 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	}
 	selected := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { selected[f.Name] = true })
+	if *containers {
+		for name := range selected {
+			if name != "runtime-containers" && name != "directory" && name != "project" && name != "compose-file" {
+				fmt.Fprintln(stderr, "Run container inspection separately from database, DNS, certificate and health checks")
+				return 2
+			}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := setup.CheckRuntimeContainers(ctx, *directory, *project, *composeFile); err != nil {
+			fmt.Fprintln(stderr, "Runtime container separation check failed; run on the Linux Docker host as root, verify the protected deployment/project and restore reviewed service users, images, environment, read-only mounts and secret directories; no service was changed")
+			return 1
+		}
+		fmt.Fprintln(stdout, "Running Web/authz/frps container separation and reviewed Web secret mount passed; inspection did not modify services")
+		fmt.Fprintln(stdout, "Not checked: database privileges, actual hook traffic, external reachability, recent database backup or version agreement")
+		return 0
+	}
+	if selected["project"] || selected["compose-file"] {
+		fmt.Fprintln(stderr, "Compose selection requires doctor --runtime-containers")
+		return 2
+	}
 	if *audit || *roles {
 		if (*audit && *roles) || (*roles && (selected["audit-timezone"] || selected["audit-timeout"])) {
 			fmt.Fprintln(stderr, "Run audit history and database role checks as separate modes")

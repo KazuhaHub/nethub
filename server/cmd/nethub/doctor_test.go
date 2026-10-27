@@ -68,3 +68,19 @@ func TestDoctorRuntimeRolesModeBoundary(t *testing.T) {
 		}
 	}
 }
+
+func TestDoctorRuntimeContainerModeBoundary(t *testing.T) {
+	for _, args := range [][]string{
+		{"--project", "other"}, {"--compose-file", "unused"},
+		{"--runtime-containers", "--database-roles"},
+		{"--runtime-containers", "--public-tls"},
+		{"--runtime-containers", "--expected-address", "192.0.2.1"},
+		{"--runtime-containers", "--password-file", "unused"},
+		{"--runtime-containers", "--health-url", "http://127.0.0.1/healthz"},
+	} {
+		var out, diagnostic bytes.Buffer
+		if status := run(append([]string{"doctor"}, args...), &out, &diagnostic); status != 2 || out.Len() != 0 {
+			t.Fatal("ambiguous container mode reached Docker execution", args, status)
+		}
+	}
+}

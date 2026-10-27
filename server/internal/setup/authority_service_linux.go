@@ -154,10 +154,12 @@ type authorityContainer struct {
 		Labels               map[string]string
 	}
 	HostConfig struct {
-		ReadonlyRootfs, Privileged   bool
-		NetworkMode                  string
-		CapDrop, CapAdd, SecurityOpt []string
-		PortBindings                 map[string][]struct{ HostIP, HostPort string }
+		ReadonlyRootfs, Privileged            bool
+		NetworkMode                           string
+		PidMode, IpcMode, UTSMode, UsernsMode string
+		Devices                               []json.RawMessage
+		CapDrop, CapAdd, SecurityOpt          []string
+		PortBindings                          map[string][]struct{ HostIP, HostPort string }
 	}
 	State struct {
 		Running bool
