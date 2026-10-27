@@ -563,6 +563,7 @@ func TestPostgresBoundaries(t *testing.T) {
 		}
 	})
 	t.Run("console_HTTP_with_real_database", func(t *testing.T) { testConsoleHTTP(t, ctx, owner, web, authz, tenantA, tenantB) })
+	t.Run("relay_traffic_accounting", func(t *testing.T) { testRelayTraffic(t, ctx, owner, authz, web, backup, tenantA, tenantB) })
 	t.Run("explicit_device_access_grants", func(t *testing.T) { testExplicitDeviceAccess(t, ctx, owner, web, authz, tenantA, tenantB) })
 	t.Run("authenticated_device_lifecycle", func(t *testing.T) { testDeviceLifecycle(t, ctx, owner, authz, web) })
 	// Its final trust-history fixture changes deployment-global public state;
