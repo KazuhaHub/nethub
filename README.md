@@ -155,7 +155,7 @@ server/           control plane: Go, one binary `nethub` (web | authz | migrate 
   web/              console source: React + TypeScript + Vite (build output embedded in the binary)
 agents/opnsense/  the OPNsense agent: os-nethub-agent plugin source (PHP MVC, rc.d, agentctl.py)
 deploy/           docker-compose, Caddy config, per-service secrets layout
-docs/             DESIGN.md (v0.3, in Chinese), threat model and console API (drafts), Chinese README
+docs/             DESIGN.md (v0.3, in Chinese), operator/protocol/security/API references, Chinese README
 weekend0/         Weekend 0 transport-test kit (RUNBOOK, frps/frpc configs, probe.py)
 ```
 

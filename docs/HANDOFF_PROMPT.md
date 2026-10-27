@@ -277,7 +277,7 @@ PLAN §2 列了 D1–D22，**全部归 Kazuha 拍板**。你的职责有三件�
 | `docs/PLAN.md` | 执行计划：阶段、任务、验收、决策清单、模板（内部） |
 | `docs/DESIGN.md` | 设计方案 v0.3，架构上的权威（中文） |
 | `docs/threat-model.md` | 威胁模型初稿（英文），W0 之后和 W7 要更新 |
-| `docs/console-api.md` | 控制台 API 草稿（英文），W3 起实现时同步修改 |
+| `docs/console-api.md` | Current console API reference: implemented routes, OIDC/SAML boundaries and reserved proposals; update alongside API changes |
 | `docs/README.zh-CN.md` | README 的中文版，英文 README 一改就要同步 |
 | `weekend0/` | W0 的操作手册、结果模板、探针、frp 配置 |
 | `server/`、`deploy/`、`proto/`、`agents/opnsense/` 下的 README | 各组件的规划，还没有代码 |
