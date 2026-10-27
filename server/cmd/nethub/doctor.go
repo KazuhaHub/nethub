@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -21,6 +22,7 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	directory := flags.String("directory", ".", "Initialized deployment directory")
 	healthURL := flags.String("health-url", "", "Check a private loopback HTTP health endpoint only")
 	expected := flags.String("expected-address", "", "Also check console/wildcard DNS against this address")
+	publicTLS := flags.Bool("public-tls", false, "Verify the initialized console hostname on TCP 443 with system certificate trust")
 	audit := flags.Bool("audit", false, "Verify the deployment audit chain in a read-only database snapshot")
 	host := flags.String("host", "postgres", "Audit database hostname")
 	port := flags.Uint("port", 5432, "Audit database port")
@@ -41,7 +43,7 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	selected := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { selected[f.Name] = true })
 	if *audit {
-		if selected["directory"] || selected["health-url"] || selected["expected-address"] || *passwordFile == "" ||
+		if selected["directory"] || selected["health-url"] || selected["expected-address"] || selected["public-tls"] || *passwordFile == "" ||
 			*host == "" || *database == "" || *port == 0 || *port > 65535 || (*tls != "verify-full" && *tls != "disable") ||
 			*legacyZone == "" || len(*legacyZone) > 64 || *auditTimeout < time.Second || *auditTimeout > 5*time.Minute {
 			fmt.Fprintln(stderr, "Audit mode requires valid database settings, a Web-role password file and a bounded timeout; run file/DNS/health checks separately")
@@ -54,6 +56,10 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "Database options require doctor --audit")
 			return 2
 		}
+	}
+	if *publicTLS && selected["health-url"] {
+		fmt.Fprintln(stderr, "Run public TLS verification separately from private loopback health")
+		return 2
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -106,6 +112,25 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 		}
 		fmt.Fprintln(stdout, "Console and random wildcard DNS probes passed")
 	}
-	fmt.Fprintln(stdout, "Not checked: public port reachability, public TLS issuance, runtime mounts/database grants, relay/authz health, and scheduled database backup. Complete stage acceptance separately.")
+	if *publicTLS {
+		manifest, err := setup.Load(*directory)
+		if err != nil {
+			fmt.Fprintln(stderr, "Console identity unavailable; restore the initialized deployment manifest before checking TLS")
+			return 1
+		}
+		remaining, err := verifyConsoleTLS(ctx, net.JoinHostPort(manifest.Config.ConsoleHost, "443"), manifest.Config.ConsoleHost, nil, time.Now())
+		if err != nil {
+			fmt.Fprintln(stderr, "Console TLS verification failed; check DNS, TCP 443, the reverse proxy certificate chain and its renewal configuration")
+			return 1
+		}
+		fmt.Fprintf(stdout, "Console certificate chain and hostname verified; %d whole days remaining\n", int64(remaining/(24*time.Hour)))
+		if remaining < 30*24*time.Hour {
+			fmt.Fprintln(stderr, "Console certificate expires within 30 days; check the reverse proxy renewal job and verify its next successful renewal")
+			return 1
+		}
+		fmt.Fprintln(stdout, "Not checked: external port reachability, runtime mounts/database grants, relay/authz health, and scheduled database backup. Complete stage acceptance separately.")
+	} else {
+		fmt.Fprintln(stdout, "Not checked: public port reachability, public TLS issuance, runtime mounts/database grants, relay/authz health, and scheduled database backup. Complete stage acceptance separately.")
+	}
 	return 0
 }

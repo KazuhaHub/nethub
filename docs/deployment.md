@@ -96,6 +96,26 @@ It does not establish public port/TLS reachability, runtime database grants,
 relay/authz health or scheduled database backups. Those omissions are printed;
 do not treat exit zero as complete deployment acceptance.
 
+The in-progress W7-3 `--public-tls` option additionally checks the console
+hostname from the initialized manifest on TCP 443, using the operating system's
+normal CA store and hostname verification. It sends no HTTP request, cookie or
+credential, ignores HTTP proxy environment settings and has a bounded TLS
+handshake. The output includes whole days remaining; fewer than 30 days returns
+a failure with a reminder to check the reverse proxy's renewal configuration.
+NetHub does not take over the reverse proxy's certificate issuance or renewal.
+
+```sh
+sudo ./nethub doctor --directory /srv/nethub-deployment --public-tls
+```
+
+This is a probe from the machine running the command, not an independent
+external-network witness. It neither proves external TCP 443/7000/8443
+reachability nor validates HTTP routing, cookies, ACME provenance or every
+reverse proxy address. It uses system trust; there is no insecure/private-CA
+override flag. Runtime role/mount separation, frps/authz loopback, recent database
+backup and version agreement remain separate unfinished W7-3 checks. Hosted
+acceptance for this new option is still pending.
+
 For linked audit history, use the separate [read-only audit mode](../deploy/audit-chain.md)
 inside the existing Web container. It verifies a database snapshot without
 running initialization, migrations or repair; it does not replace the other

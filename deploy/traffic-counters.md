@@ -1,8 +1,10 @@
 # Relay traffic soft counters
 
-W7-2 is in progress. Sampling, the administrator tenant/month API, console view
-and warning configuration are implemented. Actual frps/PostgreSQL/browser
-acceptance at the final revision is still required before accepting the complete path.
+W7-2 was accepted through PR #188, merged as `a9ade7f`. Final source
+`10a030db612e93b98a968a09a400216626a4cdae` passed all six checks in run
+`40460383478`, full actual-log verification and review of thirteen final images
+and hashes. The tested and merged trees match. This acceptance covers the
+isolated deployment and warning-only accounting path, not complete W7 or billing.
 
 ## Source and accounting
 
@@ -76,16 +78,16 @@ Only Web can read or edit this policy; authz cannot read it and no admission,
 grant, heartbeat or revocation path consults it. Usage above the threshold
 remains available. See the [HTTP contract](../docs/console-api.md#8-audit-log-and-traffic).
 
-## Validation still required
+## Accepted validation and remaining limits
 
 Local parser/worker tests exercise numeric limits, offline admission, bounded
 coalescing, a stalled storage writer, continued observations and cancellation.
 The genuine PostgreSQL suite adds fresh-pool persistence, replay/reset handling,
 concurrent accounting, month boundaries, exact wide values, removed-device
 history, role/RLS isolation, malformed input and advisory-lock skipping. Those
-SQL cases must actually execute at the tested source revision. Real pinned
-frps/frpc traffic and a rendered console must also be checked before accepting
-the complete W7-2 path. New cases also cover real HTTPS passive reports,
+SQL cases executed at the tested source revision. Pinned official frps/frpc
+traffic and both the synthetic and actual deployed console passed separately.
+New cases also cover real HTTPS passive reports,
 administrator/CSRF refusal, pagination totals, empty months, forced RLS, audit
 rollback, no-op preservation and eight-way warning revision conflicts. A separate
 synthetic browser suite checks exact wide totals, both themes, mobile dialogs,
@@ -94,3 +96,15 @@ The deployment suite transfers real payloads through two pinned official clients
 compares actual frps counters with durable console/monthly facts and renders
 the deployed page. Exceeded-warning probes must still make new verified TLS
 connections with unchanged grants and no revocation. No threshold may block or revoke a device.
+
+The first runtime-TZ override failed protected authority binding; UTC moved into
+the rebuilt image without relaxing environment checks. A later HTTPS fixture
+omitted JSON headers on PATCH and artifact upload could not read root-owned
+traffic evidence. Both failures remain retained; the final run corrected only
+the helper headers and reviewed artifact ownership. All genuine traffic SQL,
+HTTP and deployment gates then passed. Thirteen final traffic/SAML/Dex/Keycloak
+images were opened and hash-verified before normal expected-head merge.
+
+Public-network/native-appliance traffic accuracy, external-provider acceptance,
+remaining doctor checks, operational credential rotation, scheduled backups,
+clean-host restoration and formal release are separate open requirements.

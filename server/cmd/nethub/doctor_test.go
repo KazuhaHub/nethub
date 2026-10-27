@@ -31,6 +31,7 @@ func TestDoctorAuditModeBoundary(t *testing.T) {
 		{"--audit", "--password-file", "unused", "--health-url", "http://127.0.0.1/healthz"},
 		{"--audit", "--password-file", "unused", "--directory", "."},
 		{"--audit", "--password-file", "unused", "--expected-address", "192.0.2.1"},
+		{"--audit", "--password-file", "unused", "--public-tls"},
 		{"--audit", "--password-file", "unused", "--port", "65536"},
 		{"--audit", "--password-file", "unused", "--sslmode", "prefer"},
 		{"--audit", "--password-file", "unused", "--audit-timeout", "0s"},
@@ -40,5 +41,12 @@ func TestDoctorAuditModeBoundary(t *testing.T) {
 		if status := run(append([]string{"doctor"}, args...), &out, &diagnostic); status != 2 || out.Len() != 0 {
 			t.Fatal("ambiguous audit/database mode reached execution", args, status)
 		}
+	}
+}
+
+func TestDoctorPublicTLSRefusesPrivateHealthMode(t *testing.T) {
+	var out, diagnostic bytes.Buffer
+	if status := run([]string{"doctor", "--public-tls", "--health-url", "http://127.0.0.1/healthz"}, &out, &diagnostic); status != 2 || out.Len() != 0 {
+		t.Fatal("public TLS and private health modes were combined")
 	}
 }

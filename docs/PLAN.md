@@ -1807,6 +1807,8 @@ DESIGN §6 写明了：这条哈希链只防意外损坏，**不能当成防篡�
 **W7-2 流量软计数。**
 定时从 frps 的 admin API 读每个代理的流量，按设备记录，再**按租户、按月**汇总后在控制台显示（DESIGN §5、§6 定义的是"每租户每月"的软计数）。超过阈值只提示，**不拦截**。
 
+W7-2 validation (2026-10-27): PR #188 merged as `a9ade7f` after all six checks in run `40460383478`, actual SQL/HTTPS/official-relay and inherited logs, six DCOs and review of thirteen final images/hashes. The merged tree matches the tested tree. Genuine PostgreSQL covered durable deltas, replay/resets, concurrency, month/tenant/role boundaries, removed-device facts, exact wide totals and atomic audited warning revisions. Two pinned clients transferred actual payloads into the deployed monthly page; exceeded warnings preserved grants and new verified TLS connections. Accounting remains approximate. See [scope and limits](../deploy/traffic-counters.md). Other W7 requirements remain open.
+
 **W7-3 `nethub doctor` 补全。**
 DESIGN §7 列的所有检查项都要实现，并分成两组：
 
