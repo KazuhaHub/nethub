@@ -73,6 +73,10 @@ func TestDoctorRuntimeContainerModeBoundary(t *testing.T) {
 	for _, args := range [][]string{
 		{"--project", "other"}, {"--compose-file", "unused"},
 		{"--runtime-containers", "--database-roles"},
+		{"--runtime-containers", "--relay-hook"},
+		{"--relay-hook", "--database-roles"},
+		{"--relay-hook", "--public-tls"},
+		{"--relay-hook", "--health-url", "http://127.0.0.1/healthz"},
 		{"--runtime-containers", "--public-tls"},
 		{"--runtime-containers", "--expected-address", "192.0.2.1"},
 		{"--runtime-containers", "--password-file", "unused"},

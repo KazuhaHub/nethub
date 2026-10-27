@@ -15,7 +15,7 @@ COPY --from=console /src/server/internal/webui/dist ./internal/webui/dist
 RUN go build -p 2 -trimpath -ldflags="-s -w" -o /out/nethub ./cmd/nethub
 RUN cp /usr/local/go/LICENSE /out/GO-LICENSE
 RUN set -eu; mkdir -p /out/oidc-licenses; \
-    for module in github.com/KazuhaHub/authcore github.com/coreos/go-oidc/v3 github.com/go-jose/go-jose/v4 golang.org/x/oauth2; do \
+    for module in github.com/KazuhaHub/authcore github.com/coreos/go-oidc/v3 github.com/go-jose/go-jose/v4 golang.org/x/oauth2 github.com/fatedier/yamux; do \
       directory="$(go list -m -f '{{.Dir}}' "$module")"; \
       label="$(printf '%s' "$module" | tr / _)"; \
       cp "$directory/LICENSE" "/out/oidc-licenses/$label-LICENSE"; \

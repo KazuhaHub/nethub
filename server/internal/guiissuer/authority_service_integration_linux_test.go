@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/KazuhaHub/nethub/server/internal/relayprobe"
 	"github.com/KazuhaHub/nethub/server/internal/setup"
 )
 
@@ -119,6 +120,31 @@ func TestNativeRelayAuthorityService(t *testing.T) {
 	if observed, err := service.Observe(ctx, ca); err != nil || observed != expected {
 		t.Fatal("original actual relay TLS verification", err)
 	}
+	manifest, err := setup.Load(directory)
+	if err != nil {
+		t.Fatal("relay doctor fixture identity unavailable")
+	}
+	counts := func() string {
+		t.Helper()
+		command := exec.CommandContext(ctx, "/usr/bin/docker", "--host", "unix:///var/run/docker.sock", "exec", "--user", "postgres", before["postgres"], "psql", "-X", "-qAt", "--username", "postgres", "--dbname", "nethub", "--set", "ON_ERROR_STOP=1", "--command", `SELECT (SELECT count(*) FROM devices)::text||':'||(SELECT count(*) FROM device_access_grants)::text||':'||(SELECT count(*) FROM audit_log)::text`)
+		output, err := command.Output()
+		if err != nil {
+			t.Fatal("relay doctor fixture state count unavailable")
+		}
+		return string(output)
+	}
+	countsBefore := counts()
+	if version, err := relayprobe.Check(ctx, "127.0.0.1:7000", manifest.Config.ConsoleHost, ca); err != nil || version != relayprobe.ProtocolVersion {
+		t.Fatal("actual relay rejection/version probe failed", err)
+	}
+	probeCLI := exec.CommandContext(ctx, os.Getenv("NETHUB_TEST_AUTHORITY_CLI"), "doctor", "--relay-hook", "--directory", directory, "--project", project, "--compose-file", override)
+	if output, err := probeCLI.CombinedOutput(); err != nil || !strings.Contains(string(output), "Relay TLS and Login hook rejection path passed") {
+		t.Fatal("compiled actual relay doctor failed")
+	}
+	if counts() != countsBefore {
+		t.Fatal("denied relay probe changed device, grant or audit counts")
+	}
+	t.Log("Actual pinned frps/authz and compiled doctor passed verified-TLS invalid-claim rejection and running protocol version with unchanged device/grant/audit counts and no submitted credentials or proxy")
 	if service.Reload(ctx, []byte("unrelated public trust")) == nil {
 		t.Fatal("unrelated trust initiated service reload")
 	}
@@ -127,6 +153,15 @@ func TestNativeRelayAuthorityService(t *testing.T) {
 			t.Fatal("refused reload changed a service", name)
 		}
 	}
+	stopAuthz := exec.CommandContext(ctx, "/usr/bin/docker", "--host", "unix:///var/run/docker.sock", "compose", "--project-name", project, "--file", filepath.Join(directory, "docker-compose.yml"), "--file", filepath.Join(directory, "docker-compose.override.yml"), "--file", override, "stop", "nethub-authz")
+	stopAuthz.Env = []string{"PATH=/usr/bin:/bin", "HOME=/root", "LANG=C", "LC_ALL=C"}
+	if _, err := stopAuthz.CombinedOutput(); err != nil {
+		t.Fatal("owned hook outage fixture failed")
+	}
+	if _, err := relayprobe.Check(ctx, "127.0.0.1:7000", manifest.Config.ConsoleHost, ca); err == nil {
+		t.Fatal("unavailable actual authz hook passed relay doctor")
+	}
+	t.Log("Actual relay doctor refused the existing TLS relay when its authz Login hook was unavailable; the original bound recovery test restores the owned services")
 	// Remove only this disposable project's already-bound relay, modelling an
 	// interruption between Compose's remove/create phases. Initial binding must
 	// refuse it; the exact protected recovery binding may recreate that service.

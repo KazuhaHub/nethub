@@ -10,8 +10,11 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"os"
+	"path/filepath"
 	"time"
 
+	"github.com/KazuhaHub/nethub/server/internal/relayprobe"
 	"github.com/KazuhaHub/nethub/server/internal/setup"
 	"github.com/KazuhaHub/nethub/server/internal/store"
 )
@@ -26,8 +29,9 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	audit := flags.Bool("audit", false, "Verify the deployment audit chain in a read-only database snapshot")
 	roles := flags.Bool("database-roles", false, "Check runtime role and device identity privileges through the Web database identity")
 	containers := flags.Bool("runtime-containers", false, "Inspect existing protected Linux Docker service separation without modifying services")
-	project := flags.String("project", "nethub", "Existing Compose project for runtime container inspection")
-	composeFile := flags.String("compose-file", "", "Optional protected Compose override for runtime container inspection")
+	relayHook := flags.Bool("relay-hook", false, "Check the existing protected relay TLS and Login rejection path without credentials or proxies")
+	project := flags.String("project", "nethub", "Existing protected Compose project for host checks")
+	composeFile := flags.String("compose-file", "", "Optional protected Compose override for host checks")
 	host := flags.String("host", "postgres", "Database hostname for read-only checks")
 	port := flags.Uint("port", 5432, "Database port for read-only checks")
 	database := flags.String("database", "nethub", "Database name for read-only checks")
@@ -46,25 +50,59 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	}
 	selected := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { selected[f.Name] = true })
-	if *containers {
+	if *containers || *relayHook {
+		if *containers && *relayHook {
+			fmt.Fprintln(stderr, "Run container and relay hook modes separately")
+			return 2
+		}
 		for name := range selected {
-			if name != "runtime-containers" && name != "directory" && name != "project" && name != "compose-file" {
+			if name != "runtime-containers" && name != "relay-hook" && name != "directory" && name != "project" && name != "compose-file" {
 				fmt.Fprintln(stderr, "Run container inspection separately from database, DNS, certificate and health checks")
 				return 2
 			}
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 		defer cancel()
 		if err := setup.CheckRuntimeContainers(ctx, *directory, *project, *composeFile); err != nil {
 			fmt.Fprintln(stderr, "Runtime container separation check failed; run on the Linux Docker host as root, verify the protected deployment/project and restore reviewed service users, images, environment, read-only mounts and secret directories; no service was changed")
 			return 1
+		}
+		if *relayHook {
+			manifest, err := setup.Load(*directory)
+			if err != nil {
+				fmt.Fprintln(stderr, "Relay check needs the protected initialized manifest; restore its reviewed identity")
+				return 1
+			}
+			file, err := os.Open(filepath.Join(*directory, "runtime/trust/relay-ca.pem"))
+			if err != nil {
+				fmt.Fprintln(stderr, "Relay trust is unavailable; restore the reviewed public CA bundle")
+				return 1
+			}
+			ca, err := io.ReadAll(io.LimitReader(file, 65537))
+			file.Close()
+			if err != nil || len(ca) == 0 || len(ca) > 65536 {
+				fmt.Fprintln(stderr, "Relay trust is invalid or oversized; restore the reviewed public CA bundle")
+				return 1
+			}
+			version, err := relayprobe.Check(ctx, "127.0.0.1:7000", manifest.Config.ConsoleHost, ca)
+			if err != nil {
+				fmt.Fprintln(stderr, "Relay rejection probe failed; check relay TLS trust and the configured Login httpPlugin connection to authz; no device credentials or proxy were submitted")
+				return 1
+			}
+			if version != relayprobe.ProtocolVersion {
+				fmt.Fprintln(stderr, "Running relay version differs from this binary's protocol pin; align the relay and appliance frp versions before retrying")
+				return 1
+			}
+			fmt.Fprintf(stdout, "Relay TLS and Login hook rejection path passed; running frp reports %s and matches this binary's protocol pin\n", version)
+			fmt.Fprintln(stdout, "Probe used an invalid claim with no token, device secret or proxy; this does not prove successful device admission, external reachability, recent backups or published appliance version agreement")
+			return 0
 		}
 		fmt.Fprintln(stdout, "Running Web/authz/frps container separation and reviewed Web secret mount passed; inspection did not modify services")
 		fmt.Fprintln(stdout, "Not checked: database privileges, actual hook traffic, external reachability, recent database backup or version agreement")
 		return 0
 	}
 	if selected["project"] || selected["compose-file"] {
-		fmt.Fprintln(stderr, "Compose selection requires doctor --runtime-containers")
+		fmt.Fprintln(stderr, "Compose selection requires doctor --runtime-containers or --relay-hook")
 		return 2
 	}
 	if *audit || *roles {

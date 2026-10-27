@@ -162,6 +162,30 @@ recent dumps or published version agreement. Non-Linux hosts refuse this mode.
 The genuine Docker/compiled-command test is added to the existing isolated
 service suite and still awaits final-source hosted execution.
 
+The in-progress relay mode first checks that protected runtime layout, then
+tests its actual loopback TLS Login hook path:
+
+```sh
+sudo ./nethub doctor --relay-hook \
+  --directory /srv/nethub-deployment --project nethub
+```
+
+It uses the deployment's public relay CA and configured server name, submits one
+invalid claim without a token/device secret/proxy, and requires the exact expected
+denial from the configured Login hook. A TLS socket or a generic authentication
+failure alone does not pass. The returned running frp version must match the
+binary's protocol pin. The probe is bounded and does not retry automatically.
+Failures point to TLS trust or `httpPlugins` connectivity without printing
+dependency responses. It creates a deliberate denied-login log event, not an
+enrollment, access grant, audit mutation or proxy. The actual isolated acceptance
+case also checks database row counts and an unavailable authz hook; final-source
+hosted execution is still pending. See [probe scope](../server/internal/relayprobe/README.md).
+
+This tests the configured Login rejection path, not successful device admission
+or every hook operation. Public-network port checks, recent successful dumps and
+comparison with the actual formally published appliance package remain separate
+requirements; a match with the binary's pin does not establish that publication.
+
 For linked audit history, use the separate [read-only audit mode](../deploy/audit-chain.md)
 inside the existing Web container. It verifies a database snapshot without
 running initialization, migrations or repair; it does not replace the other
