@@ -111,7 +111,7 @@ server/           控制面：Go，一个二进制 `nethub`（web | authz | migr
   web/              控制台源码：React + TypeScript + Vite（构建产物嵌入二进制）
 agents/opnsense/  OPNsense agent：os-nethub-agent 插件源码（PHP MVC、rc.d、agentctl.py）
 deploy/           docker-compose、Caddy 配置、按服务划分的密钥目录
-docs/             DESIGN.md（v0.3，中文）、威胁模型与控制台 API（草案）、中文 README
+docs/             DESIGN.md（v0.3，中文）、部署/协议/安全/API 参考、中文 README
 weekend0/         Weekend 0 传输层测试工具（RUNBOOK、frps/frpc 配置、probe.py）
 ```
 

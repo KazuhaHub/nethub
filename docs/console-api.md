@@ -1,18 +1,15 @@
-# NetHub console API (draft)
+# NetHub console API
 
-> **Status: partially implemented, updated 2026-10-25 against design v0.3.**
-> W3 implements health, local login/logout/session, device listing, and enroll-token
-> issuance through `nethub web`. The React console implements these W3 flows;
-> W4 deployment acceptance is recorded separately. W5's scoped Open API is
-> implemented with NewUserConn enforcement in generated relay bundles. Open,
-> Revoke and disconnect UI/API are implemented; combined native/public W5 acceptance
-> remains pending. W6 user listing and role/disable UI/API are implemented.
-> Invitation administration/inspection/local-acceptance UI and APIs are implemented;
-> isolated browser validation passed in PR #171. Provider login and other W6-W7 console endpoints
-> below remain proposals.
-> Update this document in the same pull request as any API contract change.
-> [`DESIGN.md`](DESIGN.md) is the authority on behaviour; where this document
-> and DESIGN disagree, DESIGN wins.
+Updated 2026-10-26 against the Web router, DTOs and store operations. This
+reference distinguishes implemented routes from reserved proposals. Local
+sessions, device inventory/enrollment, Open/Revoke/disconnect, users, invitations
+and OIDC/SAML provider management and login are implemented. Actual two-Dex and
+signed Keycloak deployment evidence is separate from public-provider and combined
+W5-W7 acceptance, which remain open.
+
+Update this document with API contract changes. See [deployment](deployment.md),
+[protocol](protocol.md) and [threat model](threat-model.md) for runtime boundaries
+and measured limits. Historical design proposals do not establish HTTP routes.
 
 ## Contents
 
@@ -23,20 +20,22 @@
 - [5. Devices and enroll tokens](#5-devices-and-enroll-tokens)
 - [6. Users and invites](#6-users-and-invites)
 - [7. OIDC providers](#7-oidc-providers)
+- [SAML providers](#saml-providers)
 - [8. Audit log and traffic](#8-audit-log-and-traffic)
 - [9. Error codes](#9-error-codes)
-- [10. Open items](#10-open-items)
+- [10. Decisions and remaining work](#10-decisions-and-remaining-work)
 
 ## 1. Scope
 
 Covered: everything under `/api/v1/console/`, served by `nethub web` and
-called by the console in the browser, plus the browser redirects of the OIDC
-flow and a health check.
+called by the console in the browser, plus OIDC/SAML browser callbacks, public
+SP metadata and the private health check.
 
 Not covered:
 
 - the **device API** (`/api/v1/devices/*`: enroll, rotate, unenroll, status),
-  served by `nethub authz` and defined in [`proto/`](../proto/README.md);
+  served by `nethub authz` and defined in [`proto/`](../proto/README.md).
+  Protocol schemas alone do not establish an implemented device route;
 - the **`frps` plugin endpoint** (internal network only, served by
   `nethub authz`);
 - the **`nethub` CLI** (`init`, `migrate`, `doctor`, …), see
@@ -50,7 +49,9 @@ Not covered:
   console hostname separate from the device wildcard. Requests with a different
   Host are rejected; forwarded host headers never select the console origin.
 - Requests and responses are JSON (`Content-Type: application/json`, UTF-8).
-  Request bodies larger than 64 KiB are rejected with `413`.
+  Ordinary JSON request bodies larger than 64 KiB are rejected with `413`.
+  Administrator SAML writes and the SAML browser callback have separate bounds
+  described below; metadata responses are XML and callbacks redirect the browser.
 - Timestamps are RFC 3339 strings in UTC, for example `"2026-10-16T08:00:00Z"`.
 - IDs are UUID strings.
 - Unknown fields in a request body are rejected (`400 invalid_request`) rather
@@ -67,23 +68,29 @@ Not covered:
   subdomains (`<subdomain>.router.example.com`) whose content is controlled by
   whoever owns the device, and the prefix stops them from setting or
   overriding the console's cookies.
-- The short-lived OIDC flow cookie is also a `__Host-` cookie, with
-  `SameSite=Lax`, which the provider's redirect back to the console needs.
+- The five-minute `__Host-nethub_oidc` flow cookie uses `SameSite=Lax`.
+  Only the five-minute `__Host-nethub_saml` browser-binding cookie uses
+  `SameSite=None`, because the IdP returns a cross-site form POST. Both are
+  HttpOnly/Secure/Path=/ with no Domain; the ordinary session remains Lax.
 - The cookie holds an opaque random token. The database stores only its hash.
 - Sessions have an idle timeout and an absolute timeout, and can be revoked
   (DESIGN §6). Initial defaults are 30 minutes idle and 12 hours absolute.
   Current active-account and role state is reloaded from PostgreSQL on each request.
-- A request without a valid session gets `401 unauthenticated`. The console
-  then sends the user to the sign-in page.
+- Protected endpoints without a valid session get `401 unauthenticated`.
+  `GET /session` instead returns `200 { "signed_in": false }`. Public catalogs,
+  metadata and browser-admission endpoints have their own rules below.
 
 ### CSRF
 
-- **Requests with a body** must use `Content-Type: application/json`. Anything
-  else gets `415 unsupported_media_type`. This also stops plain HTML form posts.
+- **Ordinary API requests with a body** use `Content-Type: application/json`;
+  otherwise they get `415 unsupported_media_type`. The SAML ACS is the explicit
+  cross-site form exception, validated through the browser-bound signed flow.
 - **Endpoints called before sign-in** must carry an `Origin` header equal to
   the console's own origin. A missing or foreign `Origin` gets
   `403 csrf_failed`. These endpoints are `POST /login`, `POST /invites/inspect`,
-  `POST /invites/accept` and `POST /oidc/{slug}/start`.
+  `POST /invites/accept`, `POST /oidc/{slug}/start` and
+  `POST /saml/{slug}/start`. SAML callback POSTs use signature, request, destination,
+  replay and browser-binding checks rather than the console Origin or session CSRF.
 - **Every other request** whose method is not `GET` or `HEAD` must carry the
   header `X-CSRF-Token: <token>`. The token is per session and is returned by
   `POST /login` and `GET /session`. A missing or wrong token gets
@@ -98,10 +105,10 @@ Not covered:
 There is one tenant per instance in v1 (DESIGN §6). The tenant is implicit and
 never appears in the API.
 
-| Role | Can |
-|---|---|
-| `admin` | Everything below, for all devices and users in the instance |
-| `member` | Their own devices and enroll tokens, their own audit entries, their own account |
+| Role     | Can                                                                                             |
+| -------- | ----------------------------------------------------------------------------------------------- |
+| `admin`  | Implemented device operations across the instance; user, invitation and provider administration |
+| `member` | Their own devices and enroll tokens; local session and logout                                   |
 
 A member asking for someone else's device gets `404 not_found`, not `403`, so
 the API does not reveal that the device exists.
@@ -111,7 +118,12 @@ the API does not reveal that the device exists.
 Every error response has this shape:
 
 ```json
-{ "error": { "code": "invalid_request", "message": "label must be at most 64 characters" } }
+{
+  "error": {
+    "code": "invalid_request",
+    "message": "Invalid provider configuration"
+  }
+}
 ```
 
 - `code` is stable and meant for the console to branch on; the list is in
@@ -143,29 +155,30 @@ All responses carry:
 
 API responses also carry `Cache-Control: no-store`.
 
-**HSTS.** If the console sits at the apex of the device domain, its HSTS
-header must **not** use `includeSubDomains`. Doing so would stop browsers
-from letting users click through the device certificate warning, which v1
-depends on (self-signed device certificates).
+**HSTS.** The Web response sets `max-age=31536000` without `includeSubDomains`.
+Console and device subdomains have separate endpoints and trust; device content
+is not the console. v1 implements [GUI certificate management](protocol.md);
+a successful API response is not an independent check of the served device leaf.
 
 ### Secrets never come back
 
 - Enroll tokens and invite links are shown **once**, in the response that
   creates them.
-- OIDC client secrets are write-only.
+- OIDC client secrets and imported SAML metadata are write-only. SAML SP private
+  keys never appear in responses; public SP metadata includes its certificate.
 - No response ever contains a password hash, session token, device secret,
   domain claim or any `*_hash` column.
 
 ### Rate limits
 
 These endpoints are rate limited per client IP and, where there is one, per
-account:
+account or action key:
 
 - `POST /login`
-- `POST /me/password`
 - `POST /invites/inspect`
 - `POST /invites/accept`
-- `POST /oidc/{slug}/start`
+- OIDC/SAML starts and callbacks
+- device Open/Revoke/disconnect
 - `POST /enroll-tokens`
 
 A limited request gets `429 rate_limited` with a `Retry-After` header.
@@ -177,11 +190,14 @@ admin out.
 The client IP is taken from `X-Forwarded-For` only when the request comes from
 the declared trusted proxy (Caddy); DESIGN §6.
 
-W3 login and enroll issuance have separate process-local windows: ten attempts
+Login and enroll issuance have separate process-local windows: ten attempts
 per source IP and five per normalized account/user per minute. Each counter map
 holds at most 10,000 live keys; new keys fail closed at capacity until expiry.
 Password work also has a two-verification concurrency bound, with Retry-After: 1
 when busy. These limits are for the single-process deployment, not replica-wide.
+OIDC and SAML share start/callback limiter instances, using the source IP and
+provider slug as the second key. Callback refusal redirects to the generic SSO
+error page; it does not expose protocol or upstream diagnostics.
 
 ### Audit
 
@@ -198,36 +214,44 @@ cookie/CSRF values, and enrollment tokens are absent from application/audit logs
 
 "Phase" refers to the MVP weekends in DESIGN §10 (W3 to W7).
 
-| Method and path | Who | Phase | Audited |
-|---|---|---|---|
-| `GET /healthz` (outside the API prefix) | anyone | W3 | no |
-| `POST /login` | anyone | W3 | yes |
-| `POST /logout` | signed in | W3 | yes |
-| `GET /session` | anyone | W3 | no |
-| `POST /me/password` | signed in, local password | W6 | yes |
-| `GET /oidc/providers` | anyone | W6 | no |
-| `POST /oidc/{slug}/start` | anyone | W6 | no |
-| `GET /oidc/{slug}/callback` (browser redirect) | anyone | W6 | yes |
-| `GET /devices` | admin: all; member: own | W3 | no |
-| `GET /devices/{id}` | admin, or owner | W4 | no |
-| `PATCH /devices/{id}` | admin, or owner | W4 | yes |
-| `POST /devices/{id}/open` | admin, or owner | W5 | yes |
-| `POST /devices/{id}/revoke` | admin, or owner | W5 | yes |
-| `POST /devices/{id}/disconnect` | admin, or owner; already revoked | W5 | yes |
-| `POST /enroll-tokens` | signed in | W3 | yes |
-| `GET /users` | admin | W6 | no |
-| `PATCH /users/{id}` | admin | W6 | yes |
-| `POST /invites` | admin | W6 | yes |
-| `GET /invites` | admin | W6 | no |
-| `DELETE /invites/{id}` | admin | W6 | yes |
-| `POST /invites/inspect` | anyone holding an invite token | W6 | no |
-| `POST /invites/accept` | anyone holding an invite token | W6 | yes |
-| `GET /oidc-providers` | admin | W6 | no |
-| `POST /oidc-providers` | admin | W6 | yes |
-| `PATCH /oidc-providers/{id}` | admin | W6 | yes |
-| `DELETE /oidc-providers/{id}` | admin | W6 | yes |
-| `GET /audit` | admin: all; member: own | W7 | no |
-| `GET /traffic` | admin | W7 | no |
+| Method and path                                | Who                              | Phase | Audited                        |
+| ---------------------------------------------- | -------------------------------- | ----- | ------------------------------ |
+| `GET /healthz` (outside the API prefix)        | anyone                           | W3    | no                             |
+| `POST /login`                                  | anyone                           | W3    | yes                            |
+| `POST /logout`                                 | signed in                        | W3    | yes                            |
+| `GET /session`                                 | anyone                           | W3    | no                             |
+| `GET /oidc/providers`                          | anyone                           | W6    | no                             |
+| `POST /oidc/{slug}/start`                      | anyone                           | W6    | failed admission when budgeted |
+| `GET /oidc/{slug}/callback` (browser redirect) | anyone                           | W6    | yes                            |
+| `GET /saml/providers`                          | anyone                           | W6    | no                             |
+| `GET /saml/{slug}/metadata`                    | anyone; available provider       | W6    | no                             |
+| `POST /saml/{slug}/start`                      | anyone                           | W6    | failed admission when budgeted |
+| `POST /saml/{slug}/callback` (IdP form POST)   | browser-bound flow               | W6    | yes                            |
+| `GET /devices`                                 | admin: all; member: own          | W3    | no                             |
+| `POST /devices/{id}/open`                      | admin, or owner                  | W5    | yes                            |
+| `POST /devices/{id}/revoke`                    | admin, or owner                  | W5    | yes                            |
+| `POST /devices/{id}/disconnect`                | admin, or owner; already revoked | W5    | yes                            |
+| `POST /enroll-tokens`                          | signed in                        | W3    | yes                            |
+| `GET /users`                                   | admin                            | W6    | no                             |
+| `PATCH /users/{id}`                            | admin                            | W6    | yes                            |
+| `POST /invites`                                | admin                            | W6    | yes                            |
+| `GET /invites`                                 | admin                            | W6    | no                             |
+| `DELETE /invites/{id}`                         | admin                            | W6    | yes                            |
+| `POST /invites/inspect`                        | anyone holding an invite token   | W6    | no                             |
+| `POST /invites/accept`                         | anyone holding an invite token   | W6    | yes                            |
+| `GET /oidc-providers`                          | admin                            | W6    | no                             |
+| `POST /oidc-providers`                         | admin                            | W6    | yes                            |
+| `PATCH /oidc-providers/{id}`                   | admin                            | W6    | yes                            |
+| `DELETE /oidc-providers/{id}`                  | admin                            | W6    | yes                            |
+| `GET /saml-providers`                          | admin                            | W6    | no                             |
+| `POST /saml-providers`                         | admin                            | W6    | yes                            |
+| `PATCH /saml-providers/{id}`                   | admin                            | W6    | yes                            |
+| `DELETE /saml-providers/{id}`                  | admin                            | W6    | yes                            |
+
+The table lists implemented routes. Phase identifies their plan stage, not full
+stage acceptance. These paths are reserved and have no handler: `POST /me/password`,
+`GET /devices/{id}`, `PATCH /devices/{id}`, `GET /audit` and `GET /traffic`.
+Their proposed behavior below is not an available API contract.
 
 All paths below are relative to `/api/v1/console` unless stated otherwise.
 
@@ -236,8 +260,8 @@ All paths below are relative to `/api/v1/console` unless stated otherwise.
 ### `GET /healthz`
 
 Served by `nethub web` on the internal network for the container health
-check. Caddy does not route it from the internet (proposed: Caddy answers
-`404` for `/healthz`).
+check. The generated Caddy answers `404` for `/healthz` and `/healthz/*`.
+An external reverse proxy must preserve that isolation.
 
 Returns `200` with the body `ok` when the process can reach the database. It
 returns no version or configuration details.
@@ -295,22 +319,14 @@ Response `200` when not signed in: `{ "signed_in": false }`.
 
 ### `POST /me/password`
 
-Changes the caller's local password. Request:
-`{ "current_password": "…", "new_password": "…" }`.
-
-Response `204`. All of the user's other sessions are revoked.
-
-Errors:
-
-- `403 invalid_current_password`. This is not `401`, because the console
-  treats `401` as "signed out".
-- `422 weak_password`.
-- `429 rate_limited`.
+**Reserved:** no handler exists. Self-service password change and its proposed
+request/error contract are not available. Local-password acceptance through an
+invitation is implemented separately below.
 
 ### OIDC sign-in
 
-The backend routes are implemented. Provider/sign-in/claim pages, actual
-two-provider/public-provider deployment and combined W6 acceptance remain open.
+The backend and console pages are implemented. Actual [two-Dex deployment](../deploy/validation-two-dex.md)
+passed; public-provider integration and combined W6 acceptance remain open.
 See [browser state and admission scope](../deploy/oidc-login.md).
 
 The flow follows DESIGN §6 and decision #22: authorization code with PKCE,
@@ -319,7 +335,7 @@ The flow follows DESIGN §6 and decision #22: authorization code with PKCE,
 **`GET /oidc/providers`** lists the enabled providers for the sign-in page:
 
 ```json
-{ "items": [ { "slug": "company-sso", "display_name": "Company SSO" } ] }
+{ "items": [{ "slug": "company-sso", "display_name": "Company SSO" }] }
 ```
 
 **`POST /oidc/{slug}/start`** begins a flow.
@@ -334,6 +350,10 @@ The flow follows DESIGN §6 and decision #22: authorization code with PKCE,
   must be canonical; empty/null values do not fall back to ordinary sign-in.
 - Response `200`: `{ "redirect_url": "https://idp.example.com/authorize?…" }`.
   The console then navigates the browser to that URL.
+- An existing active session returns `409 already_signed_in`; switching accounts
+  requires explicit logout. Failed/disabled/unavailable providers use a generic
+  `401 sso_failed`, or `503 sso_unavailable` if no backend is configured. Starts
+  are rate limited. The provider catalogs reject query parameters.
 
 This is a `POST` so the invite token travels in the body. It never appears in
 a URL that could end up in access logs or browser history.
@@ -383,15 +403,31 @@ provider. It is a browser endpoint, not a JSON one.
   "enrolled_at": "2026-10-01T12:00:00Z",
   "revoked": false,
   "revoked_at": null,
-  "owner": { "id": "1f6c…", "email": "admin@example.com" }
+  "owner": { "id": "1f6c…", "email": "admin@example.com" },
+  "service_state": null,
+  "last_report_at": null,
+  "last_reconcile_success": null,
+  "last_reconcile_at": null,
+  "gui_certificate": {
+    "state": "unsupported",
+    "assigned_host": null,
+    "valid_until": null,
+    "confirmed_at": null
+  },
+  "disconnect": null
 }
 ```
 
 - `online` means authz reported the tunnel within the last 45 seconds, derived
   from non-future `last_seen_at`. This is a recent observation subject to polling
   delay, not a real-time GUI health check. `nethub web` never queries `frps`.
-  Authz observation wiring remains W4; W3 verifies this using isolated fixtures.
+  Authz observation wiring is implemented; native timing evidence and remaining
+  combined W5 acceptance are recorded separately in the deployment reports.
 - `cluster_hint` is a nullable display string, matching the database model.
+- Service/reconcile fields are authenticated device reports. `gui_certificate`
+  summarizes accepted installation/renewal state, not a probe of relayed TLS.
+  `disconnect` is null or the narrow receipt described below. Device keys,
+  certificate requests/chains and raw reports are absent.
 - `owner` is included for admins. For members it is always themselves.
 - The exact column list is settled with the data model (DESIGN §6). Hash and
   claim columns are never exposed.
@@ -418,39 +454,35 @@ that every browser stream closed. See [anomaly policy](../deploy/relay-anomalies
 
 ### `GET /devices/{id}`
 
-Returns one device object. `404 not_found` if it does not exist, or if the
-caller is a member and does not own it.
-
-This applies to every `/devices/{id}` endpoint below: the ownership check
-comes first. A member asking about someone else's device always gets `404`,
-before any other error such as `409`.
+**Reserved:** no device-detail route exists. Read authorized device projections
+through `GET /devices` and its filters/pagination.
 
 ### `PATCH /devices/{id}`
 
-Changes the display label. Request: `{ "label": "Branch office" }`.
-
-- `label` is at most 64 characters.
-- Nothing else is writable. Identity fields (subdomain, owner, claim) cannot
-  be changed through the console by design (DESIGN §6).
-- Response: the updated device object.
+**Reserved:** no label-editing HTTP route exists. Device identity/assignment and
+credentials cannot be changed through a proposed display-label endpoint.
 
 ### `POST /devices/{id}/open`
 
 Request: `{}` without query parameters. Response `200`:
 
 ```json
-{ "url": "https://abcd1234.router.example.com:8443", "gate_expires_at": "2026-10-24T08:30:00Z" }
+{
+  "url": "https://abcd1234.router.example.com:8443",
+  "gate_expires_at": "2026-10-24T08:30:00Z"
+}
 ```
 
 The API, transactional database grant and generated relay's NewUserConn checks
 are implemented. Existing bundles must include NewUserConn in the frps callback
-operation list. The console button and real native gate acceptance remain W5
-work; an API response alone does not verify a successful GUI connection.
+operation list. The console button and scoped native checks are implemented; combined native
+mobile/timing acceptance remains open. An API response alone does not verify a
+successful GUI connection.
 
 The console opens it in a new tab with `noopener,noreferrer`, so the device
 page cannot reach the console tab. It also shows the hostname, so the user
-can check where they are going. This is the user's only defence if the
-console itself is compromised.
+can check where they are going. A compromised console can still mislead its
+operator; the real device origin and its own authentication remain relevant.
 
 - This explicit call registers the server-resolved exact source IP for 30 minutes
   using the database clock, and appends a device/actor/source audit in the same
@@ -467,7 +499,7 @@ console itself is compromised.
 Marks the device revoked. Request: `{}`. Response `200`:
 `{ "revoked": true, "revoked_at": "RFC3339 timestamp" }`.
 
-- Revocation is one-way in the recommended design: a revoked device must
+- Revocation is one-way in the implementation: a revoked device must
   re-enroll (DESIGN §6; enforced in the database).
 - D6 denies Ping, Login, and NewProxy together. Live tunnel interruption uses
   the confirmed heartbeat mechanism, subject to the W0 backend-failure/hang limits.
@@ -506,11 +538,9 @@ Response `201`:
 - The expiry comes from the database default (15 minutes) and cannot be set
   by the caller (DESIGN §6).
 - W3 emits 32 random bytes encoded as unpadded base64url, and persists only SHA-256
-  of those bytes. It accepts no owner/tenant/expiry override. The final device-side
-  input format may carry the console address, depending on W4 decision D19.
-  If the address is included, the plugin must show it and ask the
-  user to confirm it before enrolling. A crafted token could otherwise point
-  the device's tunnel at an attacker's relay.
+  of those bytes. It accepts no owner/tenant/expiry override. D19 uses a separate
+  console HTTPS address input alongside the token; the address is not embedded
+  in this API response or selected by token contents.
 - The web role has limited SELECT on the returned status columns; it cannot read
   token hashes, change expiry, or consume the token. Authz owns atomic consumption.
 - Errors: `429 rate_limited`.
@@ -526,7 +556,9 @@ Response `201`:
   "role": "member",
   "disabled": false,
   "has_password": true,
-  "identities": [ { "provider_slug": "company-sso", "linked_at": "2026-10-10T09:00:00Z" } ],
+  "identities": [
+    { "provider_slug": "company-sso", "linked_at": "2026-10-10T09:00:00Z" }
+  ],
   "created_at": "2026-10-10T09:00:00Z"
 }
 ```
@@ -539,8 +571,9 @@ The implemented backend accepts `limit` (1–200, default 50) and an opaque
 `cursor`, returning `{ "items": [...], "next_cursor": null | "..." }`.
 Passwords, hashes, identity subjects and provider secrets are never projected.
 The user-management interface is available at `/users`. GET `/users`,
-GET `/oidc-providers` and GET `/session` accept exactly one
-`X-NetHub-Background: 1` header for passive lookup without idle-time renewal.
+GET `/devices`, GET `/oidc-providers`, GET `/saml-providers` and GET `/session`
+accept exactly one `X-NetHub-Background: 1` header for passive lookup without
+idle-time renewal.
 Explicit reads and all mutations use active lookup.
 
 ### `PATCH /users/{id}`
@@ -573,18 +606,24 @@ Admin only. Request: any of `{ "role": "admin" | "member", "disabled": true | fa
    fragment, removes it from the address bar with `history.replaceState`,
    and calls `POST /invites/inspect`.
 4. The invitee either sets a password (`POST /invites/accept`) or chooses a
-   provider and starts `POST /oidc/{slug}/start` with the invite token.
+   provider and starts its `POST /oidc/{slug}/start` or
+   `POST /saml/{slug}/start` with the invite token.
 
 ### `POST /invites`
 
 Admin only. Request: `{ "email": "alice@example.com", "role": "member" }`.
-An optional `provider_id` restricts the invitation to an enabled provider; null
+An optional `provider_id` restricts the invitation to an enabled OIDC or SAML
+provider; null
 means unrestricted. A restricted invitation cannot use local-password acceptance.
 
 Response `201`:
 
 ```json
-{ "id": "…", "invite_url": "https://console.example.com/invite#…", "expires_at": "2026-10-19T08:00:00Z" }
+{
+  "id": "…",
+  "invite_url": "https://console.example.com/invite#…",
+  "expires_at": "2026-10-19T08:00:00Z"
+}
 ```
 
 - The approved lifetime is 72 hours, generated from one database timestamp.
@@ -593,7 +632,7 @@ Response `201`:
 ### `GET /invites`
 
 Admin only. Lists pending invites (`id`, `email`, `role`, `created_at`,
-`expires_at`, `created_by`), never the token.
+`expires_at`, `provider_id`, `created_by`), never the token.
 The implemented page accepts `limit` (1–200, default 50) and `cursor`, and returns
 `{ "items": [...], "next_cursor": null | "..." }`. `created_by` has `id`/`email`.
 
@@ -610,7 +649,15 @@ Request: `{ "token": "…" }`.
 Response `200`:
 
 ```json
-{ "email": "alice@example.com", "role": "member", "expires_at": "…", "password_allowed": true, "providers": [ { "slug": "company-sso", "display_name": "Company SSO", "kind": "oidc" } ] }
+{
+  "email": "alice@example.com",
+  "role": "member",
+  "expires_at": "…",
+  "password_allowed": true,
+  "providers": [
+    { "slug": "company-sso", "display_name": "Company SSO", "kind": "oidc" }
+  ]
+}
 ```
 
 Errors: `404 invite_invalid`, for an unknown, used, expired or withdrawn
@@ -628,7 +675,9 @@ atomically. Existing emails and provider-restricted local claims are refused;
 no account is attached by email. Validity is checked after invitation/mailbox
 lock waits. An uncertain delivery does not permit token replay: the holder can
 explicitly sign in with the chosen password. The invitation pages support this
-local-password flow; SSO claim support remains unfinished. See [scope and evidence](../deploy/invitations.md).
+local-password and OIDC/SAML claims. Existing accounts are never linked by
+matching email alone. See [invitation scope](../deploy/invitations.md),
+[OIDC admission](../deploy/oidc-login.md) and [SAML admission](../deploy/saml-login.md).
 
 ## 7. OIDC providers
 
@@ -676,7 +725,8 @@ Request:
   plaintext environment value. [Envelope/startup foundation](../deploy/provider-secrets.md)
   is implemented. Provider writes and their SQL acceptance tests are implemented;
   [backend scope and validation limits](../deploy/oidc-providers.md) distinguish
-  them from the unfinished management page and SSO admission flow.
+  source/SQL evidence from [deployed login acceptance](../deploy/validation-two-dex.md).
+  The management and sign-in pages are implemented.
 - Response `201`: the provider object.
 - Errors: `409 slug_taken`, `422 oidc_discovery_failed`.
 
@@ -703,7 +753,111 @@ Response `204`.
   invitation history; its immutable slug remains reserved. It is excluded from
   listing and editing. Repeated deletion returns 404. See [lifecycle](../deploy/oidc-providers.md).
 
+## SAML providers
+
+### Administration
+
+`GET /saml-providers` returns a paginated administrator-only list using the same
+`limit`/`cursor` rules as OIDC. `POST /saml-providers` creates a provider and
+returns `201`; `PATCH /saml-providers/{id}` returns the updated projection;
+`DELETE /saml-providers/{id}` returns `204`. Mutations require the live admin
+session and normal session CSRF checks. A provider projection is:
+
+```json
+{
+  "id": "…",
+  "slug": "company-saml",
+  "display_name": "Company SAML",
+  "entity_id": "https://idp.example.com/saml",
+  "email_attribute": "mail",
+  "enabled": false,
+  "has_signing_key": true,
+  "created_at": "…",
+  "metadata_uri": "https://console.example.com/api/v1/console/saml/company-saml/metadata",
+  "acs_uri": "https://console.example.com/api/v1/console/saml/company-saml/callback"
+}
+```
+
+Creation requires `slug`, `display_name`, `entity_id`, `metadata_xml` and
+`email_attribute`; `enabled` defaults to false. Slugs are immutable/reserved
+lowercase DNS-style labels, shared across provider protocols. PATCH accepts the
+mutable fields only; omitted metadata retains the saved XML and SP signing key.
+Null, repeated, empty-patch, unknown or mistyped fields are refused. Supply only
+changed fields; a `409 provider_changed` means reload before another attempt.
+
+`entity_id` selects the IdP in the supplied XML. Obtain metadata through a trusted
+administrator channel: parsing and endpoint policy do not authenticate its source.
+NetHub does not fetch an arbitrary metadata URL. Decoded metadata is bounded to
+one MiB of UTF-8 XML; only these admin writes accept up to six MiB plus 64 KiB of
+JSON wire data to allow escaping, after administrator/CSRF checks. Metadata,
+expiry and HTTPS/DNS endpoint policy failures return `422 saml_metadata_invalid`.
+Renaming/disabling works offline; enabling and protocol changes validate again.
+A bound IdP entity cannot change (`409 provider_in_use`).
+
+Each provider has an independent encrypted SP signing identity. `metadata_xml`
+and private SP key material are never returned. The computed `metadata_uri`
+is also the SP entity ID; `acs_uri` is its exact POST reply address. Register
+these with the IdP before enabling sign-in. Metadata edits do not silently rotate
+the registered SP key. Explicit signing-key/certificate rotation remains open.
+
+Deletion refuses bound identities. Otherwise it withdraws unused restricted
+invitations, clears encrypted private material and tombstones the disabled
+provider atomically with audit. The slug stays reserved; deleted records no
+longer appear in lists or public metadata. Another deletion returns `404`.
+See [provider boundaries](../deploy/saml-providers.md).
+
+### Browser admission and metadata
+
+`GET /saml/providers` lists enabled choices without authentication or query
+parameters. SAML catalog items include `"protocol": "saml"`, `slug` and
+`display_name`. The OIDC catalog omits the optional protocol field. Invitation
+inspection instead uses `kind` for either provider protocol.
+
+`GET /saml/{slug}/metadata` returns public SP XML with
+`Content-Type: application/samlmetadata+xml; charset=utf-8`. It accepts HEAD,
+requires no session and remains available while disabled for initial registration.
+It publishes a certificate, persistent NameID format and signed AuthnRequest
+policy, never a private key or a login receipt. Query parameters are refused.
+
+`POST /saml/{slug}/start` uses the same Origin, JSON `{}` or optional
+`invite_token`, existing-session and rate-limit rules as OIDC start. It returns
+`200 { "redirect_url": "https://idp.example.com/…" }` and the dedicated
+five-minute SAML browser-binding cookie. The console navigates to the signed
+Redirect request. RelayState, browser and invite bearers are stored as digests;
+the request ID is separately encrypted and bound to tenant/provider/revision.
+
+`POST /saml/{slug}/callback` is an SP-initiated browser ACS, not a JSON mutation:
+
+- It accepts only `application/x-www-form-urlencoded`, at most two MiB, with
+  exactly one `SAMLResponse` and one `RelayState`. Query parameters, compressed
+  bodies, repeated parameters or additional fields are refused.
+- It requires the one-use browser-bound receipt and the dedicated cookie. It
+  does not require the cross-site IdP Origin to equal the console Origin.
+- A matching receipt is consumed before signature/assertion verification and
+  cannot be restored by a failed assertion. A wrong browser cannot consume it.
+- Shared authcore verifies signature, issuer, audience, destination, request,
+  time bounds and replay. Identity uses a persistent issuer/SP-scoped NameID;
+  unsolicited IdP-initiated login is refused.
+- The exact configured signed mail attribute is used for invitation admission.
+  SAML has no OIDC `email_verified` claim requirement. A matching email alone
+  cannot attach an existing account or create an uninvited user.
+- Final admission rechecks current provider revision and active account, retaining
+  invitation restrictions and atomic identity/session/audit updates.
+- Success sets the normal Lax session cookie and returns `303 /`. Failure returns
+  `303 /login?error=sso_failed`; raw assertions/upstream diagnostics never enter
+  the response or audit. A consumed binding is cleared without clearing a newer
+  binding from a stale callback.
+
+See [SAML admission](../deploy/saml-login.md) and the separate actual
+[Keycloak deployment evidence](../deploy/validation-keycloak-saml.md). Synthetic
+management-page navigation does not establish signed IdP or SQL admission.
+
 ## 8. Audit log and traffic
+
+**Reserved:** neither endpoint below has a Web handler. These are design
+proposals, not current responses. The implemented read-only
+[`doctor --audit`](../deploy/audit-chain.md) is a separate CLI operation and does
+not expose an audit-list HTTP API or traffic counters.
 
 ### `GET /audit`
 
@@ -725,64 +879,65 @@ per device and the monthly total for the instance (DESIGN §5, §6). The counter
 is for visibility only; nothing is blocked.
 
 ```json
-{ "month": "2026-10", "total_bytes": 123456789, "devices": [ { "device_id": "…", "bytes": 12345678 } ] }
+{
+  "month": "2026-10",
+  "total_bytes": 123456789,
+  "devices": [{ "device_id": "…", "bytes": 12345678 }]
+}
 ```
 
 ## 9. Error codes
 
-| HTTP | `code` | Meaning |
-|---|---|---|
-| 400 | `invalid_request` | Malformed JSON, unknown field, or a field that fails validation |
-| 401 | `unauthenticated` | No valid session |
-| 401 | `invalid_credentials` | Sign-in failed (deliberately generic) |
-| 403 | `forbidden` | Signed in, but the role does not allow this action |
-| 403 | `csrf_failed` | Missing or wrong CSRF token, or a missing or foreign `Origin` where one is required |
-| 403 | `invalid_current_password` | The current password given to `POST /me/password` is wrong |
-| 404 | `not_found` | The object does not exist, or the caller may not see it |
-| 404 | `invite_invalid` | The invite token is unknown, used, expired or withdrawn (deliberately generic) |
-| 405 | `method_not_allowed` | The route does not accept this HTTP method; see Allow |
-| 409 | `device_revoked` | The action needs a device that is not revoked |
-| 409 | `last_admin` | The change would leave no active admin |
-| 409 | `last_local_admin` | The change would leave no active admin with a local password |
-| 409 | `user_exists` | A user with this email already exists |
-| 409 | `slug_taken` | Another provider already uses this slug |
-| 409 | `provider_in_use` | Users are still bound to this provider (blocks deletion and issuer changes) |
-| 413 | `payload_too_large` | The request body exceeds 64 KiB |
-| 415 | `unsupported_media_type` | A request body is not `application/json` |
-| 422 | `weak_password` | The new password does not meet the password policy |
-| 422 | `oidc_discovery_failed` | The issuer's discovery document could not be fetched or is invalid |
-| 429 | `rate_limited` | Too many attempts; see `Retry-After` |
-| 500 | `internal` | Unexpected error. The response contains no details; the server log has them |
+| HTTP | `code`                   | Meaning                                                                                                      |
+| ---- | ------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| 400  | `invalid_request`        | Malformed JSON, unknown field, or a field that fails validation                                              |
+| 401  | `unauthenticated`        | No valid session                                                                                             |
+| 401  | `invalid_credentials`    | Sign-in failed (deliberately generic)                                                                        |
+| 403  | `forbidden`              | Signed in, but the role does not allow this action                                                           |
+| 403  | `csrf_failed`            | Missing or wrong CSRF token, or a missing or foreign `Origin` where one is required                          |
+| 404  | `not_found`              | The object does not exist, or the caller may not see it                                                      |
+| 404  | `invite_invalid`         | The invite token is unknown, used, expired or withdrawn (deliberately generic)                               |
+| 405  | `method_not_allowed`     | The route does not accept this HTTP method; see Allow                                                        |
+| 409  | `device_revoked`         | The action needs a device that is not revoked                                                                |
+| 409  | `last_admin`             | The change would leave no active admin                                                                       |
+| 409  | `last_local_admin`       | The change would leave no active admin with a local password                                                 |
+| 409  | `user_exists`            | A user with this email already exists                                                                        |
+| 409  | `slug_taken`             | Another provider already uses this slug                                                                      |
+| 409  | `provider_in_use`        | Users are still bound to this provider (blocks deletion and issuer changes)                                  |
+| 409  | `provider_changed`       | Concurrent provider revision changed; reload before another edit                                             |
+| 409  | `already_signed_in`      | Sign out before beginning another SSO flow                                                                   |
+| 409  | `device_not_revoked`     | Manual disconnect requires an already revoked device                                                         |
+| 404  | `provider_unavailable`   | Invitation restriction refers to an unavailable provider                                                     |
+| 401  | `sso_failed`             | SSO start could not be admitted; no upstream reason is exposed                                               |
+| 422  | `saml_metadata_invalid`  | Trusted metadata could not pass the configured SAML policy                                                   |
+| 503  | `sso_unavailable`        | No configured backend can start the selected protocol                                                        |
+| 413  | `payload_too_large`      | A JSON body exceeds its route limit; normally 64 KiB                                                         |
+| 415  | `unsupported_media_type` | An ordinary JSON API request has unsupported content type/encoding                                           |
+| 422  | `weak_password`          | The new password does not meet the password policy                                                           |
+| 422  | `oidc_discovery_failed`  | The issuer's discovery document could not be fetched or is invalid                                           |
+| 429  | `rate_limited`           | Too many attempts; see `Retry-After`                                                                         |
+| 500  | `internal`               | Operation unavailable; diagnostics expose only a fixed operation category, not raw database/upstream details |
 
 ## 10. Decisions and remaining work
 
-Confirmed on 2026-10-18:
+Current implementation preserves these decisions:
 
-- D18 uses a separate configured console hostname and device wildcard. A device
-  may never serve the console hostname on any port; authz must reject every
-  custom domain during NewProxy validation.
-- D15 runs init, Compose/migration, then a one-shot local admin-create command.
-  Web never receives owner credentials; there is no first-admin HTTP endpoint.
-- D7 enables source-IP gating for v1: Open grants 30 minutes; another explicit
-  Open renews it. Reads and background traffic do not renew it.
-- D6 uses 10-second heartbeats and a 30-second timeout, denying Ping/Login/NewProxy
-  together for revocation. Backend failure and hanging-hook limits remain as
-  measured in W0; the API does not promise instantaneous live disconnection.
-- Device revocation is one-way. The database already enforces it, limits web's
-  writes, and provides scoped Open/cutoff functions. The scoped Open HTTP API is
-  implemented with generated relay source checks; revocation/cutoff HTTP
-  integration, Open UI and native gate acceptance remain W5.
-- Web's enrollment status-column grants are implemented. Hash read/expiry update
-  and token consumption remain unavailable to web.
-- SAML is included in v1 through authcore/saml; its complete HTTP flows, trusted
-  metadata, persistent replay store, invitation binding, and browser request state
-  are W6 alongside OIDC.
+- D18 separates the configured console hostname and device wildcard. Authz
+  refuses custom domains and device use of the console host.
+- D15 creates the first local administrator through a one-shot CLI operation;
+  Web has no owner credential or first-admin HTTP endpoint.
+- D7 grants an exact server-resolved source IP for 30 minutes only after explicit
+  Open. Reads and background traffic cannot renew that grant.
+- D6 rejects Ping/Login/NewProxy together after revocation. The heartbeat settings
+  are 10/30 seconds; measured failure/hang and installed revoke timing are not an
+  instantaneous all-stream cutoff guarantee.
+- D19 uses an independent console HTTPS address input and token input.
+- Shared authcore handles OIDC and SAML protocol verification; durable flow,
+  invitation and account policy remain NetHub's tenant-bound operations.
 
-Still open for their implementation stages:
-
-- D19: final device enrollment input format and console-address discovery.
-- W5: cutoff endpoint role policy and authz processing of stored cutoff requests.
-- W6: invitation/provider restriction workflows, linking additional identities
-  to an existing account, and the password-policy checks behind weak_password.
-- Browser, init/admin, Compose/Caddy health isolation, backup, and complete
-  deployment acceptance are not proved by the W3 HTTP tests.
+Remaining work includes the reserved HTTP routes above, linking extra identities
+into an existing account, traffic soft counters, operational credential rotation,
+other doctor checks, scheduled database backups and full clean-host restoration.
+Public-provider, native mobile/Open, revoke timing comparison, friend deployment,
+disclosure and formal/canary release gates remain open. Accepted isolated SQL,
+synthetic pages, two-Dex or Keycloak flows do not complete all W5-W7 requirements.

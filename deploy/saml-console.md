@@ -44,3 +44,10 @@ The separate [Keycloak deployment](validation-keycloak-saml.md) later passed
 signed request/response admission with normal TLS in PR #182. Public-provider
 and complete W6 acceptance remain open; synthetic page screenshots do not
 establish either result.
+
+PR #186 fixed the missing passive SAML inventory route after a failing-before
+regression. Genuine PostgreSQL over HTTPS verified unchanged session activity
+for every background inventory read. All six checks passed in run `40432068453`,
+including inherited SQL/process/deployment/IdP and cleanup gates. Both human DCOs
+and all eight final image hashes/visuals were reviewed; the tested and merged
+trees match. This does not close the remaining runtime/operator W5-W7 gates.
