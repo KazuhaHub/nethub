@@ -75,3 +75,9 @@ hashed oversized record. It invokes the compiled CLI with the Web credential and
 checks that failure neither discloses its private fixture payload nor repairs it.
 Hosted execution and acceptance must be verified at the exact source revision;
 local compilation or skipped database tests do not establish these SQL results.
+
+PR #185 passed all six checks in run `40420387566`, including actual historical
+SQL and compiled-command execution, inherited deployment/IdP regressions and
+owned cleanup. All eight final image hashes and visuals were reviewed, and the
+merged tree equals the tested tree. This is W7-1 acceptance within the limits
+above; the other doctor, backup/restore, rotation and release gates remain open.

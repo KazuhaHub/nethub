@@ -11,6 +11,13 @@ behavior apply. A lost mutation response does not replay a write. Closing and
 refreshing is required before another attempt. Inventory checks remain passive
 while visible, and loss of administrator authority clears the management view.
 
+The marked background `GET /api/v1/console/saml-providers` uses passive session
+validation, preserving the idle deadline while still checking the live account
+and administrator role. Explicit reads and mutations remain active operations;
+the background header does not bypass their authentication or CSRF checks. The
+HTTP regression covers this distinction, and the genuine PostgreSQL HTTPS
+fixture compares stored `last_seen_at` before and after all inventory polls.
+
 Sign-in reads both protocol catalogs independently. Available choices survive
 failure of the other catalog; local-password sign-in remains independent. Each
 button starts its provider's protocol explicitly. Invitation claims retain the
@@ -33,5 +40,7 @@ These page checks do not establish genuine IdP or database admission. The
 backend's signed-XML and PostgreSQL results are recorded separately. Final
 hosted page screenshots were hash-verified and visually reviewed after all six
 checks passed in run `40401585107`; PR #181 merged with the tested tree intact.
-Deployed signed IdP flows with normal TLS and complete W6 acceptance remain
-required.
+The separate [Keycloak deployment](validation-keycloak-saml.md) later passed
+signed request/response admission with normal TLS in PR #182. Public-provider
+and complete W6 acceptance remain open; synthetic page screenshots do not
+establish either result.
