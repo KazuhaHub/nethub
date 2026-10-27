@@ -72,6 +72,7 @@ services:
     security_opt: [no-new-privileges:true]
   frps:
     image: nethub-frps-local:dev
+    environment: {TZ: UTC}
     build:
       context: ..
       dockerfile: deploy/images/frps/Dockerfile
