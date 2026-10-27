@@ -110,6 +110,7 @@ type DeviceDisconnect struct {
 // Repository is tenant-bound at startup; HTTP cannot choose the tenant or pass
 // an authorization role. Implementations recheck the active actor in SQL.
 type Repository interface {
+	TrafficRepository
 	UserRepository
 	InvitationRepository
 	OIDCProviderRepository

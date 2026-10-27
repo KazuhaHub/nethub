@@ -1,8 +1,8 @@
 # Relay traffic soft counters
 
-The W7-2 sampling foundation is in progress. The tenant/month API, console view,
-warning configuration and actual frps/PostgreSQL/browser acceptance are still
-required; these source changes do not establish completed traffic reporting.
+W7-2 is in progress. Sampling, the administrator tenant/month API, console view
+and warning configuration are implemented. Actual frps/PostgreSQL/browser
+acceptance at the final revision is still required before accepting the complete path.
 
 ## Source and accounting
 
@@ -55,6 +55,27 @@ read monthly facts but cannot change them or read sampling baselines. The
 backup role can read both tables without receiving write authority. Wide
 monthly totals use exact decimal storage rather than overflowing an int64 sum.
 
+## Monthly view and warning
+
+Administrators open **Traffic** in the console, choose a UTC month and page through
+recorded device usage. Workspace totals cover every page. Counts travel as exact
+decimal strings and are formatted with BigInt; full bytes remain visible in the
+summary and cell titles. Observation timestamps, resets and accounting limits
+remain visible, including empty months and removed devices. Hidden pages pause
+automatic refresh. Background reads are passive; explicit refresh is active.
+Errors retain a stale-data notice, and loss of administrator authority clears
+private data and any open dialog.
+
+**Monthly warning** edits a per-tenant byte threshold without rebuilding or
+restarting the deployment. Zero disables it. The current setting applies to all
+viewed months, and equality does not trigger a warning. Administrator/CSRF,
+canonical decimal input, revision compare-and-swap and an atomic audit protect
+changes. A no-op keeps the revision and audit unchanged. Conflicts or uncertain
+delivery require reloading; the console never automatically replays a write.
+Only Web can read or edit this policy; authz cannot read it and no admission,
+grant, heartbeat or revocation path consults it. Usage above the threshold
+remains available. See the [HTTP contract](../docs/console-api.md#8-audit-log-and-traffic).
+
 ## Validation still required
 
 Local parser/worker tests exercise numeric limits, offline admission, bounded
@@ -64,4 +85,12 @@ concurrent accounting, month boundaries, exact wide values, removed-device
 history, role/RLS isolation, malformed input and advisory-lock skipping. Those
 SQL cases must actually execute at the tested source revision. Real pinned
 frps/frpc traffic and a rendered console must also be checked before accepting
-the complete W7-2 path. No threshold may block or revoke a device.
+the complete W7-2 path. New cases also cover real HTTPS passive reports,
+administrator/CSRF refusal, pagination totals, empty months, forced RLS, audit
+rollback, no-op preservation and eight-way warning revision conflicts. A separate
+synthetic browser suite checks exact wide totals, both themes, mobile dialogs,
+role loss and uncertain writes; it does not establish relay or SQL behavior.
+The deployment suite transfers real payloads through two pinned official clients,
+compares actual frps counters with durable console/monthly facts and renders
+the deployed page. Exceeded-warning probes must still make new verified TLS
+connections with unchanged grants and no revocation. No threshold may block or revoke a device.

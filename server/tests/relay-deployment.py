@@ -15,6 +15,7 @@ import uuid
 
 from relay_maintenance import exercise
 from relay_heartbeat import exercise_heartbeats
+from relay_traffic import exercise_traffic
 
 
 stage, port = Path(sys.argv[1]), int(sys.argv[2])
@@ -63,7 +64,7 @@ def stop_client(client):
             client.wait(timeout=5)
 
 
-def curl(path, payload=None, authenticated=False, expect_json=True):
+def curl(path, payload=None, authenticated=False, expect_json=True, method=None):
     args = ["curl", "--silent", "--show-error", "--fail", "--noproxy", "*",
             "--max-time", "8", "--cacert", str(stage / "console-ca.pem"),
             "--connect-to", f"console.example.com:443:127.0.0.1:{port}"]
@@ -72,6 +73,9 @@ def curl(path, payload=None, authenticated=False, expect_json=True):
         request.write_text(json.dumps(payload), encoding="utf-8")
         args += ["-H", "Content-Type: application/json", "-H", "Origin: https://console.example.com",
                  "--data-binary", "@" + str(request)]
+    if method is not None:
+        assert method == "PATCH"
+        args += ["--request", method]
     if authenticated:
         args += ["-b", str(work / "cookies")]
         if payload is not None:
@@ -90,7 +94,7 @@ def curl(path, payload=None, authenticated=False, expect_json=True):
 
 class Backend(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        payload = self.headers.get("Host", "").encode()
+        payload = b"x" * 65536 if self.path == "/traffic" else self.headers.get("Host", "").encode()
         self.send_response(200)
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
@@ -327,6 +331,7 @@ try:
     assert all(client.poll() is None for client in valid_clients)
     print("Deployed relay passed verified HTTPS enrollment, tampered-claim denial, two simultaneous TLS tunnels and actual frps-to-console observations")
     print("Both legitimate assigned subdomains passed verified TLS after the operation-specific Login and NewProxy denials")
+    exercise_traffic(stage, port, assignments, gateway, curl, check_tunnels, sql)
     exercise(stage, sys.argv[3], assignments, check_tunnels)
 
     def revocation_client():

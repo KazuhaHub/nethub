@@ -1,4 +1,30 @@
 export type User = { id: string; email: string; role: "admin" | "member" };
+export type TrafficDevice = {
+  device_id: string;
+  label: string;
+  hostname: string;
+  removed: boolean;
+  in_bytes: string;
+  out_bytes: string;
+  total_bytes: string;
+  reset_events: string;
+  first_observed_at: string;
+  last_observed_at: string;
+};
+export type TrafficPage = {
+  month: string;
+  in_bytes: string;
+  out_bytes: string;
+  total_bytes: string;
+  reset_events: string;
+  first_observed_at: string | null;
+  last_observed_at: string | null;
+  warning_bytes: string | null;
+  warning: boolean;
+  warning_revision: number;
+  items: TrafficDevice[];
+  next_cursor: string | null;
+};
 export type ManagedUser = User & {
   disabled: boolean;
   has_password: boolean;
@@ -254,6 +280,30 @@ async function request<T>(
 }
 
 export const api = {
+  traffic(
+    month: string,
+    cursor: string | null,
+    signal?: AbortSignal,
+    background = false,
+  ) {
+    const query = new URLSearchParams({ month, limit: "50" });
+    if (cursor) query.set("cursor", cursor);
+    return request<TrafficPage>(
+      `/traffic?${query}`,
+      undefined,
+      signal,
+      background,
+    );
+  },
+  setTrafficWarning(warning_bytes: string, expected_revision: number) {
+    return request<{ warning_bytes: string | null; revision: number }>(
+      "/traffic/settings",
+      { warning_bytes, expected_revision },
+      AbortSignal.timeout(15000),
+      false,
+      "PATCH",
+    );
+  },
   samlProviders(
     cursor: string | null,
     signal?: AbortSignal,

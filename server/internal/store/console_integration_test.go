@@ -136,7 +136,7 @@ func testConsoleHTTP(t *testing.T, ctx context.Context, owner, db, authz *sql.DB
 	for _, test := range []struct {
 		client     *http.Client
 		user, path string
-	}{{client, member, "/api/v1/console/session"}, {client, member, "/api/v1/console/devices"}, {adminClient, admin, "/api/v1/console/users"}, {adminClient, admin, "/api/v1/console/oidc-providers"}, {adminClient, admin, "/api/v1/console/saml-providers"}} {
+	}{{client, member, "/api/v1/console/session"}, {client, member, "/api/v1/console/devices"}, {adminClient, admin, "/api/v1/console/users"}, {adminClient, admin, "/api/v1/console/oidc-providers"}, {adminClient, admin, "/api/v1/console/saml-providers"}, {adminClient, admin, "/api/v1/console/traffic"}} {
 		var before, after time.Time
 		if err = owner.QueryRowContext(ctx, `SELECT last_seen_at FROM sessions WHERE user_id=$1`, test.user).Scan(&before); err != nil {
 			t.Fatal(err)
@@ -172,6 +172,12 @@ func testConsoleHTTP(t *testing.T, ctx context.Context, owner, db, authz *sql.DB
 	}
 	t.Log("Background user inventory and authority refresh preserved actual PostgreSQL last_seen_at; explicit session lookup advanced it")
 	t.Log("Background device, user, OIDC and SAML inventories preserved actual PostgreSQL session last_seen_at through HTTPS")
+	t.Log("Background traffic reports preserved actual PostgreSQL session last_seen_at through HTTPS")
+	request(client, "GET", "/api/v1/console/traffic", "", "", 403)
+	request(client, "PATCH", "/api/v1/console/traffic/settings", `{"warning_bytes":"1","expected_revision":0}`, session.CSRFToken, 403)
+	request(adminClient, "PATCH", "/api/v1/console/traffic/settings", `{"warning_bytes":"1","expected_revision":0}`, "", 403)
+	request(adminClient, "PATCH", "/api/v1/console/traffic/settings", `{"warning_bytes":"1","expected_revision":0}`, adminSession.CSRFToken, 200)
+	request(adminClient, "PATCH", "/api/v1/console/traffic/settings", `{"warning_bytes":"2","expected_revision":0}`, adminSession.CSRFToken, 409)
 	data, _ = request(client, "GET", "/api/v1/console/devices?online=true&limit=1", "", "", 200)
 	var page web.DevicePage
 	if err = json.Unmarshal(data, &page); err != nil {
