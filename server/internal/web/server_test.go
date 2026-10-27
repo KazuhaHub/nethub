@@ -228,7 +228,11 @@ func TestOnlyBackgroundInventoryUsesPassiveAuthentication(t *testing.T) {
 	if response := call(server, "GET", prefix+"/oidc-providers", "", cookie, headers); response.Code != 200 || repository.passiveCalls != 4 {
 		t.Fatal("background provider inventory did not use passive session validation")
 	}
-	for _, path := range []string{prefix + "/users", prefix + "/session", prefix + "/oidc-providers"} {
+	original.samlPage = SAMLProviderPage{Items: []SAMLProvider{}}
+	if response := call(server, "GET", prefix+"/saml-providers", "", cookie, headers); response.Code != 200 || repository.passiveCalls != 5 {
+		t.Fatal("background SAML inventory did not use passive session validation")
+	}
+	for _, path := range []string{prefix + "/users", prefix + "/session", prefix + "/oidc-providers", prefix + "/saml-providers"} {
 		if response := call(server, "GET", path, "", cookie, nil); response.Code != 500 {
 			t.Fatal("explicit read bypassed active authentication", path)
 		}
@@ -241,11 +245,14 @@ func TestOnlyBackgroundInventoryUsesPassiveAuthentication(t *testing.T) {
 	}
 	headers["Content-Type"] = "application/json"
 	headers["X-CSRF-Token"] = session.CSRFToken
-	if response := call(server, "POST", prefix+"/enroll-tokens", `{}`, cookie, headers); response.Code != 500 || repository.passiveCalls != 4 {
+	if response := call(server, "POST", prefix+"/enroll-tokens", `{}`, cookie, headers); response.Code != 500 || repository.passiveCalls != 5 {
 		t.Fatal("background marker changed mutation authentication")
 	}
-	if response := call(server, "PATCH", prefix+"/users/00000000-0000-4000-8000-000000000099", `{"disabled":true}`, cookie, headers); response.Code != 500 || repository.passiveCalls != 4 {
+	if response := call(server, "PATCH", prefix+"/users/00000000-0000-4000-8000-000000000099", `{"disabled":true}`, cookie, headers); response.Code != 500 || repository.passiveCalls != 5 {
 		t.Fatal("background marker changed user mutation authentication")
+	}
+	if response := call(server, "PATCH", prefix+"/saml-providers/00000000-0000-4000-8000-000000000099", `{"enabled":false}`, cookie, headers); response.Code != 500 || repository.passiveCalls != 5 || original.samlWrites != 0 {
+		t.Fatal("background marker changed SAML mutation authentication")
 	}
 }
 func (f *fixtureRepository) Health(context.Context) error { return f.failure }

@@ -1800,6 +1800,8 @@ tests; existing local-password emergency-admin access remains available.
 `audit_log` 的每条记录带上前一条的哈希。web 和 authz 两个进程都会写，所以计算 `prev_hash` 时要串行，例如用数据库的咨询锁，避免两条记录指向同一个前驱。
 `nethub doctor` 加一个链完整性检查。
 
+W7-1 validation (2026-10-26): PR #185 merged as `7d496ad` after all six checks in run `40420387566`, actual SQL/compiled-command and inherited logs, two DCOs and review of all eight final images/hashes. Existing hashes remain unchanged; future appends use versioned UTC encoding. The read-only doctor rejects corrupted or unreconstructable history without partial success, payload output or repair. This does not complete the other W7 steps. See [operator instructions and limits](../deploy/audit-chain.md).
+
 DESIGN §6 写明了：这条哈希链只防意外损坏，**不能当成防篡改的证据**，文档里照实写。
 
 **W7-2 流量软计数。**
