@@ -50,3 +50,21 @@ func TestDoctorPublicTLSRefusesPrivateHealthMode(t *testing.T) {
 		t.Fatal("public TLS and private health modes were combined")
 	}
 }
+
+func TestDoctorRuntimeRolesModeBoundary(t *testing.T) {
+	for _, args := range [][]string{
+		{"--database-roles"},
+		{"--database-roles", "--audit", "--password-file", "unused"},
+		{"--database-roles", "--password-file", "unused", "--public-tls"},
+		{"--database-roles", "--password-file", "unused", "--directory", "."},
+		{"--database-roles", "--password-file", "unused", "--audit-timezone", "UTC"},
+		{"--database-roles", "--password-file", "unused", "--audit-timeout", "30s"},
+		{"--database-roles", "--password-file", "unused", "--sslmode", "prefer"},
+		{"--database-roles", "--password-file", "unused", "--port", "65536"},
+	} {
+		var out, diagnostic bytes.Buffer
+		if status := run(append([]string{"doctor"}, args...), &out, &diagnostic); status != 2 || out.Len() != 0 {
+			t.Fatal("ambiguous runtime-role mode reached database execution", args, status)
+		}
+	}
+}

@@ -112,9 +112,28 @@ This is a probe from the machine running the command, not an independent
 external-network witness. It neither proves external TCP 443/7000/8443
 reachability nor validates HTTP routing, cookies, ACME provenance or every
 reverse proxy address. It uses system trust; there is no insecure/private-CA
-override flag. Runtime role/mount separation, frps/authz loopback, recent database
+override flag. Runtime container separation, frps/authz loopback, recent database
 backup and version agreement remain separate unfinished W7-3 checks. Hosted
 acceptance for this new option is still pending.
+
+The separate in-progress database metadata mode uses only the Web-role password:
+
+```sh
+docker compose exec -T nethub-web /nethub doctor --database-roles \
+  --password-file /run/secrets/pg_nethub_web --sslmode disable
+```
+
+The generated stack uses an isolated database network; keep normal database TLS
+verification for external databases. This mode requires the actual Web session
+identity, checks Web/authz role flags and memberships, forced device RLS, schema
+creation and Web identity/credential privileges in a read-only snapshot. It does
+not test privileges by trying forbidden writes or reading credentials. It emits
+a fixed repair suggestion rather than database diagnostics. Existing permitted
+label/revocation updates are distinct from immutable device identity. A passing
+database snapshot does not prove the running containers' mounts or ongoing
+security after a later role change. Audit-chain checking is a separate mode.
+The new genuine SQL and compiled-command acceptance cases are not yet executed
+at the final hosted source revision.
 
 For linked audit history, use the separate [read-only audit mode](../deploy/audit-chain.md)
 inside the existing Web container. It verifies a database snapshot without

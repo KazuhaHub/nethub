@@ -24,10 +24,11 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	expected := flags.String("expected-address", "", "Also check console/wildcard DNS against this address")
 	publicTLS := flags.Bool("public-tls", false, "Verify the initialized console hostname on TCP 443 with system certificate trust")
 	audit := flags.Bool("audit", false, "Verify the deployment audit chain in a read-only database snapshot")
-	host := flags.String("host", "postgres", "Audit database hostname")
-	port := flags.Uint("port", 5432, "Audit database port")
-	database := flags.String("database", "nethub", "Audit database name")
-	passwordFile := flags.String("password-file", "", "Web-role password file for read-only audit verification")
+	roles := flags.Bool("database-roles", false, "Check runtime role and device identity privileges through the Web database identity")
+	host := flags.String("host", "postgres", "Database hostname for read-only checks")
+	port := flags.Uint("port", 5432, "Database port for read-only checks")
+	database := flags.String("database", "nethub", "Database name for read-only checks")
+	passwordFile := flags.String("password-file", "", "Web-role password file for read-only database checks")
 	tls := flags.String("sslmode", "verify-full", "verify-full, or disable for an isolated local database")
 	legacyZone := flags.String("audit-timezone", "UTC", "Original writer timezone for legacy audit records")
 	auditTimeout := flags.Duration("audit-timeout", 30*time.Second, "Total audit check budget, between one second and five minutes")
@@ -42,18 +43,26 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	}
 	selected := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { selected[f.Name] = true })
-	if *audit {
+	if *audit || *roles {
+		if (*audit && *roles) || (*roles && (selected["audit-timezone"] || selected["audit-timeout"])) {
+			fmt.Fprintln(stderr, "Run audit history and database role checks as separate modes")
+			return 2
+		}
 		if selected["directory"] || selected["health-url"] || selected["expected-address"] || selected["public-tls"] || *passwordFile == "" ||
 			*host == "" || *database == "" || *port == 0 || *port > 65535 || (*tls != "verify-full" && *tls != "disable") ||
 			*legacyZone == "" || len(*legacyZone) > 64 || *auditTimeout < time.Second || *auditTimeout > 5*time.Minute {
-			fmt.Fprintln(stderr, "Audit mode requires valid database settings, a Web-role password file and a bounded timeout; run file/DNS/health checks separately")
+			fmt.Fprintln(stderr, "Database checks require valid settings, a Web-role password file and a bounded timeout; run file/DNS/TLS/health checks separately")
 			return 2
 		}
-		return runAuditDoctor(auditDoctorOptions{Database: store.DatabaseConfig{Host: *host, Port: uint16(*port), Database: *database, PasswordFile: *passwordFile, SSLMode: *tls}, LegacyZone: *legacyZone, Timeout: *auditTimeout}, stdout, stderr)
+		config := store.DatabaseConfig{Host: *host, Port: uint16(*port), Database: *database, PasswordFile: *passwordFile, SSLMode: *tls}
+		if *roles {
+			return runRoleDoctor(config, stdout, stderr)
+		}
+		return runAuditDoctor(auditDoctorOptions{Database: config, LegacyZone: *legacyZone, Timeout: *auditTimeout}, stdout, stderr)
 	}
 	for _, name := range []string{"host", "port", "database", "password-file", "sslmode", "audit-timezone", "audit-timeout"} {
 		if selected[name] {
-			fmt.Fprintln(stderr, "Database options require doctor --audit")
+			fmt.Fprintln(stderr, "Database options require doctor --audit or --database-roles")
 			return 2
 		}
 	}
