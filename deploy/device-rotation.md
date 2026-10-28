@@ -8,10 +8,16 @@ Keep independent local access when testing it. Rotation can reconnect the tunnel
 The action retains the enrolled device, assigned subdomain, native GUI login,
 certificate identity and local stop policy. It obtains the current relay
 assignment over verified console HTTPS. A private journal persists its random
-candidate and operation ID before any request. Only an atomic server transaction
+candidate and operation ID before any rotation request. Only an atomic server transaction
 can replace the credential and claim. The native PHP model then saves that exact
 assignment under its configuration lock and confirms the written XML. Python
 does not write `config.xml`.
+
+A fresh operation first synchronizes managed relay trust through its existing
+verified transaction. Explicit rotation can refresh trust while locally disabled
+or stopped, without releasing either condition. The periodic trust job still
+leaves inactive devices alone. A retained rotation skips this refresh and keeps
+its original snapshot until recovery completes.
 
 If a request, model save or reconciliation is interrupted, retry **Rotate
 credentials**. The retained candidate recovers an unknown committed response;

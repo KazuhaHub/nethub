@@ -1,8 +1,10 @@
 """Dispatch rotation under the shared lock without exposing private assignments."""
 from unittest import mock
+import xml.etree.ElementTree as ET
 
 import pytest
 import test_reconcile as base
+from test_lifecycle_agent import case as enrolled_case
 
 
 @pytest.fixture
@@ -31,10 +33,35 @@ def test_rotation_dispatch_uses_private_journal_and_existing_reconcile(case):
 def test_rotation_never_contacts_backend_after_local_removal_or_revocation(case, marker):
     case.agent.state.mkdir(parents=True, exist_ok=True)
     (case.agent.state / marker).touch()
-    with mock.patch.object(case.agent, 'rotation_backend') as backend:
+    with mock.patch.object(case.agent, 'rotation_backend') as backend, \
+            mock.patch('relay_trust_sync.TrustSynchronizer.sync') as sync:
         result = case.agent.apply('rotate')
     assert result['success'] is False and result['action'] == 'rotate'
     backend.assert_not_called()
+    sync.assert_not_called()
+
+
+@pytest.mark.parametrize('marker', ['disabled', 'stopped'])
+def test_explicit_rotation_refreshes_trust_without_releasing_stop_policy(enrolled_case, marker):
+    agent = enrolled_case.agent
+    configuration = enrolled_case.root / 'conf/config.xml'
+    tree = ET.parse(configuration)
+    tree.find('OPNsense/NetHubAgent/enabled').text = '0'
+    tree.write(configuration)
+    before = configuration.read_bytes()
+    agent.state.mkdir(parents=True, exist_ok=True)
+    (agent.state / marker).touch()
+    applied = {'success': True, 'phase': 'applied', 'confirmed': True}
+    rotated = {'success': True, 'action': 'rotate', 'phase': 'applied'}
+    with mock.patch('relay_trust_sync.TrustSynchronizer.sync', return_value=applied) as sync, \
+            mock.patch.object(agent, 'rotation_backend'), \
+            mock.patch('rotation_transaction.rotate', return_value=rotated) as rotate:
+        assert agent.apply('trust')['phase'] == 'inactive'
+        sync.assert_not_called()
+        assert agent.apply('rotate') == rotated
+    sync.assert_called_once()
+    rotate.assert_called_once()
+    assert configuration.read_bytes() == before and (agent.state / marker).exists()
 
 
 @pytest.mark.parametrize('phase', ['prepared', 'received'])

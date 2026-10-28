@@ -19,7 +19,7 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_scheduler.py::test_enrollment_handoff_has_no_credentials_or_cached_output',
         'agents/opnsense/tests/test_enrollment.py::test_php_controller_keeps_credentials_private_and_saves_under_native_lock',
     ]),
-    'service': (45, [
+    'service': (47, [
         'agents/opnsense/plugin/tests/test_circuit_breaker.py',
         'agents/opnsense/plugin/tests/test_service_controller.py',
         'agents/opnsense/plugin/tests/test_scheduler.py',

@@ -280,7 +280,7 @@ class Agent:
         self.atomic(self.state/'trust.json', (json.dumps(public)+'\n').encode())
         return public
 
-    def trust_locked(self):
+    def trust_locked(self, for_rotation=False):
         from relay_trust_sync import TrustSynchronizer, TrustSyncError
         pending_rotation = self.state / 'rotation.json'
         if pending_rotation.exists() or pending_rotation.is_symlink():
@@ -293,9 +293,11 @@ class Agent:
                                       'message': 'Complete the saved credential rotation before synchronizing relay trust.'})
         self.recover_trust()
         model = self.lifecycle_model()
+        forbidden = any((self.state/name).exists() for name in ('revoked', 'uninstalling'))
         inactive = model.findtext('enabled') != '1' or any((self.state/name).exists()
-            for name in ('disabled', 'stopped', 'revoked', 'uninstalling'))
-        if inactive or not model.findtext('device_id') or not model.findtext('console_url'):
+            for name in ('disabled', 'stopped'))
+        if (forbidden or inactive and not for_rotation
+                or not model.findtext('device_id') or not model.findtext('console_url')):
             return self.trust_result({'success': True, 'phase': 'inactive', 'confirmed': False})
         try:
             result = TrustSynchronizer(self.trust_transaction()).sync(model.findtext('console_url'),
@@ -515,6 +517,12 @@ class Agent:
             if not pending.exists() and not pending.is_symlink():
                 self.recover_trust()
                 directory = self.config / 'relay-trust'
+                if directory.exists() or directory.is_symlink():
+                    self.trust_transaction().check_rotation_ready()
+                # An explicit rotation may refresh trust while disabled. The
+                # native trust transaction and reconcile retain all stop policy;
+                # the periodic job still leaves inactive devices untouched.
+                self.trust_locked(for_rotation=True)
                 if directory.exists() or directory.is_symlink():
                     self.trust_transaction().check_rotation_ready()
             def rebind(before, after):
