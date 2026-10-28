@@ -182,7 +182,8 @@ class Console:
         value = self.expect(re.escape(marker) + r':([0-9]+)\r?\n',
                             deadline - time.monotonic(), 'bootstrap_exit')
         match = re.search(re.escape(marker) + r':([0-9]+)\r?\n', value)
-        if match.group(1) != '0':
+        self.last_command_exit = int(match.group(1))
+        if self.last_command_exit != 0:
             raise GuestError('Owned guest bootstrap command failed')
         return value[:match.start()]
 
@@ -223,7 +224,7 @@ class Guest:
                 '-serial', f'unix:{self.directory / "serial.sock"},server=on,wait=off',
                 '-netdev', 'user,id=wan,net=10.0.2.0/24', '-device', 'e1000,netdev=wan',
                 '-netdev', f'user,id=lan,net=192.168.1.0/24,host=192.168.1.2,restrict=on,'
-                           f'hostfwd=tcp:127.0.0.1:{self.ssh_port}-192.168.1.1:22,'
+                           f'hostfwd=tcp:127.0.0.1:{self.ssh_port}-192.168.1.1:2222,'
                            f'hostfwd=tcp:127.0.0.1:{self.gui_port}-192.168.1.1:443',
                 '-device', 'e1000,netdev=lan',
             ], stdin=subprocess.DEVNULL, stdout=self.qemu_log, stderr=self.qemu_log)
@@ -239,7 +240,7 @@ printf '\\nNH_%s_PHASE\\n' HOST_KEY_CREATED
 printf '%s\\n' '""" + public + """' > /root/nethub-ci/authorized_keys
 cat > /root/nethub-ci/sshd.conf <<'CONFIG'
 ListenAddress 192.168.1.1
-Port 22
+Port 2222
 HostKey /root/nethub-ci/host-key
 PidFile /root/nethub-ci/sshd.pid
 AuthorizedKeysFile /root/nethub-ci/authorized_keys
@@ -249,6 +250,7 @@ KbdInteractiveAuthentication no
 UsePAM no
 Subsystem sftp /usr/libexec/sftp-server
 CONFIG
+test -d /var/empty || install -d -m 0755 /var/empty
 /usr/sbin/sshd -f /root/nethub-ci/sshd.conf -E /root/nethub-ci/sshd-private.log
 printf '\\nNH_%s_PHASE\\n' SSHD_STARTED
 cat /root/nethub-ci/host-key.pub
@@ -261,6 +263,23 @@ cat /root/nethub-ci/host-key.pub
             self.ssh('test "$(id -u)" = 0\n', 'native root boundary')
             return self
         except Exception:
+            self.bootstrap_failure_codes = []
+            if self.console is not None and getattr(self.console, 'last_command_exit', 0) != 0:
+                try:
+                    diagnostic = self.console.command(
+                        "if test -f /root/nethub-ci/sshd-private.log; then tail -n 15 /root/nethub-ci/sshd-private.log; fi\n"
+                        "if /sbin/ifconfig -a | grep -q 'inet 192.168.1.1 '; then printf '\\nNH_LAN_ADDRESS_PRESENT\\n'; fi\n"
+                        "true\n", timeout=15)
+                    for needle, code in [('already in use', 'sshd_port_in_use'),
+                                         ('Cannot assign requested address', 'sshd_listen_address_unavailable'),
+                                         ('Missing privilege separation directory', 'sshd_privsep_directory'),
+                                         ('Bad configuration option', 'sshd_configuration'),
+                                         ('no hostkeys available', 'sshd_host_keys'),
+                                         ('NH_LAN_ADDRESS_PRESENT', 'configured_lan_address_present')]:
+                        if needle.lower() in diagnostic.lower():
+                            self.bootstrap_failure_codes.append(code)
+                except Exception:
+                    self.bootstrap_failure_codes.append('private_probe_unavailable')
             self.__exit__(None, None, None)
             raise
 
@@ -313,7 +332,9 @@ cat /root/nethub-ci/host-key.pub
     def diagnostics(self):
         value = {'image': getattr(self, 'image_receipt', None),
                  'serial_wait_phase': getattr(self.console, 'phase', None),
-                 'guest_exit_status_before_cleanup': getattr(self, 'exit_status_before_cleanup', None)}
+                 'guest_exit_status_before_cleanup': getattr(self, 'exit_status_before_cleanup', None),
+                 'guest_exit_status_after_cleanup': self.process.poll() if self.process is not None else None,
+                 'bootstrap_failure_codes': getattr(self, 'bootstrap_failure_codes', [])}
         path = self.directory / 'serial-private.log'
         if path.exists():
             value['serial_bytes'] = path.stat().st_size
