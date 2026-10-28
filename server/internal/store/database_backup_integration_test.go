@@ -33,6 +33,11 @@ func testRestrictedBackup(t *testing.T, parent context.Context, backup *sql.DB) 
 	if err := backup.QueryRowContext(ctx, `SELECT count(*) FROM devices`).Scan(&sourceDevices); err != nil || sourceDevices < 3 {
 		t.Fatalf("backup cannot see forced-RLS fixture rows: %d %v", sourceDevices, err)
 	}
+	const deviceDigestQuery = `SELECT md5(COALESCE(string_agg(row_to_json(d)::text,E'\n' ORDER BY d.id),'')) FROM devices d`
+	var sourceDigest string
+	if err := backup.QueryRowContext(ctx, deviceDigestQuery).Scan(&sourceDigest); err != nil {
+		t.Fatal("source device digest unavailable")
+	}
 	receipt, err := dbbackup.Run(ctx, config)
 	if err != nil {
 		t.Fatal(err)
@@ -70,6 +75,11 @@ func testRestrictedBackup(t *testing.T, parent context.Context, backup *sql.DB) 
 	if err != nil || strings.TrimSpace(string(count)) != strconv.Itoa(sourceDevices) {
 		t.Fatal("restored device rows differ from the forced-RLS source")
 	}
+	restoredDigest, err := psql(ctx, restored, deviceDigestQuery)
+	if err != nil || strings.TrimSpace(string(restoredDigest)) != sourceDigest {
+		t.Fatal("restored device contents differ from the forced-RLS source")
+	}
+	t.Log("Actual restored device contents matched the ordered source digest without printing row data")
 	if _, err := psql(ctx, "nethub", "ALTER ROLE nethub_backup NOBYPASSRLS"); err != nil {
 		t.Fatal("owned backup role perturbation failed")
 	}
