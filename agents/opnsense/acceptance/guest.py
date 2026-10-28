@@ -117,7 +117,8 @@ class Console:
     def send(self, value):
         self.connection.sendall(value.encode('ascii'))
 
-    def expect(self, expression, timeout):
+    def expect(self, expression, timeout, phase='serial_command'):
+        self.phase = phase
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             clean = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', self.buffer)
@@ -141,27 +142,32 @@ class Console:
                             ('Enter an option:', 'console_menu'), ('login:', 'login_prompt')]:
             if token.lower() in self.buffer.lower():
                 category = code
-        raise GuestError('Owned guest serial deadline exceeded: ' + category)
+        raise GuestError('Owned guest serial deadline exceeded: ' + phase + '/' + category)
 
     def login(self):
-        self.expect(r'login:\s*$', 360)
+        self.expect(r'login:\s*$', 360, 'login_prompt')
         self.send('root\n')
-        self.expect(r'Password:\s*$', 30)
+        self.expect(r'Password:\s*$', 30, 'password_prompt')
         # Factory credentials exist only in the fresh, privately forwarded guest.
         self.send('opnsense\n')
-        self.expect(r'Enter an option:', 120)
+        self.expect(r'Enter an option:', 120, 'console_menu')
         self.send('8\n')
-        self.expect(r'[^\r\n]* #\s*$', 30)
+        self.expect(r'[^\r\n]* #\s*$', 30, 'root_shell_prompt')
         self.send('/bin/sh\n')
-        self.expect(r'#\s*$', 30)
+        self.expect(r'#\s*$', 30, 'posix_shell_prompt')
         self.send("stty -echo; PS1='NH_SHELL> '; export PS1; printf '\\nNH_%s_READY\\n' SHELL\n")
-        self.expect(r'NH_SHELL_READY\r?\n', 10)
+        self.expect(r'NH_SHELL_READY\r?\n', 10, 'private_shell_marker')
 
     def command(self, script, timeout=60):
         marker = 'NH_' + uuid.uuid4().hex
         payload = base64.b64encode(script.encode('utf-8')).decode('ascii')
-        self.send("printf '%s' '" + payload + "' | /usr/bin/base64 -d | /bin/sh; nh_exit=$?; "
-                  "printf '\\n" + marker + ":%s\\n' \"$nh_exit\"\n")
+        # FreeBSD canonical terminal input has a short per-line bound. A quoted
+        # heredoc keeps every encoded payload line and control line below it.
+        delimiter = marker + '_DATA'
+        lines = ["/usr/bin/base64 -d <<'" + delimiter + "' | /bin/sh"]
+        lines.extend(payload[offset:offset + 96] for offset in range(0, len(payload), 96))
+        lines.extend([delimiter, "nh_exit=$?; printf '\\n" + marker + ":%s\\n' \"$nh_exit\""])
+        self.send('\n'.join(lines) + '\n')
         value = self.expect(re.escape(marker) + r':([0-9]+)\r?\n', timeout)
         match = re.search(re.escape(marker) + r':([0-9]+)\r?\n', value)
         if match.group(1) != '0':
@@ -276,6 +282,7 @@ cat /root/nethub-ci/host-key.pub
                 'root@127.0.0.1:/root/nethub-ci/' + name], 'private guest input transfer')
 
     def __exit__(self, *_):
+        self.exit_status_before_cleanup = self.process.poll() if self.process is not None else None
         if self.process is not None and self.process.poll() is None:
             self.process.terminate()
             try:
@@ -287,3 +294,20 @@ cat /root/nethub-ci/host-key.pub
             self.console.close()
         if self.qemu_log is not None:
             self.qemu_log.close()
+
+    def diagnostics(self):
+        value = {'image': getattr(self, 'image_receipt', None),
+                 'serial_wait_phase': getattr(self.console, 'phase', None),
+                 'guest_exit_status_before_cleanup': getattr(self, 'exit_status_before_cleanup', None)}
+        path = self.directory / 'serial-private.log'
+        if path.exists():
+            value['serial_bytes'] = path.stat().st_size
+            with path.open('rb') as source:
+                source.seek(max(0, value['serial_bytes'] - 131072))
+                text = source.read(131072).decode('utf-8', errors='replace')
+            value['serial_markers'] = {name: needle in text for name, needle in {
+                'product_banner': 'OPNsense', 'login_prompt': 'login:', 'password_prompt': 'Password:',
+                'console_menu': 'Enter an option:', 'private_shell_ready': 'NH_SHELL_READY',
+                'private_shell_prompt': 'NH_SHELL>', 'rejected_login': 'Login incorrect',
+            }.items()}
+        return value

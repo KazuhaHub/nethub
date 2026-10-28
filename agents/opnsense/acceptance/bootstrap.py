@@ -28,6 +28,7 @@ def main():
               'scope': 'Fresh installed package and native page preparation',
               'full_rotation_acceptance': False, 'formal_release': False,
               'public_network_acceptance': False, 'full_goal_complete': False}
+    owned = None
     try:
         actual = invoke(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], 'source identity').decode().strip()
         if not re.fullmatch(r'[a-f0-9]{40}', result['source_head']) or actual != result['source_head']:
@@ -44,7 +45,8 @@ def main():
         if digest(sdk) != SDK_SHA256:
             raise GuestError('Pinned guest compiler checksum differs')
         result['phase'] = 'signed_guest'
-        with Guest(directory / 'guest') as guest:
+        owned = Guest(directory / 'guest')
+        with owned as guest:
             result['image'] = guest.image_receipt
             result['guest_memory_mib'] = 3072
             result['phase'] = 'signed_package_update'
@@ -103,6 +105,8 @@ PY
         result['failure'] = str(error) if isinstance(error, GuestError) else type(error).__name__
         raise
     finally:
+        if owned is not None:
+            result['guest_diagnostic'] = owned.diagnostics()
         (evidence / 'result.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     print('Fresh OPNsense package and native page preparation passed; enrollment/rotation/relay acceptance remains separate')
 

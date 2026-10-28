@@ -20,7 +20,13 @@ configuration remain private to the disposable runner. Only the closed result
 and two logged-in, unenrolled page images are uploaded. No package is signed or
 published. This new preparation path is unaccepted until its real run succeeds.
 
+Serial bootstrap sends short encoded heredoc lines within FreeBSD's canonical
+terminal input bound. Failure results retain only the waiting stage, selected
+prompt flags, byte count and image-verification receipt; raw transcripts remain
+private. A serial timeout does not establish that the package was installed.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)
 - [Go release archive checksums](https://go.dev/dl/?mode=json&include=all)
+- [FreeBSD canonical terminal limits](https://raw.githubusercontent.com/freebsd/freebsd-src/releng/15.1/sys/sys/syslimits.h)

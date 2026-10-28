@@ -36,6 +36,7 @@ def test_serial_command_echo_cannot_hide_a_failed_exit(monkeypatch):
 
     class Connection:
         def sendall(self, value):
+            self.sent = value
             self.queue = [value, ('\nNH_' + nonce + ':19\r\n').encode()]
 
         def recv(self, _maximum):
@@ -46,4 +47,5 @@ def test_serial_command_echo_cannot_hide_a_failed_exit(monkeypatch):
     console.log = io.BytesIO()
     console.buffer = ''
     with pytest.raises(GUEST.GuestError, match='^Owned guest bootstrap command failed$'):
-        console.command('printf private-child-diagnostic\nexit 19\n')
+        console.command('printf private-child-diagnostic\n' * 200 + 'exit 19\n')
+    assert max(len(line) for line in console.connection.sent.splitlines()) <= 200
