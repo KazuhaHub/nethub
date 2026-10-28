@@ -1,5 +1,7 @@
 """Exercise credential rotation against actual authz, PostgreSQL and official frp."""
+import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import secrets
@@ -14,11 +16,15 @@ def exercise_rotation(stage, port, assignments, valid_clients, start_client, sto
     work = stage / 'rotation-test'
     work.mkdir(mode=0o700)
     previous = dict(assignments[0])
+    original_assignment = stage / 'relay-test/pre-rotation-assignment.json'
+    original_assignment.write_text(json.dumps(previous), encoding='utf-8')
+    original_assignment.chmod(0o600)
     device = str(uuid.UUID(previous['device_id']))
     operation = str(uuid.uuid4())
     candidate = secrets.token_urlsafe(32)
     body = {'agent_protocol_version': '1.6.0', 'device_id': device,
-            'operation_id': operation, 'replacement_secret': candidate}
+            'operation_id': operation, 'replacement_secret': candidate,
+            'expected_relay_ca_sha256': hashlib.sha256(previous['relay_ca_pem'].encode('ascii')).hexdigest()}
     payload = work / 'request.json'
     payload.write_text(json.dumps(body), encoding='utf-8')
     payload.chmod(0o600)
@@ -111,6 +117,12 @@ def exercise_rotation(stage, port, assignments, valid_clients, start_client, sto
     check_tunnels()
     recovery_ms = round((time.monotonic() - restored) * 1000)
     assert new_client.poll() is None and sql(identity_query) == identity and sql(grants_query) == grants
+    # Later authority acceptance uses these same live identities. Retain the
+    # newly committed credential instead of handing it the stale enrollment.
+    saved = work / 'assignment0-next.json'
+    saved.write_text(json.dumps(replacement), encoding='utf-8')
+    saved.chmod(0o600)
+    os.replace(saved, stage / 'relay-test/assignment0.json')
     result = {'passed': True, 'official_frp': '0.71.1', 'old_control_cutoff_ms': cutoff_ms,
               'replacement_route_recovery_ms': recovery_ms, 'actual_denied_Ping_and_Login': True,
               'candidate_retry_did_not_rotate_again': True, 'device_identity_and_source_grants_preserved': True,

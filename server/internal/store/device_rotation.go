@@ -10,6 +10,7 @@ import (
 
 	"github.com/KazuhaHub/nethub/server/internal/claim"
 	"github.com/KazuhaHub/nethub/server/internal/device"
+	"github.com/KazuhaHub/nethub/server/internal/protocol"
 	"github.com/KazuhaHub/nethub/server/internal/relaytrust"
 )
 
@@ -62,20 +63,30 @@ func (s *EnrollmentStore) RotateDevice(ctx context.Context, c device.Credential,
 		return device.Assignment{}, device.ErrUnavailable
 	}
 	var digest []byte
-	var recordedHash string
+	var recordedHash, recordedTrust string
 	var recordedTime time.Time
-	err = tx.QueryRowContext(ctx, `SELECT candidate_digest,credential_hash,issued_at FROM device_rotations
- WHERE tenant_id=$1 AND device_id=$2 AND operation_id=$3`, c.TenantID, r.DeviceID, r.OperationID).Scan(&digest, &recordedHash, &recordedTime)
+	err = tx.QueryRowContext(ctx, `SELECT candidate_digest,credential_hash,issued_at,relay_ca_pem FROM device_rotations
+ WHERE tenant_id=$1 AND device_id=$2 AND operation_id=$3`, c.TenantID, r.DeviceID, r.OperationID).Scan(&digest, &recordedHash, &recordedTime, &recordedTrust)
 	switch {
 	case err == nil:
-		if !r.CandidateIsCurrent || !bytes.Equal(digest, r.CandidateDigest[:]) || recordedHash != hash || !recordedTime.Equal(result.IssuedAt) {
+		if !r.CandidateIsCurrent || !bytes.Equal(digest, r.CandidateDigest[:]) || recordedHash != hash || !recordedTime.Equal(result.IssuedAt) || protocol.RelayTrustDigest(recordedTrust) != r.ExpectedRelayCASHA256 {
 			return device.Assignment{}, device.ErrDenied
 		}
+		// Recovery retains the committed public trust even if publication has
+		// advanced. This is not permission to overwrite managed native trust.
+		result.RelayCAPEM = recordedTrust
 	case errors.Is(err, sql.ErrNoRows):
 		// A credential equal to the current bearer can recover only its committed
 		// operation; it cannot create an unrecorded no-op credential rotation.
 		if r.CandidateIsCurrent || r.SecretHash == hash {
 			return device.Assignment{}, device.ErrDenied
+		}
+		selectedTrust := result.RelayCAPEM
+		if selectedTrust == "" {
+			selectedTrust = r.BootstrapCAPEM
+		}
+		if protocol.RelayTrustDigest(selectedTrust) != r.ExpectedRelayCASHA256 {
+			return device.Assignment{}, device.ErrRotationTrustChanged
 		}
 		var now time.Time
 		if err := tx.QueryRowContext(ctx, `SELECT clock_timestamp()`).Scan(&now); err != nil {
@@ -88,8 +99,8 @@ func (s *EnrollmentStore) RotateDevice(ctx context.Context, c device.Credential,
 		if _, err := tx.ExecContext(ctx, `UPDATE devices SET device_secret_hash=$1,domain_claim_issued_at=$2 WHERE id=$3 AND tenant_id=$4`, r.SecretHash, result.IssuedAt, r.DeviceID, c.TenantID); err != nil {
 			return device.Assignment{}, device.ErrUnavailable
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO device_rotations(tenant_id,device_id,operation_id,candidate_digest,credential_hash,issued_at)
- VALUES($1,$2,$3,$4,$5,$6)`, c.TenantID, r.DeviceID, r.OperationID, r.CandidateDigest[:], r.SecretHash, result.IssuedAt); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO device_rotations(tenant_id,device_id,operation_id,candidate_digest,credential_hash,issued_at,relay_ca_pem)
+ VALUES($1,$2,$3,$4,$5,$6,$7)`, c.TenantID, r.DeviceID, r.OperationID, r.CandidateDigest[:], r.SecretHash, result.IssuedAt, selectedTrust); err != nil {
 			return device.Assignment{}, device.ErrUnavailable
 		}
 		payload, err := json.Marshal(map[string]string{"source_ip": r.SourceIP.String(), "operation_id": r.OperationID})

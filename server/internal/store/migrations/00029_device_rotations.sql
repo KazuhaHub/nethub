@@ -6,6 +6,7 @@ CREATE TABLE device_rotations (
     candidate_digest bytea NOT NULL CHECK (octet_length(candidate_digest)=32),
     credential_hash text NOT NULL CHECK (octet_length(credential_hash) BETWEEN 64 AND 256 AND credential_hash LIKE '$argon2id$%'),
     issued_at timestamptz NOT NULL,
+    relay_ca_pem text NOT NULL CHECK (octet_length(relay_ca_pem) BETWEEN 1 AND 32768),
     created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     PRIMARY KEY (tenant_id, device_id, operation_id),
     FOREIGN KEY (tenant_id, device_id) REFERENCES devices(tenant_id, id)

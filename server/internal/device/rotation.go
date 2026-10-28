@@ -15,18 +15,23 @@ import (
 
 // RotationRecord contains no plaintext credential. CandidateDigest binds the
 // high-entropy journal candidate to an immutable operation, not authentication.
+var ErrRotationTrustChanged = errors.New("relay trust changed before credential rotation")
+
 type RotationRecord struct {
 	protocol.Identity
-	OperationID        string
-	CandidateDigest    [32]byte `json:"-"`
-	SecretHash         string   `json:"-"`
-	CandidateIsCurrent bool
-	RelayServerName    string
-	SourceIP           netip.Addr
+	OperationID           string
+	CandidateDigest       [32]byte `json:"-"`
+	SecretHash            string   `json:"-"`
+	CandidateIsCurrent    bool
+	ExpectedRelayCASHA256 string
+	BootstrapCAPEM        string
+	RelayServerName       string
+	SourceIP              netip.Addr
 }
 
 func (r RotationRecord) Validate() error {
 	if protocol.ValidateRotationIdentity(r.Identity) != nil || !protocol.ValidRotationOperationID(r.OperationID) ||
+		!protocol.ValidRelayTrustDigest(r.ExpectedRelayCASHA256) || len(r.BootstrapCAPEM) < 1 || len(r.BootstrapCAPEM) > 32768 ||
 		!r.SourceIP.IsValid() || r.SourceIP.Zone() != "" || !hostname.MatchString(r.RelayServerName) ||
 		len(r.RelayServerName) > 253 || !strings.HasPrefix(r.SecretHash, "$argon2id$") ||
 		len(r.SecretHash) < 64 || len(r.SecretHash) > 256 {
@@ -64,6 +69,7 @@ func (s *Service) Rotate(ctx context.Context, request protocol.RotateRequest, se
 	}
 	record := RotationRecord{Identity: request.Identity, OperationID: request.OperationID,
 		CandidateDigest: sha256.Sum256([]byte(request.ReplacementSecret)), SecretHash: hash,
+		ExpectedRelayCASHA256: request.ExpectedRelayCASHA256, BootstrapCAPEM: s.relay.CAPEM,
 		CandidateIsCurrent: same, RelayServerName: s.relay.ServerName, SourceIP: ip.Unmap()}
 	assigned, err := repository.RotateDevice(ctx, credential, record, func(value Assignment) (string, error) {
 		if ctx.Err() != nil || value.ID != request.DeviceID || value.TenantID != credential.TenantID {
@@ -73,15 +79,17 @@ func (s *Service) Rotate(ctx context.Context, request protocol.RotateRequest, se
 			if _, err := relaytrust.Parse(value.RelayCAPEM, s.now()); err != nil {
 				return "", ErrUnavailable
 			}
-			if _, tracked := s.repository.(PublishedTrustReader); tracked {
-				s.publishedTrustSeen.Store(true)
-			}
+			// trustReady observes live publication. An immutable replay bundle
+			// may instead be the original unpublished bootstrap trust.
 		} else if s.publishedTrustSeen.Load() || !s.trustValid(s.now()) {
 			return "", ErrUnavailable
 		}
 		return s.signer.Issue(value.ID, value.Subdomain, value.TenantID, value.IssuedAt)
 	})
 	if err != nil {
+		if errors.Is(err, ErrRotationTrustChanged) {
+			return protocol.RotateResponse{}, ErrRotationTrustChanged
+		}
 		if errors.Is(err, ErrDenied) {
 			return protocol.RotateResponse{}, ErrDenied
 		}

@@ -1,6 +1,6 @@
 """Recover credential rotation under one native mutation lock without re-enrollment."""
 from enrollment import request_json
-from rotation import RotationError
+from rotation import RotationError, RotationTrustRefreshRequired
 from rotation_backend import assignment, replacement
 
 
@@ -20,7 +20,11 @@ def rotate(journal, backend, reconcile, transport=request_json, rebind_trust=Non
     if current != before:
         if value['phase'] != 'received' or current != replacement(before, value['assignment']):
             raise RotationError('Native settings changed during rotation; retain the journal for review')
-    response = journal.request(current['console_url'], assignment(current), transport=transport)
+    try:
+        response = journal.request(current['console_url'], assignment(current), transport=transport)
+    except RotationTrustRefreshRequired:
+        return {'success': False, 'action': 'rotate', 'phase': 'trust_changed',
+                'message': 'Relay trust changed. Allow trust synchronization to finish, then retry rotation.'}
     after = replacement(before, response)
     backend.install(before, after)
     saved = backend.read()

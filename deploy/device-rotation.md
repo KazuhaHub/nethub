@@ -48,12 +48,13 @@ or policy remains retained for review. Periodic trust synchronization defers
 while a validated rotation journal remains; malformed retained state blocks it.
 This prevents background updates from invalidating the recovery snapshot.
 
-Concurrent CA publication remains an acceptance gap: the server can commit the
-candidate while the native model refuses a response with a different trust
-bundle. Retrying must retain the candidate, but this case can require local
-recovery. Exact publication fencing alone does not establish automatic native
-recovery through a changing bundle. Keep this workflow under validation until
-the precommit trust binding and candidate replay behavior are resolved.
+New operations pin the exact native public CA bundle by SHA-256. A different
+published bundle is refused before credential mutation; only that definitive
+old-credential refusal releases a prepared journal so verified trust sync can
+run. Ambiguous failures and candidate-attempt errors retain the journal.
+Committed operations retain their public bundle for identical replay across
+later publication. The new publication/recovery path is under combined
+validation; source changes alone do not establish installed-device acceptance.
 
 This per-device workflow is only part of W7-4. Coordinated deployment-wide frps
 shared-token replacement, protected current-key backup/manifest transitions and

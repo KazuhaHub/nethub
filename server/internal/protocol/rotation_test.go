@@ -14,7 +14,7 @@ import (
 func TestRotateRequestVersionAndJournalBinding(t *testing.T) {
 	for _, version := range []string{"1.6.0", "1.7.0-rc.1", "1.999999999999999999999.0"} {
 		r := RotateRequest{Identity: Identity{AgentProtocolVersion: version, DeviceID: "11111111-1111-4111-8111-111111111111"},
-			OperationID: "22222222-2222-4222-8222-222222222222", ReplacementSecret: strings.Repeat("A", 43)}
+			OperationID: "22222222-2222-4222-8222-222222222222", ReplacementSecret: strings.Repeat("A", 43), ExpectedRelayCASHA256: strings.Repeat("a", 64)}
 		data, err := json.Marshal(r)
 		if err != nil {
 			t.Fatal(err)
@@ -37,7 +37,7 @@ func TestRotateRequestRejectsAmbiguousOrMissingCandidates(t *testing.T) {
 	if json.Unmarshal(valid, &object) != nil {
 		t.Fatal("rotation fixture unavailable")
 	}
-	for _, field := range []string{"agent_protocol_version", "device_id", "operation_id", "replacement_secret"} {
+	for _, field := range []string{"agent_protocol_version", "device_id", "operation_id", "replacement_secret", "expected_relay_ca_sha256"} {
 		for _, kind := range []string{"missing", "null", "object", "duplicate"} {
 			t.Run(field+"/"+kind, func(t *testing.T) {
 				copy := make(map[string]any, len(object))

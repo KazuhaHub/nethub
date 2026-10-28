@@ -15,4 +15,4 @@ def test_circuit_controller_requires_post_write_access_and_bounded_backend():
                             capture_output=True, timeout=8, check=True)
     assert json.loads(result.stdout)['service_cases_passed'] == [
         action + ':' + case for action in ('disable', 'enable', 'rotate')
-        for case in ('get', 'readonly', 'success', 'busy', 'invalid')]
+        for case in ('get', 'readonly', 'success', 'busy', 'invalid', 'trust_changed')]

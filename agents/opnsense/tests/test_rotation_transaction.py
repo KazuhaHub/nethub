@@ -98,3 +98,16 @@ def test_changed_policy_or_trust_refuses_pending_operation_before_network(nodes,
     network.assert_not_called()
     reconcile.assert_not_called()
     assert journal.path.read_bytes() == before and model.saves == 0
+
+
+def test_precommit_trust_conflict_exposes_retry_phase_without_save_or_reconcile(nodes, journal):
+    from protocol import RotationTrustChanged
+    model = Model(nodes)
+    reconcile = mock.Mock()
+    def conflict(*args, **kwargs):
+        raise RotationTrustChanged('private remote diagnostic')
+    result = rotate(journal, model, reconcile, transport=conflict)
+    assert result['success'] is False and result['phase'] == 'trust_changed'
+    assert model.nodes == nodes and model.saves == 0 and not journal.path.exists()
+    assert 'private' not in str(result)
+    reconcile.assert_not_called()

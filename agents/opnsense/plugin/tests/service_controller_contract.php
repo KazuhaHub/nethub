@@ -25,11 +25,11 @@ namespace {
     require $argv[1];
     $passed = [];
     foreach (['disable', 'enable', 'rotate'] as $action) {
-        foreach (['get', 'readonly', 'success', 'busy', 'invalid'] as $case) {
+        foreach (['get', 'readonly', 'success', 'busy', 'invalid', 'trust_changed'] as $case) {
             $GLOBALS['calls'] = [];
             $GLOBALS['response'] = $case === 'invalid' ? 'invalid JSON' :
                 json_encode(['success' => $case === 'success', 'action' => $case === 'busy' ? 'busy' : $action,
-                    'phase' => $case === 'success' ? 'applied' : 'error', 'message' => 'private-fixture-value',
+                    'phase' => $case === 'success' ? 'applied' : ($case === 'trust_changed' ? 'trust_changed' : 'error'), 'message' => 'private-fixture-value',
                     'device_secret' => 'private-fixture-value']);
             $controller = new \OPNsense\NetHubAgent\Api\ServiceController();
             $controller->readonly = $case === 'readonly';
@@ -43,6 +43,7 @@ namespace {
                 if ($case === 'readonly') { exit(10); }
                 if ($result['success'] !== ($case === 'success')) { exit(11); }
                 if ($action === 'rotate' && str_contains(json_encode($result), 'private-fixture-value')) { exit(15); }
+                if ($action === 'rotate' && $case === 'trust_changed' && ($result['phase'] ?? null) !== 'trust_changed') { exit(16); }
             } catch (\RuntimeException $error) {
                 if ($case !== 'readonly' || $error->getMessage() !== 'readonly') { throw $error; }
             }

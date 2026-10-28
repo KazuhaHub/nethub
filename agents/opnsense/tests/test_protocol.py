@@ -91,7 +91,7 @@ def test_overlapping_ca_bundle_has_a_bounded_shape():
 
 def test_actual_rotation_request_retains_the_journal_candidate():
     expected = json.loads((PROTO / 'examples/valid/rotate-request.json').read_text(encoding='utf-8'))
-    actual = AGENT.build_rotate_request(expected['device_id'], expected['operation_id'], expected['replacement_secret'])
+    actual = AGENT.build_rotate_request(expected['device_id'], expected['operation_id'], expected['replacement_secret'], expected['expected_relay_ca_sha256'])
     assert actual == expected
     validator('rotate-request.schema.json').validate(actual)
     assert AGENT.VERSION == (PROTO / 'VERSION').read_text(encoding='utf-8').strip()
@@ -104,9 +104,11 @@ def test_actual_rotation_request_retains_the_journal_candidate():
     ('operation_id', '33333333-3333-4333-7333-333333333333'),
     ('replacement_secret', None), ('replacement_secret', 'A' * 42 + 'B'),
     ('replacement_secret', 'A' * 43 + '='), ('replacement_secret', 'A' * 43 + '\n'),
+    ('expected_relay_ca_sha256', None), ('expected_relay_ca_sha256', 'A' * 64),
+    ('expected_relay_ca_sha256', 'a' * 63), ('expected_relay_ca_sha256', 'a' * 64 + '\n'),
 ])
 def test_rotation_builder_refuses_unbound_or_noncanonical_candidates(field, value):
     request = json.loads((PROTO / 'examples/valid/rotate-request.json').read_text(encoding='utf-8'))
     request[field] = value
     with pytest.raises(AGENT.ProtocolError, match='^Invalid rotation input$'):
-        AGENT.build_rotate_request(request['device_id'], request['operation_id'], request['replacement_secret'])
+        AGENT.build_rotate_request(request['device_id'], request['operation_id'], request['replacement_secret'], request['expected_relay_ca_sha256'])

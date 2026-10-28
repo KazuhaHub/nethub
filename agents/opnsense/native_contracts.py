@@ -27,7 +27,7 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_rotation_agent.py',
         'agents/opnsense/plugin/tests/test_lifecycle_agent.py::test_removal_after_unknown_rotation_commit_uses_saved_candidate',
     ]),
-    'wire': (139, [
+    'wire': (148, [
         'agents/opnsense/tests/test_protocol.py',
         'agents/opnsense/plugin/tests/test_relay_trust_backend.py',
         'agents/opnsense/tests/test_rotation_journal.py',
@@ -35,6 +35,7 @@ GROUPS = {
         'agents/opnsense/tests/test_rotation_native_store.py',
         'agents/opnsense/tests/test_rotation_transaction.py',
         'agents/opnsense/tests/test_rotation_trust_binding.py',
+        'agents/opnsense/tests/test_enrollment.py::test_verified_rotation_trust_conflict_requires_exact_status_path_and_error',
     ]),
 }
 REQUIRED_NATIVE_CASES = {'test_enrollment_lock_interoperates_with_native_scheduler_lockf',

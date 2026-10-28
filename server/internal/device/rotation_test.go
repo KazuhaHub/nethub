@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http/httptest"
 	"net/netip"
 	"strings"
@@ -64,7 +65,9 @@ func rotationFixture(t *testing.T) (*Service, *rotationRepository, protocol.Rota
 	request := protocol.RotateRequest{Identity: protocol.Identity{AgentProtocolVersion: protocol.Version,
 		DeviceID: "11111111-1111-4111-8111-111111111111"}, OperationID: "33333333-3333-4333-8333-333333333333",
 		ReplacementSecret: base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{62}, 32))}
-	return fixtureService(t, repository), repository, request, old
+	service := fixtureService(t, repository)
+	request.ExpectedRelayCASHA256 = protocol.RelayTrustDigest(service.relay.CAPEM)
+	return service, repository, request, old
 }
 
 func TestRotationHTTPAdmissionAndLostResponseRecovery(t *testing.T) {
@@ -141,5 +144,25 @@ func TestRotationRefusesOldProtocolBusyAndFailedHash(t *testing.T) {
 	cancel()
 	if _, err := service.Rotate(ctx, request, old, ip); !errors.Is(err, ErrUnavailable) || repository.rotates != 0 {
 		t.Fatal("cancelled request mutated state")
+	}
+}
+
+func TestRotationTrustConflictProjectionRetainsNoRemoteOrCredentialFields(t *testing.T) {
+	service, repository, request, old := rotationFixture(t)
+	repository.failure = ErrRotationTrustChanged
+	var log bytes.Buffer
+	handler, err := NewHTTP(HTTPConfig{Origin: "https://console.example.com", Logger: slog.New(slog.NewJSONHandler(&log, nil))}, service)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := json.Marshal(request)
+	r := httptest.NewRequest("POST", "https://console.example.com/api/v1/devices/rotate", bytes.NewReader(data))
+	r.RemoteAddr = "192.0.2.29:12345"
+	r.Header.Set("Authorization", "Bearer "+old)
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	if w.Code != 409 || !strings.Contains(w.Body.String(), `"code":"rotation_trust_changed"`) || strings.Contains(w.Body.String(), request.ReplacementSecret) || w.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("authenticated precommit trust conflict lost its fixed projection")
 	}
 }

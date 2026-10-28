@@ -78,6 +78,10 @@ class ServiceController extends \OPNsense\Base\ApiControllerBase
                 return ['success' => true, 'action' => 'rotate', 'phase' => 'applied',
                     'message' => gettext('Credentials rotated. Local access policy retained.')];
             }
+            if ($value['success'] === false && ($value['phase'] ?? null) === 'trust_changed') {
+                return ['success' => false, 'action' => 'rotate', 'phase' => 'trust_changed',
+                    'message' => gettext('Relay trust changed. Allow trust synchronization to finish, then retry rotation.')];
+            }
             if ($value['success'] === false && ($value['phase'] ?? null) === 'saved') {
                 return ['success' => false, 'action' => 'rotate', 'phase' => 'saved',
                     'message' => gettext('Credentials saved. Retry rotation to finish tunnel reconciliation.')];

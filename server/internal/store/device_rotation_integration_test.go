@@ -54,7 +54,7 @@ func testDeviceRotation(t *testing.T, ctx context.Context, owner, authz, web *sq
 	secret := func(value byte) string { return base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{value}, 32)) }
 	request := func(value protocol.EnrollResponse, op, candidate string) protocol.RotateRequest {
 		return protocol.RotateRequest{Identity: protocol.Identity{AgentProtocolVersion: protocol.Version, DeviceID: value.DeviceID},
-			OperationID: op, ReplacementSecret: candidate}
+			OperationID: op, ReplacementSecret: candidate, ExpectedRelayCASHA256: protocol.RelayTrustDigest(value.RelayCAPEM)}
 	}
 	var log bytes.Buffer
 	handler, err := device.NewHTTP(device.HTTPConfig{Origin: "https://console.example.com", Logger: slog.New(slog.NewJSONHandler(&log, nil))}, f.service)
@@ -200,7 +200,7 @@ func testDeviceRotation(t *testing.T, ctx context.Context, owner, authz, web *sq
 			t.Fatal(err)
 		}
 		record := device.RotationRecord{Identity: r.Identity, OperationID: op1, CandidateDigest: sha256.Sum256([]byte(r.ReplacementSecret)), SecretHash: hash,
-			RelayServerName: before.ServerName, SourceIP: netip.MustParseAddr("192.0.2.154")}
+			ExpectedRelayCASHA256: r.ExpectedRelayCASHA256, BootstrapCAPEM: before.RelayCAPEM, RelayServerName: before.ServerName, SourceIP: netip.MustParseAddr("192.0.2.154")}
 		if _, err := f.repository.RotateDevice(ctx, credential, record, func(device.Assignment) (string, error) { return "", errors.New("fixture signing failure") }); !errors.Is(err, device.ErrUnavailable) {
 			t.Fatal("signing failure returned success")
 		}
@@ -237,11 +237,11 @@ func testDeviceRotation(t *testing.T, ctx context.Context, owner, authz, web *sq
 		forged := credential
 		forged.TenantID = "ffffffff-ffff-ffff-ffff-ffffffffffff"
 		record := device.RotationRecord{Identity: r.Identity, OperationID: op1, CandidateDigest: sha256.Sum256([]byte(r.ReplacementSecret)),
-			SecretHash: credential.Hash, CandidateIsCurrent: true, RelayServerName: before.ServerName, SourceIP: netip.MustParseAddr("192.0.2.155")}
+			SecretHash: credential.Hash, CandidateIsCurrent: true, ExpectedRelayCASHA256: r.ExpectedRelayCASHA256, BootstrapCAPEM: before.RelayCAPEM, RelayServerName: before.ServerName, SourceIP: netip.MustParseAddr("192.0.2.155")}
 		if _, err := f.repository.RotateDevice(ctx, forged, record, f.issue); !errors.Is(err, device.ErrDenied) {
 			t.Fatal("forged tenant recovered a rotation")
 		}
-		for _, query := range []string{`UPDATE device_rotations SET issued_at=clock_timestamp() WHERE device_id=$1`, `DELETE FROM device_rotations WHERE device_id=$1`} {
+		for _, query := range []string{`UPDATE device_rotations SET issued_at=clock_timestamp() WHERE device_id=$1`, `UPDATE device_rotations SET relay_ca_pem=relay_ca_pem WHERE device_id=$1`, `DELETE FROM device_rotations WHERE device_id=$1`} {
 			_, err := owner.ExecContext(ctx, query, before.DeviceID)
 			var immutable *pgconn.PgError
 			if !errors.As(err, &immutable) || immutable.Code != "P0001" {

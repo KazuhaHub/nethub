@@ -285,3 +285,26 @@ def test_real_https_rejects_redirect_and_bad_responses(https_console, kind):
     with pytest.raises(ENROLL.ProtocolError):
         ENROLL.request_enrollment(f'https://localhost:{port}', 'A' * 43, '26.7.7', '0.0.3', 'router.local', context)
     assert len(calls) == 1
+
+
+def test_verified_rotation_trust_conflict_requires_exact_status_path_and_error(https_console):
+    from protocol import RotationTrustChanged
+    port, context, _, state = https_console
+    origin = f'https://localhost:{port}'
+    known = {'error': {'code': 'rotation_trust_changed', 'message': 'private remote diagnostic'}}
+    state.update(status=409, body=json.dumps(known).encode())
+    with pytest.raises(RotationTrustChanged, match='^Relay trust changed before credential rotation$'):
+        ENROLL.request_json(origin, '/api/v1/devices/rotate', {}, secret='A' * 43, context=context)
+    for status, path, body, encoding in [
+        (401, '/api/v1/devices/rotate', json.dumps(known).encode(), 'identity'),
+        (409, '/api/v1/devices/status', json.dumps(known).encode(), 'identity'),
+        (409, '/api/v1/devices/rotate', b'{"error":{"code":"other","message":"private"}}', 'identity'),
+        (409, '/api/v1/devices/rotate', b'{"error":{"code":"rotation_trust_changed","code":"rotation_trust_changed","message":"private"}}', 'identity'),
+        (409, '/api/v1/devices/rotate', json.dumps(known).encode(), 'gzip'),
+        (409, '/api/v1/devices/rotate', b' ' * (ENROLL.MAX_BODY_BYTES + 1), 'identity'),
+    ]:
+        state.update(status=status, body=body, encoding=encoding)
+        with pytest.raises(ENROLL.ProtocolError) as failure:
+            ENROLL.request_json(origin, path, {}, secret='A' * 43, context=context)
+        assert not isinstance(failure.value, RotationTrustChanged)
+        assert 'private' not in str(failure.value)

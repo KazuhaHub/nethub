@@ -297,6 +297,8 @@ func (s *HTTPServer) failure(w http.ResponseWriter, r *http.Request, err error) 
 	switch {
 	case errors.Is(err, protocol.ErrRelayTrustVersion):
 		deviceError(w, r, 400, "incompatible_protocol", "Relay trust operations require protocol 1.5 or later within major 1")
+	case errors.Is(err, ErrRotationTrustChanged):
+		deviceError(w, r, 409, "rotation_trust_changed", "Synchronize relay trust before rotating credentials")
 	case errors.Is(err, protocol.ErrRotationVersion):
 		deviceError(w, r, 400, "incompatible_protocol", "Credential rotation requires protocol 1.6 or later within major 1")
 	case errors.Is(err, protocol.ErrCertificateApplicationVersion):

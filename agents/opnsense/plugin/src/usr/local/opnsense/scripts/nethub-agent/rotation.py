@@ -13,11 +13,15 @@ import uuid
 
 from certificate_key import KeyStore, CertificateKeyError
 from enrollment import _secret, decode_json, validate_origin, validate_response, request_json
-from protocol import ProtocolError, build_rotate_request
+from protocol import ProtocolError, RotationTrustChanged, build_rotate_request
 
 
 class RotationError(Exception):
     """A fixed diagnostic without journal contents or submitted credentials."""
+
+
+class RotationTrustRefreshRequired(RotationError):
+    """The server refused before commit and the prepared journal was removed."""
 
 
 def _claim(value):
@@ -35,6 +39,7 @@ def validate_rotation_response(value, previous, operation_id, candidate):
         raise RotationError('Console does not support recoverable rotation')
     before, after = _claim(previous['domain_claim']), _claim(assignment['domain_claim'])
     if (assignment['device_id'] != previous['device_id'] or assignment['subdomain'] != previous['subdomain']
+            or assignment['relay_ca_pem'] != previous['relay_ca_pem']
             or not hmac.compare_digest(assignment['device_secret'], candidate)
             or any(after[key] != before[key] for key in ['device_id', 'tenant_id', 'subdomain'])
             or datetime.fromisoformat(after['issued_at']) <= datetime.fromisoformat(before['issued_at'])):
@@ -74,7 +79,8 @@ class RotationJournal:
                     or assignment(value['native_before']) != previous
                     or value['native_before']['console_url'] != value['origin']):
                 raise ValueError('Invalid native model binding')
-        build_rotate_request(previous['device_id'], value['operation_id'], value['candidate'])
+        build_rotate_request(previous['device_id'], value['operation_id'], value['candidate'],
+                             hashlib.sha256(previous['relay_ca_pem'].encode('ascii')).hexdigest())
         if hmac.compare_digest(value['candidate'], previous['device_secret']):
             raise ValueError('Unchanged candidate')
         if value['phase'] == 'prepared':
@@ -148,13 +154,23 @@ class RotationJournal:
             value = self.prepare(origin, current)
             if value['phase'] == 'received':
                 return value['assignment']
-            body = build_rotate_request(value['previous']['device_id'], value['operation_id'], value['candidate'])
+            body = build_rotate_request(value['previous']['device_id'], value['operation_id'], value['candidate'],
+                                        hashlib.sha256(value['previous']['relay_ca_pem'].encode('ascii')).hexdigest())
             # Both attempts use the same durable operation and candidate. An
             # ambiguous original attempt may already have committed, so retry
             # with candidate authentication rather than create another secret.
             try:
                 response = transport(value['origin'], '/api/v1/devices/rotate', body,
                                      secret=value['previous']['device_secret'], context=context)
+            except RotationTrustChanged:
+                # Only the previous-credential attempt can prove the operation
+                # was refused before mutation. Candidate/transport failures stay
+                # ambiguous and must never discard retained recovery state.
+                if self._read() != value or value['phase'] != 'prepared':
+                    raise RotationError('Rotation recovery changed; retain its journal')
+                self.path.unlink()
+                self.files._sync(self.directory)
+                raise RotationTrustRefreshRequired('Relay trust changed; synchronize trust and retry rotation') from None
             except ProtocolError:
                 response = transport(value['origin'], '/api/v1/devices/rotate', body,
                                      secret=value['candidate'], context=context)

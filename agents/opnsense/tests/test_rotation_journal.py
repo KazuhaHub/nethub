@@ -11,6 +11,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'agents/opnsense/plugin/src/usr/local/opnsense/scripts/nethub-agent'))
 from protocol import ProtocolError
+from test_enrollment import https_console
 from rotation import RotationError, RotationJournal, validate_rotation_response
 
 ORIGIN = 'https://console.example.com'
@@ -180,3 +181,46 @@ def test_pending_phase_validates_prepared_and_received_without_private_output(jo
     journal.path.write_text('{}')
     with pytest.raises(RotationError, match='retain its journal'):
         journal.pending_phase()
+
+
+def test_definitive_old_credential_trust_refusal_releases_only_uncommitted_journal(journal, original):
+    from protocol import RotationTrustChanged
+    calls = []
+    def conflict(origin, path, body, **kwargs):
+        import hashlib
+        saved = journal._read()
+        assert saved['phase'] == 'prepared'
+        assert body['expected_relay_ca_sha256'] == hashlib.sha256(original['relay_ca_pem'].encode('ascii')).hexdigest()
+        calls.append(kwargs['secret'])
+        raise RotationTrustChanged('remote private message')
+    with pytest.raises(RotationError, match='^Relay trust changed; synchronize trust and retry rotation$'):
+        journal.request(ORIGIN, original, transport=conflict)
+    assert calls == [original['device_secret']] and not journal.path.exists()
+
+
+def test_candidate_attempt_trust_error_cannot_discard_unknown_commit(journal, original):
+    from protocol import RotationTrustChanged
+    journal.prepare(ORIGIN, original)
+    retained = journal.path.read_bytes()
+    def ambiguous(origin, path, body, **kwargs):
+        if kwargs['secret'] == original['device_secret']:
+            raise ProtocolError('ambiguous old-credential response')
+        raise RotationTrustChanged('unexpected candidate refusal')
+    with pytest.raises(RotationError, match='retain the journal'):
+        journal.request(ORIGIN, original, transport=ambiguous)
+    assert journal.path.read_bytes() == retained
+
+
+def test_changed_trust_in_response_never_saves_a_conflicting_assignment(journal, original, https_console):
+    def changed(origin, path, body, **kwargs):
+        value = response(original, body['operation_id'], body['replacement_secret'])
+        # A genuinely valid replacement root still cannot change the pinned
+        # trust of an operation retained against the original native model.
+        from enrollment import validate_response
+        value['relay_ca_pem'] = https_console[3]['ca_pem']
+        assert value['relay_ca_pem'] != original['relay_ca_pem']
+        validate_response({key: item for key, item in value.items() if key != 'operation_id'})
+        return value
+    with pytest.raises(RotationError):
+        journal.request(ORIGIN, original, transport=changed)
+    assert journal._read()['phase'] == 'prepared'
