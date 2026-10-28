@@ -303,5 +303,25 @@
     "path": "invalid/relay-trust-bad-time.json",
     "schema": "relay-trust-applied-response.schema.json",
     "valid": false
+  },
+  {
+    "path": "invalid/rotate-old-peer.json",
+    "schema": "rotate-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/rotate-zero-operation.json",
+    "schema": "rotate-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/rotate-missing-candidate.json",
+    "schema": "rotate-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/rotate-noncanonical-secret.json",
+    "schema": "rotate-request.schema.json",
+    "valid": false
   }
 ]

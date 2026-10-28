@@ -4,7 +4,14 @@
   "type": "object",
   "properties": {
     "agent_protocol_version": {
-      "$ref": "common.schema.json#/$defs/version"
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        {
+          "pattern": "^1\\.(?:[6-9]|[1-9][0-9]+)\\."
+        }
+      ]
     },
     "device_id": {
       "$ref": "common.schema.json#/$defs/uuid"
@@ -49,6 +56,15 @@
       "minLength": 64,
       "maxLength": 32768,
       "pattern": "^(-----BEGIN CERTIFICATE-----\\n[A-Za-z0-9+/=\\r\\n]+-----END CERTIFICATE-----\\n){1,2}$"
+    },
+    "operation_id": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "not": {
+        "pattern": "[\\x00-\\x1f\\x7f]"
+      }
     }
   },
   "required": [
@@ -61,8 +77,9 @@
     "server_name",
     "subdomain",
     "domain_claim",
-    "relay_ca_pem"
+    "relay_ca_pem",
+    "operation_id"
   ],
   "additionalProperties": true,
-  "maxProperties": 26
+  "maxProperties": 27
 }

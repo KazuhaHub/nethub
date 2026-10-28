@@ -5,8 +5,6 @@ type Identity struct {
 	DeviceID             string `json:"device_id"`
 }
 
-type RotateRequest = Identity
-type RotateResponse = EnrollResponse
 type UnenrollRequest = Identity
 
 type UnenrollResponse struct {
