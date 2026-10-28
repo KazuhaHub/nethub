@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import sys
 
-from guest import Guest, GuestError, download, digest, invoke
+from guest import Guest, GuestError, download, digest, invoke, supported_platform
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -52,7 +52,7 @@ def main():
             result['phase'] = 'signed_package_update'
             guest.ssh('set -eu\npkg update -f\npkg upgrade -y\n', 'signed OPNsense package update', timeout=900)
             version = guest.ssh('/usr/local/sbin/opnsense-version\n', 'installed platform version').decode().strip()
-            if not re.fullmatch(r'26\.7\.[1-9][0-9]*(?:_[0-9]+)?', version):
+            if not supported_platform(version):
                 raise GuestError('Guest has not reached the required patched 26.7 platform')
             result['opnsense_version'] = version
             result['phase'] = 'native_package_build'

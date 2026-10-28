@@ -13,6 +13,14 @@ GUEST = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(GUEST)
 
 
+@pytest.mark.parametrize('version,accepted', [
+    ('26.7', False), ('26.7.1', False), ('26.7.1_0', False), ('26.7.01_1', False),
+    ('26.7.1_1', True), ('26.7.2', True), ('26.7.7_1', True), ('27.1.1', False),
+])
+def test_platform_minimum_requires_the_first_patch_hotfix(version, accepted):
+    assert GUEST.supported_platform(version) is accepted
+
+
 def test_guest_refuses_nonhosted_execution_before_creating_storage(tmp_path, monkeypatch):
     monkeypatch.setenv('GITHUB_ACTIONS', 'false')
     monkeypatch.setenv('RUNNER_ENVIRONMENT', 'github-hosted')

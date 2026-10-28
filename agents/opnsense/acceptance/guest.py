@@ -49,6 +49,11 @@ def digest(path):
         return hashlib.file_digest(source, 'sha256').hexdigest()
 
 
+def supported_platform(version):
+    match = re.fullmatch(r'26\.7\.([1-9][0-9]*)(?:_([1-9][0-9]*))?', version)
+    return match is not None and (int(match[1]) > 1 or match[2] is not None)
+
+
 def verified_image(directory):
     compressed, raw = directory / (IMAGE + '.bz2'), directory / IMAGE
     key, signature = directory / 'release.pub', directory / 'image.sig'
