@@ -49,7 +49,7 @@ class RotationJournal:
     may match either the original or the committed assignment; no other binding
     may adopt this journal. This store never saves native configuration itself.
     """
-    FIELDS = {'version', 'phase', 'origin', 'binding', 'previous', 'operation_id', 'candidate', 'assignment'}
+    FIELDS = {'version', 'phase', 'origin', 'binding', 'previous', 'operation_id', 'candidate', 'assignment', 'native_before'}
 
     def __init__(self, directory):
         self.directory = Path(directory)
@@ -68,6 +68,12 @@ class RotationJournal:
         previous = validate_response(value['previous'])
         if previous != value['previous'] or self.binding(value['origin'], previous) != value['binding']:
             raise ValueError('Invalid original binding')
+        if value['native_before'] is not None:
+            from rotation_backend import assignment
+            if (not isinstance(value['native_before'], dict)
+                    or assignment(value['native_before']) != previous
+                    or value['native_before']['console_url'] != value['origin']):
+                raise ValueError('Invalid native model binding')
         build_rotate_request(previous['device_id'], value['operation_id'], value['candidate'])
         if hmac.compare_digest(value['candidate'], previous['device_secret']):
             raise ValueError('Unchanged candidate')
@@ -116,7 +122,7 @@ class RotationJournal:
         finally:
             temporary.unlink(missing_ok=True)
 
-    def prepare(self, origin, current):
+    def prepare(self, origin, current, native_before=None):
         try:
             self._directory()
             origin, current = validate_origin(origin), validate_response(current)
@@ -129,7 +135,8 @@ class RotationJournal:
             _secret(candidate)
             value = {'version': 1, 'phase': 'prepared', 'origin': origin,
                      'binding': self.binding(origin, current), 'previous': current,
-                     'operation_id': str(uuid.uuid4()), 'candidate': candidate, 'assignment': None}
+                     'operation_id': str(uuid.uuid4()), 'candidate': candidate, 'assignment': None,
+                     'native_before': native_before}
             self._write(value)
             return value
         except (OSError, ValueError, TypeError, KeyError, ProtocolError, CertificateKeyError):

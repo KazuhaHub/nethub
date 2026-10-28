@@ -71,8 +71,8 @@ Protocol 1.6 rotation binds one privately journaled candidate to one operation;
 its transaction advances the credential hash and claim timestamp with an immutable
 operation/audit. A response-loss retry authenticates the committed candidate and
 recovers that assignment. The server implementation is under genuine database
-and relay validation. The native journal/model workflow, command and UI remain
-W7 work; this is not yet an operational device rotation feature. See the
+and relay validation. The native journal/model workflow, command and UI are under combined
+validation; this is not yet accepted operational device rotation. See the
 [rotation contract and limits](../proto/ROTATION.md).
 
 ## GUI certificate lifecycle

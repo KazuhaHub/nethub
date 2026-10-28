@@ -28,6 +28,7 @@ mean this is not an instantaneous control-channel cutoff guarantee.
 
 This backend is under genuine PostgreSQL and deployed relay validation. Shared
 schema and local fake-repository tests do not prove those runtime boundaries.
-The native durable journal/model transaction, command/page action and coordinated
-shared-token incident operation remain W7-4 work. The existing agent placeholder
-does not perform rotation. See the [wire contract](../../../proto/ROTATION.md).
+The native durable journal/model transaction and command/page action are under
+combined validation. The coordinated shared-token incident operation remains
+W7-4 work. See the [wire contract](../../../proto/ROTATION.md) and
+[device operation](../../../deploy/device-rotation.md).

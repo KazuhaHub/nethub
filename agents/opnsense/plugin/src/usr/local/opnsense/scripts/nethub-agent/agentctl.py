@@ -468,6 +468,21 @@ class Agent:
         finally:
             os.close(descriptor)
 
+    def rotation_backend(self):
+        from rotation_backend import NativeRotationBackend
+        return NativeRotationBackend(run=self.run, configuration=self.root / 'conf/config.xml')
+
+    def rotate_locked(self):
+        from rotation import RotationJournal, RotationError
+        from rotation_transaction import rotate
+        try:
+            if any((self.state / marker).exists() or (self.state / marker).is_symlink()
+                   for marker in ('revoked', 'uninstalling')):
+                raise RotationError('Rotation is unavailable after revocation or during removal')
+            return rotate(RotationJournal(self.state), self.rotation_backend(), self.reconcile_locked)
+        except RotationError as error:
+            raise AgentError(str(error)) from None
+
     def apply(self, action, locked=False):
         for directory in [self.config, self.state]:
             directory.mkdir(parents=True, exist_ok=True)
@@ -499,6 +514,8 @@ class Agent:
                     return self.certificate_locked()
                 if action == 'trust':
                     return self.trust_locked()
+                if action == 'rotate':
+                    return self.rotate_locked()
                 if action == 'unenroll':
                     return self.unenroll_locked()
                 if action == 'forget':
@@ -513,6 +530,8 @@ class Agent:
                     return self.trust_result({'success': False, 'phase': 'error', 'message': str(error)})
                 if action == 'certificate':
                     return self.certificate_result({'success': False, 'action': action, 'phase': 'error', 'message': str(error)})
+                if action == 'rotate':
+                    return {'success': False, 'action': 'rotate', 'phase': 'error', 'message': str(error)}
                 if action in ('report', 'unenroll', 'forget'):
                     return self.lifecycle_result({'success': False, 'message': str(error), 'action': action})
                 return self.record(False, str(error), 'error')
@@ -521,6 +540,9 @@ class Agent:
                     return self.trust_result({'success': False, 'phase': 'error', 'message': 'Relay trust operation failed; inspect local recovery status'})
                 if action == 'certificate':
                     return self.certificate_result({'success': False, 'action': action, 'phase': 'error', 'message': 'GUI certificate synchronization failed; tunnel and native GUI settings were retained'})
+                if action == 'rotate':
+                    return {'success': False, 'action': 'rotate', 'phase': 'error',
+                            'message': 'Rotation interrupted; retain the private journal and retry.'}
                 if action in ('report', 'unenroll', 'forget'):
                     return self.lifecycle_result({'success': False, 'message': 'Device operation failed; local settings were retained', 'action': action})
                 # Child output can include credentials or complete configuration lines.
@@ -607,18 +629,16 @@ def main():
             finally:
                 signal.setitimer(signal.ITIMER_REAL, 0)
                 signal.signal(signal.SIGALRM, previous)
-    elif action in ('report', 'unenroll', 'certificate', 'trust', 'disable', 'enable'):
+    elif action in ('report', 'unenroll', 'certificate', 'trust', 'disable', 'enable', 'rotate'):
         def timed_out(signum, frame):
             raise AgentError('Device operation timed out; inspect status before retrying')
         previous = signal.signal(signal.SIGALRM, timed_out)
-        signal.setitimer(signal.ITIMER_REAL, 85 if action == 'trust' else 35 if action == 'certificate' else 25)
+        signal.setitimer(signal.ITIMER_REAL, 85 if action in ('trust', 'rotate') else 35 if action == 'certificate' else 25)
         try:
             result = Agent().apply(action, locked=arguments.locked)
         finally:
             signal.setitimer(signal.ITIMER_REAL, 0)
             signal.signal(signal.SIGALRM, previous)
-    elif action == 'rotate':
-        result = {'success': False, 'message': 'Not implemented'}
     else:
         agent = Agent()
         result = agent.status() if action == 'status' else agent.apply(action, locked=arguments.locked)

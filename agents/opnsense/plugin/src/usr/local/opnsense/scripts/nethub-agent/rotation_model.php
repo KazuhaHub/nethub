@@ -1,6 +1,6 @@
 <?php
 
-// Root-only native model boundary; public requests enter through stdin.
+// Root-only native model boundary; private credential requests enter through stdin.
 ini_set('display_errors', '0');
 ini_set('log_errors', '0');
 set_error_handler(static function (): never { throw new RuntimeException('Native rotation operation failed'); });

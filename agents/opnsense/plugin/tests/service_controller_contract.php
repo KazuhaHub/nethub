@@ -12,8 +12,8 @@ namespace OPNsense\Base {
 namespace OPNsense\Core {
     class Backend {
         public function configdRun($action, $detach = null, $timeout = null) {
-            if ($detach !== false || $timeout !== 40 ||
-                !in_array($action, ['nethub-agent disable', 'nethub-agent enable'], true)) {
+            if ($detach !== false || $timeout !== ($action === 'nethub-agent rotate' ? 100 : 40) ||
+                !in_array($action, ['nethub-agent disable', 'nethub-agent enable', 'nethub-agent rotate'], true)) {
                 throw new \RuntimeException('unexpected backend command');
             }
             $GLOBALS['calls'][] = $action;
@@ -24,11 +24,13 @@ namespace OPNsense\Core {
 namespace {
     require $argv[1];
     $passed = [];
-    foreach (['disable', 'enable'] as $action) {
+    foreach (['disable', 'enable', 'rotate'] as $action) {
         foreach (['get', 'readonly', 'success', 'busy', 'invalid'] as $case) {
             $GLOBALS['calls'] = [];
             $GLOBALS['response'] = $case === 'invalid' ? 'invalid JSON' :
-                json_encode(['success' => $case === 'success', 'action' => $case === 'busy' ? 'busy' : $action]);
+                json_encode(['success' => $case === 'success', 'action' => $case === 'busy' ? 'busy' : $action,
+                    'phase' => $case === 'success' ? 'applied' : 'error', 'message' => 'private-fixture-value',
+                    'device_secret' => 'private-fixture-value']);
             $controller = new \OPNsense\NetHubAgent\Api\ServiceController();
             $controller->readonly = $case === 'readonly';
             $controller->request = new class($case) {
@@ -40,6 +42,7 @@ namespace {
                 $result = $controller->{$action . 'Action'}();
                 if ($case === 'readonly') { exit(10); }
                 if ($result['success'] !== ($case === 'success')) { exit(11); }
+                if ($action === 'rotate' && str_contains(json_encode($result), 'private-fixture-value')) { exit(15); }
             } catch (\RuntimeException $error) {
                 if ($case !== 'readonly' || $error->getMessage() !== 'readonly') { throw $error; }
             }

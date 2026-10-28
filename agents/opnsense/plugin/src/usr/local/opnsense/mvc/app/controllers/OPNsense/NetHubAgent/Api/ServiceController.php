@@ -56,4 +56,36 @@ class ServiceController extends \OPNsense\Base\ApiControllerBase
     {
         return $this->request->isPost() ? $this->invoke('enable') : ['success' => false];
     }
+
+    public function rotateAction()
+    {
+        if (!$this->request->isPost()) { return ['success' => false]; }
+        $this->throwReadOnly();
+        $failure = ['success' => false, 'action' => 'rotate', 'phase' => 'error',
+            'message' => gettext('Rotation response unavailable. Retain local recovery state and retry.')];
+        try {
+            $backend = new \OPNsense\Core\Backend();
+            $raw = $backend->configdRun('nethub-agent rotate', false, 100);
+            if (!is_string($raw) || strlen($raw) > 4096) { return $failure; }
+            $value = json_decode($raw, true, 8);
+            if (!is_array($value) || !is_bool($value['success'] ?? null)) { return $failure; }
+            if (($value['action'] ?? null) === 'busy' && $value['success'] === false) {
+                return ['success' => false, 'action' => 'rotate', 'phase' => 'busy',
+                    'message' => gettext('Another service operation is running. Retry rotation shortly.')];
+            }
+            if (($value['action'] ?? null) !== 'rotate') { return $failure; }
+            if ($value['success'] === true && ($value['phase'] ?? null) === 'applied') {
+                return ['success' => true, 'action' => 'rotate', 'phase' => 'applied',
+                    'message' => gettext('Credentials rotated. Local access policy retained.')];
+            }
+            if ($value['success'] === false && ($value['phase'] ?? null) === 'saved') {
+                return ['success' => false, 'action' => 'rotate', 'phase' => 'saved',
+                    'message' => gettext('Credentials saved. Retry rotation to finish tunnel reconciliation.')];
+            }
+            return $failure;
+        } catch (\Throwable $error) {
+            // Child/model diagnostics can contain private settings.
+            return $failure;
+        }
+    }
 }

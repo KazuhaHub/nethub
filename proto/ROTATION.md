@@ -2,10 +2,10 @@
 
 Protocol 1.6 specifies an operation-bound rotation request. The HTTP endpoint and
 atomic server mutation are under validation. The private candidate journal is
-implemented with recovery tests; native model persistence, command wiring,
-the page action and the shared-token incident operation remain unimplemented.
-These contracts do not establish operational W7-4 acceptance or make the existing
-placeholder command usable.
+implemented with recovery tests. Native model persistence, command wiring and
+the explicit page action are now under combined validation. The shared-token
+incident operation remains unimplemented. These contracts do not establish
+operational W7-4 acceptance. See [device operation and limits](../deploy/device-rotation.md).
 
 The request contains `agent_protocol_version`, `device_id`, `operation_id` and
 `replacement_secret`. The operation ID is a canonical lowercase UUIDv4; the
