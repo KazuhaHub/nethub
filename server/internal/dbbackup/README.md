@@ -1,0 +1,9 @@
+# PostgreSQL archive groundwork
+
+This internal package runs PostgreSQL 16 `pg_dump` as `nethub_backup`, using a private temporary passfile rather than a password argument. It publishes a custom-format archive only after the bounded producer exits successfully and the archive has been synced. A private atomic receipt records the hash, size, timestamps, role and tool version. An advisory lock excludes concurrent writers; incomplete outputs and temporary passfiles are removed.
+
+Verification checks archive permissions, deployment binding, age and content hash. A failed or overdue latest attempt is unhealthy even when an older successful archive remains available. State coherence checks prevent a receipt from another attempt, a mismatched archive date or an unsupported dump version from passing. The deployment fingerprint must identify the deployment independently of passwords or certificates, which can rotate.
+
+Synthetic producer tests cover process failures, invalid headers, output limits, deadlines, contention, corruption and last-good preservation. The genuine PostgreSQL boundary suite separately restores an actual archive into an owned disposable database, compares forced-RLS device rows, removes backup `BYPASSRLS`, requires failure and restores the role before retrying. Raw archives contain sensitive data and must never be published as CI artifacts.
+
+This package is not yet a deployment backup service. There is no scheduler, retention policy, stable production fingerprint derivation, backup CLI or doctor integration. Hash verification cannot prove that an archive restores successfully. The isolated database restore test does not establish the planned clean-host control-plane restore, retained-key recovery or enrolled-device reconnection. Those W7 requirements remain open.

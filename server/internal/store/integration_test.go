@@ -131,6 +131,7 @@ func TestPostgresBoundaries(t *testing.T) {
 		}
 	})
 	t.Run("doctor_runtime_role_metadata", func(t *testing.T) { testReadinessRoles(t, ctx, owner, web, authz) })
+	t.Run("restricted_backup_archive_restore", func(t *testing.T) { testRestrictedBackup(t, ctx, backup) })
 	t.Run("tenant_and_member_visibility", func(t *testing.T) {
 		connection, err := web.Conn(ctx)
 		if err != nil {

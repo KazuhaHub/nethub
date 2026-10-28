@@ -1817,6 +1817,8 @@ DESIGN §7 列的所有检查项都要实现，并分成两组：
 
 每一项失败时，都要给出一句人能看懂的修复建议。
 
+W7-3 partial validation (2026-10-27): PR #189 merged as `775e46a` after all six checks in run `40468343418`, actual SQL/Docker/relay/compiled-command and inherited gates, four DCOs and review of thirteen final image hashes. The tested and merged trees match. Four bounded modes are accepted: console TLS/lifetime, read-only database roles, protected container inspection and credential-free relay Login-hook rejection/version checking. Hook outage and owned-service recovery passed. Independent external port reachability, recent successful dumps and agreement with an actual formally published appliance package remain open; W7-3 is incomplete. Backup producer groundwork supports the missing dump check and does not accept W7-5 or replace the pending rotation requirement.
+
 **W7-4 rotate（凭证原地轮换，决策 #18）。**
 
 - authz 提供 rotate 接口；`agentctl.py rotate` 拉一套新凭证，原地更新后执行一次 reconcile；页面上加按钮。
