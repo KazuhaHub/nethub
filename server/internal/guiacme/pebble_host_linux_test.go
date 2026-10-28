@@ -105,6 +105,13 @@ func testPebbleProtectedHostIssuer(t *testing.T, renewal, provisionAccount bool)
 			}
 			write(name, []byte("FROM scratch\n"))
 		}
+		for _, path := range []string{"deploy/images/backup/passwd", "deploy/images/backup/group"} {
+			name := filepath.Join(source, path)
+			if os.MkdirAll(filepath.Dir(name), 0700) != nil {
+				t.Fatal("host fixture backup input directory")
+			}
+			write(name, []byte("fixture-only build input\n"))
+		}
 		directory, err := setup.Generate(filepath.Join(files.Stage, "deployment"), setup.Config{ConsoleHost: "console.example.test", DeviceDomain: "devices.example.test", SourceDirectory: source, NetworkSubnet: "172.30.87.0/24"})
 		if err != nil {
 			t.Fatal("isolated deployment generation")
