@@ -51,7 +51,7 @@ def main():
             result['guest_memory_mib'] = 3072
             result['phase'] = 'signed_package_update'
             guest.ssh('set -eu\npkg update -f\npkg upgrade -y\n', 'signed OPNsense package update', timeout=900)
-            version = guest.ssh('/usr/local/sbin/opnsense-version\n', 'installed platform version').decode().strip()
+            version = guest.ssh('/usr/local/sbin/opnsense-version -v\n', 'installed platform version').decode().strip()
             if not supported_platform(version):
                 raise GuestError('Guest has not reached the required patched 26.7 platform')
             result['opnsense_version'] = version
