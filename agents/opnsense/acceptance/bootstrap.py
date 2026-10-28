@@ -50,7 +50,8 @@ def main():
             result['image'] = guest.image_receipt
             result['guest_memory_mib'] = 3072
             result['phase'] = 'signed_package_update'
-            guest.ssh('set -eu\npkg update -f\npkg upgrade -y\n', 'signed OPNsense package update', timeout=900)
+            guest.console.command('set -eu\npkg update -f\npkg upgrade -y\n', timeout=900)
+            guest.ensure_ssh()
             version = guest.ssh('/usr/local/sbin/opnsense-version -v\n', 'installed platform version').decode().strip()
             if not supported_platform(version):
                 raise GuestError('Guest has not reached the required patched 26.7 platform')
@@ -66,9 +67,10 @@ tar -xzf /root/nethub-ci/toolchain.tar.gz -C /root/nethub-ci/toolchain
 PATH=/root/nethub-ci/toolchain/go/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
 export PATH
 sh /root/nethub-ci/source/agents/opnsense/plugin/build.sh
-pkg add /root/nethub-ci/source/agents/opnsense/plugin/dist/os-nethub-agent.pkg
 '''
-            guest.ssh(build, 'native unsigned package build and install', timeout=1000)
+            guest.ssh(build, 'native unsigned package build', timeout=1000)
+            guest.console.command('pkg add /root/nethub-ci/source/agents/opnsense/plugin/dist/os-nethub-agent.pkg\n', timeout=180)
+            guest.ensure_ssh()
             inspect = '''set -eu
 pkg info -e os-nethub-agent
 /usr/local/opnsense/nethub-agent/bin/frpc --version

@@ -250,6 +250,7 @@ PermitRootLogin prohibit-password
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 UsePAM no
+UseDNS no
 Subsystem sftp internal-sftp
 CONFIG
 test -d /var/empty || install -d -m 0755 /var/empty
@@ -277,12 +278,18 @@ cat /root/nethub-ci/host-key.pub
                     diagnostic = self.console.command(
                         "if test -f /root/nethub-ci/sshd-private.log; then tail -n 15 /root/nethub-ci/sshd-private.log; fi\n"
                         "if /sbin/ifconfig -a | grep -q 'inet 192.168.1.1 '; then printf '\\nNH_LAN_ADDRESS_PRESENT\\n'; fi\n"
+                        "for interface in em0 em1; do if /sbin/ifconfig \"$interface\" inet | grep -q 'inet 192.168.1.1 '; then printf '\\nNH_LAN_ON_%s\\n' \"$interface\"; fi; done\n"
                         "true\n", timeout=15)
                     for needle, code in [('already in use', 'sshd_port_in_use'),
                                          ('Cannot assign requested address', 'sshd_listen_address_unavailable'),
                                          ('Missing privilege separation directory', 'sshd_privsep_directory'),
                                          ('Bad configuration option', 'sshd_configuration'),
                                          ('no hostkeys available', 'sshd_host_keys'),
+                                         ('Failed publickey', 'sshd_public_key_refused'),
+                                         ('Authentication refused', 'sshd_key_permissions'),
+                                         ('not allowed', 'sshd_account_refused'),
+                                         ('NH_LAN_ON_em0', 'factory_lan_on_em0'),
+                                         ('NH_LAN_ON_em1', 'factory_lan_on_em1'),
                                          ('NH_LAN_ADDRESS_PRESENT', 'configured_lan_address_present')]:
                         if needle.lower() in diagnostic.lower():
                             self.bootstrap_failure_codes.append(code)
@@ -311,11 +318,30 @@ cat /root/nethub-ci/host-key.pub
             for token, code in [('no space left', 'disk_space'), ('certificate verify failed', 'download_tls'),
                                 ('not found', 'missing_dependency'), ('fatal error', 'php_failure'),
                                 ('differs from server/.go-version', 'compiler_mismatch'),
-                                ('no address record', 'guest_dns'), ('operation timed out', 'guest_network')]:
+                                ('no address record', 'guest_dns'), ('operation timed out', 'guest_network'),
+                                ('permission denied', 'guest_ssh_authentication'),
+                                ('host key verification failed', 'guest_ssh_host_key'),
+                                ('connection refused', 'guest_ssh_connection_refused'),
+                                ('connection timed out', 'guest_ssh_connect_timeout'),
+                                ('connection reset', 'guest_ssh_connection_reset')]:
                 if token in text:
                     category = code
             raise GuestError(label + ' failed: ' + category)
         return result.stdout
+
+    def ensure_ssh(self):
+        try:
+            self.ssh('test "$(id -u)" = 0\n', 'existing owned SSH probe', timeout=15)
+            return
+        except GuestError:
+            # OPNsense service regeneration can stop all openssh listener
+            # processes. Restart only our private configuration through serial;
+            # retain its original host key and never accept a replacement key.
+            self.console.command("set -eu\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n"
+                                 "export PATH\nssh_daemon=$(command -v sshd)\n"
+                                 "case \"$ssh_daemon\" in /usr/local/sbin/sshd|/usr/sbin/sshd) ;; *) exit 127 ;; esac\n"
+                                 "\"$ssh_daemon\" -f /root/nethub-ci/sshd.conf -E /root/nethub-ci/sshd-private.log\n")
+            self.ssh('test "$(id -u)" = 0\n', 'restored owned SSH boundary', timeout=15)
 
     def put(self, path, name):
         if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,95}', name):
