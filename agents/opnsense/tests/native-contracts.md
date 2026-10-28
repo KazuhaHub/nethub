@@ -22,8 +22,11 @@ Only source hashes and the bounded receipt are eligible for artifact upload.
 Raw test XML, fixture diagnostics, VM disks and runtime credentials are excluded.
 The VM action is pinned to reviewed commit
 `c46abacb49f09938ca4e1702d15d836285d694cc` (v1.5.9), whose FreeBSD 15.1
-configuration selects AnyVM 0.7.2 and image builder 2.2.8. Dependency package
-versions are recorded rather than represented as immutable product-image pins.
+configuration selects AnyVM 0.7.2 and image builder 2.2.8. System Python 3.12 pip
+bootstraps a private Python 3.13 environment with the same top-level pytest,
+Jinja2 and jsonschema versions as Linux CI. Rust supports native build-only test
+dependencies; it is not part of an appliance package. PHP 8.5 includes OpenSSL.
+Actual tool versions are recorded rather than represented as product-image pins.
 
 This workflow is under acceptance. It runs filesystem and PHP-model contract
 fixtures on FreeBSD, not an installed OPNsense framework or an installed frpc

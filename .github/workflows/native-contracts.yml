@@ -47,12 +47,16 @@ jobs:
           prepare: |
             set -eu
             export PATH=/usr/local/bin:/usr/local/sbin:$PATH
-            env ASSUME_ALWAYS_YES=yes pkg install -y python313 py313-pytest py313-jinja2 py313-jsonschema php85 php85-dom php85-simplexml php85-openssl
+            env ASSUME_ALWAYS_YES=yes pkg install -y python313 py312-pip rust php85 php85-dom php85-simplexml
+            test ! -e /tmp/nethub-native-python
+            python3.13 -m venv --without-pip /tmp/nethub-native-python
+            CARGO_BUILD_JOBS=2 python3.12 -m pip --python /tmp/nethub-native-python install --disable-pip-version-check --no-cache-dir --retries 2 --timeout 30 pytest==8.3.5 Jinja2==3.1.6 jsonschema==4.25.1
+            php -r 'exit(extension_loaded("openssl") && class_exists("SimpleXMLElement") ? 0 : 1);'
           run: |
             set -eu
             export PATH=/usr/local/bin:/usr/local/sbin:$PATH
             export NETHUB_TEST_PHP=/usr/local/bin/php
-            python3.13 agents/opnsense/native_contracts.py run --directory .native-evidence
+            /tmp/nethub-native-python/bin/python agents/opnsense/native_contracts.py run --directory .native-evidence
       - name: Verify returned source and every native outcome
         env:
           NETHUB_NATIVE_MANIFEST_SHA: ${{ steps.source.outputs.manifest_sha }}
