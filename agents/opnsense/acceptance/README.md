@@ -6,6 +6,9 @@ signature, updates the guest's signed OPNsense packages, and builds the current
 unsigned plugin with the pinned FreeBSD Go SDK and dependency locks. SSH host
 trust is obtained through the verified guest's serial console. Both management
 forwards bind to host loopback; no local workstation VM or existing relay is used.
+The first emulated NIC is the restricted LAN and the second is the outbound WAN,
+matching the signed image's factory `em0` LAN and `em1` WAN assignments. Factory
+interface and firewall configuration remain enabled.
 
 The installed frpc receipt, package registration, configd status and native page
 are checked. The unconfigured device must show enrollment and keep rotation
@@ -29,4 +32,5 @@ Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)
 - [Go release archive checksums](https://go.dev/dl/?mode=json&include=all)
+- [OPNsense factory interface assignments](https://docs.opnsense.org/manual/interfaces.html)
 - [FreeBSD canonical terminal limits](https://raw.githubusercontent.com/freebsd/freebsd-src/releng/15.1/sys/sys/syslimits.h)

@@ -222,11 +222,11 @@ class Guest:
                 'qemu-system-x86_64', '-accel', 'kvm', '-cpu', 'host', '-m', '3072', '-smp', '2',
                 '-drive', f'file={disk},format=qcow2,if=virtio', '-display', 'none', '-monitor', 'none',
                 '-serial', f'unix:{self.directory / "serial.sock"},server=on,wait=off',
-                '-netdev', 'user,id=wan,net=10.0.2.0/24', '-device', 'e1000,netdev=wan',
                 '-netdev', f'user,id=lan,net=192.168.1.0/24,host=192.168.1.2,restrict=on,'
                            f'hostfwd=tcp:127.0.0.1:{self.ssh_port}-192.168.1.1:2222,'
                            f'hostfwd=tcp:127.0.0.1:{self.gui_port}-192.168.1.1:443',
                 '-device', 'e1000,netdev=lan',
+                '-netdev', 'user,id=wan,net=10.0.2.0/24', '-device', 'e1000,netdev=wan',
             ], stdin=subprocess.DEVNULL, stdout=self.qemu_log, stderr=self.qemu_log)
             self.console = Console(self.directory / 'serial.sock', self.directory / 'serial-private.log')
             self.console.login()
