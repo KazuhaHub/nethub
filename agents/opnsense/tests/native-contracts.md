@@ -11,7 +11,8 @@ Its digest travels through the host step output to guest execution and host
 verification. All source bytes must match before and after the selected tests.
 
 The groups exercise enrollment/scheduler lock exclusion and PHP handoff,
-service/circuit/watchdog behavior, and shared wire/model encoding. Both actual
+service/circuit/watchdog behavior, shared wire/model encoding and rotation
+candidate durability/recovery. Both actual
 FreeBSD `lockf` tests must execute. A skipped or failed case, missing group,
 source mismatch or incorrect platform fails acceptance. The guest records its
 Python/tool versions and bounded outcomes; the host independently checks them.

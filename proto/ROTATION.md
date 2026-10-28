@@ -1,7 +1,8 @@
 # Recoverable credential rotation contract
 
 Protocol 1.6 specifies an operation-bound rotation request. The HTTP endpoint and
-atomic server mutation are under validation. Native journal/model persistence,
+atomic server mutation are under validation. The private candidate journal is
+implemented with recovery tests; native model persistence, command wiring,
 the page action and the shared-token incident operation remain unimplemented.
 These contracts do not establish operational W7-4 acceptance or make the existing
 placeholder command usable.

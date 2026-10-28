@@ -25,9 +25,10 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_scheduler.py',
         'agents/opnsense/plugin/tests/test_watchdog.py',
     ]),
-    'wire': (104, [
+    'wire': (115, [
         'agents/opnsense/tests/test_protocol.py',
         'agents/opnsense/plugin/tests/test_relay_trust_backend.py',
+        'agents/opnsense/tests/test_rotation_journal.py',
     ]),
 }
 REQUIRED_NATIVE_CASES = {'test_enrollment_lock_interoperates_with_native_scheduler_lockf',
