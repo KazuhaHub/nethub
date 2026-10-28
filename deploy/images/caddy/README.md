@@ -14,9 +14,9 @@ bounds. [The upstream advisory](https://github.com/go-jose/go-jose/security/advi
 lists no patched v3 release; updating v4 alone leaves v3 linked through the older
 Smallstep wrapper.
 
-`prepare-jose.go` supplies three downstream adaptations in Smallstep certificates
-v0.30.2: the AWS JWT builder uses `Serialize`, and the Azure/OIDC single-audience
-expectations use `AnyAudience`. Source SHA256 values and exact replacement counts
+`prepare-jose.go` supplies five adaptations in four source files from Smallstep
+certificates v0.30.2: the AWS JWT builder uses `Serialize`; Azure/OIDC and ACME
+single-audience expectations use `AnyAudience`. Source SHA256 values and exact replacement counts
 must match before a separate vendored build is prepared. The module cache is not
 modified, and the original module/version metadata remains intact. Docker
 builds, helper tests and vulnerability analysis use the same vendored sources; the
