@@ -26,16 +26,24 @@ func BackupDeploymentFingerprint(ctx context.Context, db *sql.DB) (string, error
  AND (SELECT count(*)=1 AND bool_and(m.roleid='pg_read_all_data'::regrole
    AND m.inherit_option AND NOT m.admin_option) FROM pg_auth_members m
    WHERE m.member='nethub_backup'::regrole)
- AND NOT has_schema_privilege('nethub_backup','public','CREATE')
+ AND NOT has_database_privilege('nethub_backup',current_database(),'CREATE,TEMPORARY')
+ AND NOT EXISTS(SELECT 1 FROM pg_namespace n WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+   AND left(n.nspname,8) NOT IN ('pg_toast','pg_temp_')
+   AND has_schema_privilege('nethub_backup',n.oid,'CREATE'))
  AND NOT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-   WHERE CASE WHEN n.nspname='public' AND c.relkind IN ('r','p','v','m','f') THEN
+   WHERE CASE WHEN n.nspname NOT IN ('pg_catalog','information_schema')
+     AND left(n.nspname,8) NOT IN ('pg_toast','pg_temp_')
+     AND c.relkind IN ('r','p','v','m','f') THEN
      has_table_privilege('nethub_backup',c.oid,'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
      OR has_any_column_privilege('nethub_backup',c.oid,'INSERT,UPDATE,REFERENCES') ELSE false END)
  AND NOT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-   WHERE CASE WHEN n.nspname='public' AND c.relkind='S' THEN
+   WHERE CASE WHEN n.nspname NOT IN ('pg_catalog','information_schema')
+     AND left(n.nspname,8) NOT IN ('pg_toast','pg_temp_')
+     AND c.relkind='S' THEN
      has_sequence_privilege('nethub_backup',c.oid,'USAGE,UPDATE') ELSE false END)
  AND NOT EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
-   WHERE n.nspname='public' AND p.prosecdef
+   WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+     AND left(n.nspname,8) NOT IN ('pg_toast','pg_temp_') AND p.prosecdef
      AND has_function_privilege('nethub_backup',p.oid,'EXECUTE'))`).Scan(&valid)
 	if err != nil {
 		return "", err

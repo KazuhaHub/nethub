@@ -31,6 +31,8 @@ func testBackupIdentity(t *testing.T, ctx context.Context, backup, web *sql.DB) 
 		{"table_write", "GRANT UPDATE ON devices TO nethub_backup", "REVOKE UPDATE ON devices FROM nethub_backup"},
 		{"column_write", "GRANT UPDATE(label) ON devices TO nethub_backup", "REVOKE UPDATE(label) ON devices FROM nethub_backup"},
 		{"schema_create", "GRANT CREATE ON SCHEMA public TO nethub_backup", "REVOKE CREATE ON SCHEMA public FROM nethub_backup"},
+		{"database_create", "GRANT CREATE ON DATABASE nethub TO nethub_backup", "REVOKE CREATE ON DATABASE nethub FROM nethub_backup"},
+		{"foreign_schema_write", "CREATE SCHEMA pgxtemp_probe; CREATE TABLE pgxtemp_probe.probe(id integer); GRANT USAGE ON SCHEMA pgxtemp_probe TO nethub_backup; GRANT UPDATE ON pgxtemp_probe.probe TO nethub_backup", "DROP SCHEMA pgxtemp_probe CASCADE"},
 		{"definer_function", "GRANT EXECUTE ON FUNCTION lookup_device_credential(uuid) TO nethub_backup", "REVOKE EXECUTE ON FUNCTION lookup_device_credential(uuid) FROM nethub_backup"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
