@@ -1,0 +1,109 @@
+name: Installed native rotation
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/native-enrolled.yml
+      - agents/opnsense/acceptance/**
+      - agents/opnsense/plugin/src/**
+      - server/tests/compose.sh
+  workflow_dispatch:
+    inputs:
+      accepted_ci_run:
+        description: Successful six-job CI run for this exact source and its tested images
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: native-enrolled-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  accepted-images:
+    name: exact-source tested image gate
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      run: ${{ steps.accepted.outputs.run }}
+    steps:
+      - name: Checkout exact PR source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Wait for complete image producer evidence
+        id: accepted
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NETHUB_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python3 agents/opnsense/acceptance/wait_for_images.py
+  native:
+    name: installed OPNsense and six services
+    needs: accepted-images
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.accepted-images.result == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      actions: read
+      contents: read
+    env:
+      NETHUB_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Check fresh hosted resources
+        run: |
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test -c /dev/kvm
+          test "$(awk '/MemAvailable/ {print int($2 / 1024)}' /proc/meminfo)" -ge 4500
+          sudo chmod a+rw /dev/kvm
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y qemu-system-x86 qemu-utils openssh-client
+      - name: Set up browser runtime
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: server/web/package-lock.json
+      - name: Install pinned browser dependencies
+        working-directory: server/web
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/native-enrolled-browsers
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Bind tested images and exercise the installed device
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACCEPTED_CI_RUN: ${{ inputs.accepted_ci_run || needs.accepted-images.outputs.run }}
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/native-enrolled-browsers
+        run: |
+          export NETHUB_NODE_BINARY
+          NETHUB_NODE_BINARY="$(command -v node)"
+          sudo --preserve-env=GH_TOKEN,ACCEPTED_CI_RUN,GITHUB_ACTIONS,RUNNER_ENVIRONMENT,NETHUB_SOURCE_HEAD,NETHUB_NODE_BINARY,PLAYWRIGHT_BROWSERS_PATH,PYTHONDONTWRITEBYTECODE \
+            python3 agents/opnsense/acceptance/with_images.py --run "$ACCEPTED_CI_RUN" \
+            --directory "$RUNNER_TEMP/native-enrolled-private" --evidence "$RUNNER_TEMP/native-enrolled-evidence"
+      - name: Retain only closed outcomes and native page images
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installed-native-rotation
+          path: |
+            ${{ runner.temp }}/native-enrolled-evidence/deployment-result.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/result.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotation.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/*-page.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-enroll.png
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate.png
+          if-no-files-found: warn
+          retention-days: 7

@@ -39,6 +39,39 @@ accounts for Bootstrap's disabled-button hit testing and records closed boolean
 geometry/hit results and a fixed failure phase. This correction needs a real run;
 the earlier failed overall preparation result remains retained.
 
+## Combined installed-device acceptance
+
+`native-enrolled.yml` waits for a successful six-job CI run for its exact PR source
+before allocating a fresh guest. A separate image-gate job bounds that wait;
+the existing CI deadline remains unchanged. Manual dispatch can also name the
+exact-source producer. `with_images.py` verifies the producer, every required job,
+artifact lifetime/checksum, image IDs and layers before loading the existing
+tested images. It reuses `server/tests/compose.sh`; ordinary CI does not start a
+guest. The optional native hook exercises the actual enrollment and rotation
+page actions, configd, PHP model readback and verified assigned-route TLS.
+
+The disposable guest imports only the fixture's public console CA through native
+configuration/trust handling. A public CSR uses its existing GUI private key;
+that key stays inside the guest. An owned test CA signs the CSR, and a fixture
+helper applies the certificate and exact Alternate Hostname through Core Config.
+Both native GUI security checks must remain enabled. This precondition is not
+acceptance of production certificate issuance. Direct private management browser
+TLS exceptions do not count as relay TLS verification.
+
+The fixture checks retained identity/source grants/GUI key, native credential and
+claim replacement, old-credential HTTP refusal, a genuine official-frpc stale
+Login refusal, and verified TLS recovery at the same assigned route. Recovery
+after an interrupted installed operation and concurrent independent-device
+survival still need additional installed coverage; Linux relay and FreeBSD
+contracts remain separate evidence. The new combined fixture is unaccepted until
+an actual exact-source run and its retained outcomes/images are reviewed.
+
+Only closed outcomes and selected native page images are made readable to the
+artifact uploader. Tokens, snapshots, CSRs, fixture keys, raw child output and
+service logs stay in root-only ephemeral storage. The runner discards them after
+the test. No existing workstation VM, relay, production configuration or formal
+package is used.
+
 Serial bootstrap sends short encoded heredoc lines within FreeBSD's canonical
 terminal input bound. Failure results retain only the waiting stage, selected
 prompt flags, byte count and image-verification receipt; raw transcripts remain

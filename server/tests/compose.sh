@@ -328,6 +328,11 @@ PY
 python3 "$root/agents/opnsense/plugin/frp_artifact.py" --platform linux_amd64 --binary frpc --output "$stage/official/frpc"
 docker cp "$(compose ps -q caddy):/data/caddy/pki/authorities/local/root.crt" "$stage/console-ca.pem" >/dev/null
 python3 "$root/server/tests/relay-deployment.py" "$stage" "$port" "$project"
+if [ "${NETHUB_NATIVE_TEST:-0}" = 1 ]; then
+    python3 "$root/agents/opnsense/acceptance/bootstrap.py" \
+        --directory "$NETHUB_NATIVE_DIRECTORY" --evidence "$NETHUB_NATIVE_EVIDENCE" \
+        --deployment-stage "$stage" --console-port "$port" --project "$project"
+fi
 compose logs --no-color > "$stage/relay-runtime.log"
 python3 - "$stage" <<'PY'
 import json,pathlib,sys

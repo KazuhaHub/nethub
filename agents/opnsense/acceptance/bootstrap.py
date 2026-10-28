@@ -18,7 +18,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--directory', type=Path, required=True)
     parser.add_argument('--evidence', type=Path, required=True)
+    parser.add_argument('--deployment-stage', type=Path)
+    parser.add_argument('--console-port', type=int)
+    parser.add_argument('--project')
     args = parser.parse_args()
+    if any(value is not None for value in (args.deployment_stage, args.console_port, args.project)) and not all(
+            value is not None for value in (args.deployment_stage, args.console_port, args.project)):
+        raise GuestError('Complete owned deployment binding required')
     directory, evidence = args.directory.absolute(), args.evidence.absolute()
     if directory != directory.resolve() or evidence != evidence.resolve():
         raise GuestError('Aliased acceptance storage refused')
@@ -102,6 +108,11 @@ PY
                 raise GuestError('Installed native page was not confirmed')
             result['page'] = page
             result['unsigned_package_installed'] = True
+            if args.deployment_stage is not None:
+                from enrolled import exercise
+                result['phase'] = 'installed_enrollment_rotation'
+                result['installed_rotation'] = exercise(guest, args.deployment_stage, args.console_port,
+                                                       args.project, evidence)
             result['passed'] = True
             result['phase'] = 'completed'
     except Exception as error:
