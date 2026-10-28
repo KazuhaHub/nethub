@@ -19,14 +19,15 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_scheduler.py::test_enrollment_handoff_has_no_credentials_or_cached_output',
         'agents/opnsense/tests/test_enrollment.py::test_php_controller_keeps_credentials_private_and_saves_under_native_lock',
     ]),
-    'service': (41, [
+    'service': (42, [
         'agents/opnsense/plugin/tests/test_circuit_breaker.py',
         'agents/opnsense/plugin/tests/test_service_controller.py',
         'agents/opnsense/plugin/tests/test_scheduler.py',
         'agents/opnsense/plugin/tests/test_watchdog.py',
         'agents/opnsense/plugin/tests/test_rotation_agent.py',
+        'agents/opnsense/plugin/tests/test_lifecycle_agent.py::test_removal_after_unknown_rotation_commit_uses_saved_candidate',
     ]),
-    'wire': (136, [
+    'wire': (138, [
         'agents/opnsense/tests/test_protocol.py',
         'agents/opnsense/plugin/tests/test_relay_trust_backend.py',
         'agents/opnsense/tests/test_rotation_journal.py',

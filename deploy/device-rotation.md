@@ -21,6 +21,12 @@ succeed. Do not delete recovery files, edit credentials manually or re-enroll
 to hide a failed operation. A conflicting local policy/configuration change
 requires local review rather than automatic overwrite.
 
+If removal is needed while a rotation response is unknown, **Remove enrollment**
+can retry revocation with the bound saved candidate after stopping the tunnel.
+It keeps the journal until the server confirms that exact device is revoked and
+the native model is cleared. A remaining rotation journal prevents enrolling a
+different identity over unresolved recovery state.
+
 The shared mutation lock excludes reconcile, watchdog and other device actions
 while rotation runs. The command and backend have internal and external time
 limits. The console page receives only a fixed success/busy/saved/error result;

@@ -165,6 +165,7 @@ class Agent:
             if model is not None and model.findtext('relay_trust_state'):
                 raise AgentError('Former relay trust metadata cleanup is incomplete; retry removal first')
             remnants = [self.config / name for name in ('gui-apply', 'gui-request', 'gui-certificate.json', 'relay-trust')]
+            remnants.append(self.state / 'rotation.json')
             if any(path.exists() or path.is_symlink() for path in remnants):
                 raise AgentError('Previous enrollment runtime cleanup is incomplete; retry Remove enrollment before enrolling')
             version = self.command(['/usr/local/sbin/opnsense-version', '-v'], timeout=5)
@@ -411,6 +412,7 @@ class Agent:
     def unenroll_locked(self):
         from lifecycle import request_removal
         from protocol import ProtocolError
+        from rotation import RotationJournal, RotationError
         model = self.lifecycle_model()
         device_id = model.findtext('device_id')
         if not device_id:
@@ -421,8 +423,16 @@ class Agent:
         # Rollback permits the stop/revocation marker and needs the old binding.
         self.recover_trust()
         try:
-            request_removal(model.findtext('console_url'), model.findtext('device_secret'), device_id)
-        except ProtocolError:
+            try:
+                request_removal(model.findtext('console_url'), model.findtext('device_secret'), device_id)
+            except ProtocolError:
+                path = self.state / 'rotation.json'
+                if not path.exists() and not path.is_symlink():
+                    raise
+                candidate = RotationJournal(self.state).removal_candidate(
+                    model.findtext('console_url'), device_id, model.findtext('device_secret'))
+                request_removal(model.findtext('console_url'), candidate, device_id)
+        except (ProtocolError, RotationError):
             raise AgentError('Tunnel stopped; server removal is unconfirmed. Retry Remove enrollment') from None
         self.atomic(self.state / 'unenroll-confirmed.json', json.dumps({'device_id': device_id, 'revoked': True}).encode())
         return {'success': True, 'action': 'unenroll', 'device_id': device_id, 'revoked': True}
@@ -432,11 +442,23 @@ class Agent:
         from certificate_sync import CertificateSynchronizer
         from certificate_transaction import CertificateTransactionError
         from relay_trust_transaction import TrustTransactionError
+        from rotation import RotationJournal, RotationError
         model = self.lifecycle_model()
         if model.findtext('enabled') == '1' or any(model.findtext(key) for key in ('device_id', 'device_secret', 'frp_token', 'domain_claim', 'relay_trust_state')):
             raise AgentError('Native configuration must be cleared before removing runtime credentials')
         self.stop_revoked()
         try:
+            rotation = self.state / 'rotation.json'
+            if rotation.exists() or rotation.is_symlink():
+                confirmation = self.state / 'unenroll-confirmed.json'
+                KeyStore(self.state)._protected(confirmation)
+                if confirmation.stat().st_size > 512:
+                    raise RotationError('Removal confirmation needs local review')
+                receipt = json.loads(confirmation.read_bytes())
+                if (not isinstance(receipt, dict) or set(receipt) != {'device_id', 'revoked'}
+                        or receipt['revoked'] is not True):
+                    raise RotationError('Removal confirmation needs local review')
+                RotationJournal(self.state).forget_revoked(receipt['device_id'])
             directory = self.config/'relay-trust'
             if directory.exists() or directory.is_symlink():
                 self.trust_transaction().forget()
@@ -444,7 +466,7 @@ class Agent:
             keys = KeyStore(self.config / 'gui-key')
             CertificateSynchronizer(keys).forget()
             keys.forget()
-        except (CertificateKeyError, CertificateTransactionError, TrustTransactionError) as error:
+        except (CertificateKeyError, CertificateTransactionError, TrustTransactionError, RotationError) as error:
             raise AgentError(str(error)) from None
         paths = [self.live, self.candidate, self.backup, self.config / 'relay-ca.pem']
         paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'certificate.json', 'trust.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]

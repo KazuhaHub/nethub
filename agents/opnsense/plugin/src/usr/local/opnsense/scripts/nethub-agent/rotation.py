@@ -178,3 +178,25 @@ class RotationJournal:
             self.files._sync(self.directory)
         except (OSError, ValueError, TypeError, KeyError, ProtocolError, CertificateKeyError):
             raise RotationError('Native rotation save is unconfirmed; retain the journal') from None
+
+    def removal_candidate(self, origin, device_id, current_secret):
+        """Recover removal authentication after an unknown rotation commit."""
+        try:
+            value = self._read()
+            if (validate_origin(origin) != value['origin'] or device_id != value['previous']['device_id']
+                    or current_secret not in (value['previous']['device_secret'], value['candidate'])):
+                raise ValueError('Removal differs from pending rotation')
+            return value['candidate']
+        except (OSError, ValueError, TypeError, KeyError, ProtocolError, CertificateKeyError):
+            raise RotationError('Pending rotation identity differs from removal; retain its journal') from None
+
+    def forget_revoked(self, confirmed_device_id):
+        """Caller independently confirmed server revocation and cleared the model."""
+        try:
+            value = self._read()
+            if value['previous']['device_id'] != confirmed_device_id:
+                raise ValueError('Removal confirmation differs from rotation')
+            self.path.unlink()
+            self.files._sync(self.directory)
+        except (OSError, ValueError, TypeError, KeyError, ProtocolError, CertificateKeyError):
+            raise RotationError('Pending rotation removal is unconfirmed; retain its journal') from None

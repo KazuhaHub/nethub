@@ -133,6 +133,30 @@ def test_failed_response_persistence_retries_the_same_committed_candidate(journa
     assert recovered['device_secret'] == saved['candidate']
 
 
+def test_unknown_commit_removal_uses_only_the_bound_candidate(journal, original):
+    saved = journal.prepare(ORIGIN, original)
+    before = journal.path.read_bytes()
+    assert journal.removal_candidate(ORIGIN, original['device_id'], original['device_secret']) == saved['candidate']
+    assert journal.removal_candidate(ORIGIN, original['device_id'], saved['candidate']) == saved['candidate']
+    for origin, device, secret in [
+        ('https://other.example.com', original['device_id'], original['device_secret']),
+        (ORIGIN, '44444444-4444-4444-8444-444444444444', original['device_secret']),
+        (ORIGIN, original['device_id'], 'B' * 42 + 'A'),
+    ]:
+        with pytest.raises(RotationError):
+            journal.removal_candidate(origin, device, secret)
+        assert journal.path.read_bytes() == before
+
+
+def test_removal_cleanup_requires_exact_confirmed_device(journal, original):
+    journal.prepare(ORIGIN, original)
+    with pytest.raises(RotationError):
+        journal.forget_revoked('44444444-4444-4444-8444-444444444444')
+    assert journal.path.exists()
+    journal.forget_revoked(original['device_id'])
+    assert not journal.path.exists()
+
+
 @pytest.mark.skipif(os.name != 'posix', reason='Production POSIX ownership boundary')
 def test_public_or_linked_journal_is_never_adopted(journal, original):
     journal.prepare(ORIGIN, original)
