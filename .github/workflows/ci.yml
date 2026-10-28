@@ -169,19 +169,27 @@ jobs:
       - name: Verify and scan rebuilt helper dependencies
         run: |
           test -z "$(gofmt -l ../deploy/images)"
+          GOBIN="$RUNNER_TEMP" go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
           for helper in caddy postgres frps; do
             (
               cd "../deploy/images/$helper"
               go mod verify
               go mod tidy
               git diff --exit-code -- go.mod go.sum
+              if [ "$helper" = caddy ]; then
+                go run prepare-jose.go "$RUNNER_TEMP/caddy-jose-source"
+                cd "$RUNNER_TEMP/caddy-jose-source"
+                export GOFLAGS=-mod=vendor
+                export CGO_ENABLED=0
+                go test -p 2 -count=1 ./...
+              fi
               target=./...
               if [ "$helper" = postgres ]; then target=github.com/tianon/gosu; fi
               if [ "$helper" = frps ]; then
                 target=github.com/fatedier/frp/cmd/frps
                 export GOFLAGS=-tags=frps,noweb
               fi
-              GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 "$target"
+              GOOS=linux GOARCH=amd64 CGO_ENABLED=0 "$RUNNER_TEMP/govulncheck" "$target"
               if [ "$helper" = frps ]; then
                 GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -p 2 -trimpath -o "$RUNNER_TEMP/frps-scan" "$target"
                 go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 -mode=binary "$RUNNER_TEMP/frps-scan"

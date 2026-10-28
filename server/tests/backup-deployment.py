@@ -346,5 +346,8 @@ if __name__ == '__main__':
     try:
         main()
     except (Failure, subprocess.SubprocessError, OSError, ValueError, KeyError) as error:
-        print('Backup deployment acceptance failed; private fixture diagnostics retained (' + type(error).__name__ + ')', file=sys.stderr)
+        # Failure contains only fixed fixture messages and numeric step counters.
+        # Dependency exception text can contain private responses or paths.
+        detail = str(error) if isinstance(error, Failure) else type(error).__name__
+        print('Backup deployment acceptance failed; private fixture diagnostics retained: ' + detail, file=sys.stderr)
         raise SystemExit(1)

@@ -10,6 +10,9 @@
 !deploy/images/caddy/go.mod
 !deploy/images/caddy/go.sum
 !deploy/images/caddy/main.go
+!deploy/images/caddy/prepare-jose.go
+!deploy/images/caddy/jose_test.go
+!deploy/images/caddy/README.md
 !deploy/images/postgres/
 !deploy/images/postgres/Dockerfile
 !deploy/images/postgres/go.mod
@@ -18,6 +21,9 @@
 !deploy/images/frps/Dockerfile
 !deploy/images/frps/go.mod
 !deploy/images/frps/go.sum
+!deploy/images/backup/
+!deploy/images/backup/passwd
+!deploy/images/backup/group
 !LICENSE
 !NOTICE
 server/**/node_modules/
