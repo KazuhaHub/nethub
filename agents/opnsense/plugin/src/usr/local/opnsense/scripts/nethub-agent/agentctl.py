@@ -475,13 +475,27 @@ class Agent:
     def rotate_locked(self):
         from rotation import RotationJournal, RotationError
         from rotation_transaction import rotate
+        from relay_trust_transaction import TrustTransactionError
         try:
             if any((self.state / marker).exists() or (self.state / marker).is_symlink()
                    for marker in ('revoked', 'uninstalling')):
                 raise RotationError('Rotation is unavailable after revocation or during removal')
-            return rotate(RotationJournal(self.state), self.rotation_backend(), self.reconcile_locked)
+            pending = self.state / 'rotation.json'
+            if not pending.exists() and not pending.is_symlink():
+                self.recover_trust()
+                directory = self.config / 'relay-trust'
+                if directory.exists() or directory.is_symlink():
+                    self.trust_transaction().check_rotation_ready()
+            def rebind(before, after):
+                directory = self.config / 'relay-trust'
+                if directory.exists() or directory.is_symlink():
+                    self.trust_transaction().rebind_rotation(before, after)
+            return rotate(RotationJournal(self.state), self.rotation_backend(), self.reconcile_locked,
+                          rebind_trust=rebind)
         except RotationError as error:
             raise AgentError(str(error)) from None
+        except TrustTransactionError:
+            raise AgentError('Managed trust needs local review; retain the rotation journal') from None
 
     def apply(self, action, locked=False):
         for directory in [self.config, self.state]:

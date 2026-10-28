@@ -26,13 +26,14 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_watchdog.py',
         'agents/opnsense/plugin/tests/test_rotation_agent.py',
     ]),
-    'wire': (128, [
+    'wire': (136, [
         'agents/opnsense/tests/test_protocol.py',
         'agents/opnsense/plugin/tests/test_relay_trust_backend.py',
         'agents/opnsense/tests/test_rotation_journal.py',
         'agents/opnsense/tests/test_rotation_backend.py',
         'agents/opnsense/tests/test_rotation_native_store.py',
         'agents/opnsense/tests/test_rotation_transaction.py',
+        'agents/opnsense/tests/test_rotation_trust_binding.py',
     ]),
 }
 REQUIRED_NATIVE_CASES = {'test_enrollment_lock_interoperates_with_native_scheduler_lockf',

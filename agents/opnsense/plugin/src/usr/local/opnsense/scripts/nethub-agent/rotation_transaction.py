@@ -4,7 +4,7 @@ from rotation import RotationError
 from rotation_backend import assignment, replacement
 
 
-def rotate(journal, backend, reconcile, transport=request_json):
+def rotate(journal, backend, reconcile, transport=request_json, rebind_trust=None):
     """Caller owns reconcile.lock. Never clear policy or revert a committed secret.
 
     Retain the received journal until native save/readback and ordinary idempotent
@@ -26,6 +26,8 @@ def rotate(journal, backend, reconcile, transport=request_json):
     saved = backend.read()
     if saved != after:
         raise RotationError('Native rotation save is unconfirmed; retain the journal')
+    if rebind_trust is not None:
+        rebind_trust(before, after)
     result = reconcile()
     if not isinstance(result, dict) or result.get('success') is not True:
         return {'success': False, 'action': 'rotate', 'phase': 'saved',

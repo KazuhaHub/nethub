@@ -1,5 +1,6 @@
 """Durable public trust application ordering; the caller holds reconcile.lock."""
 import base64
+import hashlib
 from datetime import datetime, timezone
 import json
 import os
@@ -195,6 +196,44 @@ class TrustTransaction:
         return (actual['binding'] == value['binding'] and actual['device_id'] == value['snapshot']['device_id']
                 and actual['server_name'] == value['snapshot']['desired']['server_name']
                 and actual['nodes'] == value['after' if after else 'before'])
+
+    def check_rotation_ready(self):
+        """Require a completed current trust transaction before starting rotation."""
+        try:
+            value = self.read()
+            if value is not None and (value['phase'] != 'applied' or not self._current(value)):
+                raise ValueError('Managed trust is not ready for rotation')
+        except (KeyError, TypeError, ValueError, OSError):
+            raise TrustTransactionError('Complete relay trust recovery before rotating credentials') from None
+
+    def rebind_rotation(self, before, after):
+        """Retain applied trust across one verified native credential replacement.
+
+        The rotation journal pins both full native snapshots. No trust bytes,
+        generation, validity, application receipt or device identity may change.
+        The caller holds reconcile.lock and has verified the after-model save.
+        """
+        try:
+            fields = ('console_url', 'device_id', 'device_secret', 'domain_claim', 'frp_token',
+                      'server_addr', 'server_name', 'server_port', 'subdomain')
+            if any(before[key] != after[key] for key in ('console_url', 'device_id', 'subdomain', 'server_name',
+                                                         'relay_ca', 'relay_trust_state', 'enabled')):
+                raise ValueError('Rotation changed managed trust identity')
+            old_binding = hashlib.sha256(KeyStore._encoded({key: before[key] for key in fields})).hexdigest()
+            new_binding = hashlib.sha256(KeyStore._encoded({key: after[key] for key in fields})).hexdigest()
+            value = self.read()
+            if value is None:
+                return
+            current = self.backend.read()
+            if (value['phase'] != 'applied' or value['binding'] not in (old_binding, new_binding)
+                    or current['binding'] != new_binding or current['device_id'] != after['device_id']
+                    or current['server_name'] != after['server_name'] or current['nodes'] != value['after']
+                    or current['nodes'] != {key: after[key] for key in ('relay_ca', 'relay_trust_state')}):
+                raise ValueError('Managed trust rotation binding differs')
+            if value['binding'] != new_binding:
+                self._write(dict(value, binding=new_binding))
+        except (KeyError, TypeError, ValueError, OSError):
+            raise TrustTransactionError('Managed relay trust binding needs local review after rotation') from None
 
     def recover(self):
         """Restore a pending transaction locally; never start an expired old tunnel."""

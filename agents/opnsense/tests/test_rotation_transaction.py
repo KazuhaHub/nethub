@@ -70,6 +70,22 @@ def test_failed_reconcile_keeps_received_journal_until_retry(nodes, journal):
     assert model.saves == 1 and len(calls) == 1 and reconcile.call_count == 2
 
 
+def test_trust_rebind_failure_retains_saved_operation_before_reconcile(nodes, journal):
+    model = Model(nodes)
+    reconcile = mock.Mock(return_value={'success': True})
+    calls = []
+    def unavailable(before, after):
+        assert model.nodes == after
+        raise RotationError('synthetic trust rebind failure')
+    with pytest.raises(RotationError):
+        rotate(journal, model, reconcile, transport=network_for(assignment(nodes), journal, calls), rebind_trust=unavailable)
+    reconcile.assert_not_called()
+    assert journal._read()['phase'] == 'received'
+    rebind = mock.Mock()
+    assert rotate(journal, model, reconcile, transport=mock.Mock(side_effect=AssertionError()), rebind_trust=rebind)['success']
+    assert rebind.call_args.args[1] == model.nodes and model.saves == 1 and len(calls) == 1
+
+
 @pytest.mark.parametrize('field,value', [('enabled', '1'), ('relay_trust_state', 'changed'), ('console_url', 'https://other.example.com')])
 def test_changed_policy_or_trust_refuses_pending_operation_before_network(nodes, journal, field, value):
     model = Model(nodes)
