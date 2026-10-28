@@ -60,9 +60,11 @@ TLS exceptions do not count as relay TLS verification.
 
 The fixture checks retained identity/source grants/GUI key, native credential and
 claim replacement, old-credential HTTP refusal, a genuine official-frpc stale
-Login refusal, and verified TLS recovery at the same assigned route. Recovery
-after an interrupted installed operation and concurrent independent-device
-survival still need additional installed coverage; Linux relay and FreeBSD
+Login refusal, and verified TLS recovery at the same assigned route. It also
+keeps an independent enrolled official client alive and checks its original
+control socket and verified TLS before/after the native rotation. Recovery
+after an interrupted installed operation still needs additional installed
+coverage; Linux relay and FreeBSD
 contracts remain separate evidence. The new combined fixture is unaccepted until
 an actual exact-source run and its retained outcomes/images are reviewed.
 

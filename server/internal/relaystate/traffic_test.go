@@ -62,10 +62,15 @@ func TestTrafficQueueRetainsOnlyLatestPendingSnapshot(t *testing.T) {
 type trafficRepositoryStub struct {
 	observations atomic.Int32
 	started      chan struct{}
+	observed     chan struct{}
 }
 
 func (s *trafficRepositoryStub) Observe(context.Context, []Observation) error {
 	s.observations.Add(1)
+	select {
+	case s.observed <- struct{}{}:
+	default:
+	}
 	return nil
 }
 
@@ -85,7 +90,7 @@ func TestBlockedTrafficWriterDoesNotBlockObservationsOrShutdown(t *testing.T) {
 		w.Write(data)
 	}))
 	defer server.Close()
-	repository := &trafficRepositoryStub{started: make(chan struct{}, 1)}
+	repository := &trafficRepositoryStub{started: make(chan struct{}, 1), observed: make(chan struct{}, 1)}
 	poller := newPoller(t, server.URL, repository, io.Discard)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -95,6 +100,13 @@ func TestBlockedTrafficWriterDoesNotBlockObservationsOrShutdown(t *testing.T) {
 	case <-repository.started:
 	case <-time.After(time.Second):
 		t.Fatal("traffic worker did not receive the initial real HTTP snapshot")
+	}
+	// Offering telemetry precedes Observe, so the blocked writer's signal alone
+	// does not establish that the initial observation has finished.
+	select {
+	case <-repository.observed:
+	case <-time.After(time.Second):
+		t.Fatal("initial observation did not complete while telemetry was blocked")
 	}
 	work, stop := context.WithTimeout(ctx, time.Second)
 	if err := poller.Poll(work); err != nil || repository.observations.Load() < 2 {

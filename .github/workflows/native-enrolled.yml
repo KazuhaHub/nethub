@@ -6,6 +6,12 @@ on:
       - .github/workflows/native-enrolled.yml
       - agents/opnsense/acceptance/**
       - agents/opnsense/plugin/src/**
+      - server/internal/device/**
+      - server/internal/protocol/**
+      - server/internal/relayhook/**
+      - server/internal/store/device_rotation*
+      - server/internal/store/migrations/00029*
+      - proto/**
       - server/tests/compose.sh
   workflow_dispatch:
     inputs:
@@ -25,7 +31,7 @@ jobs:
     name: exact-source tested image gate
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 35
     permissions:
       actions: read
       contents: read

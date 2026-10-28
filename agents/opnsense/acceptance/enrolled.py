@@ -1,13 +1,17 @@
 """Exercise the installed plugin against the owned six-service Compose fixture."""
 import base64
+from contextlib import ExitStack
 import hashlib
+import http.server
 import ipaddress
 import json
 import os
 from pathlib import Path
 import re
 import socket
+import ssl
 import subprocess
+import threading
 import time
 import uuid
 
@@ -23,6 +27,11 @@ def private_json(path, value):
 
 
 def exercise(guest, stage, port, project, evidence):
+    with ExitStack() as cleanup:
+        return _exercise(guest, stage, port, project, evidence, cleanup)
+
+
+def _exercise(guest, stage, port, project, evidence, cleanup):
     stage = Path(stage).resolve(strict=True)
     if (os.geteuid() != 0 or not re.fullmatch(r'nethub-stack-test-[a-z0-9-]+', project)
             or not 1 <= port <= 65535 or stage.parent not in (Path('/tmp'), Path('/var/tmp'))):
@@ -190,6 +199,81 @@ def exercise(guest, stage, port, project, evidence):
         time.sleep(1)
     else:
         raise GuestError('Installed native assigned route did not pass verified TLS')
+    other = json.loads((work / 'assignment1.json').read_text(encoding='utf-8'))
+    if (str(uuid.UUID(other['device_id'])) == before['device_id']
+            or not re.fullmatch(r'[a-z0-9]{8}', other['subdomain'])):
+        raise GuestError('Independent enrolled device witness unavailable')
+
+    class Witness(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            payload = self.headers.get('Host', '').encode('ascii')
+            self.send_response(200)
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, *_):
+            pass
+
+    backend = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Witness)
+    cleanup.callback(backend.server_close)
+    tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    tls.load_cert_chain(work / 'backend-cert.pem', work / 'backend-key.pem')
+    backend.socket = tls.wrap_socket(backend.socket, server_side=True)
+    threading.Thread(target=backend.serve_forever, daemon=True).start()
+    cleanup.callback(backend.shutdown)
+    other_config = work / 'native-other-device.json'
+    private_json(other_config, {'serverAddr': '127.0.0.1', 'serverPort': other['server_port'],
+        'loginFailExit': True, 'auth': {'method': 'token', 'token': other['frp_token']},
+        'log': {'to': 'console', 'level': 'warn'},
+        'metadatas': {'device_id': other['device_id'], 'domain_claim': other['domain_claim']},
+        'transport': {'heartbeatInterval': 10, 'heartbeatTimeout': 30,
+                      'tls': {'enable': True, 'serverName': other['server_name'], 'trustedCaFile': str(work / 'relay-ca.pem')}},
+        'proxies': [{'name': 'nethub-' + other['device_id'] + '-web', 'type': 'https',
+                     'localIP': '127.0.0.1', 'localPort': backend.server_port, 'subdomain': other['subdomain']}]})
+    other_log = cleanup.enter_context((work / 'native-other-device.log').open('xb'))
+    survivor = subprocess.Popen([str(stage / 'official/frpc'), '-c', str(other_config)], stdout=other_log, stderr=other_log)
+
+    def stop_survivor():
+        if survivor.poll() is None:
+            survivor.terminate()
+            try:
+                survivor.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                survivor.kill()
+                survivor.wait(timeout=5)
+
+    cleanup.callback(stop_survivor)
+
+    def survivor_route():
+        assigned = other['subdomain'] + '.router.example.com'
+        response = subprocess.run(['curl', '--silent', '--fail', '--noproxy', '*', '--max-time', '3',
+            '--interface', gateway, '--cacert', str(work / 'backend-cert.pem'),
+            '--connect-to', assigned + ':443:' + gateway + ':8443', 'https://' + assigned + '/'],
+            capture_output=True, timeout=5)
+        return response.returncode == 0 and response.stdout.decode() == assigned
+
+    def survivor_sockets():
+        raw = invoke(['ss', '-tnpH'], 'independent original control socket evidence').decode()
+        peers = set()
+        for line in raw.splitlines():
+            fields = line.split()
+            if (len(fields) >= 6 and fields[0] == 'ESTAB' and fields[4].endswith(':7000')
+                    and re.search(r'pid=' + str(survivor.pid) + r'[,)]', line)):
+                peers.add((fields[3], fields[4]))
+        return peers
+
+    for _ in range(30):
+        if survivor_route():
+            break
+        if survivor.poll() is not None:
+            raise GuestError('Independent enrolled witness control failed')
+        time.sleep(.5)
+    else:
+        raise GuestError('Independent witness did not serve verified TLS')
+    original_survivor = survivor_sockets()
+    if not original_survivor:
+        raise GuestError('Independent witness original control was not observed')
     device = before['device_id']
     stable_query = "SELECT jsonb_build_array(id,tenant_id,owner_user_id,subdomain,gui_public_key,enrolled_at)::text FROM devices WHERE id='" + device + "';"
     stable = sql(stable_query)
@@ -264,6 +348,9 @@ def exercise(guest, stage, port, project, evidence):
     if (not any(event.get('operation') == 'Login' and event.get('decision') == 'device_denied' for event in events)
             or any(event.get('operation') == 'Login' and event.get('decision') == 'allowed' for event in events)):
         raise GuestError('Old native claim refusal was not bound to real Login admission')
+    if (survivor.poll() is not None or not survivor_route()
+            or not original_survivor.issubset(survivor_sockets())):
+        raise GuestError('Installed native rotation interrupted the independent device')
     request('/api/v1/devices/rotate', {'agent_protocol_version': '1.6.0', 'device_id': device,
             'operation_id': str(uuid.uuid4()), 'replacement_secret': before['device_secret'],
             'expected_relay_ca_sha256': hashlib.sha256(base64.b64decode(before['relay_ca'], validate=True)).hexdigest()},
@@ -274,7 +361,8 @@ def exercise(guest, stage, port, project, evidence):
               'old_native_claim_actual_official_frpc_Login_denied': True,
               'native_GUI_key_retained': True, 'GUI_security_checks_and_exact_alias_retained': True,
               'rotation_to_verified_route_ms': elapsed,
-              'interrupted_native_recovery_or_other_device_acceptance': False,
+              'independent_device_original_control_and_verified_TLS_preserved': True,
+              'interrupted_native_recovery_acceptance': False,
               'public_network_or_formal_release_acceptance': False, 'full_goal_complete': False}
     private_json(evidence / 'installed-rotation.json', result)
     return result
