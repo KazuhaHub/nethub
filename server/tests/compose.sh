@@ -53,6 +53,7 @@ cleanup() {
         echo 'Compose acceptance failed; retained service states follow' >&2
         timeout --kill-after=5 15 docker ps -a --filter "label=com.docker.compose.project=$project" \
             --format '{{.Label "com.docker.compose.service"}} state={{.State}} status={{.Status}}' >&2 || true
+        timeout --kill-after=5 25 python3 "$root/server/tests/backup-diagnostics.py" "$stage" "$project" "$backup_image" >&2 || true
         for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log" "$stage/frps-build.log" "$stage/backup-build.log" "$stage/http01-build.log" "$stage/guiacme-build.log" "$stage/guiissuer-build.log" "$stage/setup-build.log"; do
             if [ -f "$log" ]; then tail -n 60 "$log" >&2; fi
         done
@@ -247,6 +248,7 @@ docker run --rm --network none --entrypoint /frps-official \
     -v "$stage/deployment/runtime/relay:/run/relay:ro" \
     "$frps_image" verify -c /run/secrets/frps.toml > "$stage/frps-official-verify.log" 2>&1
 echo 'Official checksum-verified frps accepted the generated production configuration'
+python3 "$root/server/tests/backup-deployment.py" --image-only "$stage" "$project" "$backup_image"
 echo 'Starting the isolated Compose services (210-second command deadline, 150-second health wait)'
 compose up -d --wait --wait-timeout 150 > "$stage/start.log" 2>&1
 postgres_id=$(compose ps --all --quiet postgres)

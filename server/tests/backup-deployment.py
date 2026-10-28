@@ -26,16 +26,16 @@ def require(condition, message):
 
 
 class Acceptance:
-    def __init__(self, stage, project, runtime, backup, postgres):
+    def __init__(self, stage, project, runtime, backup, postgres, image_only=False):
         require(hasattr(os, 'geteuid') and os.geteuid() == 0, 'Linux root fixture required')
         self.stage = Path(stage).absolute()
         require(self.stage.resolve(strict=True) == self.stage and self.stage.parent in (Path('/tmp'), Path('/var/tmp')), 'private stage location')
         require(self.stage.stat().st_uid == 0 and stat.S_IMODE(self.stage.stat().st_mode) == 0o700, 'private stage ownership')
         require(re.fullmatch(r'nethub-stack-test-[a-z0-9-]+', project), 'owned project format')
         require(project == 'nethub-stack-test-' + self.stage.name.lower().replace('.', '-'), 'owned project identity')
-        require(re.fullmatch(r'[a-f0-9]{64}', postgres), 'owned PostgreSQL identity')
+        require(image_only and postgres == '' or re.fullmatch(r'[a-f0-9]{64}', postgres), 'owned PostgreSQL identity')
         self.project, self.runtime, self.backup, self.postgres = project, runtime, backup, postgres
-        self.work = self.stage / 'backup-acceptance'
+        self.work = self.stage / ('backup-image-profile' if image_only else 'backup-acceptance')
         self.work.mkdir(mode=0o700)
         self.nonce = secrets.token_hex(8)
         self.volume = project + '-backup-' + self.nonce
@@ -49,9 +49,10 @@ class Acceptance:
         self.copy_created = False
         self.lock_process = None
         self.lock_application = 'nethub-backup-lock-' + self.nonce
-        pg = self.inspect('container', postgres)
-        require(pg and pg['State']['Running'], 'running owned PostgreSQL required')
-        require(pg['Config']['Labels'].get('com.docker.compose.project') == project and pg['Config']['Labels'].get('org.nethub.gui-issuer-test') == project, 'PostgreSQL ownership labels')
+        if not image_only:
+            pg = self.inspect('container', postgres)
+            require(pg and pg['State']['Running'], 'running owned PostgreSQL required')
+            require(pg['Config']['Labels'].get('com.docker.compose.project') == project and pg['Config']['Labels'].get('org.nethub.gui-issuer-test') == project, 'PostgreSQL ownership labels')
         self.backup_id = self.inspect('image', backup)['Id']
 
     def command(self, arguments, check=True, timeout=45, data=None, log=True):
@@ -74,7 +75,7 @@ class Acceptance:
         return values[0]
 
     def sql(self, database, query, check=True):
-        return self.command(['exec', '--user', 'postgres', self.postgres, 'psql', '-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', database], check=check, data=query.encode())
+        return self.command(['exec', '-i', '--user', 'postgres', self.postgres, 'psql', '-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', database], check=check, data=query.encode())
 
     def create_database(self, name):
         self.sql('postgres', 'CREATE DATABASE ' + name + ' OWNER nethub_owner;\n')
@@ -143,7 +144,8 @@ class Acceptance:
                 require(entries[name].isfile() and entries[name].mode & 0o111, 'actual executable client tool')
             require(not {'usr/local/bin/postgres', 'usr/local/bin/gosu', 'bin/sh', 'docker-entrypoint.sh', 'var/lib/postgresql/data'} & set(entries), 'unexpected server/helper/rootfs content')
         archive.unlink()
-        result = self.command(['run', '--rm', '--network', 'none', '--user', '65532:65532', '--entrypoint', '/usr/local/bin/pg_dump', self.backup, '--version'])
+        version_probe = self.project + '-backup-version-' + self.nonce
+        result = self.command(['run', '--rm', *self.owned_container(version_probe), '--network', 'none', '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true', '--user', '65532:65532', '--entrypoint', '/usr/local/bin/pg_dump', self.backup, '--version'])
         require(re.fullmatch(rb'pg_dump \(PostgreSQL\) 16\.[0-9]+\n', result.stdout), 'real nonroot PostgreSQL client execution')
 
     def prepare(self):
@@ -315,7 +317,7 @@ class Acceptance:
         if self.copy_created:
             self.command(['exec', '--user', '0', self.postgres, 'rm', '--', self.copy_path])
         for database in reversed(self.databases):
-            self.sql('postgres', 'DROP DATABASE ' + database + ' WITH (FORCE);\n')
+            self.sql('postgres', 'DROP DATABASE IF EXISTS ' + database + ' WITH (FORCE);\n')
         if self.volume_created:
             volume = self.inspect('volume', self.volume)
             require(volume and volume['Labels'].get('org.nethub.backup-test') == self.nonce, 'volume cleanup ownership changed')
@@ -323,6 +325,14 @@ class Acceptance:
 
 
 def main():
+    if len(sys.argv) == 5 and sys.argv[1] == '--image-only':
+        suite = Acceptance(sys.argv[2], sys.argv[3], '', sys.argv[4], '', image_only=True)
+        try:
+            suite.image_profile()
+        finally:
+            suite.cleanup()
+        print('Actual nonroot backup image metadata, private directories and PostgreSQL client execution passed; owned probe removed')
+        return
     require(len(sys.argv) == 6, 'stage, project, runtime, backup image and PostgreSQL identity required')
     suite = Acceptance(*sys.argv[1:])
     passed = False
