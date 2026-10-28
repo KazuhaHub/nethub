@@ -16,6 +16,7 @@ import uuid
 from relay_maintenance import exercise
 from relay_heartbeat import exercise_heartbeats
 from relay_traffic import exercise_traffic
+from relay_rotation import exercise_rotation
 
 
 stage, port = Path(sys.argv[1]), int(sys.argv[2])
@@ -352,6 +353,8 @@ try:
 
     exercise_heartbeats(stage, compose, assignments, valid_clients, gateway, sql,
                         check_tunnels, probe, local_source, hook_events, revocation_client)
+    exercise_rotation(stage, port, assignments, valid_clients, start_client, stop_client,
+                      backend.server_port, local_source, probe, check_tunnels, hook_events, sql)
 finally:
     for client in clients:
         stop_client(client)
