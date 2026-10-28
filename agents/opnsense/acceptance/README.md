@@ -33,6 +33,12 @@ The original mobile image cropped lower controls in the native scroll container.
 The supplementary mobile captures above still require execution and review.
 Enrollment, rotation and relay recovery remain separate acceptance work.
 
+Source `c2b91a9` installed the package and captured enrollment plus the visible
+disabled rotation control, but its foreground assertion failed. The check now
+accounts for Bootstrap's disabled-button hit testing and records closed boolean
+geometry/hit results and a fixed failure phase. This correction needs a real run;
+the earlier failed overall preparation result remains retained.
+
 Serial bootstrap sends short encoded heredoc lines within FreeBSD's canonical
 terminal input bound. Failure results retain only the waiting stage, selected
 prompt flags, byte count and image-verification receipt; raw transcripts remain

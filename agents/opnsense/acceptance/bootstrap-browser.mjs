@@ -8,8 +8,12 @@ const require = createRequire(new URL('../../../server/web/package.json', import
 const { chromium } = require('playwright');
 const config = JSON.parse(readFileSync(process.argv[2], 'utf8'));
 assert.match(config.origin, /^https:\/\/127\.0\.0\.1:[0-9]+$/);
-const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+let browser;
+let phase = 'browser_launch';
+const mobileChecks = {};
 try {
+  browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+  phase = 'private_gui_login';
   // The untouched signed image initially serves its factory self-signed GUI.
   // Public/relay TLS acceptance must use separate verified certificate checks.
   const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 1000 } });
@@ -19,6 +23,7 @@ try {
   await page.locator('[name=passwordfld]').fill('opnsense');
   await page.locator('button[type=submit], input[type=submit]').first().click();
   await page.locator('a[href*=logout]').first().waitFor({ timeout: 30000 });
+  phase = 'native_page_status';
   const errors = [];
   page.on('pageerror', () => errors.push('native_page_error'));
   const enrollment = page.waitForResponse(response =>
@@ -49,22 +54,40 @@ try {
   for (const [selector, name] of [['#nethubConsoleUrl', 'native-mobile-enrollment.png'],
                                  ['#rotateNetHub', 'native-mobile-rotation.png']]) {
     const target = page.locator(selector);
+    phase = selector === '#rotateNetHub' ? 'mobile_rotation' : 'mobile_enrollment';
     await target.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
-    assert.equal(await target.evaluate(element => {
+    const visibility = await target.evaluate(element => {
       const bounds = element.getBoundingClientRect();
       const x = bounds.x + bounds.width / 2, y = bounds.y + bounds.height / 2;
-      return y > 0 && y < innerHeight && x > 0 && x < innerWidth &&
-        element.contains(document.elementFromPoint(x, y));
-    }), true);
+      const hit = document.elementFromPoint(x, y);
+      const disabled = element.disabled === true;
+      const pointerEventsNone = getComputedStyle(element).pointerEvents === 'none';
+      const hitTarget = hit !== null && element.contains(hit);
+      const hitAncestor = hit !== null && hit.contains(element);
+      return { disabled, pointer_events_none: pointerEventsNone, hit_target: hitTarget,
+        hit_ancestor: hitAncestor,
+        within_viewport: bounds.width > 0 && bounds.height > 0 && bounds.left >= 0 &&
+          bounds.top >= 0 && bounds.right <= innerWidth && bounds.bottom <= innerHeight,
+        // Bootstrap excludes disabled buttons from hit testing. Only their
+        // painted ancestor may replace them; an unrelated overlay still fails.
+        unobscured: hitTarget || disabled && pointerEventsNone && hitAncestor };
+    });
+    mobileChecks[phase] = visibility;
+    assert.equal(visibility.within_viewport && visibility.unobscured, true);
     await page.screenshot({ path: join(config.evidence, name) });
   }
   const screenshots = Object.fromEntries(['native-page.png', 'native-mobile.png',
     'native-mobile-enrollment.png', 'native-mobile-rotation.png'].map(name =>
     [name, createHash('sha256').update(readFileSync(join(config.evidence, name))).digest('hex')]));
   writeFileSync(join(config.evidence, 'page.json'), JSON.stringify({ passed: true, screenshots,
+    mobile_checks: mobileChecks,
     actual_installed_OPNsense_page: true, unconfigured_rotation_disabled: true,
     factory_self_signed_GUI_only: true, public_TLS_or_enrolled_rotation_acceptance: false }, null, 2));
   await context.close();
+} catch {
+  writeFileSync(join(config.evidence, 'page.json'), JSON.stringify({ passed: false, phase,
+    mobile_checks: mobileChecks }, null, 2));
+  throw new Error('Installed native page check failed at ' + phase);
 } finally {
-  await browser.close();
+  if (browser) await browser.close();
 }
