@@ -31,6 +31,13 @@ paths = ['''^weekend0/vm_preflight\.py$''']
 regexes = ['''^\s*KEY_SHA256 = "9f3b76ffef38fb6405595038b324b61043c9a2c375ae5c151d628508e9a845ce"\s*$''']
 
 [[rules.allowlists]]
+description = "Exact public OPNsense Nano release verification key checksum"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^agents/opnsense/acceptance/guest\.py$''']
+regexes = ['''^\s*KEY_SHA256 = '9f3b76ffef38fb6405595038b324b61043c9a2c375ae5c151d628508e9a845ce'\s*$''']
+
+[[rules.allowlists]]
 description = "Exact historical masked screenshot checksum"
 condition = "AND"
 regexTarget = "line"
