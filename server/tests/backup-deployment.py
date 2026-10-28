@@ -139,7 +139,7 @@ class Acceptance:
             entries = {item.name.removeprefix('./').rstrip('/'): item for item in source.getmembers()}
             for name in ('var/lib/nethub-backups', 'run/nethub-backup'):
                 info = entries[name]
-                require(info.isdir() and info.uid == 65532 and info.gid == 65532 and info.mode & 0o777 == 0o700, 'private image storage directory')
+                require(info.isdir() and info.uid == 65532 and info.gid == 65532 and info.mode & 0o777 == 0o700, 'private image storage directory ' + name + ' uid=' + str(info.uid) + ' gid=' + str(info.gid) + ' mode=' + oct(info.mode & 0o777))
             for name in ('usr/local/bin/pg_dump', 'usr/local/bin/pg_restore', 'nethub'):
                 require(entries[name].isfile() and entries[name].mode & 0o111, 'actual executable client tool')
             require(not {'usr/local/bin/postgres', 'usr/local/bin/gosu', 'bin/sh', 'docker-entrypoint.sh', 'var/lib/postgresql/data'} & set(entries), 'unexpected server/helper/rootfs content')
@@ -356,7 +356,7 @@ if __name__ == '__main__':
     try:
         main()
     except (Failure, subprocess.SubprocessError, OSError, ValueError, KeyError) as error:
-        # Failure contains only fixed fixture messages and numeric step counters.
+        # Failure contains fixed fixture labels and numeric counters/permissions.
         # Dependency exception text can contain private responses or paths.
         detail = str(error) if isinstance(error, Failure) else type(error).__name__
         print('Backup deployment acceptance failed; private fixture diagnostics retained: ' + detail, file=sys.stderr)

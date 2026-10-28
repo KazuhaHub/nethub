@@ -56,8 +56,8 @@ COPY --from=oidc-fixture-build /out/oidcfixture /oidcfixture
 
 FROM postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea AS backup-tools
 RUN test -s /etc/ssl/certs/ca-certificates.crt \
-    && mkdir -p /out/backups /out/runtime \
-    && chmod 0700 /out/backups /out/runtime
+    && mkdir -p /out/storage/var/lib/nethub-backups /out/storage/run/nethub-backup \
+    && chmod 0700 /out/storage/var/lib/nethub-backups /out/storage/run/nethub-backup
 
 FROM scratch AS backup
 COPY --from=backup-tools /lib /lib
@@ -70,8 +70,7 @@ COPY --from=backup-tools /etc/alpine-release /etc/alpine-release
 COPY --from=backup-tools /etc/os-release /etc/os-release
 COPY --from=backup-tools /usr/local/bin/pg_dump /usr/local/bin/pg_dump
 COPY --from=backup-tools /usr/local/bin/pg_restore /usr/local/bin/pg_restore
-COPY --from=backup-tools --chown=65532:65532 --chmod=0700 /out/backups /var/lib/nethub-backups
-COPY --from=backup-tools --chown=65532:65532 --chmod=0700 /out/runtime /run/nethub-backup
+COPY --from=backup-tools --chown=65532:65532 /out/storage/ /
 COPY deploy/images/backup/passwd /etc/passwd
 COPY deploy/images/backup/group /etc/group
 COPY --from=build /out/nethub /nethub
