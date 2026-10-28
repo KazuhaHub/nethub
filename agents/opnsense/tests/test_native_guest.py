@@ -43,9 +43,15 @@ def test_serial_command_echo_cannot_hide_a_failed_exit(monkeypatch):
     monkeypatch.setattr(GUEST.uuid, 'uuid4', lambda: SimpleNamespace(hex=nonce))
 
     class Connection:
+        sent = b''
+
         def sendall(self, value):
-            self.sent = value
-            self.queue = [value, ('\nNH_' + nonce + ':19\r\n').encode()]
+            self.sent += value
+            if value.startswith(('NH_' + nonce + '_DATA').encode()):
+                reply = ('\nNH_' + nonce + ':19\r\n').encode()
+            else:
+                reply = b'NH_MORE> '
+            self.queue = [value, reply]
 
         def recv(self, _maximum):
             return self.queue.pop(0)

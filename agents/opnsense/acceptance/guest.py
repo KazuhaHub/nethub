@@ -160,7 +160,8 @@ class Console:
         self.expect(r'[^\r\n]* #\s*$', 30, 'root_shell_prompt')
         self.send('/bin/sh\n')
         self.expect(r'#\s*$', 30, 'posix_shell_prompt')
-        self.send("stty -echo; PS1='NH_SHELL> '; export PS1; printf '\\nNH_%s_READY\\n' SHELL\n")
+        self.send("stty -echo; PS1='NH_SHELL> '; PS2='NH_MORE> '; export PS1 PS2; "
+                  "printf '\\nNH_%s_READY\\n' SHELL\n")
         self.expect(r'NH_SHELL_READY\r?\n', 10, 'private_shell_marker')
 
     def command(self, script, timeout=60):
@@ -169,11 +170,17 @@ class Console:
         # FreeBSD canonical terminal input has a short per-line bound. A quoted
         # heredoc keeps every encoded payload line and control line below it.
         delimiter = marker + '_DATA'
-        lines = ["/usr/bin/base64 -d <<'" + delimiter + "' | /bin/sh"]
-        lines.extend(payload[offset:offset + 96] for offset in range(0, len(payload), 96))
-        lines.extend([delimiter, "nh_exit=$?; printf '\\n" + marker + ":%s\\n' \"$nh_exit\""])
-        self.send('\n'.join(lines) + '\n')
-        value = self.expect(re.escape(marker) + r':([0-9]+)\r?\n', timeout)
+        deadline = time.monotonic() + timeout
+        self.send("/usr/bin/base64 -d <<'" + delimiter + "' | /bin/sh\n")
+        self.expect(r'NH_MORE> ', min(10, deadline - time.monotonic()), 'heredoc_header')
+        for offset in range(0, len(payload), 96):
+            self.send(payload[offset:offset + 96] + '\n')
+            # A prompt acknowledges consumption before the next line enters the
+            # finite serial input queue; a whole-script burst can overflow it.
+            self.expect(r'NH_MORE> ', min(10, deadline - time.monotonic()), 'heredoc_payload')
+        self.send(delimiter + "\nnh_exit=$?; printf '\\n" + marker + ":%s\\n' \"$nh_exit\"\n")
+        value = self.expect(re.escape(marker) + r':([0-9]+)\r?\n',
+                            deadline - time.monotonic(), 'bootstrap_exit')
         match = re.search(re.escape(marker) + r':([0-9]+)\r?\n', value)
         if match.group(1) != '0':
             raise GuestError('Owned guest bootstrap command failed')
@@ -226,7 +233,9 @@ class Guest:
             script = """set -eu
 umask 077
 install -d -m 0700 /root/nethub-ci
+printf '\\nNH_%s_PHASE\\n' OWNED_DIRECTORY
 ssh-keygen -q -t ed25519 -N '' -C nethub-ci-host -f /root/nethub-ci/host-key
+printf '\\nNH_%s_PHASE\\n' HOST_KEY_CREATED
 printf '%s\\n' '""" + public + """' > /root/nethub-ci/authorized_keys
 cat > /root/nethub-ci/sshd.conf <<'CONFIG'
 ListenAddress 192.168.1.1
@@ -241,6 +250,7 @@ UsePAM no
 Subsystem sftp /usr/libexec/sftp-server
 CONFIG
 /usr/sbin/sshd -f /root/nethub-ci/sshd.conf -E /root/nethub-ci/sshd-private.log
+printf '\\nNH_%s_PHASE\\n' SSHD_STARTED
 cat /root/nethub-ci/host-key.pub
 """
             response = self.console.command(script)
@@ -314,5 +324,7 @@ cat /root/nethub-ci/host-key.pub
                 'product_banner': 'OPNsense', 'login_prompt': 'login:', 'password_prompt': 'Password:',
                 'console_menu': 'Enter an option:', 'private_shell_ready': 'NH_SHELL_READY',
                 'private_shell_prompt': 'NH_SHELL>', 'rejected_login': 'Login incorrect',
+                'heredoc_prompt': 'NH_MORE>', 'owned_directory': 'NH_OWNED_DIRECTORY_PHASE',
+                'host_key_created': 'NH_HOST_KEY_CREATED_PHASE', 'sshd_started': 'NH_SSHD_STARTED_PHASE',
             }.items()}
         return value
