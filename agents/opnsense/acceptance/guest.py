@@ -264,7 +264,9 @@ cat /root/nethub-ci/host-key.pub
             return self
         except Exception:
             self.bootstrap_failure_codes = []
-            if self.console is not None and getattr(self.console, 'last_command_exit', 0) != 0:
+            self.bootstrap_failure_wait_phase = getattr(self.console, 'phase', None)
+            self.bootstrap_failure_exit = getattr(self.console, 'last_command_exit', None)
+            if self.console is not None and hasattr(self.console, 'last_command_exit'):
                 try:
                     diagnostic = self.console.command(
                         "if test -f /root/nethub-ci/sshd-private.log; then tail -n 15 /root/nethub-ci/sshd-private.log; fi\n"
@@ -331,7 +333,8 @@ cat /root/nethub-ci/host-key.pub
 
     def diagnostics(self):
         value = {'image': getattr(self, 'image_receipt', None),
-                 'serial_wait_phase': getattr(self.console, 'phase', None),
+                 'serial_wait_phase': getattr(self, 'bootstrap_failure_wait_phase', getattr(self.console, 'phase', None)),
+                 'bootstrap_command_exit': getattr(self, 'bootstrap_failure_exit', None),
                  'guest_exit_status_before_cleanup': getattr(self, 'exit_status_before_cleanup', None),
                  'guest_exit_status_after_cleanup': self.process.poll() if self.process is not None else None,
                  'bootstrap_failure_codes': getattr(self, 'bootstrap_failure_codes', [])}
