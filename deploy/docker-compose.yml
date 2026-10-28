@@ -35,6 +35,25 @@ services:
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
+  backup:
+    image: nethub-backup-local:dev
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: backup
+    command: [backup, serve, --sslmode, disable]
+    volumes:
+      - ./secrets/backup:/run/secrets:ro
+      - database-backups:/var/lib/nethub-backups
+    tmpfs:
+      - /run/nethub-backup:rw,noexec,nosuid,nodev,size=1m,mode=0700,uid=65532,gid=65532
+    networks: [database]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
   nethub-web:
     image: nethub-local:dev
     volumes:
@@ -122,5 +141,6 @@ networks:
   edge: {}
 volumes:
   database: {}
+  database-backups: {}
   caddy-data: {}
   caddy-config: {}

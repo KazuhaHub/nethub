@@ -28,6 +28,10 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	publicTLS := flags.Bool("public-tls", false, "Verify the initialized console hostname on TCP 443 with system certificate trust")
 	audit := flags.Bool("audit", false, "Verify the deployment audit chain in a read-only database snapshot")
 	roles := flags.Bool("database-roles", false, "Check runtime role and device identity privileges through the Web database identity")
+	recentBackup := flags.Bool("recent-backup", false, "Verify a recent private PostgreSQL archive in the Linux backup runtime")
+	backupDirectory := flags.String("backup-directory", "/var/lib/nethub-backups", "Private database archive directory")
+	backupMaxAge := flags.Duration("backup-max-age", 48*time.Hour, "Maximum completed backup age, between one hour and seven days")
+	backupTimeout := flags.Duration("backup-timeout", 10*time.Minute, "Total backup verification budget, between one second and thirty minutes")
 	containers := flags.Bool("runtime-containers", false, "Inspect existing protected Linux Docker service separation without modifying services")
 	relayHook := flags.Bool("relay-hook", false, "Check the existing protected relay TLS and Login rejection path without credentials or proxies")
 	project := flags.String("project", "nethub", "Existing protected Compose project for host checks")
@@ -35,7 +39,7 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	host := flags.String("host", "postgres", "Database hostname for read-only checks")
 	port := flags.Uint("port", 5432, "Database port for read-only checks")
 	database := flags.String("database", "nethub", "Database name for read-only checks")
-	passwordFile := flags.String("password-file", "", "Web-role password file for read-only database checks")
+	passwordFile := flags.String("password-file", "", "Role password file for the selected read-only database check")
 	tls := flags.String("sslmode", "verify-full", "verify-full, or disable for an isolated local database")
 	legacyZone := flags.String("audit-timezone", "UTC", "Original writer timezone for legacy audit records")
 	auditTimeout := flags.Duration("audit-timeout", 30*time.Second, "Total audit check budget, between one second and five minutes")
@@ -50,6 +54,26 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	}
 	selected := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { selected[f.Name] = true })
+	if *recentBackup {
+		allowed := map[string]bool{"recent-backup": true, "backup-directory": true, "backup-max-age": true, "backup-timeout": true, "host": true, "port": true, "database": true, "password-file": true, "sslmode": true}
+		for name := range selected {
+			if !allowed[name] {
+				fmt.Fprintln(stderr, "Run recent-backup verification separately from other doctor modes")
+				return 2
+			}
+		}
+		if *passwordFile == "" || !filepath.IsAbs(*backupDirectory) || filepath.Clean(*backupDirectory) != *backupDirectory || *host == "" || *database == "" || *port == 0 || *port > 65535 || (*tls != "verify-full" && *tls != "disable") || *backupMaxAge < time.Hour || *backupMaxAge > 7*24*time.Hour || *backupTimeout < time.Second || *backupTimeout > 30*time.Minute {
+			fmt.Fprintln(stderr, "Recent-backup checks require private absolute archive storage, a backup-role password file and bounded age/time settings")
+			return 2
+		}
+		return runBackupDoctor(backupDoctorOptions{Database: store.DatabaseConfig{Host: *host, Port: uint16(*port), Database: *database, PasswordFile: *passwordFile, SSLMode: *tls}, Directory: *backupDirectory, MaxAge: *backupMaxAge, Timeout: *backupTimeout}, stdout, stderr)
+	}
+	for _, name := range []string{"backup-directory", "backup-max-age", "backup-timeout"} {
+		if selected[name] {
+			fmt.Fprintln(stderr, "Backup options require doctor --recent-backup")
+			return 2
+		}
+	}
 	if *containers || *relayHook {
 		if *containers && *relayHook {
 			fmt.Fprintln(stderr, "Run container and relay hook modes separately")
@@ -63,7 +87,13 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 		defer cancel()
-		if err := setup.CheckRuntimeContainers(ctx, *directory, *project, *composeFile); err != nil {
+		var separationErr error
+		if *relayHook {
+			separationErr = setup.CheckRelayRuntimeContainers(ctx, *directory, *project, *composeFile)
+		} else {
+			separationErr = setup.CheckRuntimeContainers(ctx, *directory, *project, *composeFile)
+		}
+		if separationErr != nil {
 			fmt.Fprintln(stderr, "Runtime container separation check failed; run on the Linux Docker host as root, verify the protected deployment/project and restore reviewed service users, images, environment, read-only mounts and secret directories; no service was changed")
 			return 1
 		}
@@ -97,7 +127,7 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stdout, "Probe used an invalid claim with no token, device secret or proxy; this does not prove successful device admission, external reachability, recent backups or published appliance version agreement")
 			return 0
 		}
-		fmt.Fprintln(stdout, "Running Web/authz/frps container separation and reviewed Web secret mount passed; inspection did not modify services")
+		fmt.Fprintln(stdout, "Running Web/authz/frps/backup container separation and reviewed secret mounts passed; inspection did not modify services")
 		fmt.Fprintln(stdout, "Not checked: database privileges, actual hook traffic, external reachability, recent database backup or version agreement")
 		return 0
 	}

@@ -40,7 +40,7 @@ func TestNativeRelayAuthorityService(t *testing.T) {
 		return value
 	}
 	before := map[string]string{}
-	for _, name := range []string{"postgres", "nethub-web", "caddy", "nethub-authz", "frps"} {
+	for _, name := range []string{"postgres", "nethub-web", "caddy", "nethub-authz", "frps", "backup"} {
 		before[name] = id(name)
 	}
 	checkContainers := func(want bool) {
@@ -65,32 +65,34 @@ func TestNativeRelayAuthorityService(t *testing.T) {
 		}
 	}
 	checkContainers(true)
-	extra := filepath.Join(directory, "secrets/web/doctor-unexpected-fixture")
-	file, err := os.OpenFile(extra, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if err != nil {
-		t.Fatal("could not create owned nonsecret container fixture")
-	}
-	t.Cleanup(func() {
-		if err := os.Remove(extra); err != nil && !os.IsNotExist(err) {
-			t.Error("owned container readiness fixture cleanup failed")
+	for _, serviceName := range []string{"web", "backup"} {
+		extra := filepath.Join(directory, "secrets", serviceName, "doctor-unexpected-fixture")
+		file, err := os.OpenFile(extra, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+		if err != nil {
+			t.Fatal("could not create owned nonsecret container fixture")
 		}
-	})
-	if _, err := file.WriteString("unexpected nonsecret readiness fixture\n"); err != nil {
+		t.Cleanup(func() {
+			if err := os.Remove(extra); err != nil && !os.IsNotExist(err) {
+				t.Error("owned container readiness fixture cleanup failed")
+			}
+		})
+		if _, err := file.WriteString("unexpected nonsecret readiness fixture\n"); err != nil {
+			file.Close()
+			t.Fatal(err)
+		}
 		file.Close()
-		t.Fatal(err)
+		checkContainers(false)
+		if err := os.Remove(extra); err != nil {
+			t.Fatal("owned readiness fixture removal failed")
+		}
+		checkContainers(true)
 	}
-	file.Close()
-	checkContainers(false)
-	if err := os.Remove(extra); err != nil {
-		t.Fatal("owned readiness fixture removal failed")
-	}
-	checkContainers(true)
 	for name, original := range before {
 		if id(name) != original {
 			t.Fatal("read-only container doctor changed a service", name)
 		}
 	}
-	t.Log("Actual Docker and compiled container doctor verified running Web/authz/frps separation, refused an unexpected Web secret file, recovered after owned cleanup and left all five services unchanged")
+	t.Log("Actual Docker and compiled container doctor verified running Web/authz/frps/backup separation, refused unexpected Web and backup secret files, recovered after owned cleanup and left all six services unchanged")
 	service, err := setup.BindRelayAuthorityService(ctx, directory, project, override, "")
 	if err != nil {
 		t.Fatal("running protected authority service binding", err)

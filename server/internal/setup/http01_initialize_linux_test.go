@@ -22,7 +22,7 @@ func http01InitializationFixture(t *testing.T) (string, string, http01.FileConfi
 	}
 	root := t.TempDir()
 	source := filepath.Join(root, "source")
-	for _, name := range []string{"deploy/Dockerfile", "deploy/images/caddy/Dockerfile", "deploy/images/postgres/Dockerfile", "deploy/images/frps/Dockerfile"} {
+	for _, name := range []string{"deploy/Dockerfile", "deploy/images/caddy/Dockerfile", "deploy/images/postgres/Dockerfile", "deploy/images/frps/Dockerfile", "deploy/images/backup/passwd", "deploy/images/backup/group"} {
 		path := filepath.Join(source, name)
 		if os.MkdirAll(filepath.Dir(path), 0700) != nil || os.WriteFile(path, []byte("FROM scratch\n"), 0600) != nil {
 			t.Fatal("fixture source creation failed")

@@ -26,6 +26,7 @@ image=${NETHUB_RUNTIME_TEST_IMAGE:-"nethub-stack-test:$(basename "$stage" | tr '
 postgres_image=${NETHUB_POSTGRES_TEST_IMAGE:-"$image-postgres"}
 caddy_image=${NETHUB_CADDY_TEST_IMAGE:-"$image-caddy"}
 frps_image=${NETHUB_FRPS_TEST_IMAGE:-"$image-frps"}
+backup_image=${NETHUB_BACKUP_TEST_IMAGE:-"$image-backup"}
 frps_container="$project-frps-smoke"
 provider_key_container="$project-provider-key-smoke"
 http01_test_image="$project-http01-test:local"
@@ -52,7 +53,8 @@ cleanup() {
         echo 'Compose acceptance failed; retained service states follow' >&2
         timeout --kill-after=5 15 docker ps -a --filter "label=com.docker.compose.project=$project" \
             --format '{{.Label "com.docker.compose.service"}} state={{.State}} status={{.Status}}' >&2 || true
-        for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log" "$stage/frps-build.log" "$stage/http01-build.log" "$stage/guiacme-build.log" "$stage/guiissuer-build.log" "$stage/setup-build.log"; do
+        timeout --kill-after=5 25 python3 "$root/server/tests/backup-diagnostics.py" "$stage" "$project" "$backup_image" >&2 || true
+        for log in "$stage/build.log" "$stage/postgres-build.log" "$stage/caddy-build.log" "$stage/frps-build.log" "$stage/backup-build.log" "$stage/http01-build.log" "$stage/guiacme-build.log" "$stage/guiissuer-build.log" "$stage/setup-build.log"; do
             if [ -f "$log" ]; then tail -n 60 "$log" >&2; fi
         done
     fi
@@ -70,6 +72,7 @@ cleanup() {
     if [ -z "${NETHUB_POSTGRES_TEST_IMAGE:-}" ]; then timeout --kill-after=5 15 docker image rm "$postgres_image" >/dev/null 2>&1 || true; fi
     if [ -z "${NETHUB_CADDY_TEST_IMAGE:-}" ]; then timeout --kill-after=5 15 docker image rm "$caddy_image" >/dev/null 2>&1 || true; fi
     if [ -z "${NETHUB_FRPS_TEST_IMAGE:-}" ]; then timeout --kill-after=5 15 docker image rm "$frps_image" >/dev/null 2>&1 || true; fi
+    if [ -z "${NETHUB_BACKUP_TEST_IMAGE:-}" ]; then timeout --kill-after=5 15 docker image rm "$backup_image" >/dev/null 2>&1 || true; fi
     if [ -n "${NETHUB_COMPOSE_EVIDENCE:-}" ]; then
         mkdir -p "$NETHUB_COMPOSE_EVIDENCE"
         tar -czf "$NETHUB_COMPOSE_EVIDENCE/compose-private-evidence.tar.gz" -C "$stage" .
@@ -93,6 +96,9 @@ if [ -z "${NETHUB_CADDY_TEST_IMAGE:-}" ]; then
 fi
 if [ -z "${NETHUB_FRPS_TEST_IMAGE:-}" ]; then
     docker build -f "$root/deploy/images/frps/Dockerfile" -t "$frps_image" "$root" > "$stage/frps-build.log" 2>&1
+fi
+if [ -z "${NETHUB_BACKUP_TEST_IMAGE:-}" ]; then
+    docker build --target backup -f "$root/deploy/Dockerfile" -t "$backup_image" "$root" > "$stage/backup-build.log" 2>&1
 fi
 docker build --target http01-acceptance -f "$root/deploy/Dockerfile" -t "$http01_test_image" "$root" > "$stage/http01-build.log" 2>&1
 docker create --name "$http01_binary_holder" --network none "$http01_test_image" /http01.test >/dev/null
@@ -149,7 +155,8 @@ PY
     scan_image postgres "$postgres_image"
     scan_image caddy "$caddy_image"
     scan_image frps "$frps_image"
-    echo 'All four assembled deployment images passed HIGH/CRITICAL vulnerability checks'
+    scan_image backup "$backup_image"
+    echo 'All five assembled deployment images passed HIGH/CRITICAL vulnerability checks'
 fi
 python3 "$root/server/tests/frps-smoke.py" "$stage" "$frps_image" "$frps_container"
 printf '%s\n' 'I HAVE VERIFIED THE NETHUB SECRET BACKUP' | docker run --rm -i --network none --user 0 \
@@ -180,6 +187,8 @@ services:
       org.nethub.gui-issuer-test: $project
   migrate:
     image: $image
+  backup:
+    image: $backup_image
   nethub-web:
     image: $image
   nethub-authz:
@@ -198,7 +207,7 @@ compose --profile bootstrap config --format json > "$stage/compose.json"
 python3 - "$stage" <<'PY'
 import json,pathlib,sys
 s=pathlib.Path(sys.argv[1]);cfg=json.loads((s/'compose.json').read_text());services=cfg['services']
-assert set(services)=={'postgres','migrate','nethub-web','nethub-authz','frps','caddy','admin-bootstrap'}
+assert set(services)=={'postgres','migrate','backup','nethub-web','nethub-authz','frps','caddy','admin-bootstrap'}
 assert {name for name,service in services.items() if service.get('ports')}=={'caddy','nethub-authz'}
 hook_ports=services['nethub-authz']['ports']
 assert len(hook_ports)==1
@@ -206,6 +215,15 @@ assert hook_ports[0]['host_ip']=='127.0.0.1' and str(hook_ports[0]['published'])
 assert hook_ports[0]['target']==9000 and hook_ports[0]['protocol']=='tcp'
 assert services['nethub-web']['depends_on']['migrate']['condition']=='service_completed_successfully'
 assert services['nethub-authz']['depends_on']['migrate']['condition']=='service_completed_successfully'
+backup=services['backup']
+assert backup['depends_on']['migrate']['condition']=='service_completed_successfully'
+assert set(backup['networks'])=={'database'} and not backup.get('ports')
+assert backup['command']==['backup','serve','--sslmode','disable']
+assert len(backup['volumes'])==2
+assert any(v['target']=='/run/secrets' and v['source'].endswith('/secrets/backup') and v['read_only'] for v in backup['volumes'])
+assert any(v['target']=='/var/lib/nethub-backups' and v['type']=='volume' for v in backup['volumes'])
+assert len(backup['tmpfs'])==1 and backup['tmpfs'][0].startswith('/run/nethub-backup:')
+assert {'noexec','nosuid','nodev','uid=65532','gid=65532'}<=set(backup['tmpfs'][0].split(':',1)[1].split(','))
 assert services['frps']['network_mode']=='host' and not services['frps'].get('ports')
 assert services['frps']['depends_on']['nethub-authz']['condition']=='service_healthy'
 web=services['nethub-web'];assert len(web['volumes'])==1 and web['volumes'][0]['source'].endswith('/secrets/web')
@@ -230,8 +248,11 @@ docker run --rm --network none --entrypoint /frps-official \
     -v "$stage/deployment/runtime/relay:/run/relay:ro" \
     "$frps_image" verify -c /run/secrets/frps.toml > "$stage/frps-official-verify.log" 2>&1
 echo 'Official checksum-verified frps accepted the generated production configuration'
+python3 "$root/server/tests/backup-deployment.py" --image-only "$stage" "$project" "$backup_image"
 echo 'Starting the isolated Compose services (210-second command deadline, 150-second health wait)'
 compose up -d --wait --wait-timeout 150 > "$stage/start.log" 2>&1
+postgres_id=$(compose ps --all --quiet postgres)
+python3 "$root/server/tests/backup-deployment.py" "$stage" "$project" "$image" "$backup_image" "$postgres_id"
 for key_case in missing malformed unsafe; do
     printf '%s\n' 'invalid-provider-key-fixture' > "$stage/provider-key-fixture"
     chmod 600 "$stage/provider-key-fixture"
@@ -352,7 +373,7 @@ NETHUB_TEST_GUI_SQL_CONTAINER="$database_id" NETHUB_TEST_GUI_SQL_IMAGE="$databas
 NETHUB_TEST_GUI_SQL_PROJECT="$project" "$stage/guiacme.test" -test.v \
     -test.run '^TestPebbleCoordinatorDatabaseRecovery$' -test.timeout=120s
 compose down -v --remove-orphans > "$stage/down.log" 2>&1
-python3 "$root/server/tests/external-proxy.py" "$stage" "$root" "$image" "$postgres_image" "$caddy_image" "$frps_image"
+python3 "$root/server/tests/external-proxy.py" "$stage" "$root" "$image" "$postgres_image" "$caddy_image" "$frps_image" "$backup_image"
 cat > "$stage/failure.yml" <<'YAML'
 services:
   migrate:
@@ -368,18 +389,19 @@ migration=$(compose ps -aq migrate)
 running=$(compose ps --status running --services)
 if printf '%s\n' "$running" | grep -qx nethub-web; then echo 'Web started after failed migration' >&2; exit 1; fi
 if printf '%s\n' "$running" | grep -Eq '^(nethub-authz|frps)$'; then echo 'Relay started after failed migration' >&2; exit 1; fi
+if printf '%s\n' "$running" | grep -qx backup; then echo 'Backup started after failed migration' >&2; exit 1; fi
 echo 'Failed migration prevented console startup'
 if [ -n "${NETHUB_IMAGE_EVIDENCE:-}" ]; then
     mkdir -p "$NETHUB_IMAGE_EVIDENCE"
-    docker image save -o "$NETHUB_IMAGE_EVIDENCE/images.tar" "$image" "$postgres_image" "$caddy_image" "$frps_image"
+    docker image save -o "$NETHUB_IMAGE_EVIDENCE/images.tar" "$image" "$postgres_image" "$caddy_image" "$frps_image" "$backup_image"
     gzip -1 "$NETHUB_IMAGE_EVIDENCE/images.tar"
     (cd "$NETHUB_IMAGE_EVIDENCE" && sha256sum images.tar.gz > SHA256SUMS)
-    python3 - "$NETHUB_IMAGE_EVIDENCE" "$image" "$postgres_image" "$caddy_image" "$frps_image" <<'PY'
+    python3 - "$NETHUB_IMAGE_EVIDENCE" "$image" "$postgres_image" "$caddy_image" "$frps_image" "$backup_image" <<'PY'
 import hashlib,json,pathlib,subprocess,sys,tarfile
 output=pathlib.Path(sys.argv[1]);images={}
 with tarfile.open(output/'images.tar.gz') as archive:
     manifest=json.load(archive.extractfile('manifest.json'))
-    for service,tag in zip(('runtime','postgres','caddy','frps'),sys.argv[2:]):
+    for service,tag in zip(('runtime','postgres','caddy','frps','backup'),sys.argv[2:]):
         entry=next(item for item in manifest if tag in item['RepoTags'])
         config_file=archive.getmember(entry['Config']);assert config_file.isfile() and config_file.size<=1048576
         raw=archive.extractfile(config_file).read();config=json.loads(raw)

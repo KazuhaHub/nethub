@@ -53,7 +53,7 @@ def archive_images(directory):
     if digest != match[1]:
         raise Failure('image archive checksum')
     images = json.loads((directory / 'images.json').read_text())
-    if set(images) != {'runtime', 'postgres', 'caddy', 'frps'}:
+    if set(images) != {'runtime', 'postgres', 'caddy', 'frps', 'backup'}:
         raise Failure('image archive service set')
     preexisting = set()
     for item in images.values():
@@ -269,7 +269,7 @@ def main():
         services = config['services']
         for service in ('migrate', 'nethub-web', 'nethub-authz', 'admin-bootstrap'):
             services[service]['image'] = runtime
-        for service in ('postgres', 'caddy', 'frps'):
+        for service in ('postgres', 'caddy', 'frps', 'backup'):
             services[service]['image'] = images[service]['tag']
         with socket.socket() as listener:
             listener.bind(('127.0.0.1', 0))

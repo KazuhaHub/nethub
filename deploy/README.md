@@ -82,6 +82,7 @@ clean-host provenance are separate claims; this script proves the former flows.
 
 Appliance enrollment and public relay acceptance remain W4; Open/revocation UI is W5; invitation and full
 OIDC/SAML flows are W6; scheduled backups and final operational acceptance are W7.
+The [daily backup service](database-backups.md) passed the [scoped container checkpoint](validation-database-backups.md); complete clean-host/key/device restoration remains open.
 Protected relay authority activation and retained-operation recovery commands
 are documented in [Relay authority operations](relay-authority-operations.md).
 
