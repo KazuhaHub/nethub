@@ -245,7 +245,8 @@ authority or operation journal.
 
 The [database backup service](../deploy/database-backups.md) implements scheduled
 restricted-role `pg_dump`, retention, worker health and a full-hash recent-archive
-doctor. Container acceptance is pending. Protected off-host storage and a full
+doctor. The [container checkpoint](../deploy/validation-database-backups.md) passed.
+Protected off-host storage and a full
 clean-host restore drill remain open. That drill must
 restore the matching database and keys, preserve account/device authority and
 verify an already enrolled device reconnects. No complete restoration command is

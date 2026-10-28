@@ -2,8 +2,9 @@
 
 The `backup` service creates a PostgreSQL 16 custom-format archive immediately
 after startup, then 24 hours after each successful cycle. Failed cycles retry
-after one hour. This implementation is undergoing container acceptance; it does
-not yet establish the complete W7 clean-host recovery requirement.
+after one hour. The actual container/restore checkpoint passed the
+[scoped validation](validation-database-backups.md). It does not establish the
+complete W7 clean-host recovery requirement.
 
 The service uses only the `nethub_backup` password, the private database network,
 a named `database-backups` volume and a private runtime tmpfs. It runs as UID/GID

@@ -8,4 +8,4 @@ Synthetic producer tests cover process failures, invalid headers, output limits,
 
 `VerifyWithBudget` provides a bounded full-file hash check for daily cycles and the deep doctor. `VerifyMetadata` deliberately checks only private receipt/file shape and freshness for routine worker health. Verification rechecks the recorded state before returning. Metadata health does not establish archive integrity, and hash verification does not establish successful recovery.
 
-The daily worker is in [backupworker](../backupworker/README.md). Its CLI, retention and image/Compose integration are being validated. The isolated database restore test does not establish the planned clean-host control-plane restore, retained-key recovery or enrolled-device reconnection. Those W7 requirements remain open.
+The daily worker is in [backupworker](../backupworker/README.md). Its CLI, retention and image/Compose integration passed the [scoped checkpoint](../../../deploy/validation-database-backups.md). The isolated database restore test does not establish the planned clean-host control-plane restore, retained-key recovery or enrolled-device reconnection. Those W7 requirements remain open.
