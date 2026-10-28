@@ -44,7 +44,16 @@ and last-good failure policy mean cutoff is not instantaneous.
 Relay CA/trust-generation changes belong to the existing verified trust
 transaction. This action refuses to overwrite that managed trust metadata or
 silently substitute a different CA. A pending rotation with changed local trust
-or policy remains retained for review.
+or policy remains retained for review. Periodic trust synchronization defers
+while a validated rotation journal remains; malformed retained state blocks it.
+This prevents background updates from invalidating the recovery snapshot.
+
+Concurrent CA publication remains an acceptance gap: the server can commit the
+candidate while the native model refuses a response with a different trust
+bundle. Retrying must retain the candidate, but this case can require local
+recovery. Exact publication fencing alone does not establish automatic native
+recovery through a changing bundle. Keep this workflow under validation until
+the precommit trust binding and candidate replay behavior are resolved.
 
 This per-device workflow is only part of W7-4. Coordinated deployment-wide frps
 shared-token replacement, protected current-key backup/manifest transitions and

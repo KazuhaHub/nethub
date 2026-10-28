@@ -169,3 +169,14 @@ def test_public_or_linked_journal_is_never_adopted(journal, original):
     journal.path.symlink_to(alternate)
     with pytest.raises(RotationError):
         journal.prepare(ORIGIN, original)
+
+
+def test_pending_phase_validates_prepared_and_received_without_private_output(journal, original):
+    journal.prepare(ORIGIN, original)
+    assert journal.pending_phase() == 'prepared'
+    journal.request(ORIGIN, original, transport=lambda origin, path, body, **kwargs:
+                    response(original, body['operation_id'], body['replacement_secret']))
+    assert journal.pending_phase() == 'received'
+    journal.path.write_text('{}')
+    with pytest.raises(RotationError, match='retain its journal'):
+        journal.pending_phase()

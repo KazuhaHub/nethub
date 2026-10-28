@@ -179,6 +179,13 @@ class RotationJournal:
         except (OSError, ValueError, TypeError, KeyError, ProtocolError, CertificateKeyError):
             raise RotationError('Native rotation save is unconfirmed; retain the journal') from None
 
+    def pending_phase(self):
+        """Validate retained recovery state without exposing its private fields."""
+        try:
+            return self._read()['phase']
+        except (OSError, ValueError, TypeError, KeyError, ProtocolError, CertificateKeyError):
+            raise RotationError('Pending rotation needs local review; retain its journal') from None
+
     def removal_candidate(self, origin, device_id, current_secret):
         """Recover removal authentication after an unknown rotation commit."""
         try:

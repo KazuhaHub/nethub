@@ -282,6 +282,15 @@ class Agent:
 
     def trust_locked(self):
         from relay_trust_sync import TrustSynchronizer, TrustSyncError
+        pending_rotation = self.state / 'rotation.json'
+        if pending_rotation.exists() or pending_rotation.is_symlink():
+            from rotation import RotationJournal, RotationError
+            try:
+                RotationJournal(self.state).pending_phase()
+            except RotationError:
+                raise AgentError('Pending rotation needs local review; retain its journal') from None
+            return self.trust_result({'success': True, 'phase': 'rotation_pending', 'confirmed': False,
+                                      'message': 'Complete the saved credential rotation before synchronizing relay trust.'})
         self.recover_trust()
         model = self.lifecycle_model()
         inactive = model.findtext('enabled') != '1' or any((self.state/name).exists()

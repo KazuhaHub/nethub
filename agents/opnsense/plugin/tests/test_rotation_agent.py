@@ -35,3 +35,29 @@ def test_rotation_never_contacts_backend_after_local_removal_or_revocation(case,
         result = case.agent.apply('rotate')
     assert result['success'] is False and result['action'] == 'rotate'
     backend.assert_not_called()
+
+
+@pytest.mark.parametrize('phase', ['prepared', 'received'])
+def test_pending_rotation_defers_trust_cron_before_native_or_network_changes(case, phase):
+    case.agent.state.mkdir(parents=True, exist_ok=True)
+    (case.agent.state / 'rotation.json').write_text('private retained journal')
+    with mock.patch('rotation.RotationJournal.pending_phase', return_value=phase) as pending, \
+            mock.patch.object(case.agent, 'recover_trust') as recovery, \
+            mock.patch.object(case.agent, 'trust_transaction') as transaction:
+        result = case.agent.apply('trust')
+    assert result['success'] is True and result['phase'] == 'rotation_pending'
+    assert result['confirmed'] is False and phase not in result['message']
+    pending.assert_called_once_with()
+    recovery.assert_not_called()
+    transaction.assert_not_called()
+
+
+def test_invalid_pending_rotation_blocks_trust_cron_before_changes(case):
+    from rotation import RotationError
+    case.agent.state.mkdir(parents=True, exist_ok=True)
+    (case.agent.state / 'rotation.json').write_text('invalid journal')
+    with mock.patch('rotation.RotationJournal.pending_phase', side_effect=RotationError('private diagnostic')), \
+            mock.patch.object(case.agent, 'recover_trust') as recovery:
+        result = case.agent.apply('trust')
+    assert result['success'] is False and 'private diagnostic' not in str(result)
+    recovery.assert_not_called()
