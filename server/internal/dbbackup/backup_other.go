@@ -11,3 +11,9 @@ func Run(context.Context, Config) (Receipt, error) { return Receipt{}, ErrUnavai
 func Verify(context.Context, string, string, time.Duration) (Status, error) {
 	return Status{}, ErrUnavailable
 }
+func VerifyWithBudget(context.Context, string, string, time.Duration, time.Duration) (Status, error) {
+	return Status{}, ErrUnavailable
+}
+func VerifyMetadata(context.Context, string, string, time.Duration) (Status, error) {
+	return Status{}, ErrUnavailable
+}

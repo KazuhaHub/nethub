@@ -1831,6 +1831,8 @@ W7-3 partial validation (2026-10-27): PR #189 merged as `775e46a` after all six 
 - **在一台全新的 VPS 上做一次完整的恢复演练**：用 `nethub init` 时备份的密钥 + 最近一次数据库备份，恢复出一个能用的控制面，已经 enroll 的设备能自动重新连上。
 - 演练的每一步写进文档。
 
+W7-5 groundwork validation (2026-10-28): PR #190 merged as `1b82289` after six successful checks in run `40610375535`, complete genuine/inherited logs, five DCOs and thirteen reviewed final images/hashes. The merged tree matches the tested tree. Actual custom-archive restore, device-content comparison, role-loss refusal, last-good preservation/recovery and nine read-only metadata privilege perturbations passed. The fingerprint follows retained single-tenant identity rather than passwords/certificates. The earlier owned-schema cleanup failure remains retained and the corrected cleanup passed. This is internal archive/preflight groundwork. The daily service, retention, operational doctor integration and complete clean-host control-plane/key/device recovery still require implementation and acceptance; W7-3 and W7-5 remain incomplete.
+
 **W7-6 文档。**
 
 - 新写 `docs/deployment.md`：部署、升级、备份恢复、故障排查。`nethub-authz` 是单点这件事要写清楚。

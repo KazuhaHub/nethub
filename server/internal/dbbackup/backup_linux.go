@@ -263,6 +263,9 @@ func Run(ctx context.Context, config Config) (result Receipt, failure error) {
 	writer := &archiveWriter{file: file, digest: sha256.New(), limit: config.MaxBytes}
 	command := exec.CommandContext(ctx, binary, "--format=custom", "--no-password")
 	command.Env = []string{"PATH=/usr/local/bin:/usr/bin:/bin", "LANG=C", "LC_ALL=C", "PGHOST=" + config.Host, "PGPORT=" + strconv.Itoa(int(config.Port)), "PGDATABASE=" + config.Database, "PGUSER=nethub_backup", "PGSSLMODE=" + config.SSLMode, "PGPASSFILE=" + passPath}
+	if config.SSLMode == "verify-full" {
+		command.Env = append(command.Env, "PGSSLROOTCERT=/etc/ssl/certs/ca-certificates.crt")
+	}
 	command.Stdout = writer
 	command.Stderr = io.Discard
 	command.WaitDelay = 2 * time.Second
@@ -296,9 +299,30 @@ func (w *limitedVersion) Write(data []byte) (int, error) {
 }
 
 func Verify(ctx context.Context, directory, expectedFingerprint string, maxAge time.Duration) (Status, error) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	return VerifyWithBudget(ctx, directory, expectedFingerprint, maxAge, 30*time.Second)
+}
+
+// VerifyWithBudget hashes the complete archive within the caller's bounded
+// budget. Large archives must not depend on a short routine health-check window.
+func VerifyWithBudget(ctx context.Context, directory, expectedFingerprint string, maxAge, budget time.Duration) (Status, error) {
+	if budget < time.Second || budget > 30*time.Minute {
+		return Status{}, ErrUnavailable
+	}
+	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
-	if !privateDirectory(directory) || !digestPattern.MatchString(expectedFingerprint) || maxAge < time.Hour || maxAge > 7*24*time.Hour {
+	return inspectArchive(ctx, directory, expectedFingerprint, maxAge, true)
+}
+
+// VerifyMetadata checks private receipt/file shape and freshness without hashing
+// archive contents. It is suitable for routine worker health, not integrity proof.
+func VerifyMetadata(ctx context.Context, directory, expectedFingerprint string, maxAge time.Duration) (Status, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return inspectArchive(ctx, directory, expectedFingerprint, maxAge, false)
+}
+
+func inspectArchive(ctx context.Context, directory, expectedFingerprint string, maxAge time.Duration, fullHash bool) (Status, error) {
+	if ctx.Err() != nil || !privateDirectory(directory) || !digestPattern.MatchString(expectedFingerprint) || maxAge < time.Hour || maxAge > 7*24*time.Hour {
 		return Status{}, ErrUnavailable
 	}
 	root, err := os.OpenRoot(directory)
@@ -330,6 +354,15 @@ func Verify(ctx context.Context, directory, expectedFingerprint string, maxAge t
 	info, err := root.Lstat(receipt.Archive)
 	if err != nil || !privateFile(info) || info.Size() != receipt.Bytes {
 		return Status{}, ErrIntegrity
+	}
+	if !fullHash {
+		if ctx.Err() != nil {
+			return Status{}, ErrUnavailable
+		}
+		if !recordedStateUnchanged(root, state) {
+			return Status{}, ErrBusy
+		}
+		return Status{Receipt: receipt, InProgress: state.Outcome == "running"}, nil
 	}
 	file, err := root.Open(receipt.Archive)
 	if err != nil {
@@ -369,5 +402,24 @@ func Verify(ctx context.Context, directory, expectedFingerprint string, maxAge t
 	if total != receipt.Bytes || string(prefix) != "PGDMP" || hex.EncodeToString(digest.Sum(nil)) != receipt.SHA256 {
 		return Status{}, ErrIntegrity
 	}
+	if ctx.Err() != nil {
+		return Status{}, ErrUnavailable
+	}
+	if !recordedStateUnchanged(root, state) {
+		return Status{}, ErrBusy
+	}
 	return Status{Receipt: receipt, InProgress: state.Outcome == "running"}, nil
+}
+
+func recordedStateUnchanged(root *os.Root, before State) bool {
+	after, err := readState(root)
+	if err != nil {
+		return false
+	}
+	first, err := json.Marshal(before)
+	if err != nil {
+		return false
+	}
+	second, err := json.Marshal(after)
+	return err == nil && bytes.Equal(first, second)
 }

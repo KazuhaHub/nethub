@@ -143,3 +143,40 @@ func TestSyntheticArchiveCorruptionAndContention(t *testing.T) {
 		t.Fatalf("wrong deployment accepted: %v", err)
 	}
 }
+
+func TestMetadataHealthDoesNotReplaceDeepVerification(t *testing.T) {
+	config := syntheticConfig(t)
+	producer(t, config, "printf PGDMPsynthetic-archive")
+	receipt, err := Run(context.Background(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := VerifyWithBudget(context.Background(), config.Directory, config.DeploymentFingerprint, time.Hour, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	for _, budget := range []time.Duration{0, 31 * time.Minute} {
+		if _, err := VerifyWithBudget(context.Background(), config.Directory, config.DeploymentFingerprint, time.Hour, budget); !errors.Is(err, ErrUnavailable) {
+			t.Fatalf("unbounded verification accepted: %v", err)
+		}
+	}
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := VerifyWithBudget(canceled, config.Directory, config.DeploymentFingerprint, time.Hour, time.Minute); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("canceled verification accepted: %v", err)
+	}
+	archive := filepath.Join(config.Directory, receipt.Archive)
+	raw, err := os.ReadFile(archive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw[len(raw)-1] ^= 1
+	if err := os.WriteFile(archive, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := VerifyMetadata(context.Background(), config.Directory, config.DeploymentFingerprint, time.Hour); err != nil {
+		t.Fatalf("unchanged receipt shape refused: %v", err)
+	}
+	if _, err := VerifyWithBudget(context.Background(), config.Directory, config.DeploymentFingerprint, time.Hour, time.Minute); !errors.Is(err, ErrIntegrity) {
+		t.Fatalf("deep verification missed same-size corruption: %v", err)
+	}
+}

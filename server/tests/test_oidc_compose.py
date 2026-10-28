@@ -61,7 +61,7 @@ class OIDCOwnershipBoundaries(unittest.TestCase):
         (directory / 'SHA256SUMS').write_text(hashlib.sha256(raw).hexdigest() + '  images.tar.gz\n')
         images = {name: {'tag': 'nethub-stack-test:tmp-owned-' + name, 'id': 'sha256:' + str(index) * 64,
                          'platform': 'linux/amd64', 'diff_ids': ['sha256:' + 'a' * 64]}
-                  for index, name in enumerate(('runtime', 'postgres', 'caddy', 'frps'), 1)}
+                  for index, name in enumerate(('runtime', 'postgres', 'caddy', 'frps', 'backup'), 1)}
         (directory / 'images.json').write_text(json.dumps(images))
         return images
 
@@ -87,7 +87,7 @@ class OIDCOwnershipBoundaries(unittest.TestCase):
                 with patch.object(suite, 'invoke', side_effect=fake):
                     if mode == 'valid':
                         self.assertEqual(suite.archive_images(directory), (images, set()))
-                        self.assertEqual(len(calls), 4)
+                        self.assertEqual(len(calls), 5)
                     else:
                         with self.assertRaises(suite.Failure):
                             suite.archive_images(directory)

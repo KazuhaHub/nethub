@@ -21,13 +21,12 @@ Commands:
   migrate      Apply database migrations
   init         Prepare deployment configuration and secrets
   doctor       Check deployment readiness
+  backup       Run and monitor restricted database backups
   certificates Manage host certificates and HTTP-01 expiry
   admin        Manage the initial administrator
   version      Print the build version
 
-The console, migrations, first-admin setup, deployment initialization, scoped
-doctor checks, device enrollment and internal relay hooks are implemented.
-Appliance enrollment and the full certificate lifecycle remain unfinished.
+Run nethub <command> --help for command options.
 `
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -80,6 +79,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runInit(args[1:], stdout, stderr)
 	case "doctor":
 		return runDoctor(args[1:], stdout, stderr)
+	case "backup":
+		return runBackup(args[1:], stdout, stderr)
 	case "authz":
 		return runAuthz(args[1:], stdout, stderr)
 	case "certificates":
