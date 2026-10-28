@@ -22,7 +22,6 @@ jobs:
       contents: read
     env:
       NETHUB_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/native-appliance-browsers
       PYTHONDONTWRITEBYTECODE: "1"
     steps:
       - name: Checkout exact source
@@ -46,10 +45,14 @@ jobs:
           cache-dependency-path: server/web/package-lock.json
       - name: Install pinned browser dependencies
         working-directory: server/web
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/native-appliance-browsers
         run: |
           npm ci --no-audit --no-fund
           npx playwright install --with-deps chromium
       - name: Build and inspect the current package in a signed guest
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/native-appliance-browsers
         run: |
           export NETHUB_NODE_BINARY
           NETHUB_NODE_BINARY="$(command -v node)"

@@ -1,11 +1,9 @@
 """Install the current unsigned package on a new signed OPNsense CI guest."""
 import argparse
-import hashlib
 import json
 import os
 from pathlib import Path
 import re
-import subprocess
 import sys
 
 from guest import Guest, GuestError, download, digest, invoke
