@@ -1,6 +1,5 @@
 """Exercise the real backup image against nonce-owned databases and storage."""
 import hashlib
-import io
 import json
 import os
 from pathlib import Path
@@ -254,11 +253,26 @@ class Acceptance:
         self.wait_healthy(name)
         after, _ = self.receipt()
         require(before['latest_success']['archive'] != after['latest_success']['archive'], 'restarted daemon did not perform a fresh cycle')
-        runtime = self.command(['cp', name + ':/run/nethub-backup/.', '-'], log=False).stdout
-        with tarfile.open(fileobj=io.BytesIO(runtime)) as archive:
-            files = [item for item in archive.getmembers() if not item.isdir()]
-            require({Path(item.name).name for item in files} == {'worker-health.json', '.nethub-backup-runtime.lock'} and len(files) == 2, 'temporary passfiles remained after real cycle')
-            require(all(item.isfile() and item.uid == 65532 and item.mode & 0o777 == 0o600 for item in files), 'private runtime metadata')
+        running = self.inspect('container', name)
+        require(running and running['State']['Running'] and running['Image'] == self.backup_id and running['Config']['Labels'].get('org.nethub.backup-test') == self.nonce, 'owned live daemon required for runtime inspection')
+        pid = running['State']['Pid']
+        require(type(pid) is int and pid > 1, 'host daemon process identity')
+        # Docker cp cannot read the live tmpfs. The host fixture is root and
+        # reads only metadata through the verified daemon's mount namespace.
+        runtime = Path('/proc') / str(pid) / 'root/run/nethub-backup'
+        entries = list(runtime.iterdir())
+        expected = {'worker-health.json', '.nethub-backup-runtime.lock'}
+        inventory = []
+        for entry in entries:
+            info = entry.lstat()
+            inventory.append(dict(known_name=entry.name if entry.name in expected else 'unexpected',
+                                  regular=stat.S_ISREG(info.st_mode), uid=info.st_uid,
+                                  mode=stat.S_IMODE(info.st_mode)))
+        (self.work / 'daemon-runtime-inventory.json').write_text(json.dumps(inventory), encoding='utf-8')
+        require({entry.name for entry in entries} == expected and len(entries) == 2, 'temporary passfiles or unexpected runtime entries remained after real cycle; count=' + str(len(entries)))
+        require(all(item['regular'] and item['uid'] == 65532 and item['mode'] == 0o600 for item in inventory), 'private runtime metadata')
+        after_inspection = self.inspect('container', name)
+        require(after_inspection and after_inspection['Id'] == running['Id'] and after_inspection['State']['Running'] and after_inspection['State']['Pid'] == pid, 'daemon changed during runtime inspection')
         self.command(['stop', '--time', '10', name], timeout=20)
         stopped = self.inspect('container', name)
         require(not stopped['State']['Running'] and stopped['State']['ExitCode'] == 0, 'signal-aware daemon shutdown')
