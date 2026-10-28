@@ -145,6 +145,12 @@ type authorityNetwork struct {
 	IPAddress  string
 	IPAMConfig *struct{ IPv4Address string }
 }
+type authorityHealthcheck struct {
+	Test                                          []string
+	Interval, Timeout, StartPeriod, StartInterval time.Duration
+	Retries                                       int
+}
+
 type authorityContainer struct {
 	ID     string `json:"Id"`
 	Image  string
@@ -152,12 +158,15 @@ type authorityContainer struct {
 		User                 string
 		Cmd, Entrypoint, Env []string
 		Labels               map[string]string
+		ExposedPorts         map[string]json.RawMessage
+		Healthcheck          *authorityHealthcheck
 	}
 	HostConfig struct {
 		ReadonlyRootfs, Privileged            bool
 		NetworkMode                           string
 		PidMode, IpcMode, UTSMode, UsernsMode string
 		Devices                               []json.RawMessage
+		Tmpfs                                 map[string]string
 		CapDrop, CapAdd, SecurityOpt          []string
 		PortBindings                          map[string][]struct{ HostIP, HostPort string }
 	}

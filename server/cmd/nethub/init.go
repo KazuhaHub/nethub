@@ -157,7 +157,7 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	fmt.Fprintln(stdout, "Deployment files prepared. Change into the requested deployment directory, then run:")
-	build := "  docker compose build migrate postgres frps"
+	build := "  docker compose build migrate postgres frps backup"
 	if config.ProxyMode != "external" {
 		build += " caddy"
 	}

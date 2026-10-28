@@ -87,7 +87,13 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 		defer cancel()
-		if err := setup.CheckRuntimeContainers(ctx, *directory, *project, *composeFile); err != nil {
+		var separationErr error
+		if *relayHook {
+			separationErr = setup.CheckRelayRuntimeContainers(ctx, *directory, *project, *composeFile)
+		} else {
+			separationErr = setup.CheckRuntimeContainers(ctx, *directory, *project, *composeFile)
+		}
+		if separationErr != nil {
 			fmt.Fprintln(stderr, "Runtime container separation check failed; run on the Linux Docker host as root, verify the protected deployment/project and restore reviewed service users, images, environment, read-only mounts and secret directories; no service was changed")
 			return 1
 		}
@@ -121,7 +127,7 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stdout, "Probe used an invalid claim with no token, device secret or proxy; this does not prove successful device admission, external reachability, recent backups or published appliance version agreement")
 			return 0
 		}
-		fmt.Fprintln(stdout, "Running Web/authz/frps container separation and reviewed Web secret mount passed; inspection did not modify services")
+		fmt.Fprintln(stdout, "Running Web/authz/frps/backup container separation and reviewed secret mounts passed; inspection did not modify services")
 		fmt.Fprintln(stdout, "Not checked: database privileges, actual hook traffic, external reachability, recent database backup or version agreement")
 		return 0
 	}

@@ -153,7 +153,10 @@ read-only root, no host/shared process/IPC/UTS/user namespace overrides, no devi
 configured networks and private publication. Web must mount only
 its read-only secret directory, containing exactly its database password and
 provider-encryption key. Extra mounts/files or environment overrides are refused.
-The Web container/image and authz/frps configuration are rechecked before success.
+The full mode also checks the healthy backup worker's nonroot image, bounded
+command, exact health probe, private runtime tmpfs, dedicated secret directory
+and owned local archive volume. Container/image and authz/frps configuration are
+rechecked before success.
 
 This is an observation of the reviewed running layout, not attestation of an
 arbitrary compromised image or a continuous policy enforcer. It does not replace
@@ -162,7 +165,8 @@ recent dumps or published version agreement. Non-Linux hosts refuse this mode.
 The genuine Docker/compiled-command test is added to the existing isolated
 service suite and still awaits final-source hosted execution.
 
-The in-progress relay mode first checks that protected runtime layout, then
+The relay mode checks the Web/authz/frps prerequisites independently of backup
+liveness, then
 tests its actual loopback TLS Login hook path:
 
 ```sh
@@ -239,8 +243,10 @@ preserve the current state and protected operation receipts as well as the
 immutable initialization backup. An old backup must not silently replace a newer
 authority or operation journal.
 
-W7 still requires scheduled `pg_dump` with the restricted backup role, retention,
-protected off-host storage and a full clean-host restore drill. That drill must
+The [database backup service](../deploy/database-backups.md) implements scheduled
+restricted-role `pg_dump`, retention, worker health and a full-hash recent-archive
+doctor. Container acceptance is pending. Protected off-host storage and a full
+clean-host restore drill remain open. That drill must
 restore the matching database and keys, preserve account/device authority and
 verify an already enrolled device reconnects. No complete restoration command is
 documented as accepted here because that operator drill has not passed. Existing

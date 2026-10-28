@@ -9,7 +9,7 @@ import time
 
 
 stage, root = Path(sys.argv[1]), Path(sys.argv[2])
-runtime, postgres, caddy, frps = sys.argv[3:]
+runtime, postgres, caddy, frps, backup = sys.argv[3:]
 work = stage / "external-proxy"
 work.mkdir(mode=0o700)
 project = "nethub-external-" + stage.name.lower().replace(".", "-")
@@ -53,11 +53,11 @@ try:
          "--directory", str(bundle), "--backup-directory", str(work / "backup"),
          "--console-host", "console.example.com", "--device-domain", "router.example.com"],
         "init", b"I HAVE VERIFIED THE NETHUB SECRET BACKUP\n")
-    assert b"docker compose build migrate postgres frps\n" in initialized and b"postgres frps caddy" not in initialized
+    assert b"docker compose build migrate postgres frps backup\n" in initialized and b"postgres frps backup caddy" not in initialized
     (work / "images.json").write_text(json.dumps({"services": {
         name: {"image": image} for name, image in {
             "postgres": postgres, "migrate": runtime, "admin-bootstrap": runtime,
-            "nethub-web": runtime, "nethub-authz": runtime, "frps": frps}.items()}}))
+            "nethub-web": runtime, "nethub-authz": runtime, "frps": frps, "backup": backup}.items()}}))
     config = json.loads(run(compose + ["config", "--format", "json"], "config"))
     assert "caddy" not in config["services"]
     for name, port in (("nethub-web", web_port), ("nethub-authz", device_port)):

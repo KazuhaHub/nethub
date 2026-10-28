@@ -78,7 +78,7 @@ COPY --from=build /out/nethub /nethub
 COPY LICENSE NOTICE /licenses/
 COPY --from=build /out/GO-LICENSE /licenses/GO-LICENSE
 COPY --from=build /out/oidc-licenses /licenses/oidc/
-ENV TZ=UTC
+ENV TZ=UTC PATH=/usr/local/bin:/usr/bin:/bin
 USER 65532:65532
 ENTRYPOINT ["/nethub"]
 CMD ["backup", "serve"]

@@ -14,6 +14,16 @@ import (
 // CheckRuntimeContainers inspects an existing root-protected deployment through
 // the local Docker socket. It never starts, executes inside or changes a service.
 func CheckRuntimeContainers(ctx context.Context, directory, project, composeFile string) error {
+	return checkRuntimeContainers(ctx, directory, project, composeFile, true)
+}
+
+// CheckRelayRuntimeContainers retains the Web/authz/frps prerequisite scope.
+// Backup liveness is checked separately by the full container doctor.
+func CheckRelayRuntimeContainers(ctx context.Context, directory, project, composeFile string) error {
+	return checkRuntimeContainers(ctx, directory, project, composeFile, false)
+}
+
+func checkRuntimeContainers(ctx context.Context, directory, project, composeFile string, includeBackup bool) error {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	if CheckFiles(directory) != nil {
@@ -22,6 +32,13 @@ func CheckRuntimeContainers(ctx context.Context, directory, project, composeFile
 	bound, err := BindRelayAuthorityService(ctx, directory, project, composeFile, "")
 	if err != nil {
 		return ErrContainerReadiness
+	}
+	var backupBefore backupReadinessSnapshot
+	if includeBackup {
+		backupBefore, err = captureBackupReadiness(ctx, bound)
+		if err != nil {
+			return ErrContainerReadiness
+		}
 	}
 	// A correct mount source alone is insufficient if somebody copied another
 	// service's credentials into the Web secret directory.
@@ -77,7 +94,13 @@ func CheckRuntimeContainers(ctx context.Context, directory, project, composeFile
 	if err != nil || json.Unmarshal(raw, &containers) != nil || len(containers) != 1 || containers[0].ID != id || !acceptsWebReadiness(bound.binding, image, containers[0]) {
 		return ErrContainerReadiness
 	}
-	if CheckFiles(directory) != nil || !webSecretDirectoryReady(directory) {
+	if includeBackup {
+		after, err := captureBackupReadiness(ctx, bound)
+		if err != nil || !bytes.Equal(authorityJSON(backupBefore), authorityJSON(after)) {
+			return ErrContainerReadiness
+		}
+	}
+	if CheckFiles(directory) != nil || !webSecretDirectoryReady(directory) || includeBackup && !backupSecretDirectoryReady(directory) {
 		return ErrContainerReadiness
 	}
 	return nil

@@ -249,6 +249,8 @@ docker run --rm --network none --entrypoint /frps-official \
 echo 'Official checksum-verified frps accepted the generated production configuration'
 echo 'Starting the isolated Compose services (210-second command deadline, 150-second health wait)'
 compose up -d --wait --wait-timeout 150 > "$stage/start.log" 2>&1
+postgres_id=$(compose ps --all --quiet postgres)
+python3 "$root/server/tests/backup-deployment.py" "$stage" "$project" "$image" "$backup_image" "$postgres_id"
 for key_case in missing malformed unsafe; do
     printf '%s\n' 'invalid-provider-key-fixture' > "$stage/provider-key-fixture"
     chmod 600 "$stage/provider-key-fixture"
@@ -369,7 +371,7 @@ NETHUB_TEST_GUI_SQL_CONTAINER="$database_id" NETHUB_TEST_GUI_SQL_IMAGE="$databas
 NETHUB_TEST_GUI_SQL_PROJECT="$project" "$stage/guiacme.test" -test.v \
     -test.run '^TestPebbleCoordinatorDatabaseRecovery$' -test.timeout=120s
 compose down -v --remove-orphans > "$stage/down.log" 2>&1
-python3 "$root/server/tests/external-proxy.py" "$stage" "$root" "$image" "$postgres_image" "$caddy_image" "$frps_image"
+python3 "$root/server/tests/external-proxy.py" "$stage" "$root" "$image" "$postgres_image" "$caddy_image" "$frps_image" "$backup_image"
 cat > "$stage/failure.yml" <<'YAML'
 services:
   migrate:
