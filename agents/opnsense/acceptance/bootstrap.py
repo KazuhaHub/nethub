@@ -37,7 +37,8 @@ def main():
         if (ROOT / 'server/.go-version').read_text(encoding='ascii').strip() != '1.26.10':
             raise GuestError('Pinned guest SDK needs explicit compiler update')
         source = directory / 'source.tar'
-        source.write_bytes(invoke(['git', '-C', str(ROOT), 'archive', '--format=tar', 'HEAD'], 'tracked source archive'))
+        source.write_bytes(invoke(['git', '-C', str(ROOT), '-c', 'core.autocrlf=false',
+                                  'archive', '--format=tar', 'HEAD'], 'tracked source archive'))
         result['source_archive_sha256'] = digest(source)
         sdk = directory / SDK
         result['phase'] = 'pinned_sdk'

@@ -20,8 +20,18 @@ The factory GUI's self-signed certificate is allowed only for its initial privat
 page check. It cannot establish verified public/relay TLS. The guest receives
 3072 MiB. Its disk, serial transcript, temporary SSH keys, build output and native
 configuration remain private to the disposable runner. Only the closed result
-and two logged-in, unenrolled page images are uploaded. No package is signed or
-published. This new preparation path is unaccepted until its real run succeeds.
+and logged-in, unenrolled page images are uploaded. Scrolled mobile images also
+check that the enrollment field and rotation control are unobscured in the native
+shell's scroll container. No package is signed or published.
+
+Source `b148325` passed the [initial preparation run](https://github.com/KazuhaHub/nethub/actions/runs/40781008446):
+the current unsigned package, rebuilt frpc 0.71.1, configd stopped status and
+unenrolled native desktop page were checked on a fresh OPNsense 26.7.7 guest.
+The exact source archive, official log and both original image hashes were
+independently verified; the owned guest terminated with exit status zero.
+The original mobile image cropped lower controls in the native scroll container.
+The supplementary mobile captures above still require execution and review.
+Enrollment, rotation and relay recovery remain separate acceptance work.
 
 Serial bootstrap sends short encoded heredoc lines within FreeBSD's canonical
 terminal input bound. Failure results retain only the waiting stage, selected
