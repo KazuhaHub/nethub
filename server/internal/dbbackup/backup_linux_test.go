@@ -108,6 +108,25 @@ func TestSyntheticArchiveCorruptionAndContention(t *testing.T) {
 		t.Fatalf("concurrent writer: %v", err)
 	}
 	guard.Close()
+	root, err := os.OpenRoot(config.Directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := readState(root)
+	if err != nil {
+		root.Close()
+		t.Fatal(err)
+	}
+	state.Outcome = "succeeded"
+	state.AttemptStartedAt = state.AttemptStartedAt.Add(time.Second)
+	if err := writeState(root, state); !errors.Is(err, ErrIntegrity) {
+		root.Close()
+		t.Fatalf("incoherent replacement published: %v", err)
+	}
+	root.Close()
+	if _, err := Verify(context.Background(), config.Directory, config.DeploymentFingerprint, time.Hour); err != nil {
+		t.Fatalf("refused replacement changed last good state: %v", err)
+	}
 	archive := filepath.Join(config.Directory, receipt.Archive)
 	raw, err := os.ReadFile(archive)
 	if err != nil {

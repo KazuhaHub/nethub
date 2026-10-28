@@ -75,6 +75,9 @@ func readState(root *os.Root) (State, error) {
 }
 
 func writeState(root *os.Root, state State) error {
+	if !validState(state) {
+		return ErrIntegrity
+	}
 	value, err := nonce()
 	if err != nil {
 		return err
