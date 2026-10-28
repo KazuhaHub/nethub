@@ -12,6 +12,8 @@ var ErrRotationVersion = errors.New("credential rotation requires protocol 1.6 o
 
 var rotationIDPattern = regexp.MustCompile(`^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$`)
 
+func ValidRotationOperationID(value string) bool { return rotationIDPattern.MatchString(value) }
+
 // RotateRequest binds one privately journaled candidate to one rotation. The
 // bearer authenticates the current credential; the operation ID alone never does.
 type RotateRequest struct {
@@ -25,15 +27,22 @@ type RotateResponse struct {
 	OperationID string `json:"operation_id"`
 }
 
-func (r RotateRequest) Validate() error {
-	if err := r.Identity.Validate(); err != nil {
+func ValidateRotationIdentity(identity Identity) error {
+	if err := identity.Validate(); err != nil {
 		return err
 	}
-	switch strings.SplitN(r.AgentProtocolVersion, ".", 3)[1] {
+	switch strings.SplitN(identity.AgentProtocolVersion, ".", 3)[1] {
 	case "0", "1", "2", "3", "4", "5":
 		return ErrRotationVersion
 	}
-	if !rotationIDPattern.MatchString(r.OperationID) || !ValidDeviceSecret(r.ReplacementSecret) {
+	return nil
+}
+
+func (r RotateRequest) Validate() error {
+	if err := ValidateRotationIdentity(r.Identity); err != nil {
+		return err
+	}
+	if !ValidRotationOperationID(r.OperationID) || !ValidDeviceSecret(r.ReplacementSecret) {
 		return ErrInvalidRequest
 	}
 	return nil

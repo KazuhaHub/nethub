@@ -66,11 +66,14 @@ Status reporting does not make a device online: the console uses recent relay
 observations. Removal revokes the device; reporting success or retaining an old
 local configuration does not restore its authority.
 
-The implemented lifecycle endpoints are `/api/v1/devices/status` and
-`/api/v1/devices/unenroll`. The schema set also defines rotate request/response
-shapes. **The current HTTP router does not expose a rotate endpoint.** Operational
-credential rotation, the agent command and its UI remain W7 work. A schema or a
-fixture round-trip must not be presented as a working rotation operation.
+The lifecycle router implements `/api/v1/devices/{status,unenroll,rotate}`.
+Protocol 1.6 rotation binds one privately journaled candidate to one operation;
+its transaction advances the credential hash and claim timestamp with an immutable
+operation/audit. A response-loss retry authenticates the committed candidate and
+recovers that assignment. The server implementation is under genuine database
+and relay validation. The native journal/model workflow, command and UI remain
+W7 work; this is not yet an operational device rotation feature. See the
+[rotation contract and limits](../proto/ROTATION.md).
 
 ## GUI certificate lifecycle
 

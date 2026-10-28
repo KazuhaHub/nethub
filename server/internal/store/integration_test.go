@@ -575,6 +575,7 @@ func TestPostgresBoundaries(t *testing.T) {
 	t.Run("traffic_console_and_warnings", func(t *testing.T) { testTrafficConsole(t, ctx, owner, authz, web, backup) })
 	t.Run("explicit_device_access_grants", func(t *testing.T) { testExplicitDeviceAccess(t, ctx, owner, web, authz, tenantA, tenantB) })
 	t.Run("authenticated_device_lifecycle", func(t *testing.T) { testDeviceLifecycle(t, ctx, owner, authz, web) })
+	t.Run("recoverable_device_rotation", func(t *testing.T) { testDeviceRotation(t, ctx, owner, authz, web) })
 	// Its final trust-history fixture changes deployment-global public state;
 	// bootstrap-only lifecycle fixtures must run before that explicit rotation.
 	t.Run("atomic_device_enrollment", func(t *testing.T) { testAtomicEnrollment(t, ctx, owner, authz, web, tenantA, tenantB) })

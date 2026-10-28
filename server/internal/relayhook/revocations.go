@@ -25,6 +25,15 @@ type RevocationRepository interface {
 	Revocations(context.Context) ([]RevokedDevice, error)
 }
 
+type RotatedClaim struct {
+	Device   RevokedDevice
+	IssuedAt time.Time
+}
+
+type ClaimRotationRepository interface {
+	ClaimRotations(context.Context) ([]RotatedClaim, error)
+}
+
 type DisconnectProcessor interface {
 	ProcessDisconnects(context.Context, func(RevokedDevice) bool) error
 }
@@ -39,7 +48,14 @@ func (c *RevocationCache) ProcessDisconnects(ctx context.Context) error {
 	done := make(chan error, 1)
 	go func() {
 		done <- processor.ProcessDisconnects(read, func(device RevokedDevice) bool {
-			return errors.Is(c.AuthorizePing(protocol.ClaimPayload{TenantID: device.TenantID, DeviceID: device.DeviceID}), ErrDenied)
+			// A rotated claim is not a revoked device. Disconnect completion must
+			// inspect the one-way revocation set rather than a missing timestamp.
+			snapshot := c.snapshot.Load()
+			if snapshot == nil {
+				return false
+			}
+			_, revoked := snapshot.devices[device]
+			return revoked
 		})
 	}()
 	select {
@@ -61,8 +77,10 @@ func (c *RevocationCache) ProcessDisconnects(ctx context.Context) error {
 }
 
 type revocationSnapshot struct {
-	devices map[RevokedDevice]struct{}
-	probe   RevokedDevice
+	devices       map[RevokedDevice]struct{}
+	probe         RevokedDevice
+	rotated       map[RevokedDevice]time.Time
+	rotationProbe RotatedClaim
 }
 
 // RevocationCache is used only for Ping. Login and proxy admission still use SQL.
@@ -93,6 +111,15 @@ func (c *RevocationCache) AuthorizePing(identity protocol.ClaimPayload) error {
 	if _, revoked := snapshot.devices[RevokedDevice{identity.TenantID, identity.DeviceID}]; revoked {
 		return ErrDenied
 	}
+	if len(snapshot.rotated) > MaxRevocations {
+		return ErrUnavailable
+	}
+	if floor, rotated := snapshot.rotated[RevokedDevice{identity.TenantID, identity.DeviceID}]; rotated {
+		issued, err := time.Parse("2006-01-02T15:04:05.000000Z", identity.IssuedAt)
+		if err != nil || issued.Format("2006-01-02T15:04:05.000000Z") != identity.IssuedAt || issued.Before(floor) {
+			return ErrDenied
+		}
+	}
 	return nil
 }
 
@@ -102,10 +129,24 @@ func (c *RevocationCache) selfCheck() bool {
 		return false
 	}
 	err := c.AuthorizePing(protocol.ClaimPayload{TenantID: snapshot.probe.TenantID, DeviceID: snapshot.probe.DeviceID})
-	if len(snapshot.devices) == 0 {
-		return err == nil
+	if len(snapshot.devices) == 0 && err != nil || len(snapshot.devices) != 0 && !errors.Is(err, ErrDenied) {
+		return false
 	}
-	return errors.Is(err, ErrDenied)
+	if len(snapshot.rotated) > MaxRevocations {
+		return false
+	}
+	if len(snapshot.rotated) > 0 {
+		probe := snapshot.rotationProbe
+		if probe.IssuedAt.IsZero() {
+			return false
+		}
+		identity := protocol.ClaimPayload{TenantID: probe.Device.TenantID, DeviceID: probe.Device.DeviceID,
+			IssuedAt: probe.IssuedAt.Add(-time.Microsecond).Format("2006-01-02T15:04:05.000000Z")}
+		if !errors.Is(c.AuthorizePing(identity), ErrDenied) {
+			return false
+		}
+	}
+	return true
 }
 
 // Refresh bounds both the database request and a dependency ignoring cancellation.
@@ -115,10 +156,18 @@ func (c *RevocationCache) Refresh(ctx context.Context) error {
 	defer cancel()
 	type result struct {
 		devices []RevokedDevice
+		rotated []RotatedClaim
 		err     error
 	}
 	done := make(chan result, 1)
-	go func() { devices, err := c.repository.Revocations(read); done <- result{devices, err} }()
+	go func() {
+		devices, err := c.repository.Revocations(read)
+		var rotated []RotatedClaim
+		if repository, ok := c.repository.(ClaimRotationRepository); err == nil && ok {
+			rotated, err = repository.ClaimRotations(read)
+		}
+		done <- result{devices: devices, rotated: rotated, err: err}
+	}()
 	var value result
 	select {
 	case value = <-done:
@@ -132,7 +181,7 @@ func (c *RevocationCache) Refresh(ctx context.Context) error {
 			return ErrRevocationLiveness
 		}
 	}
-	if value.err != nil || read.Err() != nil || len(value.devices) > MaxRevocations {
+	if value.err != nil || read.Err() != nil || len(value.devices) > MaxRevocations || len(value.rotated) > MaxRevocations {
 		return ErrUnavailable
 	}
 	for _, device := range value.devices {
@@ -140,21 +189,38 @@ func (c *RevocationCache) Refresh(ctx context.Context) error {
 			return ErrUnavailable
 		}
 	}
+	for _, rotation := range value.rotated {
+		if !revocationUUID.MatchString(rotation.Device.TenantID) || !revocationUUID.MatchString(rotation.Device.DeviceID) ||
+			rotation.IssuedAt.IsZero() || rotation.IssuedAt.UTC().Year() < 1 || rotation.IssuedAt.UTC().Year() > 9999 || rotation.IssuedAt.Nanosecond()%1000 != 0 {
+			return ErrUnavailable
+		}
+	}
 	c.publish.Lock()
 	defer c.publish.Unlock()
 	// Revocation is one-way. An older or incomplete read cannot re-admit a known ID.
-	next := &revocationSnapshot{devices: make(map[RevokedDevice]struct{}, len(value.devices))}
+	next := &revocationSnapshot{devices: make(map[RevokedDevice]struct{}, len(value.devices)), rotated: make(map[RevokedDevice]time.Time)}
 	if previous := c.snapshot.Load(); previous != nil {
 		for device := range previous.devices {
 			next.devices[device] = struct{}{}
 			next.probe = device
+		}
+		for device, issued := range previous.rotated {
+			next.rotated[device] = issued
+			next.rotationProbe = RotatedClaim{Device: device, IssuedAt: issued}
 		}
 	}
 	for _, device := range value.devices {
 		next.devices[device] = struct{}{}
 		next.probe = device
 	}
-	if len(next.devices) > MaxRevocations {
+	for _, rotation := range value.rotated {
+		// Out-of-order reads must never lower a known claim issuance floor.
+		if current, exists := next.rotated[rotation.Device]; !exists || rotation.IssuedAt.After(current) {
+			next.rotated[rotation.Device] = rotation.IssuedAt.UTC()
+			next.rotationProbe = RotatedClaim{Device: rotation.Device, IssuedAt: rotation.IssuedAt.UTC()}
+		}
+	}
+	if len(next.devices) > MaxRevocations || len(next.rotated) > MaxRevocations {
 		return ErrUnavailable
 	}
 	c.snapshot.Store(next)

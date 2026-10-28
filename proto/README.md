@@ -27,11 +27,12 @@ pipeline remain separate work.
 | relay-trust-settings-request / relay-trust-settings-response | Authenticated current public trust generation, or explicit pending null |
 | relay-trust-applied-request / relay-trust-applied-response | Exact current trust identity report and original server acceptance receipt |
 
-The implemented lifecycle endpoints are `/api/v1/devices/{enroll,status,unenroll}`
-under the administrator-selected HTTPS console origin. Rotate schemas reserve the
-wire contract with a protocol-1.6 journal candidate and operation ID; the current
-HTTP router does not expose rotation. See [recovery requirements](ROTATION.md). The command,
-endpoint and UI remain W7 work. See the [protocol walkthrough](../docs/protocol.md).
+The lifecycle router implements `/api/v1/devices/{enroll,status,unenroll,rotate}`
+under the administrator-selected HTTPS console origin. Rotation requires protocol
+1.6 and binds a privately journaled candidate to an operation ID. Server/API and
+transaction acceptance is in progress; the native command, journal/model
+transaction and UI remain W7 work. See [recovery requirements](ROTATION.md) and
+the [protocol walkthrough](../docs/protocol.md).
 Enrollment carries its
 opaque one-use token in the JSON body. Other device endpoints use the device
 secret as `Authorization: Bearer <device_secret>`, with the device ID in the body.

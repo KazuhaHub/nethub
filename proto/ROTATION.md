@@ -1,9 +1,10 @@
 # Recoverable credential rotation contract
 
-Protocol 1.6 specifies an operation-bound rotation request. The HTTP endpoint,
-durable server mutation, native journal/model transaction and page action are
-still being implemented. These contracts do not establish operational W7-4
-acceptance or make the existing placeholder command usable.
+Protocol 1.6 specifies an operation-bound rotation request. The HTTP endpoint and
+atomic server mutation are under validation. Native journal/model persistence,
+the page action and the shared-token incident operation remain unimplemented.
+These contracts do not establish operational W7-4 acceptance or make the existing
+placeholder command usable.
 
 The request contains `agent_protocol_version`, `device_id`, `operation_id` and
 `replacement_secret`. The operation ID is a canonical lowercase UUIDv4; the
@@ -39,3 +40,12 @@ The request and response schemas bound shape and transport size; they cannot
 establish entropy, credential possession, durable persistence or authorization.
 Credentials belong only in private request/journal storage and verified HTTPS,
 never in URLs, process arguments, browser output or diagnostic messages.
+
+
+The heartbeat cache also retains a monotonically increasing claim issuance floor
+for each rotated device. A fresh database Login/proxy check rejects the old claim
+immediately after commit. Existing controls learn the floor on the bounded
+five-second snapshot refresh and are denied on a later heartbeat. A failed refresh
+retains the last good snapshot, so this is not an instantaneous cutoff guarantee.
+Rotation is separate from one-way device revocation; a stale claim must not make
+a disconnect request appear to have completed device revocation.
