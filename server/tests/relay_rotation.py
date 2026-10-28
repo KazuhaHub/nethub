@@ -1,6 +1,7 @@
 """Exercise credential rotation against actual authz, PostgreSQL and official frp."""
 import json
 from pathlib import Path
+import re
 import secrets
 import subprocess
 import time
@@ -44,6 +45,21 @@ def exercise_rotation(stage, port, assignments, valid_clients, start_client, sto
     identity = sql(identity_query)
     grants_query = "SELECT source_ip::text||expires_at::text FROM device_access_grants WHERE device_id='" + device + "' ORDER BY source_ip;"
     grants = sql(grants_query)
+    old_client = valid_clients[0]
+
+    def old_control_sockets():
+        result = subprocess.run(['ss', '-tnpH'], capture_output=True, text=True, timeout=3)
+        assert result.returncode == 0, 'rotation control socket inventory failed'
+        peers = set()
+        for line in result.stdout.splitlines():
+            fields = line.split()
+            if (len(fields) >= 6 and fields[0] == 'ESTAB' and fields[4].endswith(':7000')
+                    and re.search(r'pid=' + str(old_client.pid) + r'[,)]', line)):
+                peers.add((fields[3], fields[4]))
+        return peers
+
+    original_sockets = old_control_sockets()
+    assert original_sockets, 'rotation did not bind the original official control socket'
     before = hook_events('before-real-rotation')
     prior_ping = sum(e.get('operation') == 'Ping' and e.get('decision') == 'device_denied' for e in before)
     started = time.monotonic()
@@ -60,17 +76,20 @@ def exercise_rotation(stage, port, assignments, valid_clients, start_client, sto
     assert sql("SELECT count(*) FROM device_rotations WHERE device_id='" + device + "' AND operation_id='" + operation + "';") == '1'
     assert sql("SELECT count(*) FROM audit_log WHERE target_device_id='" + device + "' AND action='device.rotated';") == '1'
 
-    old_client = valid_clients[0]
     deadline = time.monotonic() + 45
     while True:
         events = hook_events('rotation-cutoff-observation')
         denied_ping = sum(e.get('operation') == 'Ping' and e.get('decision') == 'device_denied' for e in events) > prior_ping
-        if old_client.poll() is not None and denied_ping:
+        if denied_ping and not original_sockets.intersection(old_control_sockets()):
             break
-        assert time.monotonic() < deadline, 'old official control did not exit after rotation heartbeat denial'
+        assert time.monotonic() < deadline, 'old official control socket survived rotation heartbeat denial'
         time.sleep(.2)
     cutoff_ms = round((time.monotonic() - started) * 1000)
-    assert old_client.returncode != 0
+    # Official frpc retries after an established control fails even when its
+    # first-login failure policy exits. Observe the original socket, not its PID.
+    assert old_client.poll() is None
+    assert probe(previous, source).returncode != 0, 'rotated old route remained reachable'
+    stop_client(old_client)
     survivor = probe(assignments[1], source)
     assert survivor.returncode == 0 and survivor.stdout.decode() == assignments[1]['subdomain'] + '.router.example.com', 'rotation affected the other device'
 
