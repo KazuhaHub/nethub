@@ -65,11 +65,17 @@ func TestPostgresBoundaries(t *testing.T) {
 	if selected, err := SoleTenant(ctx, web); err != nil || selected != tenantA {
 		t.Fatalf("single-tenant startup selection: %v", err)
 	}
+	t.Run("backup_read_only_identity", func(t *testing.T) { testBackupIdentity(t, ctx, backup, web) })
 	var bootstrapID string
 	t.Run("initial_admin_bootstrap", func(t *testing.T) { bootstrapID = testAdminBootstrap(t, ctx, owner, web, authz, tenantA) })
 	if err := owner.QueryRowContext(ctx, `INSERT INTO tenants(name) VALUES('Integration B') RETURNING id`).Scan(&tenantB); err != nil {
 		t.Fatal(err)
 	}
+	t.Run("backup_identity_multiple_tenants", func(t *testing.T) {
+		if _, err := BackupDeploymentFingerprint(ctx, backup); !errors.Is(err, ErrReadinessAuthority) {
+			t.Fatalf("ambiguous deployment identity accepted: %v", err)
+		}
+	})
 	user := func(tenant, email, role string) string {
 		t.Helper()
 		var id string
@@ -131,6 +137,7 @@ func TestPostgresBoundaries(t *testing.T) {
 		}
 	})
 	t.Run("doctor_runtime_role_metadata", func(t *testing.T) { testReadinessRoles(t, ctx, owner, web, authz) })
+	t.Run("restricted_backup_archive_restore", func(t *testing.T) { testRestrictedBackup(t, ctx, backup) })
 	t.Run("tenant_and_member_visibility", func(t *testing.T) {
 		connection, err := web.Conn(ctx)
 		if err != nil {
