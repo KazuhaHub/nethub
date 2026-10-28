@@ -1,0 +1,290 @@
+"""Own one signed, disposable OPNsense guest on a fresh Linux CI runner."""
+import base64
+import bz2
+import hashlib
+import os
+from pathlib import Path
+import re
+import shutil
+import socket
+import subprocess
+import time
+import urllib.request
+import uuid
+
+
+IMAGE = 'OPNsense-26.7-nano-amd64.img'
+IMAGE_SHA256 = '28d5e2f37e40d87468a924e3006ef10e2ddc6de485b85333d9e3958c84d0cb9d'
+KEY_SHA256 = '9f3b76ffef38fb6405595038b324b61043c9a2c375ae5c151d628508e9a845ce'
+BASE = 'https://pkg.opnsense.org/releases/26.7/'
+ANNOUNCEMENT = ('https://raw.githubusercontent.com/opnsense/changelog/'
+                'fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7')
+
+
+class GuestError(Exception):
+    """A fixed operation label; never expose private child output or arguments."""
+
+
+def invoke(arguments, label, *, timeout=60, input=None):
+    try:
+        result = subprocess.run(arguments, input=input, capture_output=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise GuestError(label + ' timed out') from None
+    if result.returncode:
+        raise GuestError(label + ' failed')
+    return result.stdout
+
+
+def download(url, target, maximum):
+    total = 0
+    with urllib.request.urlopen(url, timeout=60) as source, target.open('xb') as output:
+        while part := source.read(1024 * 1024):
+            total += len(part)
+            if total > maximum:
+                raise GuestError('Pinned download exceeds its limit')
+            output.write(part)
+
+
+def digest(path):
+    with path.open('rb') as source:
+        return hashlib.file_digest(source, 'sha256').hexdigest()
+
+
+def verified_image(directory):
+    compressed, raw = directory / (IMAGE + '.bz2'), directory / IMAGE
+    key, signature = directory / 'release.pub', directory / 'image.sig'
+    download(BASE + compressed.name, compressed, 2 * 1024**3)
+    download(BASE + 'OPNsense-26.7.pub', key, 16384)
+    if digest(compressed) != IMAGE_SHA256 or digest(key) != KEY_SHA256:
+        raise GuestError('Pinned image or release key changed')
+    with urllib.request.urlopen(ANNOUNCEMENT, timeout=30) as response:
+        announcement = response.read(131073).decode('utf-8')
+    match = re.search(r'# -----BEGIN PUBLIC KEY-----.*?# -----END PUBLIC KEY-----', announcement, re.S)
+    if match is None or '# SHA256 (' + compressed.name + ') = ' + IMAGE_SHA256 not in announcement:
+        raise GuestError('Independent upstream image announcement differs')
+    published = '\n'.join(line.removeprefix('# ') for line in match.group().splitlines())
+    if published.strip() != key.read_text(encoding='ascii').strip():
+        raise GuestError('Independent upstream release key differs')
+    # Preserve sparse zero extents without changing any byte covered by the signature.
+    size = 0
+    with bz2.open(compressed, 'rb') as source, raw.open('xb') as output:
+        while part := source.read(1024 * 1024):
+            size += len(part)
+            if size > 16 * 1024**3:
+                raise GuestError('Release disk exceeds its limit')
+            if part.strip(b'\0'):
+                output.write(part)
+            else:
+                output.seek(len(part), os.SEEK_CUR)
+        output.truncate(size)
+    with urllib.request.urlopen(BASE + IMAGE + '.sig', timeout=30) as response:
+        encoded = response.read(16385)
+        if len(encoded) > 16384:
+            raise GuestError('Release signature exceeds its limit')
+        signature.write_bytes(base64.b64decode(b''.join(encoded.split()), validate=True))
+    invoke(['openssl', 'dgst', '-sha256', '-verify', str(key), '-signature', str(signature), str(raw)],
+           'release signature verification')
+    checked = {'compressed_sha256': IMAGE_SHA256, 'raw_sha256': digest(raw), 'signature_verified': True}
+    disk = directory / 'guest.qcow2'
+    invoke(['qemu-img', 'convert', '-f', 'raw', '-O', 'qcow2', str(raw), str(disk)], 'disk conversion', timeout=120)
+    invoke(['qemu-img', 'resize', str(disk), '16G'], 'owned disk expansion')
+    invoke(['qemu-img', 'check', str(disk)], 'owned disk verification')
+    raw.unlink()
+    compressed.unlink()
+    return disk, checked
+
+
+class Console:
+    def __init__(self, path, log):
+        self.connection = socket.socket(socket.AF_UNIX)
+        self.connection.settimeout(1)
+        deadline = time.monotonic() + 30
+        while True:
+            try:
+                self.connection.connect(str(path))
+                break
+            except (FileNotFoundError, ConnectionRefusedError):
+                if time.monotonic() >= deadline:
+                    self.connection.close()
+                    raise GuestError('Owned guest serial socket unavailable') from None
+                time.sleep(.2)
+        self.buffer = ''
+        self.log = log.open('xb')
+
+    def close(self):
+        self.connection.close()
+        self.log.close()
+
+    def send(self, value):
+        self.connection.sendall(value.encode('ascii'))
+
+    def expect(self, expression, timeout):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            clean = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', self.buffer)
+            match = re.search(expression, clean, re.I | re.S)
+            if match:
+                self.buffer = clean[match.end():]
+                return clean[:match.end()]
+            try:
+                part = self.connection.recv(65536)
+            except socket.timeout:
+                continue
+            if not part:
+                raise GuestError('Owned guest serial socket closed')
+            self.log.write(part)
+            self.log.flush()
+            self.buffer = (self.buffer + part.decode('utf-8', errors='replace'))[-4 * 1024**2:]
+        category = 'unclassified'
+        for token, code in [('mountroot>', 'mountroot'), ('panic:', 'kernel_panic'),
+                            ('configure VLANs', 'interface_assignment'),
+                            ('WAN interface name', 'interface_assignment'),
+                            ('Enter an option:', 'console_menu'), ('login:', 'login_prompt')]:
+            if token.lower() in self.buffer.lower():
+                category = code
+        raise GuestError('Owned guest serial deadline exceeded: ' + category)
+
+    def login(self):
+        self.expect(r'login:\s*$', 360)
+        self.send('root\n')
+        self.expect(r'Password:\s*$', 30)
+        # Factory credentials exist only in the fresh, privately forwarded guest.
+        self.send('opnsense\n')
+        self.expect(r'Enter an option:', 120)
+        self.send('8\n')
+        self.expect(r'[^\r\n]* #\s*$', 30)
+        self.send('/bin/sh\n')
+        self.expect(r'#\s*$', 30)
+        self.send("stty -echo; PS1='NH_SHELL> '; export PS1; printf '\\nNH_%s_READY\\n' SHELL\n")
+        self.expect(r'NH_SHELL_READY\r?\n', 10)
+
+    def command(self, script, timeout=60):
+        marker = 'NH_' + uuid.uuid4().hex
+        payload = base64.b64encode(script.encode('utf-8')).decode('ascii')
+        self.send("printf '%s' '" + payload + "' | /usr/bin/base64 -d | /bin/sh; nh_exit=$?; "
+                  "printf '\\n" + marker + ":%s\\n' \"$nh_exit\"\n")
+        value = self.expect(re.escape(marker) + r':([0-9]+)\r?\n', timeout)
+        match = re.search(re.escape(marker) + r':([0-9]+)\r?\n', value)
+        if match.group(1) != '0':
+            raise GuestError('Owned guest bootstrap command failed')
+        return value[:match.start()]
+
+
+class Guest:
+    """Close only this process; the caller owns disposal of its private directory."""
+    def __init__(self, directory):
+        if (os.name != 'posix' or os.uname().sysname != 'Linux'
+                or os.environ.get('GITHUB_ACTIONS') != 'true'
+                or os.environ.get('RUNNER_ENVIRONMENT') != 'github-hosted'
+                or not Path('/dev/kvm').is_char_device()):
+            raise GuestError('Fresh Linux CI with KVM is required')
+        self.directory = Path(directory).absolute()
+        if self.directory != self.directory.resolve():
+            raise GuestError('Aliased guest storage refused')
+        self.directory.mkdir(mode=0o700)
+        self.process = None
+        self.console = None
+        self.qemu_log = None
+
+    def __enter__(self):
+        try:
+            disk, self.image_receipt = verified_image(self.directory)
+            invoke(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-C', 'nethub-ci-client',
+                    '-f', str(self.directory / 'client-key')], 'ephemeral SSH client key')
+            listeners = [socket.socket(), socket.socket()]
+            try:
+                for listener in listeners:
+                    listener.bind(('127.0.0.1', 0))
+                self.ssh_port, self.gui_port = [listener.getsockname()[1] for listener in listeners]
+            finally:
+                for listener in listeners:
+                    listener.close()
+            self.qemu_log = (self.directory / 'qemu-private.log').open('xb')
+            self.process = subprocess.Popen([
+                'qemu-system-x86_64', '-accel', 'kvm', '-cpu', 'host', '-m', '3072', '-smp', '2',
+                '-drive', f'file={disk},format=qcow2,if=virtio', '-display', 'none', '-monitor', 'none',
+                '-serial', f'unix:{self.directory / "serial.sock"},server=on,wait=off',
+                '-netdev', 'user,id=wan,net=10.0.2.0/24', '-device', 'e1000,netdev=wan',
+                '-netdev', f'user,id=lan,net=192.168.1.0/24,host=192.168.1.2,restrict=on,'
+                           f'hostfwd=tcp:127.0.0.1:{self.ssh_port}-192.168.1.1:22,'
+                           f'hostfwd=tcp:127.0.0.1:{self.gui_port}-192.168.1.1:443',
+                '-device', 'e1000,netdev=lan',
+            ], stdin=subprocess.DEVNULL, stdout=self.qemu_log, stderr=self.qemu_log)
+            self.console = Console(self.directory / 'serial.sock', self.directory / 'serial-private.log')
+            self.console.login()
+            public = (self.directory / 'client-key.pub').read_text(encoding='ascii').strip()
+            script = """set -eu
+umask 077
+install -d -m 0700 /root/nethub-ci
+ssh-keygen -q -t ed25519 -N '' -C nethub-ci-host -f /root/nethub-ci/host-key
+printf '%s\\n' '""" + public + """' > /root/nethub-ci/authorized_keys
+cat > /root/nethub-ci/sshd.conf <<'CONFIG'
+ListenAddress 192.168.1.1
+Port 22
+HostKey /root/nethub-ci/host-key
+PidFile /root/nethub-ci/sshd.pid
+AuthorizedKeysFile /root/nethub-ci/authorized_keys
+PermitRootLogin prohibit-password
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+UsePAM no
+Subsystem sftp /usr/libexec/sftp-server
+CONFIG
+/usr/sbin/sshd -f /root/nethub-ci/sshd.conf -E /root/nethub-ci/sshd-private.log
+cat /root/nethub-ci/host-key.pub
+"""
+            response = self.console.command(script)
+            host = re.findall(r'ssh-ed25519 [A-Za-z0-9+/=]+', response)
+            if len(host) != 1:
+                raise GuestError('Guest SSH host key was not confirmed over the signed-image console')
+            (self.directory / 'known_hosts').write_text(f'[127.0.0.1]:{self.ssh_port} {host[0]}\n', encoding='ascii')
+            self.ssh('test "$(id -u)" = 0\n', 'native root boundary')
+            return self
+        except Exception:
+            self.__exit__(None, None, None)
+            raise
+
+    def ssh_options(self):
+        return ['-i', str(self.directory / 'client-key'), '-o', 'BatchMode=yes',
+                '-o', 'StrictHostKeyChecking=yes', '-o', 'IdentitiesOnly=yes',
+                '-o', 'UserKnownHostsFile=' + str(self.directory / 'known_hosts'),
+                '-o', 'ConnectTimeout=10']
+
+    def ssh(self, script, label, timeout=60):
+        args = ['ssh', *self.ssh_options(), '-p', str(self.ssh_port), 'root@127.0.0.1', '/bin/sh', '-s']
+        try:
+            result = subprocess.run(args, input=script.encode('utf-8'), capture_output=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            raise GuestError(label + ' timed out') from None
+        log = self.directory / ('ssh-' + uuid.uuid4().hex + '-private.log')
+        log.write_bytes(result.stdout + result.stderr)
+        if result.returncode:
+            category = 'unclassified'
+            text = (result.stdout + result.stderr).decode('utf-8', errors='replace').lower()
+            for token, code in [('no space left', 'disk_space'), ('certificate verify failed', 'download_tls'),
+                                ('not found', 'missing_dependency'), ('fatal error', 'php_failure'),
+                                ('differs from server/.go-version', 'compiler_mismatch'),
+                                ('no address record', 'guest_dns'), ('operation timed out', 'guest_network')]:
+                if token in text:
+                    category = code
+            raise GuestError(label + ' failed: ' + category)
+        return result.stdout
+
+    def put(self, path, name):
+        if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,95}', name):
+            raise GuestError('Invalid private guest staging name')
+        invoke(['scp', '-O', *self.ssh_options(), '-P', str(self.ssh_port), str(path),
+                'root@127.0.0.1:/root/nethub-ci/' + name], 'private guest input transfer')
+
+    def __exit__(self, *_):
+        if self.process is not None and self.process.poll() is None:
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+                self.process.wait(timeout=5)
+        if self.console is not None:
+            self.console.close()
+        if self.qemu_log is not None:
+            self.qemu_log.close()
