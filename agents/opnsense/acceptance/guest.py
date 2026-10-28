@@ -233,6 +233,8 @@ class Guest:
             public = (self.directory / 'client-key.pub').read_text(encoding='ascii').strip()
             script = """set -eu
 umask 077
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
 install -d -m 0700 /root/nethub-ci
 printf '\\nNH_%s_PHASE\\n' OWNED_DIRECTORY
 ssh-keygen -q -t ed25519 -N '' -C nethub-ci-host -f /root/nethub-ci/host-key
@@ -248,10 +250,12 @@ PermitRootLogin prohibit-password
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 UsePAM no
-Subsystem sftp /usr/libexec/sftp-server
+Subsystem sftp internal-sftp
 CONFIG
 test -d /var/empty || install -d -m 0755 /var/empty
-/usr/sbin/sshd -f /root/nethub-ci/sshd.conf -E /root/nethub-ci/sshd-private.log
+ssh_daemon=$(command -v sshd)
+case "$ssh_daemon" in /usr/local/sbin/sshd|/usr/sbin/sshd) ;; *) exit 127 ;; esac
+"$ssh_daemon" -f /root/nethub-ci/sshd.conf -E /root/nethub-ci/sshd-private.log
 printf '\\nNH_%s_PHASE\\n' SSHD_STARTED
 cat /root/nethub-ci/host-key.pub
 """
@@ -266,6 +270,8 @@ cat /root/nethub-ci/host-key.pub
             self.bootstrap_failure_codes = []
             self.bootstrap_failure_wait_phase = getattr(self.console, 'phase', None)
             self.bootstrap_failure_exit = getattr(self.console, 'last_command_exit', None)
+            if self.bootstrap_failure_exit == 127:
+                self.bootstrap_failure_codes.append('bootstrap_missing_command')
             if self.console is not None and hasattr(self.console, 'last_command_exit'):
                 try:
                     diagnostic = self.console.command(
