@@ -51,7 +51,7 @@ try {
   assert.equal(await page.locator('#nethubEnrollToken').inputValue(), '');
   await page.locator('#rotateNetHub').scrollIntoViewIfNeeded();
   const screenshot = 'installed-' + config.action + '.png';
-  await page.screenshot({ path: join(config.evidence, screenshot) });
+  await page.screenshot({ path: join(config.evidence, screenshot), mask: [page.locator('#nethubStatus')] });
   writeFileSync(join(config.evidence, 'installed-' + config.action + '-page.json'),
     JSON.stringify({ passed: true, action: config.action, actual_native_write_API: true,
       screenshots: { [screenshot]: createHash('sha256').update(readFileSync(join(config.evidence, screenshot))).digest('hex') } }, null, 2));

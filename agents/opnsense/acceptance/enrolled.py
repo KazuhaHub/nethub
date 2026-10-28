@@ -355,10 +355,28 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             'operation_id': str(uuid.uuid4()), 'replacement_secret': before['device_secret'],
             'expected_relay_ca_sha256': hashlib.sha256(base64.b64decode(before['relay_ca'], validate=True)).hexdigest()},
             secret=before['device_secret'], expected=401)
+    native_logs = guest.ssh("/usr/local/bin/python3.13 - <<'PY'\n"
+        "import os,pathlib,stat,sys\n"
+        "for name in ('frpc.log','scheduler.log'):\n"
+        " p=pathlib.Path('/var/log/nethub-agent')/name\n"
+        " info=p.lstat()\n"
+        " assert stat.S_ISREG(info.st_mode) and info.st_nlink==1 and info.st_uid==0\n"
+        " with p.open('rb') as source: data=source.read(4*1024*1024+1)\n"
+        " assert len(data)<=4*1024*1024\n"
+        " sys.stdout.buffer.write(data+b'\\n')\n"
+        "PY\n", 'bounded private native runtime logs')
+    native_log_path = work / 'native-runtime.log'
+    native_log_path.write_bytes(native_logs)
+    native_log_path.chmod(0o600)
+    for value in (token, before['device_secret'], after['device_secret'], before['frp_token'],
+                  before['domain_claim'], after['domain_claim']):
+        if value.encode('ascii') in native_logs:
+            raise GuestError('Native runtime log disclosed a credential')
     result = {'passed': True, 'actual_native_page_enrollment_and_rotation': True,
               'native_model_readback_verified': True, 'same_route_verified_TLS_before_and_after': True,
               'old_credential_HTTP_401': True, 'identity_and_source_grants_retained': True,
               'old_native_claim_actual_official_frpc_Login_denied': True,
+              'native_runtime_logs_exclude_retained_credentials': True,
               'native_GUI_key_retained': True, 'GUI_security_checks_and_exact_alias_retained': True,
               'rotation_to_verified_route_ms': elapsed,
               'independent_device_original_control_and_verified_TLS_preserved': True,
