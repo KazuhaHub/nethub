@@ -21,6 +21,9 @@ func tokenMaterialFixture(t *testing.T) (relayTokenMaterialOptions, relaytoken.S
 		t.Skip("protected material verification requires isolated Linux root")
 	}
 	directory, successor, before, old, next := tokenPlanFixture(t)
+	if err := os.Chmod(filepath.Dir(directory), 0700); err != nil {
+		t.Fatal("fixture private backup parent", err)
+	}
 	if err := os.Mkdir(directory, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +32,7 @@ func tokenMaterialFixture(t *testing.T) (relayTokenMaterialOptions, relaytoken.S
 	snapshot := filepath.Join(operation, "snapshot")
 	for _, name := range []string{filepath.Dir(operation), operation, snapshot, filepath.Join(snapshot, "before"), filepath.Join(snapshot, "after"), filepath.Join(snapshot, "maintenance"), before.BackupDirectory, successor, filepath.Join(successor, "maintenance")} {
 		if err := authorityPrivateDirectory(name); err != nil {
-			t.Fatal("fixture private directory", err)
+			t.Fatal("fixture private directory", filepath.Base(name), err)
 		}
 	}
 	copyFile := func(root, name string, raw []byte) {
