@@ -1,0 +1,54 @@
+name: Fresh recovery target
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/recovery-target.yml
+      - server/tests/recovery/**
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: recovery-target-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  target:
+    name: Distinct empty Linux target
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      NETHUB_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Check source refusal cases
+        run: python3 -m unittest discover -s server/tests/recovery -p 'test_*.py'
+      - name: Prepare fresh hosted KVM tools
+        run: |
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test -c /dev/kvm
+          test "$(awk '/MemAvailable/ {print int($2 / 1024)}' /proc/meminfo)" -ge 3000
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 update -qq
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y \
+            --no-install-recommends qemu-system-x86 qemu-utils cloud-image-utils gnupg openssh-client
+      - name: Verify signed image and inspect distinct clean host
+        run: |
+          sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT,RUNNER_TEMP,NETHUB_SOURCE_HEAD,PYTHONDONTWRITEBYTECODE \
+            python3 server/tests/recovery/probe.py \
+            --directory "$RUNNER_TEMP/recovery-target-private" --evidence "$RUNNER_TEMP/recovery-target-evidence"
+      - name: Retain closed preparation outcome only
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: recovery-target
+          path: ${{ runner.temp }}/recovery-target-evidence/target-result.json
+          if-no-files-found: warn
+          retention-days: 7
