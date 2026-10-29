@@ -47,7 +47,9 @@ The concrete integration still has to implement and test:
   run `40825646677`, with exact-source validator/log/receipt checked. Review
   found that the new canonical-path guard broke relative authority-check input,
   including doctor's default directory. The wrapper now resolves relative input
-  before admission; its additional root regression still requires execution. The token host
+  before admission. Source `3a302d7` passed all 57 required actual root case
+  identities in run `40826372112`, including that relative-path regression; exact
+  validator/log/receipt were independently checked. The token host
   caller still has to acquire the shared lease and admit its own exact recovery
   request against other pending operations.
 - The protected file publisher now requires the exact durable intent and
