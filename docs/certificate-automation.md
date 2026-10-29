@@ -15,8 +15,11 @@ real timer, application rollback/retry and served TLS checks. Controlled native
 [offline recovery](../deploy/validation-native-offline-renewal.md),
 [rollback](../deploy/validation-native-certificate-rollback.md) and
 [identity rejection](../deploy/validation-native-certificate-identity.md) have
-private-CA evidence under the accepted 1 GiB lab exception. Public CA and combined
-W4 acceptance remain incomplete. Console TLS still belongs to the reverse proxy.
+private-CA evidence under the accepted 1 GiB lab exception. Subsequent
+[public issuance and installed GUI acceptance](../deploy/validation-native-public-certificate.md)
+complete the combined W4 certificate requirement within that lab scope. Public
+renewal was not waited out; production sizing, signed release and W5-W7 remain
+separate. Console TLS still belongs to the reverse proxy.
 The earlier private manual-renewal proposal is superseded.
 
 ## Earlier implementation checkpoints

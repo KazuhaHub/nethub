@@ -54,6 +54,9 @@ func testReadinessRoles(t *testing.T, ctx context.Context, owner, web, authz *sq
 		{"runtime_bypass", `ALTER ROLE nethub_web BYPASSRLS`, `ALTER ROLE nethub_web NOBYPASSRLS`},
 		{"authz_membership", `GRANT nethub_backup TO nethub_authz`, `REVOKE nethub_backup FROM nethub_authz`},
 		{"device_RLS", `ALTER TABLE devices NO FORCE ROW LEVEL SECURITY`, `ALTER TABLE devices FORCE ROW LEVEL SECURITY`},
+		{"rotation_column_read", `GRANT SELECT(credential_hash) ON device_rotations TO nethub_web`, `REVOKE SELECT(credential_hash) ON device_rotations FROM nethub_web`},
+		{"rotation_history_update", `GRANT UPDATE(issued_at) ON device_rotations TO nethub_authz`, `REVOKE UPDATE(issued_at) ON device_rotations FROM nethub_authz`},
+		{"rotation_RLS", `ALTER TABLE device_rotations NO FORCE ROW LEVEL SECURITY`, `ALTER TABLE device_rotations FORCE ROW LEVEL SECURITY`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if err := admin(ctx, test.grant); err != nil {
@@ -69,7 +72,7 @@ func testReadinessRoles(t *testing.T, ctx context.Context, owner, web, authz *sq
 			if err := CheckRuntimeRoles(ctx, web); !errors.Is(err, ErrReadinessAuthority) {
 				t.Fatal("unexpected authority passed readiness", err)
 			}
-			if test.name == "identity_update" {
+			if test.name == "identity_update" || test.name == "rotation_column_read" {
 				compiled(t, false)
 			}
 		})

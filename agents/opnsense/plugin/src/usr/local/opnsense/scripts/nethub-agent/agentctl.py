@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import signal
+import stat
 import subprocess
 import sys
 import syslog
@@ -130,13 +131,33 @@ class Agent:
         path.chmod(0o600)
         return managed
 
+    def open_mutation_lock(self):
+        descriptor = os.open(self.state / 'reconcile.lock',
+                             os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+        return os.fdopen(descriptor, 'a')
+
+    def protect_mutation_lock(self, lock):
+        """Tighten an existing lock without replacing a held lockf inode."""
+        path = self.state / 'reconcile.lock'
+        opened, current, parent = os.fstat(lock.fileno()), path.lstat(), self.state.lstat()
+        if (not stat.S_ISREG(opened.st_mode) or opened.st_uid != os.geteuid() or opened.st_nlink != 1
+                or opened.st_size != 0 or (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino)
+                or not stat.S_ISDIR(parent.st_mode) or parent.st_uid != os.geteuid()
+                or stat.S_IMODE(parent.st_mode) != 0o700 or path.resolve() != path):
+            raise AgentError('Private mutation lock needs local review')
+        os.fchmod(lock.fileno(), 0o600)
+        after = path.lstat()
+        if ((after.st_dev, after.st_ino) != (opened.st_dev, opened.st_ino)
+                or stat.S_IMODE(after.st_mode) != 0o600):
+            raise AgentError('Private mutation lock changed; local review is required')
+
     def enroll(self, request_file, locked=False):
         try:
             for directory in (self.config, self.state):
                 directory.mkdir(parents=True, exist_ok=True)
                 directory.chmod(0o700)
             os.umask(0o077)
-            with (self.state / 'reconcile.lock').open('a') as lock:
+            with self.open_mutation_lock() as lock:
                 if not locked:
                     deadline = time.monotonic() + 3
                     while True:
@@ -148,8 +169,9 @@ class Agent:
                             if remaining <= 0:
                                 return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
                             time.sleep(min(0.1, remaining))
+                self.protect_mutation_lock(lock)
                 return self.enroll_locked(request_file)
-        except OSError:
+        except (OSError, AgentError):
             return {'success': False, 'message': 'Private enrollment storage is unavailable'}
 
     def enroll_locked(self, request_file):
@@ -165,6 +187,7 @@ class Agent:
             if model is not None and model.findtext('relay_trust_state'):
                 raise AgentError('Former relay trust metadata cleanup is incomplete; retry removal first')
             remnants = [self.config / name for name in ('gui-apply', 'gui-request', 'gui-certificate.json', 'relay-trust')]
+            remnants.append(self.state / 'rotation.json')
             if any(path.exists() or path.is_symlink() for path in remnants):
                 raise AgentError('Previous enrollment runtime cleanup is incomplete; retry Remove enrollment before enrolling')
             version = self.command(['/usr/local/sbin/opnsense-version', '-v'], timeout=5)
@@ -279,13 +302,24 @@ class Agent:
         self.atomic(self.state/'trust.json', (json.dumps(public)+'\n').encode())
         return public
 
-    def trust_locked(self):
+    def trust_locked(self, for_rotation=False):
         from relay_trust_sync import TrustSynchronizer, TrustSyncError
+        pending_rotation = self.state / 'rotation.json'
+        if pending_rotation.exists() or pending_rotation.is_symlink():
+            from rotation import RotationJournal, RotationError
+            try:
+                RotationJournal(self.state).pending_phase()
+            except RotationError:
+                raise AgentError('Pending rotation needs local review; retain its journal') from None
+            return self.trust_result({'success': True, 'phase': 'rotation_pending', 'confirmed': False,
+                                      'message': 'Complete the saved credential rotation before synchronizing relay trust.'})
         self.recover_trust()
         model = self.lifecycle_model()
+        forbidden = any((self.state/name).exists() for name in ('revoked', 'uninstalling'))
         inactive = model.findtext('enabled') != '1' or any((self.state/name).exists()
-            for name in ('disabled', 'stopped', 'revoked', 'uninstalling'))
-        if inactive or not model.findtext('device_id') or not model.findtext('console_url'):
+            for name in ('disabled', 'stopped'))
+        if (forbidden or inactive and not for_rotation
+                or not model.findtext('device_id') or not model.findtext('console_url')):
             return self.trust_result({'success': True, 'phase': 'inactive', 'confirmed': False})
         try:
             result = TrustSynchronizer(self.trust_transaction()).sync(model.findtext('console_url'),
@@ -411,6 +445,7 @@ class Agent:
     def unenroll_locked(self):
         from lifecycle import request_removal
         from protocol import ProtocolError
+        from rotation import RotationJournal, RotationError
         model = self.lifecycle_model()
         device_id = model.findtext('device_id')
         if not device_id:
@@ -421,8 +456,16 @@ class Agent:
         # Rollback permits the stop/revocation marker and needs the old binding.
         self.recover_trust()
         try:
-            request_removal(model.findtext('console_url'), model.findtext('device_secret'), device_id)
-        except ProtocolError:
+            try:
+                request_removal(model.findtext('console_url'), model.findtext('device_secret'), device_id)
+            except ProtocolError:
+                path = self.state / 'rotation.json'
+                if not path.exists() and not path.is_symlink():
+                    raise
+                candidate = RotationJournal(self.state).removal_candidate(
+                    model.findtext('console_url'), device_id, model.findtext('device_secret'))
+                request_removal(model.findtext('console_url'), candidate, device_id)
+        except (ProtocolError, RotationError):
             raise AgentError('Tunnel stopped; server removal is unconfirmed. Retry Remove enrollment') from None
         self.atomic(self.state / 'unenroll-confirmed.json', json.dumps({'device_id': device_id, 'revoked': True}).encode())
         return {'success': True, 'action': 'unenroll', 'device_id': device_id, 'revoked': True}
@@ -432,11 +475,23 @@ class Agent:
         from certificate_sync import CertificateSynchronizer
         from certificate_transaction import CertificateTransactionError
         from relay_trust_transaction import TrustTransactionError
+        from rotation import RotationJournal, RotationError
         model = self.lifecycle_model()
         if model.findtext('enabled') == '1' or any(model.findtext(key) for key in ('device_id', 'device_secret', 'frp_token', 'domain_claim', 'relay_trust_state')):
             raise AgentError('Native configuration must be cleared before removing runtime credentials')
         self.stop_revoked()
         try:
+            rotation = self.state / 'rotation.json'
+            if rotation.exists() or rotation.is_symlink():
+                confirmation = self.state / 'unenroll-confirmed.json'
+                KeyStore(self.state)._protected(confirmation)
+                if confirmation.stat().st_size > 512:
+                    raise RotationError('Removal confirmation needs local review')
+                receipt = json.loads(confirmation.read_bytes())
+                if (not isinstance(receipt, dict) or set(receipt) != {'device_id', 'revoked'}
+                        or receipt['revoked'] is not True):
+                    raise RotationError('Removal confirmation needs local review')
+                RotationJournal(self.state).forget_revoked(receipt['device_id'])
             directory = self.config/'relay-trust'
             if directory.exists() or directory.is_symlink():
                 self.trust_transaction().forget()
@@ -444,7 +499,7 @@ class Agent:
             keys = KeyStore(self.config / 'gui-key')
             CertificateSynchronizer(keys).forget()
             keys.forget()
-        except (CertificateKeyError, CertificateTransactionError, TrustTransactionError) as error:
+        except (CertificateKeyError, CertificateTransactionError, TrustTransactionError, RotationError) as error:
             raise AgentError(str(error)) from None
         paths = [self.live, self.candidate, self.backup, self.config / 'relay-ca.pem']
         paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'certificate.json', 'trust.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
@@ -468,18 +523,54 @@ class Agent:
         finally:
             os.close(descriptor)
 
+    def rotation_backend(self):
+        from rotation_backend import NativeRotationBackend
+        return NativeRotationBackend(run=self.run, configuration=self.root / 'conf/config.xml')
+
+    def rotate_locked(self):
+        from rotation import RotationJournal, RotationError
+        from rotation_transaction import rotate
+        from relay_trust_transaction import TrustTransactionError
+        try:
+            if any((self.state / marker).exists() or (self.state / marker).is_symlink()
+                   for marker in ('revoked', 'uninstalling')):
+                raise RotationError('Rotation is unavailable after revocation or during removal')
+            pending = self.state / 'rotation.json'
+            if not pending.exists() and not pending.is_symlink():
+                self.recover_trust()
+                directory = self.config / 'relay-trust'
+                if directory.exists() or directory.is_symlink():
+                    self.trust_transaction().check_rotation_ready()
+                # An explicit rotation may refresh trust while disabled. The
+                # native trust transaction and reconcile retain all stop policy;
+                # the periodic job still leaves inactive devices untouched.
+                self.trust_locked(for_rotation=True)
+                if directory.exists() or directory.is_symlink():
+                    self.trust_transaction().check_rotation_ready()
+            def rebind(before, after):
+                directory = self.config / 'relay-trust'
+                if directory.exists() or directory.is_symlink():
+                    self.trust_transaction().rebind_rotation(before, after)
+            return rotate(RotationJournal(self.state), self.rotation_backend(), self.reconcile_locked,
+                          rebind_trust=rebind)
+        except RotationError as error:
+            raise AgentError(str(error)) from None
+        except TrustTransactionError:
+            raise AgentError('Managed trust needs local review; retain the rotation journal') from None
+
     def apply(self, action, locked=False):
         for directory in [self.config, self.state]:
             directory.mkdir(parents=True, exist_ok=True)
             directory.chmod(0o700)
         os.umask(0o077)
-        with (self.state / 'reconcile.lock').open('a') as lock:
+        with self.open_mutation_lock() as lock:
             try:
                 if not locked:
                     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
             try:
+                self.protect_mutation_lock(lock)
                 if action == 'disable':
                     # Stop remains available when XML or trust recovery is broken.
                     self.circuit_marker(True)
@@ -499,6 +590,8 @@ class Agent:
                     return self.certificate_locked()
                 if action == 'trust':
                     return self.trust_locked()
+                if action == 'rotate':
+                    return self.rotate_locked()
                 if action == 'unenroll':
                     return self.unenroll_locked()
                 if action == 'forget':
@@ -513,6 +606,8 @@ class Agent:
                     return self.trust_result({'success': False, 'phase': 'error', 'message': str(error)})
                 if action == 'certificate':
                     return self.certificate_result({'success': False, 'action': action, 'phase': 'error', 'message': str(error)})
+                if action == 'rotate':
+                    return {'success': False, 'action': 'rotate', 'phase': 'error', 'message': str(error)}
                 if action in ('report', 'unenroll', 'forget'):
                     return self.lifecycle_result({'success': False, 'message': str(error), 'action': action})
                 return self.record(False, str(error), 'error')
@@ -521,6 +616,9 @@ class Agent:
                     return self.trust_result({'success': False, 'phase': 'error', 'message': 'Relay trust operation failed; inspect local recovery status'})
                 if action == 'certificate':
                     return self.certificate_result({'success': False, 'action': action, 'phase': 'error', 'message': 'GUI certificate synchronization failed; tunnel and native GUI settings were retained'})
+                if action == 'rotate':
+                    return {'success': False, 'action': 'rotate', 'phase': 'error',
+                            'message': 'Rotation interrupted; retain the private journal and retry.'}
                 if action in ('report', 'unenroll', 'forget'):
                     return self.lifecycle_result({'success': False, 'message': 'Device operation failed; local settings were retained', 'action': action})
                 # Child output can include credentials or complete configuration lines.
@@ -607,18 +705,16 @@ def main():
             finally:
                 signal.setitimer(signal.ITIMER_REAL, 0)
                 signal.signal(signal.SIGALRM, previous)
-    elif action in ('report', 'unenroll', 'certificate', 'trust', 'disable', 'enable'):
+    elif action in ('report', 'unenroll', 'certificate', 'trust', 'disable', 'enable', 'rotate'):
         def timed_out(signum, frame):
             raise AgentError('Device operation timed out; inspect status before retrying')
         previous = signal.signal(signal.SIGALRM, timed_out)
-        signal.setitimer(signal.ITIMER_REAL, 85 if action == 'trust' else 35 if action == 'certificate' else 25)
+        signal.setitimer(signal.ITIMER_REAL, 85 if action in ('trust', 'rotate') else 35 if action == 'certificate' else 25)
         try:
             result = Agent().apply(action, locked=arguments.locked)
         finally:
             signal.setitimer(signal.ITIMER_REAL, 0)
             signal.signal(signal.SIGALRM, previous)
-    elif action == 'rotate':
-        result = {'success': False, 'message': 'Not implemented'}
     else:
         agent = Agent()
         result = agent.status() if action == 'status' else agent.apply(action, locked=arguments.locked)

@@ -3,13 +3,33 @@ import base64
 import hashlib
 import re
 
-VERSION = '1.5.0'
+VERSION = '1.6.0'
 MAX_BODY_BYTES = 65536
 _HOSTNAME = re.compile(r'[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*', re.ASCII)
 
 
 class ProtocolError(Exception):
     """A fixed diagnostic that contains no input or credential text."""
+
+
+class RotationTrustChanged(ProtocolError):
+    """Authenticated server refusal before a new rotation committed."""
+
+
+def build_rotate_request(device_id, operation_id, replacement_secret, expected_relay_ca_sha256):
+    """Encode an already journaled candidate; this function performs no I/O."""
+    if (not isinstance(device_id, str)
+            or not re.fullmatch(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}', device_id)
+            or not isinstance(operation_id, str)
+            or not re.fullmatch(r'[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}', operation_id)
+            or not isinstance(replacement_secret, str)
+            or not re.fullmatch(r'[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]', replacement_secret)
+            or not isinstance(expected_relay_ca_sha256, str)
+            or not re.fullmatch(r'[a-f0-9]{64}', expected_relay_ca_sha256)):
+        raise ProtocolError('Invalid rotation input')
+    return {'agent_protocol_version': VERSION, 'device_id': device_id,
+            'operation_id': operation_id, 'replacement_secret': replacement_secret,
+            'expected_relay_ca_sha256': expected_relay_ca_sha256}
 
 
 def gui_key_fingerprint(value):

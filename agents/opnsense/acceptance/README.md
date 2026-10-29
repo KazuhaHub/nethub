@@ -1,0 +1,221 @@
+# Fresh installed appliance preparation
+
+`native-appliance.yml` owns a new hosted Linux/KVM guest. It verifies the pinned
+official Nano image checksum, independently published release key and raw-image
+signature, updates the guest's signed OPNsense packages, and builds the current
+unsigned plugin with the pinned FreeBSD Go SDK and dependency locks. SSH host
+trust is obtained through the verified guest's serial console. Both management
+forwards bind to host loopback; no local workstation VM or existing relay is used.
+The first emulated NIC is the restricted LAN and the second is the outbound WAN,
+matching the signed image's factory `em0` LAN and `em1` WAN assignments. Factory
+interface and firewall configuration remain enabled.
+
+The installed frpc receipt, package registration, configd status and native page
+are checked. The unconfigured device must show enrollment and keep rotation
+disabled. This preparation does **not** accept enrolled rotation, real relay
+cutoff/recovery, public TLS/network access, restoration or W7. Those checks still
+need the same current package joined to the controlled deployment.
+
+The factory GUI's self-signed certificate is allowed only for its initial private
+page check. It cannot establish verified public/relay TLS. The guest receives
+3072 MiB. Its disk, serial transcript, temporary SSH keys, build output and native
+configuration remain private to the disposable runner. Only the closed result
+and logged-in, unenrolled page images are uploaded. Scrolled mobile images also
+check that the enrollment field and rotation control are unobscured in the native
+shell's scroll container. No package is signed or published.
+
+Source `340b73c` passed the [current preparation run](https://github.com/KazuhaHub/nethub/actions/runs/40801553084):
+the unsigned package, rebuilt frpc 0.71.1 with Go 1.26.10, agent stopped status reported through configd
+and unenrolled native page were checked on fresh OPNsense 26.7.7. The exact source
+archive, official log and four image hashes/visuals were independently verified;
+the owned guest terminated with exit status zero. Supplementary mobile viewports
+confirmed unobscured enrollment and disabled rotation controls. The earlier
+cropped capture and disabled-button foreground failure remain retained. Bootstrap's
+disabled hit testing now has actual runtime evidence. Enrollment, rotation and
+relay recovery remain separate acceptance work.
+
+## Combined installed-device acceptance
+
+`native-enrolled.yml` waits for a successful six-job CI run for its exact PR source
+before allocating a fresh guest. A separate image-gate job bounds that wait;
+the existing CI deadline remains unchanged. Manual dispatch can also name the
+exact-source producer. `with_images.py` verifies the producer, every required job,
+artifact lifetime/checksum, image IDs and layers before loading the existing
+tested images. It reuses `server/tests/compose.sh`; ordinary CI does not start a
+guest. The optional native hook exercises the actual enrollment and rotation
+page actions, configd, PHP model readback and verified assigned-route TLS.
+
+The disposable guest imports only the fixture's public console CA through native
+configuration/trust handling. A public CSR uses its existing GUI private key;
+that key stays inside the guest. An owned test CA signs the CSR, and a fixture
+helper applies the certificate and exact Alternate Hostname through Core Config.
+Both native GUI security checks must remain enabled. This precondition is not
+acceptance of production certificate issuance. Direct private management browser
+TLS exceptions do not count as relay TLS verification.
+
+The fixture checks retained identity/source grants/GUI key, native credential and
+claim replacement, old-credential HTTP refusal, a genuine official-frpc stale
+Login refusal, and verified TLS recovery at the same assigned route. It also
+keeps an independent enrolled official client alive and checks its original
+control socket and verified TLS before/after the native rotation. Both installed interruption cases have scoped execution evidence below. Linux
+relay and FreeBSD contracts remain separate evidence; the complete combined
+workflow still requires a successful exact-source run.
+
+Only closed outcomes and selected native page images are made readable to the
+artifact uploader. Tokens, snapshots, CSRs, fixture keys, raw child output and
+service logs stay in root-only ephemeral storage. The runner discards them after
+the test. No existing workstation VM, relay, production configuration or formal
+package is used.
+
+The first combined run at `02b2313` passed its image gate and installed the native
+package, then failed during fixture system-trust preparation before enrollment.
+Its owned guest exited with status zero and image cleanup passed. The helper now
+uses `toArray(listtags())` to retain the legacy list representation required by
+native trust handling ([native configuration adapter](https://raw.githubusercontent.com/opnsense/core/master/src/etc/inc/config.inc)).
+Closed fixture-phase diagnostics retain the next failure location without private
+exception text. This correction still needs an actual successful combined run;
+the earlier failed result remains retained.
+
+The next combined run at `3b9b38a` failed at the fixture's PHP host boundary,
+before CA import. Root identity now uses FreeBSD's base `id` command instead of
+assuming the optional PHP POSIX extension. The helper still requires one CLI
+argument, FreeBSD and effective UID zero; the caller explicitly enables CLI
+argument registration. A closed boolean runtime-condition receipt distinguishes
+these prerequisites on the actual guest. Run `40798049843` at `548571f` confirmed
+all host prerequisites and the absence of the POSIX extension, then failed during
+native trust-store regeneration before enrollment. Exact source, both official
+logs, closed runtime conditions and owned cleanup were independently retained.
+The helper now loads `util.inc` and `legacy_bindings.inc`, checks required native
+functions and respects deliberately suppressed native warnings. Unsuppressed
+failures still stop the fixture. A bounded context can expose only an allowlisted
+error class, source category and line number, never exception text or full paths.
+These corrections still need a successful actual run; no installed rotation is
+accepted from the failed trust preparation.
+
+Combined `40801553085` at `340b73c` completed the native trust helper, then failed
+in the guest's verified console probe before enrollment. Its old probe did not
+classify the DNS/TCP/TLS/HTTP failure. The original fixture also used the host's
+random forwarding port in its console URL, which conflicts with the existing
+canonical Host check. The server still rejects that host/port combination.
+The guest now uses `https://console.example.com` and virtual TCP forwards for
+443 and 7000 to the owned host's loopback services. Per-connection
+[QEMU guest forwarding](https://www.qemu.org/docs/master/system/invocation.html)
+uses netcat as a byte pipe; TLS still terminates and verifies at the actual
+console/relay. No server Host, Origin or TLS rule is relaxed. A closed probe
+records DNS, TCP, default-system-TLS and HTTP categories without peer names,
+paths or exception text. This correction requires another actual run; the prior
+probe's exact failure type is not retrospectively established by source review.
+
+Combined `40805730620` at `2db02e2` subsequently passed canonical console HTTPS
+with the guest's default system CA directory and returned HTTP 200. Its actual
+native enrollment page action passed, with the cleared token field and image
+hash checked. The run then failed in the native backend read before rotation;
+the original model failure class and lock mode were not exported. Overall
+installed rotation remains unaccepted, and both official logs and cleanup were
+retained.
+
+One concrete initialization defect is corrected: FreeBSD
+[`lockf` creates its file with mode 0666](https://raw.githubusercontent.com/freebsd/freebsd-src/releng/15.1/usr.bin/lockf/lockf.c)
+subject to the caller's umask. Package reconciliation previously did not set a
+private umask before its first lock. The package now does so after restarting
+configd; normal agent actions tighten an existing empty, owned, single-link lock
+to 0600 only after acquisition, without replacing its inode. Links, shared inodes
+and unknown content are refused. A required real FreeBSD regression forces the
+old 022 umask and checks mode and inode retention. The original failed guest's
+mode is still unknown; this is a demonstrated initialization defect rather than
+a retrospective claim about that failure.
+
+Root model failures retain only closed phase/class/source-category/line metadata;
+the agent and page keep their fixed error responses. The hosted read probe still
+calls the real native backend, exporting only that closed metadata on failure.
+An earlier boolean storage receipt records actual lock/directory prerequisites.
+No private node values or raw exception messages enter uploaded diagnostics.
+
+Combined source `1c179ba` (`40812204828`) subsequently passed native enrollment,
+Rotate, model readback, same-route verified TLS and retained GUI key/security
+checks. Its two native page images were independently hashed and reviewed. All
+twelve installed storage conditions passed. The run then failed at the required
+old-claim Login evidence check, before both interruption cases. The old client
+exited nonzero, but that alone does not prove authorization refusal. Authz logs
+its decisions to stderr; the collector had read only Docker's stdout. It now
+explicitly combines both streams, with actual subprocess regressions for stderr
+events and fixed failure diagnostics. The original exact Login decision remains
+unknown. Exact source, both official logs and owned cleanup are retained; this
+partial positive path does not accept the complete installed workflow.
+
+Combined `271f2a3` (`40814962539`) then passed the actual stale official-client
+Login denial and old HTTP credential refusal. Response interception committed
+exactly one operation/audit while retaining the same prepared candidate and
+unchanged native model. The subsequent recovery page failed before completion;
+the original internal error was not exported. Three successful page images and
+hashes, exact source, both logs and owned cleanup were checked.
+
+A concrete recovery defect is corrected: canonical journal JSON sorts native
+snapshot keys. PHP previously required insertion order and compared native arrays
+strictly. Validation now enforces the same exact field set and normalizes its
+order before CAS/readback. A mandatory actual PHP case exercises both the initial
+save and its idempotent retry from journal-order snapshots; missing/extra fields
+and identity/policy changes remain refused. A failed-page probe reads only
+journal phase and model-match booleans; it performs no HTTP retry or native save.
+Successful installed recovery still requires actual execution.
+The first FreeBSD run of this correction executed 214 cases with zero nonpassing
+cases, but its required-case receipt failed: the older summarizer removed all
+parameter labels, including the now-required `[journal]` identity. The summarizer
+now preserves only explicitly allowlisted full identities; other parameter data
+stays excluded. Missing, skipped, failed or alternate variants cannot receive the
+required credit. The failed receipt remains retained and the revised driver still
+requires actual hosted acceptance.
+
+
+The additional unknown-commit fixture loses both real rotation responses after
+the upstream returns, using the owned edge's
+[response interception](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#intercepting-responses)
+and [abort handler](https://caddyserver.com/docs/caddyfile/directives/abort).
+It keeps console HTTPS unchanged and restores the original edge configuration
+in `finally`. A failed page action must leave the original native model and a
+prepared journal while exactly one candidate-bound operation/audit is committed.
+The same page action then retries that retained operation, removes the completed
+journal and restores verified TLS without changing identity, source grants or
+the independent original control. Its actual recovery passed at source `1779316`, as recorded below.
+
+A second owned helper waits for the real prepared journal, then holds the native
+Core Config lock beyond the existing PHP save timeout. It never saves configuration
+and has an external deadline. The fixture requires acknowledged lock ownership,
+a received assignment, unchanged native model and one committed operation/audit.
+After releasing the lock, the page must recover with the rotation endpoint serving
+503, apply that same candidate, remove its journal and recover verified TLS.
+The original edge configuration is restored in `finally`. A missed lock race
+fails the fixture. Both interruption cases passed actual hosted execution at
+source `1779316`; source and unit tests alone do not establish installed recovery.
+
+
+Source `1779316` in [combined run 40818621704](https://github.com/KazuhaHub/nethub/actions/runs/40818621704)
+passed its inner native result, including original-claim Login denial, old HTTP
+credential refusal and both interrupted recoveries. Initial rotation recovered
+verified route TLS in 3.053 seconds; response-loss retry took 3.104 seconds and
+received-assignment retry with verified endpoint 503 took 3.522 seconds. Identity,
+grants, GUI key/checks/alias, one-operation/audit replay and the independent original
+control/TLS survived. Exact source, both official logs, six image hashes/visuals,
+guest exit zero and owned image cleanup were reviewed. The outer Compose result
+failed after native completion; its exact stage was not exported. This is scoped
+native evidence, not a successful complete combined job.
+
+The next fixture removes its extra enrolled device through the actual Remove
+enrollment page before later authority transitions. It requires database revocation,
+empty native credentials, disabled/stopped service, absent journal, closed assigned
+route and the independent device still alive. Fixed post-native phase names are
+recorded in a bounded `compose-tail.json`; child output stays private. Overall
+success requires a completed tail as well as the native result. These new cleanup
+and phase checks still require actual execution.
+
+Serial bootstrap sends short encoded heredoc lines within FreeBSD's canonical
+terminal input bound. Failure results retain only the waiting stage, selected
+prompt flags, byte count and image-verification receipt; raw transcripts remain
+private. A serial timeout does not establish that the package was installed.
+
+Pinned upstream sources:
+
+- [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)
+- [Go release archive checksums](https://go.dev/dl/?mode=json&include=all)
+- [OPNsense factory interface assignments](https://docs.opnsense.org/manual/interfaces.html)
+- [FreeBSD canonical terminal limits](https://raw.githubusercontent.com/freebsd/freebsd-src/releng/15.1/sys/sys/syslimits.h)

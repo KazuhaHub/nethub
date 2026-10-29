@@ -95,7 +95,7 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		deviceError(w, r, 400, "invalid_request", "Unrecognized console host")
 		return
 	}
-	lifecycle := r.URL.Path == "/api/v1/devices/status" || r.URL.Path == "/api/v1/devices/unenroll"
+	lifecycle := r.URL.Path == "/api/v1/devices/status" || r.URL.Path == "/api/v1/devices/unenroll" || r.URL.Path == "/api/v1/devices/rotate"
 	certificate := s.certificates != nil && (r.URL.Path == "/api/v1/devices/gui-certificate/settings" || r.URL.Path == "/api/v1/devices/gui-certificate/request" || r.URL.Path == "/api/v1/devices/gui-certificate/issued" || r.URL.Path == "/api/v1/devices/gui-certificate/applied")
 	trust := s.relayTrust != nil && (r.URL.Path == "/api/v1/devices/relay-trust/settings" || r.URL.Path == "/api/v1/devices/relay-trust/applied")
 	if r.URL.EscapedPath() != r.URL.Path || r.URL.Path != enrollPath && !lifecycle && !certificate && !trust {
@@ -269,6 +269,12 @@ func (s *HTTPServer) lifecycle(w http.ResponseWriter, r *http.Request, data []by
 		if err == nil {
 			result, err = s.service.Report(ctx, input, secret, ip)
 		}
+	} else if r.URL.Path == "/api/v1/devices/rotate" {
+		var input protocol.RotateRequest
+		input, err = protocol.DecodeRotate(bytes.NewReader(data))
+		if err == nil {
+			result, err = s.service.Rotate(ctx, input, secret, ip)
+		}
 	} else {
 		var input protocol.Identity
 		input, err = protocol.DecodeIdentity(bytes.NewReader(data))
@@ -291,6 +297,10 @@ func (s *HTTPServer) failure(w http.ResponseWriter, r *http.Request, err error) 
 	switch {
 	case errors.Is(err, protocol.ErrRelayTrustVersion):
 		deviceError(w, r, 400, "incompatible_protocol", "Relay trust operations require protocol 1.5 or later within major 1")
+	case errors.Is(err, ErrRotationTrustChanged):
+		deviceError(w, r, 409, "rotation_trust_changed", "Synchronize relay trust before rotating credentials")
+	case errors.Is(err, protocol.ErrRotationVersion):
+		deviceError(w, r, 400, "incompatible_protocol", "Credential rotation requires protocol 1.6 or later within major 1")
 	case errors.Is(err, protocol.ErrCertificateApplicationVersion):
 		deviceError(w, r, 400, "incompatible_protocol", "Certificate application reports require protocol 1.4 or later within major 1")
 	case errors.Is(err, protocol.ErrCertificateDeliveryVersion):

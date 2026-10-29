@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -438,6 +439,98 @@ func testRelayTrustHistory(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 	if w := postTrust("settings", oldIdentity); w.Code != 400 {
 		t.Fatal("old HTTP trust peer accepted", w.Code)
 	}
+	// Rotation shares enrollment's publication fence and must acquire it before
+	// the device lock. Published trust rescues an expired bootstrap here too.
+	rotationFence, err := f.owner.BeginTx(f.ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rotationFence.Rollback()
+	if _, err := rotationFence.ExecContext(f.ctx, `SELECT singleton FROM relay_trust_head WHERE singleton FOR UPDATE`); err != nil {
+		t.Fatal(err)
+	}
+	rotationRequest := protocol.RotateRequest{Identity: identity,
+		OperationID:           "33333333-3333-4333-8333-333333333333",
+		ReplacementSecret:     base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{71}, 32)),
+		ExpectedRelayCASHA256: protocol.RelayTrustDigest(response.RelayCAPEM)}
+	rotationContext, rotationCancel := context.WithTimeout(f.ctx, 10*time.Second)
+	defer rotationCancel()
+	rotationDone := make(chan error, 1)
+	var rotated protocol.RotateResponse
+	go func() {
+		var err error
+		rotated, err = service.Rotate(rotationContext, rotationRequest, response.DeviceSecret, netip.MustParseAddr("192.0.2.20"))
+		rotationDone <- err
+	}()
+	waitForRelayTrustTransaction(t, f, rotationFence, rotationDone, "rotation during trust publication")
+	var immediatelyLockable string
+	if err := f.owner.QueryRowContext(f.ctx, `SELECT id FROM devices WHERE id=$1 FOR UPDATE NOWAIT`, identity.DeviceID).Scan(&immediatelyLockable); err != nil || immediatelyLockable != identity.DeviceID {
+		t.Fatal("publication wait locked the rotating device", err)
+	}
+	if err := rotationFence.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-rotationDone; err != nil || rotated.RelayCAPEM != final.Bundle().PEM() || rotated.RelayCAPEM == bootstrap.RelayCAPEM {
+		t.Fatal("fenced rotation did not deliver current published trust", err)
+	}
+	recovered, err := service.Rotate(f.ctx, rotationRequest, rotated.DeviceSecret, netip.MustParseAddr("192.0.2.20"))
+	if err != nil || recovered != rotated {
+		t.Fatal("published trust rotation recovery changed assignment", err)
+	}
+	// A committed candidate replays its original public trust after an actual
+	// new publication. A later new operation must bind the new head first.
+	additional, err := relaycert.Create("relay.example.test", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	previousPublication := final
+	final, err = publisher.Publish(f.ctx, final.ID, final.Bundle().PEM()+string(additional.CA))
+	if err != nil || final.Number != previousPublication.Number+1 {
+		t.Fatal("rotation fixture publication", err)
+	}
+	replay, err := service.Rotate(f.ctx, rotationRequest, rotated.DeviceSecret, netip.MustParseAddr("192.0.2.20"))
+	if err != nil || replay != rotated || replay.RelayCAPEM == final.Bundle().PEM() {
+		t.Fatal("publication changed committed rotation replay", err)
+	}
+	var beforeConflictTime, afterConflictTime time.Time
+	beforeConflictCredential, err := f.repository.DeviceCredential(f.ctx, identity.DeviceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.owner.QueryRowContext(f.ctx, `SELECT domain_claim_issued_at FROM devices WHERE id=$1`, identity.DeviceID).Scan(&beforeConflictTime); err != nil {
+		t.Fatal(err)
+	}
+	staleRequest := rotationRequest
+	staleRequest.OperationID = "44444444-4444-4444-8444-444444444444"
+	staleRequest.ReplacementSecret = base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{72}, 32))
+	if _, err := service.Rotate(f.ctx, staleRequest, rotated.DeviceSecret, netip.MustParseAddr("192.0.2.20")); !errors.Is(err, device.ErrRotationTrustChanged) {
+		t.Fatal("stale native trust mutated a new rotation", err)
+	}
+	afterConflictCredential, err := f.repository.DeviceCredential(f.ctx, identity.DeviceID)
+	if err != nil || afterConflictCredential != beforeConflictCredential {
+		t.Fatal("trust conflict changed the live credential", err)
+	}
+	if err := f.owner.QueryRowContext(f.ctx, `SELECT domain_claim_issued_at FROM devices WHERE id=$1`, identity.DeviceID).Scan(&afterConflictTime); err != nil || !afterConflictTime.Equal(beforeConflictTime) {
+		t.Fatal("trust conflict advanced the live claim", err)
+	}
+	var committedOperations, committedAudits int
+	if err := f.owner.QueryRowContext(f.ctx, `SELECT (SELECT count(*) FROM device_rotations WHERE device_id=$1), (SELECT count(*) FROM audit_log WHERE target_device_id=$1 AND action='device.rotated')`, identity.DeviceID).Scan(&committedOperations, &committedAudits); err != nil || committedOperations != 1 || committedAudits != 1 {
+		t.Fatal("precommit trust conflict mutated history", err)
+	}
+	// Model the existing verified trust transaction completing before a fresh
+	// operation; this service test does not claim an installed device update.
+	staleRequest.ExpectedRelayCASHA256 = protocol.RelayTrustDigest(final.Bundle().PEM())
+	adopted, err := service.Rotate(f.ctx, staleRequest, rotated.DeviceSecret, netip.MustParseAddr("192.0.2.20"))
+	if err != nil || adopted.RelayCAPEM != final.Bundle().PEM() || adopted.DeviceSecret != staleRequest.ReplacementSecret {
+		t.Fatal("current-trust rotation did not recover admission", err)
+	}
+	response = adopted.EnrollResponse
+	t.Log("Concurrent trust publication preserved the committed replay bundle and refused stale trust before a fresh credential mutation; current-trust recovery passed")
+	w = postTrust("settings", identity)
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &settings) != nil || settings.Desired == nil || settings.Desired.ID != final.ID {
+		t.Fatal("rotated credential lost authenticated trust delivery", w.Code)
+	}
+	t.Log("Device rotation waited behind the publication fence before locking its device, delivered current trust despite expired bootstrap and recovered the exact assignment")
 	if _, err := f.owner.ExecContext(f.ctx, `UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id=$1`, identity.DeviceID); err != nil {
 		t.Fatal(err)
 	}

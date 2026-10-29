@@ -35,6 +35,23 @@ def case():
         fixture.doCleanups()
 
 
+def test_removal_after_unknown_rotation_commit_uses_saved_candidate(case):
+    case.agent.state.mkdir(parents=True, exist_ok=True)
+    (case.agent.state / 'rotation.json').write_text('private journal fixture')
+    candidate = 'B' * 42 + 'A'
+    with mock.patch('rotation.RotationJournal') as journal, \
+            mock.patch('lifecycle.request_removal', side_effect=[ProtocolError('old bearer rejected'), {}]) as request:
+        journal.return_value.removal_candidate.return_value = candidate
+        result = case.agent.apply('unenroll')
+    assert result['success'] and result['revoked'] and not case.active
+    assert request.call_count == 2 and request.call_args_list[1].args[1] == candidate
+    journal.return_value.removal_candidate.assert_called_once_with(
+        'https://console.example.com', '11111111-1111-4111-8111-111111111111', 'A' * 43)
+    assert (case.agent.state / 'rotation.json').exists()
+    assert json.loads((case.agent.state / 'unenroll-confirmed.json').read_text()) == {
+        'device_id': '11111111-1111-4111-8111-111111111111', 'revoked': True}
+
+
 def test_removal_stops_before_network_and_retains_retry_credentials(case):
     original = (case.root / 'conf/config.xml').read_bytes()
     def fail(*args):

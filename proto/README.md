@@ -1,6 +1,6 @@
 # Device protocol
 
-The shared device protocol is version **1.5.0**, recorded in `VERSION`.
+The shared device protocol is version **1.6.0**, recorded in `VERSION`.
 `v1/*.schema.json` are JSON Schema draft 2020-12 documents used by Go and Python
 contract tests. Enrollment, signed claims and native OPNsense enrollment are
 implemented. Authenticated status/removal and native appliance lifecycle behavior
@@ -18,7 +18,7 @@ pipeline remain separate work.
 | enroll-response | Assigned device identity, device secret, signed claim, relay token/address/port, server name and public CA bundle |
 | domain-claim | Strict five-field payload covered by the domain signature |
 | status-request / status-response | Bounded health report and acknowledgement; online state comes from relay observation |
-| rotate-request / rotate-response | Authenticated identity request and replacement credentials/trust; operational rotation is W7 work |
+| rotate-request / rotate-response | Operation-bound journal candidate and replacement credentials/trust; operational rotation is W7 work |
 | unenroll-request / unenroll-response | Authenticated removal request and confirmed revocation |
 | certificate-settings-request / certificate-settings-response | Live assigned GUI hostname, enrollment key fingerprint and original public CSR, when present |
 | certificate-submit-request / certificate-submit-response | Enrollment-bound signed CSR admission and exact durable readback |
@@ -27,10 +27,12 @@ pipeline remain separate work.
 | relay-trust-settings-request / relay-trust-settings-response | Authenticated current public trust generation, or explicit pending null |
 | relay-trust-applied-request / relay-trust-applied-response | Exact current trust identity report and original server acceptance receipt |
 
-The implemented lifecycle endpoints are `/api/v1/devices/{enroll,status,unenroll}`
-under the administrator-selected HTTPS console origin. Rotate schemas reserve the
-wire contract; the current HTTP router does not expose rotation. The command,
-endpoint and UI remain W7 work. See the [protocol walkthrough](../docs/protocol.md).
+The lifecycle router implements `/api/v1/devices/{enroll,status,unenroll,rotate}`
+under the administrator-selected HTTPS console origin. Rotation requires protocol
+1.6 and binds a privately journaled candidate to an operation ID. Server/API and
+transaction acceptance is in progress; the native command, journal/model
+transaction and UI remain W7 work. See [recovery requirements](ROTATION.md) and
+the [protocol walkthrough](../docs/protocol.md).
 Enrollment carries its
 opaque one-use token in the JSON body. Other device endpoints use the device
 secret as `Authorization: Bearer <device_secret>`, with the device ID in the body.

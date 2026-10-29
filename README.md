@@ -7,7 +7,7 @@ VyOS.
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Stars](https://img.shields.io/github/stars/KazuhaHub/nethub?style=social)
 
-**Status: pre-alpha, W6 integration.** The control plane and OPNsense development
+**Status: pre-alpha, W7 implementation and acceptance.** The control plane and OPNsense development
 plugin are implemented, with scoped public/native certificate and trust records.
 W5–W7 remain incomplete; there is no production release. See
 [Project status](#project-status) for evidence and remaining gates.
@@ -102,7 +102,8 @@ infrastructure than you need; go install Tailscale.
 
 ## How it works
 
-This is the designed architecture (design v0.3). None of it is built yet.
+The control plane and OPNsense development plugin implement this architecture.
+Accepted workflows and remaining validation are listed under [Project status](#project-status).
 
 ```
              SNI = abcd1234.router.example.com                     frp tunnel
@@ -307,7 +308,9 @@ Two deployed Dex issuers have [accepted OIDC evidence](deploy/validation-two-dex
 SAML backend/pages and an independent [Keycloak deployment](deploy/validation-keycloak-saml.md)
 have scoped accepted evidence. Public-provider and complete W6 acceptance remain open.
 
-Scheduled database backups, clean-host restore, credential rotation, full document
+The [scheduled database backup service](deploy/database-backups.md) passed
+[scoped container and restore checks](deploy/validation-database-backups.md).
+Complete clean-host/current-key/device recovery, credential rotation, full document
 review, friend-from-zero deployment and signed/faulty-version release gates remain
 W7 work. There is no released package or production-readiness claim.
 
@@ -346,6 +349,6 @@ project and is not affiliated with, endorsed by, or sponsored by Deciso B.V.*
 NetHub 是一个自托管的远程访问与设备管理工具：让藏在 CGNAT 或动态 IP 后面的
 开源路由器/防火墙（首发支持 OPNsense）无需端口转发即可远程打开 Web UI。v1
 不提供通用设备配置接口；插件的隧道及 GUI 证书管理有独立边界，批量升级和遥测不在 v1 范围内。控制台
-已实现多用户（admin / member，邀请制）、OIDC 和 SAML 登录接口及页面。项目处于 pre-alpha 的 W6 集成阶段，已有按环境和版本记录的原生／公网证书验收；W5–W7、公开 IdP 和正式发布仍有未完成项，不能用于生产。中文设计文档见
+已实现多用户（admin / member，邀请制）、OIDC 和 SAML 登录接口及页面。项目处于 pre-alpha 的 W7 实现和验收阶段，已有按环境和版本记录的原生／公网证书及定时数据库备份验收；W5–W7、公开 IdP 和正式发布仍有未完成项，不能用于生产。中文设计文档见
 [`docs/DESIGN.md`](docs/DESIGN.md)，完整的中文 README 见
 [`docs/README.zh-CN.md`](docs/README.zh-CN.md)。

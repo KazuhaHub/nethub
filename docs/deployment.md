@@ -65,7 +65,7 @@ selection. Do not trust client-supplied forwarding headers or every private subn
 After successful initialization, enter the generated directory:
 
 ```sh
-docker compose build migrate postgres frps
+docker compose build migrate postgres frps backup
 docker compose up -d
 docker compose run --rm admin-bootstrap --email admin@example.com
 ```
@@ -96,7 +96,7 @@ It does not establish public port/TLS reachability, runtime database grants,
 relay/authz health or scheduled database backups. Those omissions are printed;
 do not treat exit zero as complete deployment acceptance.
 
-The in-progress W7-3 `--public-tls` option additionally checks the console
+The `--public-tls` option additionally checks the console
 hostname from the initialized manifest on TCP 443, using the operating system's
 normal CA store and hostname verification. It sends no HTTP request, cookie or
 credential, ignores HTTP proxy environment settings and has a bounded TLS
@@ -112,11 +112,11 @@ This is a probe from the machine running the command, not an independent
 external-network witness. It neither proves external TCP 443/7000/8443
 reachability nor validates HTTP routing, cookies, ACME provenance or every
 reverse proxy address. It uses system trust; there is no insecure/private-CA
-override flag. Runtime container separation, frps/authz loopback, recent database
-backup and version agreement remain separate unfinished W7-3 checks. Hosted
-acceptance for this new option is still pending.
+override flag. Runtime container separation, frps/authz loopback and recent
+database backup have separate modes below. Agreement with a formally published
+appliance package remains an unfinished W7-3 requirement.
 
-The separate in-progress database metadata mode uses only the Web-role password:
+The separate database metadata mode uses only the Web-role password:
 
 ```sh
 docker compose exec -T nethub-web /nethub doctor --database-roles \
@@ -132,10 +132,10 @@ a fixed repair suggestion rather than database diagnostics. Existing permitted
 label/revocation updates are distinct from immutable device identity. A passing
 database snapshot does not prove the running containers' mounts or ongoing
 security after a later role change. Audit-chain checking is a separate mode.
-The genuine SQL and compiled-command cases passed at the database-role revision;
-the final combined source must repeat all hosted acceptance before merging.
+Genuine SQL and compiled-command checks passed in the scoped W7 doctor
+checkpoint. These results do not establish external reachability or restoration.
 
-The Linux Docker host also has an in-progress read-only container mode:
+The Linux Docker host also has a read-only container mode:
 
 ```sh
 sudo ./nethub doctor --runtime-containers \
@@ -162,8 +162,9 @@ This is an observation of the reviewed running layout, not attestation of an
 arbitrary compromised image or a continuous policy enforcer. It does not replace
 the database metadata mode, prove actual hook traffic or verify public ports,
 recent dumps or published version agreement. Non-Linux hosts refuse this mode.
-The genuine Docker/compiled-command test is added to the existing isolated
-service suite and still awaits final-source hosted execution.
+Genuine Docker and compiled-command checks passed in the scoped W7 doctor
+checkpoint; the backup-worker extension passed the separate
+[backup service checkpoint](../deploy/validation-database-backups.md).
 
 The relay mode checks the Web/authz/frps prerequisites independently of backup
 liveness, then
@@ -181,14 +182,27 @@ failure alone does not pass. The returned running frp version must match the
 binary's protocol pin. The probe is bounded and does not retry automatically.
 Failures point to TLS trust or `httpPlugins` connectivity without printing
 dependency responses. It creates a deliberate denied-login log event, not an
-enrollment, access grant, audit mutation or proxy. The actual isolated acceptance
-case also checks database row counts and an unavailable authz hook; final-source
-hosted execution is still pending. See [probe scope](../server/internal/relayprobe/README.md).
+enrollment, access grant, audit mutation or proxy. Actual isolated acceptance
+also checked unchanged database row counts, an unavailable authz hook and
+owned-service recovery. See [probe scope](../server/internal/relayprobe/README.md).
 
 This tests the configured Login rejection path, not successful device admission
-or every hook operation. Public-network port checks, recent successful dumps and
-comparison with the actual formally published appliance package remain separate
-requirements; a match with the binary's pin does not establish that publication.
+or every hook operation. Public-network port checks and comparison with the
+actual formally published appliance package remain separate requirements; a
+match with the binary's pin does not establish that publication.
+
+Verify recent archive contents separately inside the existing backup worker:
+
+```sh
+docker compose exec -T backup /nethub doctor --recent-backup \
+  --backup-directory /var/lib/nethub-backups \
+  --password-file /run/secrets/pg_nethub_backup --sslmode disable
+```
+
+This derives the retained deployment identity through a read-only backup-role
+connection and hashes the complete latest archive. It refuses an overdue or
+failed latest attempt even when an older good archive remains. It does not
+restore data or prove off-host custody. See [backup operation and limits](../deploy/database-backups.md).
 
 For linked audit history, use the separate [read-only audit mode](../deploy/audit-chain.md)
 inside the existing Web container. It verifies a database snapshot without

@@ -6,6 +6,13 @@ The nine commits carry human DCO sign-offs. Complete job logs and artifact
 hashes were checked; thirteen primary and four supplemental browser images were
 visually reviewed. This records a tested checkpoint in PR #191, not its merge.
 
+Final source `ec242255f1951b4fe3d2f5e2c1eefa0e31fc6460` passed all six jobs in
+[run 40657579668](https://github.com/KazuhaHub/nethub/actions/runs/40657579668).
+Complete actual/inherited logs, ten human DCOs and all seventeen final image
+hashes/visuals were checked. PR #191 merged as `b03e23829f66e78f82618a546bc6de62eb52bcf3`;
+the tested and merged trees are both `91f136d1df5ff98193d121553e53b70f059133df`.
+The limitations below remain unchanged.
+
 ## Actual container and database checks
 
 The assembled nonroot client-only image passed directory ownership/mode and

@@ -44,7 +44,7 @@ v0.2 写完之后，用户在 2026-09-17 的会话里拍板了一批事项，它
 | 许可证定为 **Apache-2.0**，Q0 关闭；与组织分层策略的关系留一个待确认子项 | 用户："那就这么确定了" | 用户（子项待定） | 2026-09-17 |
 | 确认 NetHub 作为组织许可证分层策略的例外，保持 **Apache-2.0**，继续 P0；Q0 子项关闭 | Kazuha 确认 D1 | 用户 | 2026-10-17 |
 | 产品名定为 **NetHub**，Q6 关闭 | 用户拍板 | 用户 | 2026-09-17 |
-| 打包仓库 `KKazuhaK/OPNsense-repo` 定性为 owner 自己的 fork、独立开发；删掉"先跟 fang 打声招呼"（§2） | 用户：不再与原作者共有，准备独立开发 | 用户 | 2026-09-17 |
+| Keep NetHub source and release history separate from the independently maintained packaging fork (§2) | Owner decision | Owner | 2026-09-17 |
 | 决策 #4 落地为 **`nethub web` / `nethub authz` 进程拆分** + Postgres 列级授权 + 一个窄的 `SECURITY DEFINER` 函数，并如实写出被攻破的 web 能做什么、不能做什么（§6） | 让"web 拿不到签名密钥、改不了子域名归属"成为可测试的属性，而不是一句承诺 | 建议 | 2026-10-16 |
 | 决策 #21 的密钥清单按进程拆分重写，新增 `NETHUB_SECRETS_KEY`；密钥按服务分文件，不再用一个共享 `.env`（§3、§7） | 每个容器只拿自己需要的密钥 | 建议 | 2026-10-16 |
 | 控制台防护改为服务端 session 表 + CSRF 自定义请求头 + 严格 CSP，无服务端模板；可信代理客户端 IP 规则（§6、§9） | 架构从 SSR 改为 SPA；多用户与登录审计需要可靠的客户端 IP | 建议 | 2026-10-16 |
@@ -147,11 +147,10 @@ KKazuhaK/OPNsense-repo            ← 只有打包配方，不含 NetHub 源码
 以上目录包含规划；目前仓库已有文档、Weekend 0 套件和 OPNsense 开发插件。`nethub init` / `nethub doctor`
 是 `server/` 里同一个二进制的子命令，不再"位置待定"。
 
-**为什么源码不放进打包仓库。** 那个仓库是 2026-09-12 从 `Opnwall/OPNsense-repo` fork 来的，
-根 LICENSE 是 MIT 且署着 `Copyright (c) 2026 Opnwall`（另一位作者的实体），
-`src/os-unboundcustom/` 是第三方的 BSD-2，`src/os-ddclient-opnwall/` 里 21 个文件带着
-12 位 OPNsense 上游作者的 BSD-2 版权头。把一个新项目的代码混进去，NetHub 归谁所有会长期含糊。
-全部留在 `KazuhaHub/nethub` 则是单一版权、单一许可证，无论是接受贡献还是被人审计都干净。
+**Keep source and packaging histories separate.** NetHub source lives in its own Apache-2.0 repository.
+The packaging repository retains its existing license notices and upstream provenance. It consumes a checked
+NetHub release archive rather than receiving NetHub source as a new subtree. Source review and attribution
+remain traceable in their respective repositories.
 
 **而这样反而更顺，不是妥协。** `OPNsense-repo` 本来就是干这个的——`packaging/plugins.json` 里的
 `os-sing-box`、`os-frp`、`os-easytier` 全是打包第三方软件（sing-box、frp、EasyTier）。从它的视角看，NetHub 就是又一个上游，
@@ -160,9 +159,9 @@ KKazuhaK/OPNsense-repo            ← 只有打包配方，不含 NetHub 源码
 **唯一的代价**是开发插件 Web 界面时要跨两个 checkout。绕法：开发阶段把
 `agents/opnsense/plugin/` symlink 或 rsync 进 `src/os-nethub-agent/`，只有发布流程才真正跨仓。
 
-**没有需要协调的共同维护者。** 这个打包仓库是 owner 自己的 fork，用户已决定独立开发（2026-09-17），
-往 `packaging/plugins.json` 加 entry 不需要先征求任何人。独立开发改变的是"跟谁商量"，
-不改变上面那段许可证历史——那正是 NetHub 源码不放进那里的原因。
+**Packaging ownership.** The project owner maintains the packaging integration. Release packaging changes
+remain separate from development in this repository and follow the release procedure. Existing upstream
+license notices remain in the packaging repository.
 
 ### 协议漂移仍然要防（只是不再是跨仓问题）
 
@@ -201,7 +200,7 @@ KKazuhaK/OPNsense-repo            ← 只有打包配方，不含 NetHub 源码
 | 6 | 设备侧是否需要常驻 daemon | **不需要**，唯一常驻进程是 vendored `frpc` | 自写 Go/Python `agentd` | 在线状态 = frpc 控制连接是否存活，frp 自己已经在维护 | 低 |
 | 7 | 租户模型 | **v1 就上 `owner_user_id` + Postgres `FORCE ROW LEVEL SECURITY`**，但不做递归 org 树 | 完全不做 RLS；第一天上完整 org 树 | 自建 = 一个组织一个实例，**递归 org 树/计费**确实可以推迟；但 RLS 是防御纵深，防的是代码 bug。企业实例里天然有多个管理员、多个部门，任何一条查询忘了加过滤就是越权。几十行迁移脚本换"哪怕 handler 漏了 WHERE，DB 也返回空集"。**v0.3 注**：v1 每个实例恰好一个租户，所以租户级 RLS 在 v1 防的是"`app.tenant_id` 设错/漏设"一类 bug，并让 v3 多租户不用补课；租户**内**按用户的隔离（`member` 只看自己的设备）是应用层的 `owner_user_id` 过滤，不是 RLS 提供的（§6） | 低 |
 | 8 | 首个账号与准入 | **Run `nethub init`, start PostgreSQL/migrate, then create the first administrator with `nethub admin create`**（本地密码，argon2id，作为 break-glass 账号长期保留）；其他人只能经管理员**邀请**加入（一次性链接、只存哈希、会过期），接受邀请时设置密码或用 OIDC 登录完成绑定；设备侧用一次性 enroll token 带外交付 | 公开自助注册（不适用于自建）；OIDC JIT 自动开户（v1 不做，按域名白名单的 JIT 可作为以后的选项） | 自建项目的边界天然就是实例本身。v0.2 曾以"v1 无意义"否决邀请制，前提是 v1 只有安装者一个账号；v1 改为多用户后（用户 2026-09-17），邀请就是最窄的准入方式 | 低 |
-| 9 | Remote UI TLS trust | v1 includes per-device DNS-01 certificates, automatic installation and renewal (owner option 2; corrected 2026-10-19) | Shared wildcard private keys or terminating router TLS at the control plane | Certificates do not replace domain-assignment authorization. Public certificates expose hostnames through CT; enforce the source-IP gate. See certificate-automation.md for pending implementation and acceptance. | Medium |
+| 9 | Remote UI TLS trust | v1 includes per-device public certificates, automatic installation and renewal (owner option 2; corrected 2026-10-19) | Shared wildcard private keys or terminating router TLS at the control plane | Certificates do not replace domain-assignment authorization. Public certificates expose hostnames through CT; enforce the source-IP gate. See certificate-automation.md and the scoped W4 acceptance record; release acceptance remains separate. | Medium |
 | 10 | 本地熔断开关 | 独立 flat file `/var/db/nethub-agent/disabled`，reconcile 每次运行前先查 | 只用 config.xml 里的 `Enabled` 字段 | 提前建立"本地永远优先、控制面只能优雅降级" | 低 |
 | 11 | 是否复用 `common/config_backup.py` | **v1 完全不用** | 把凭证或渲染出的 `frpc.toml` 镜像进 config_backup | `config_backup` 是给"daemon 在 config.xml 之外维护状态"的场景用的；本插件的凭证是普通 MVC 标量字段，`frpc.toml` 是它们的确定性渲染产物，恢复后重渲染一次即可 | 低 |
 | 12 | 打包管线 | 复用仓库统一 native 管线：`packaging/plugins.json` 加一条 entry（`staging: tree`、`abi: target`、`deps: {"python313": "lang/python313"}`），与 os-staticarp / os-easytier / os-ddns-go / os-lucky / os-sing-box 写法一致（截至 2026-10-16，`plugins.json` 的 13 个 entry 里有 6 个声明 `python313` 依赖，其中这 5 个同时是 `tree` + `target`） | 官方 `Mk/plugins.mk` | 和现有 13 个插件（截至 2026-10-16）走同一条已跑通的构建/签名/发布流程 | 低 |
@@ -339,7 +338,7 @@ src/os-nethub-agent/
 
 ### Certificate lifecycle ownership (Kazuha, 2026-10-18)
 
-Console HTTPS is owned by the reverse proxy: bundled Caddy or an administrator-managed external proxy. NetHub does not maintain a competing certificate manager for that hostname. v1 adds automatic relay certificate renewal/application and authenticated distribution of public relay trust. CA private keys stay outside web/authz/frps runtime containers. The owner selected option 2: router GUI certificate issuance, automatic installation and renewal are also required in v1. This corrects the earlier scope record on 2026-10-19. The [PSP source review and proposed execution design](certificate-automation.md) describe retries, generation acknowledgements, verified application and backup boundaries; these are not implemented features yet.
+Console HTTPS is owned by the reverse proxy: bundled Caddy or an administrator-managed external proxy. NetHub does not maintain a competing certificate manager for that hostname. v1 adds automatic relay certificate renewal/application and authenticated distribution of public relay trust. CA private keys stay outside web/authz/frps runtime containers. The owner selected option 2: router GUI certificate issuance, automatic installation and renewal are also required in v1. This corrects the earlier scope record on 2026-10-19. The [certificate design and evidence](certificate-automation.md) describe retries, generation acknowledgements, verified application and backup boundaries. [Combined W4 lab acceptance](../deploy/validation-native-public-certificate.md) covers genuine public HTTP-01 issuance and native installation, with renewal and fault controls retaining their measured private-CA scope. Public renewal was not waited out; the accepted 1 GiB sizing deviation and unsigned development-package limit remain.
 
 ### 域名归属校验（决策 #4 的落地）
 
@@ -989,7 +988,7 @@ enroll 流程里提示"确认拥有独立于本产品之外的带外访问手段
 
 | 版本 | 内容 | 粗估 |
 |---|---|---|
-| **v1 certificate scope addition** | Per-device DNS-01 public certificates, automatic installation and renewal, staggered issuance, expiry/failure alerts and verified platform-specific application. CT exposes hostnames; retain the source-IP gate. | Re-estimate after issuer and key-custody design; not implemented yet |
+| **v1 certificate scope addition** | Per-device public certificates (implemented with HTTP-01), automatic installation and renewal, staggered issuance, expiry/failure alerts and verified platform-specific application. CT exposes hostnames; retain the source-IP gate. | Scoped W4 lab acceptance recorded; production sizing, signed release and W5-W7 gates remain separate |
 | **v1.1** | arm64 packaging; evaluate mTLS (Q1) | Previous estimate predates the certificate scope change |
 | **v1.2 遥测** | 已装 `os-telegraf` 的设备，agent 读本地 `127.0.0.1:9273` 转发摘要指标；控制面加一张 `device_metrics` 表 + 折线图 | 2–3 周 |
 | **v2 配置备份** | agent 定期用**设备自身派生的** AES-256-GCM key 本地加密 `/conf/config.xml` 后上传；控制面只存密文、**不持有解密能力**。仿 pfSense AutoConfigBackup 做滚动保留，不做 diff | 2 周 |
@@ -1111,9 +1110,12 @@ SNI dispatcher，是有意义的额外复杂度。建议规则：**实测样本�
 推荐 **v1 不做，先加诚实免责声明**。自建场景下每个实例的链头锚定到哪里本身就是个问题，
 边际价值低还多一个暴露面。等有真实第三方审计/合规要求时再加。
 
-**Q4：签名私钥的离线签名机改造，要不要现在启动？**
-推荐 **作为独立项目单独排期，不阻塞 v1，但尽快做**。这个风险保护的是现有全部插件（截至 2026-10-16 共 13 个）的**全部**用户，
-敞口比 NetHub 这一个新产品大得多；但它和 NetHub 的技术方案无关，硬塞进来会稀释两边的注意力。
+**Q4: separate signing and runtime boundaries.**
+
+A shared signing, build and remote-management host shares an operating-system compromise boundary.
+The designated test-host arrangement is accepted in decision #20; it is not evidence of signing-key
+isolation. Further signer separation is an operational project. Runtime containers must not receive
+signing authority merely because services are co-located.
 
 **Q5：HA/CARP 场景 v1 只做"标注 + 降级为告警"，还是索性明确不支持？**
 推荐 **维持轻量支持，不排除**。完全排除会让一部分用 HA 网关的潜在用户直接用不了，

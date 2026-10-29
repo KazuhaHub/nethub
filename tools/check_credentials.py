@@ -63,6 +63,8 @@ def main():
         allowed = 'proto/examples/valid/enroll-bound-response.json'
         line = '  "gui_key_fingerprint": "' + PUBLIC_SPKI + '",\n'
         release = 'KEY_SHA256 = "' + PUBLIC_RELEASE_KEY + '"\n'
+        native_path = 'agents/opnsense/acceptance/guest.py'
+        native_release = "KEY_SHA256 = '" + PUBLIC_RELEASE_KEY + "'\n"
         screenshot_path = 'deploy/validation-native-browser.json'
         screenshot = '  "02-console-token.png": "' + PUBLIC_SCREENSHOT + '",\n'
         # Fixed public-derived controls stay above the scanner's entropy threshold.
@@ -77,6 +79,7 @@ def main():
             'proto/examples/valid/certificate-submit-response.json':
                 '  "gui_key_fingerprint": "' + PUBLIC_CSR_SPKI + '",\n',
             'weekend0/vm_preflight.py': release,
+            native_path: native_release,
             screenshot_path: json.dumps({
                 'legacy': {'02-console-token.png': PUBLIC_SCREENSHOT},
                 'screenshots': [{'file': '02-console-token.png', 'sha256': changed_screenshot}],
@@ -91,6 +94,19 @@ def main():
         control('wrong-path', {'other.json': line}, True)
         control('same-line-credential', {
             'weekend0/vm_preflight.py': release.rstrip() + '; api_key = "' + credential + '"\n',
+        }, True)
+        control('native-release-wrong-value', {
+            native_path: "KEY_SHA256 = '" + PUBLIC_RELEASE_KEY[::-1] + "'\n",
+        }, True)
+        control('native-release-wrong-path', {'other.py': native_release}, True)
+        control('native-release-wrong-field', {
+            native_path: "api_key = '" + PUBLIC_RELEASE_KEY + "'\n",
+        }, True)
+        control('native-release-adjacent-credential', {
+            native_path: native_release + 'api_key = "' + credential + '"\n',
+        }, True)
+        control('native-release-same-line-credential', {
+            native_path: native_release.rstrip() + '; api_key = "' + credential + '"\n',
         }, True)
         control('changed-screenshot-digest', {
             screenshot_path: '  "02-console-token.png": "' + changed_screenshot + '",\n',
@@ -111,7 +127,7 @@ def main():
                          for finding in findings]
             print(json.dumps({'credential_findings': locations}))
             raise SystemExit(1)
-    print('Credential history scan passed with default rules, full fetched history and ten exception controls; reports and matches were not published')
+    print('Credential history scan passed with default rules, full fetched history and fifteen exception controls; reports and matches were not published')
 
 
 if __name__ == '__main__':

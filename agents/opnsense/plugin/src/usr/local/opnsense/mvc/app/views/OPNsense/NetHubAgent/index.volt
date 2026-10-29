@@ -1,12 +1,14 @@
 <script>
 $(function () {
     let circuitPending = false;
+    let rotationPending = false;
     const form = 'nethubSettings';
     const endpoint = '/api/nethubagent/settings/';
     mapDataToFormUI({[form]: endpoint + 'get'});
     function showEnrollment() {
         ajaxCall('/api/nethubagent/enroll/get', {}, function (result) {
             $('#enrollNetHub').prop('disabled', result.enrolled === true);
+            $('#rotateNetHub').prop('disabled', rotationPending || result.enrolled !== true);
             $('#nethubEnrollmentInfo').text(result.enrolled ?
                 '{{ lang._("Enrolled device") }}: ' + result.device_id + ' | ' + result.console_url :
                 '{{ lang._("Not enrolled") }}');
@@ -79,6 +81,23 @@ $(function () {
             mapDataToFormUI({[form]: endpoint + 'get'});
         });
     });
+    $('#rotateNetHub').on('click', function () {
+        if (rotationPending || !window.confirm('{{ lang._("Rotate this device credential? The tunnel may reconnect. Keep an independent local access path.") }}')) {
+            return;
+        }
+        rotationPending = true;
+        $('#rotateNetHub, #saveNetHub, #applyNetHub, #removeNetHub').prop('disabled', true);
+        $('#nethubRotationResult').text('{{ lang._("Rotating credentials…") }}');
+        ajaxCall('/api/nethubagent/service/rotate', {}, function (result, status) {
+            rotationPending = false;
+            $('#saveNetHub, #applyNetHub, #removeNetHub').prop('disabled', false);
+            $('#nethubRotationResult').text(status === 'success' && result && typeof result.message === 'string' ?
+                result.message : '{{ lang._("Rotation response unavailable. Retry rotation to recover the saved operation.") }}');
+            showEnrollment();
+            showStatus();
+            mapDataToFormUI({[form]: endpoint + 'get'});
+        });
+    });
 });
 </script>
 
@@ -108,4 +127,8 @@ $(function () {
     <button id="enrollNetHub" class="btn btn-primary" type="button">{{ lang._('Enroll') }}</button>
     <button id="removeNetHub" class="btn btn-danger" type="button">{{ lang._('Remove enrollment') }}</button>
     <p id="nethubEnrollmentResult" role="status"></p>
+    <h2>{{ lang._('Credential rotation') }}</h2>
+    <p>{{ lang._('Replace this device credential and reconnect using the current relay assignment. The device identity, GUI login and local stop policy stay unchanged. If interrupted, retry this action to recover the same operation.') }}</p>
+    <button id="rotateNetHub" class="btn btn-default" type="button" disabled>{{ lang._('Rotate credentials') }}</button>
+    <p id="nethubRotationResult" role="status"></p>
 </div>

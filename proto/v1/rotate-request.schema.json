@@ -4,16 +4,44 @@
   "type": "object",
   "properties": {
     "agent_protocol_version": {
-      "$ref": "common.schema.json#/$defs/version"
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        {
+          "pattern": "^1\\.(?:[6-9]|[1-9][0-9]+)\\."
+        }
+      ]
     },
     "device_id": {
       "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "operation_id": {
+      "type": "string",
+      "minLength": 36,
+      "maxLength": 36,
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "not": {
+        "pattern": "[\\x00-\\x1f\\x7f]"
+      }
+    },
+    "replacement_secret": {
+      "$ref": "common.schema.json#/$defs/secret"
+    },
+    "expected_relay_ca_sha256": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$"
     }
   },
   "required": [
     "agent_protocol_version",
-    "device_id"
+    "device_id",
+    "operation_id",
+    "replacement_secret",
+    "expected_relay_ca_sha256"
   ],
   "additionalProperties": true,
-  "maxProperties": 18
+  "maxProperties": 21
 }

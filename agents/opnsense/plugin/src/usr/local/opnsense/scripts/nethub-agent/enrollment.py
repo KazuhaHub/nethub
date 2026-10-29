@@ -216,7 +216,7 @@ def request_enrollment(origin, token, platform_version, agent_version, hostname,
 
 def request_json(origin, path, request, expected_status=200, secret=None, context=None):
     origin = validate_origin(origin)
-    if path not in ('/api/v1/devices/enroll', '/api/v1/devices/status', '/api/v1/devices/unenroll',
+    if path not in ('/api/v1/devices/enroll', '/api/v1/devices/status', '/api/v1/devices/unenroll', '/api/v1/devices/rotate',
                     '/api/v1/devices/gui-certificate/settings', '/api/v1/devices/gui-certificate/request',
                     '/api/v1/devices/gui-certificate/issued', '/api/v1/devices/gui-certificate/applied',
                     '/api/v1/devices/relay-trust/settings', '/api/v1/devices/relay-trust/applied'):
@@ -233,7 +233,8 @@ def request_json(origin, path, request, expected_status=200, secret=None, contex
         transport = connection.sock
         connection.request('POST', path, body=json.dumps(request).encode(), headers=headers)
         response = connection.getresponse()
-        if response.status != expected_status or response.getheader('Content-Encoding', 'identity') != 'identity':
+        trust_conflict = path == '/api/v1/devices/rotate' and secret is not None and response.status == 409
+        if (response.status != expected_status and not trust_conflict) or response.getheader('Content-Encoding', 'identity') != 'identity':
             raise ProtocolError('Console rejected the device request; check enrollment and connectivity')
         if response.getheader('Content-Type', '').split(';')[0].strip().lower() != 'application/json':
             _invalid()
@@ -253,7 +254,16 @@ def request_json(origin, path, request, expected_status=200, secret=None, contex
                 if response.length not in (None, 0):
                     _invalid()
                 break
-        return decode_json(bytes(chunks))
+        value = decode_json(bytes(chunks))
+        if trust_conflict:
+            from protocol import RotationTrustChanged
+            if (isinstance(value, dict) and set(value) == {'error'}
+                    and isinstance(value['error'], dict) and set(value['error']) == {'code', 'message'}
+                    and value['error']['code'] == 'rotation_trust_changed'
+                    and isinstance(value['error']['message'], str)):
+                raise RotationTrustChanged('Relay trust changed before credential rotation')
+            raise ProtocolError('Console rejected the device request; check enrollment and connectivity')
+        return value
     except ProtocolError:
         raise
     except (OSError, http.client.HTTPException, ValueError):
