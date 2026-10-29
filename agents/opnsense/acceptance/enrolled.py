@@ -271,7 +271,8 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     cleanup.callback(backend.shutdown)
     other_config = work / 'native-other-device.json'
     private_json(other_config, {'serverAddr': '127.0.0.1', 'serverPort': other['server_port'],
-        'loginFailExit': True, 'auth': {'method': 'token', 'token': other['frp_token']},
+        # This retained witness must retry during the planned full-host outage.
+        'loginFailExit': False, 'auth': {'method': 'token', 'token': other['frp_token']},
         'log': {'to': 'console', 'level': 'warn'},
         'metadatas': {'device_id': other['device_id'], 'domain_claim': other['domain_claim']},
         'transport': {'heartbeatInterval': 10, 'heartbeatTimeout': 30,

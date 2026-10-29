@@ -258,7 +258,7 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
                     fixture.original_login()
                     if before['device_id'] not in fixture.restored_device_ids:
                         raise RecoveryError('Original device missing after full host recovery')
-                    granted = sql("SELECT source_ip::text FROM device_access_grants WHERE device_id='" +
+                    granted = sql("SELECT host(source_ip) FROM device_access_grants WHERE device_id='" +
                                   before['device_id'] + "' ORDER BY expires_at DESC,source_ip DESC LIMIT 1;")
                     addresses = json.loads(fixture.remote(target, ['ip', '-j', 'addr'], 'Recovered host source ownership'))
                     owned = {item['local'] for interface in addresses for item in interface['addr_info']}
