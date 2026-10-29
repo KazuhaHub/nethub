@@ -85,6 +85,9 @@ Scoped [native/public W4 acceptance](validation-native-public-certificate.md),
 are recorded separately. Remaining W5 measurements, public-provider checks and
 final W7 operational/release acceptance remain open.
 The [daily backup service](database-backups.md) passed the [scoped container checkpoint](validation-database-backups.md); complete clean-host/key/device restoration remains open.
+[Shared-token replacement](shared-relay-token-rotation.md) uses a retained host
+operation and existing native Rotate actions; read its
+[isolated validation and limits](validation-shared-token.md) before a controlled window.
 Protected relay authority activation and retained-operation recovery commands
 are documented in [Relay authority operations](relay-authority-operations.md).
 

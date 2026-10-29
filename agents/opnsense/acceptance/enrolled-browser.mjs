@@ -15,7 +15,7 @@ assert.equal(typeof expectedSuccess, 'boolean');
 assert.ok(config.action === 'rotate' || expectedSuccess);
 const label = config.label ?? config.action;
 assert.ok(['enroll', 'rotate', 'rotate-lost', 'rotate-recovered',
-  'rotate-save-failed', 'rotate-save-recovered', 'remove'].includes(label));
+  'rotate-save-failed', 'rotate-save-recovered', 'rotate-shared', 'remove'].includes(label));
 assert.equal(label === 'enroll', config.action === 'enroll');
 assert.equal(label === 'remove', config.action === 'remove');
 assert.equal(expectedSuccess, !['rotate-lost', 'rotate-save-failed'].includes(label));

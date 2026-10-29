@@ -31,6 +31,9 @@ func (e Transition) Abort(ctx context.Context) (TransitionState, error) {
 		return state, err
 	}
 	defer lease.Close()
+	if CheckNoPendingTokenTransition(e.Directory) != nil {
+		return state, ErrTransition
+	}
 	root := filepath.Join(e.Directory, "authority-transitions")
 	operation := filepath.Join(root, e.Request.ID)
 	for _, path := range []string{root, operation} {

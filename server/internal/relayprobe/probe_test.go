@@ -45,6 +45,21 @@ func TestRejectionRequiresExactBoundedProtocolResult(t *testing.T) {
 }
 
 func probeFixture(t *testing.T, kind byte, length uint64, response string, stall bool) (string, []byte, <-chan bool) {
+	return loginFixture(t, kind, length, response, stall, func(body []byte) bool {
+		var request map[string]json.RawMessage
+		if json.Unmarshal(body, &request) != nil || len(request) != 2 {
+			return false
+		}
+		var version string
+		var metas map[string]string
+		if json.Unmarshal(request["version"], &version) != nil || version != ProtocolVersion || json.Unmarshal(request["metas"], &metas) != nil || len(metas) != 2 || metas["domain_claim"] != "doctor-invalid-claim" || !regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`).MatchString(metas["device_id"]) {
+			return false
+		}
+		return true
+	})
+}
+
+func loginFixture(t *testing.T, kind byte, length uint64, response string, stall bool, validate func([]byte) bool) (string, []byte, <-chan bool) {
 	t.Helper()
 	seed := httptest.NewTLSServer(nil)
 	certificate := seed.TLS.Certificates[0]
@@ -82,20 +97,14 @@ func probeFixture(t *testing.T, kind byte, length uint64, response string, stall
 			return
 		}
 		size := binary.BigEndian.Uint64(header[1:])
-		if size == 0 || size > 1024 {
+		if size == 0 || size > 8192 {
 			return
 		}
 		body := make([]byte, int(size))
 		if _, err = io.ReadFull(stream, body); err != nil {
 			return
 		}
-		var request map[string]json.RawMessage
-		if json.Unmarshal(body, &request) != nil || len(request) != 2 {
-			return
-		}
-		var version string
-		var metas map[string]string
-		if json.Unmarshal(request["version"], &version) != nil || version != ProtocolVersion || json.Unmarshal(request["metas"], &metas) != nil || len(metas) != 2 || metas["domain_claim"] != "doctor-invalid-claim" || !regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`).MatchString(metas["device_id"]) {
+		if !validate(body) {
 			return
 		}
 		valid = true

@@ -981,8 +981,12 @@ Current implementation preserves these decisions:
   invitation and account policy remain NetHub's tenant-bound operations.
 
 Remaining work includes the reserved HTTP routes above, linking extra identities
-into an existing account, complete traffic acceptance, operational credential rotation,
-other doctor checks, scheduled database backups and full clean-host restoration.
+into an existing account, public/operator validation of shared-token incidents,
+remaining doctor checks and full clean-host restoration. Monthly traffic,
+scheduled database backups, per-device native rotation and the
+[controlled shared-token operation](../deploy/validation-shared-token.md) have
+scoped accepted evidence; see the current [handoff records](HANDOFF_PROMPT.md). Those scopes do
+not establish public-network incident recovery or complete restoration.
 Public-provider, native mobile/Open, revoke timing comparison, friend deployment,
 disclosure and formal/canary release gates remain open. Accepted isolated SQL,
 synthetic pages, two-Dex or Keycloak flows do not complete all W5-W7 requirements.

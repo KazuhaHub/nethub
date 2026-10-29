@@ -1,7 +1,8 @@
 # Device credential rotation
 
 The device plugin now has an explicit **Rotate credentials** action and
-`agentctl.py rotate`. The combined native/relay workflow is under validation;
+`agentctl.py rotate`. The isolated installed native/relay workflow passed at source `986ee4c`
+([run 40823820125](https://github.com/KazuhaHub/nethub/actions/runs/40823820125));
 there is no accepted signed appliance release containing this feature yet.
 Keep independent local access when testing it. Rotation can reconnect the tunnel.
 
@@ -21,7 +22,9 @@ its original snapshot until recovery completes.
 
 If a request, model save or reconciliation is interrupted, retry **Rotate
 credentials**. The retained candidate recovers an unknown committed response;
-a received assignment retries without another server rotation or model save.
+a received assignment retries without another server rotation. If the native
+save was interrupted, retry still completes that save; a model already confirmed
+at the candidate is not saved again.
 The journal remains until the model readback and ordinary idempotent reconcile
 succeed. Do not delete recovery files, edit credentials manually or re-enroll
 to hide a failed operation. A conflicting local policy/configuration change
@@ -59,8 +62,8 @@ published bundle is refused before credential mutation; only that definitive
 old-credential refusal releases a prepared journal so verified trust sync can
 run. Ambiguous failures and candidate-attempt errors retain the journal.
 Committed operations retain their public bundle for identical replay across
-later publication. The new publication/recovery path is under combined
-validation; source changes alone do not establish installed-device acceptance.
+later publication. The publication/recovery path passed the scoped installed workflow above;
+source changes alone do not establish installed-device acceptance.
 
 This per-device workflow is only part of W7-4. Coordinated deployment-wide frps
 shared-token replacement, protected current-key backup/manifest transitions and

@@ -70,10 +70,15 @@ The lifecycle router implements `/api/v1/devices/{status,unenroll,rotate}`.
 Protocol 1.6 rotation binds one privately journaled candidate to one operation;
 its transaction advances the credential hash and claim timestamp with an immutable
 operation/audit. A response-loss retry authenticates the committed candidate and
-recovers that assignment. Genuine SQL/publication-fence and official Linux frpc
-checks have passed; they do not establish installed-device acceptance. The native journal/model workflow, command and UI are under combined
-validation; this is not yet accepted operational device rotation. See the
-[rotation contract and limits](../proto/ROTATION.md).
+recovers that assignment. Source `986ee4c` passed the installed OPNsense page,
+native model, official-frpc and six-service workflow, including lost committed
+responses and a native save-lock interruption. Both recovered the same candidate
+without changing identity or source grants. See the [device operation and scoped
+evidence](../deploy/device-rotation.md) and [wire contract](../proto/ROTATION.md).
+Deployment-wide shared-token replacement and native Rotate have separate
+[isolated validation](../deploy/validation-shared-token.md) and a
+[host procedure](../deploy/shared-relay-token-rotation.md). Public/mobile and
+complete restoration gates remain open.
 
 <a id="gui-certificate-lifecycle"></a>
 

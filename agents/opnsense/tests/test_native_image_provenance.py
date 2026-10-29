@@ -1,5 +1,6 @@
 """Reject untested or differently sourced images before native acceptance."""
 import copy
+import fnmatch
 import importlib.util
 from pathlib import Path
 import sys
@@ -36,6 +37,16 @@ def test_complete_exact_source_ci_is_required():
             SUITE.validate_run(changed, jobs, 'a' * 40)
     with pytest.raises(SUITE.GuestError):
         SUITE.validate_run(run, jobs, 'A' * 40)
+
+
+def test_native_upload_covers_every_public_outcome_and_image():
+    workflow = (SOURCE.parents[3] / '.github/workflows/native-enrolled.yml').read_text(encoding='utf-8')
+    prefix = '${{ runner.temp }}/native-enrolled-evidence/'
+    patterns = [line.strip()[len(prefix):] for line in workflow.splitlines() if line.strip().startswith(prefix)]
+    assert len(patterns) == len(set(patterns))
+    assert set(patterns) <= set(SUITE.PUBLIC_FILES) | {'native/*-page.json'}
+    missing = [name for name in SUITE.PUBLIC_FILES if not any(fnmatch.fnmatchcase(name, pattern) for pattern in patterns)]
+    assert missing == [], 'Public native evidence is missing from the artifact upload contract'
 
 
 @pytest.mark.parametrize('mutation', ['missing', 'extra', 'duplicate', 'skipped', 'failed', 'live'])

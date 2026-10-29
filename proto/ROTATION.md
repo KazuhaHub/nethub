@@ -1,11 +1,16 @@
 # Recoverable credential rotation contract
 
 Protocol 1.6 specifies an operation-bound rotation request. The HTTP endpoint and
-atomic server mutation are under validation. The private candidate journal is
-implemented with recovery tests. Native model persistence, command wiring and
-the explicit page action are now under combined validation. The shared-token
-incident operation remains unimplemented. These contracts do not establish
-operational W7-4 acceptance. See [device operation and limits](../deploy/device-rotation.md).
+atomic server mutation, private candidate journal, native model persistence,
+command and explicit page action passed scoped installed acceptance at source
+`986ee4c` in run `40823820125`. Genuine response-loss and native save-lock
+interruptions recovered the same candidate and original verified HTTPS route.
+The separate shared-token host command and online native/reference incident
+recovery passed source `e3dfef5` in runs `40845857458` and `40845857496`.
+See the [isolated validation and limits](../deploy/validation-shared-token.md).
+Public/operator, offline fleet and complete restoration acceptance remain separate.
+See [device operation and limits](../deploy/device-rotation.md) and the
+[shared-token incident procedure](../deploy/shared-relay-token-rotation.md).
 
 The request contains `agent_protocol_version`, `device_id`, `operation_id` and
 `replacement_secret` and `expected_relay_ca_sha256`. The trust digest is lowercase

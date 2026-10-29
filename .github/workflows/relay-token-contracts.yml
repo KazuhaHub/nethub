@@ -1,0 +1,78 @@
+name: Shared relay token host contracts
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/relay-token-contracts.yml
+      - server/internal/relaytoken/**
+      - server/internal/setup/relay_token*
+      - server/tests/relay-token-contracts.py
+      - server/tests/test_relay_token_contracts.py
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: relay-token-contracts-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  root-contracts:
+    name: protected token journal and material
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: server
+    env:
+      GOTOOLCHAIN: local
+      GOWORK: "off"
+      GOMAXPROCS: "2"
+      NETHUB_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: server/.go-version
+          cache: false
+      - name: Bind hosted platform and build contracts
+        run: |
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$(uname -s)" = Linux
+          test "$(git rev-parse HEAD)" = "$NETHUB_SOURCE_HEAD"
+          test "$(go env GOVERSION)" = "go$(cat .go-version)"
+          go mod verify
+          python3 -m unittest discover -s tests -p test_relay_token_contracts.py
+          go test -c ./internal/setup -o "$RUNNER_TEMP/relay-token-contracts.test"
+      - name: Execute actual protected filesystem cases
+        run: |
+          umask 077
+          set +e
+          sudo -n timeout --signal=TERM --kill-after=5 120 "$RUNNER_TEMP/relay-token-contracts.test" \
+            -test.v -test.run '^TestNativeRelayToken(Journal|Material|Preparation|Publication|Admission|RuntimeMaterial|RecoveryAdmission|CommandRecords)$' \
+            2>&1 | tee "$RUNNER_TEMP/relay-token-contracts.log"
+          token_results=("${PIPESTATUS[@]}")
+          set -e
+          python3 tests/relay-token-contracts.py \
+            --log "$RUNNER_TEMP/relay-token-contracts.log" \
+            --binary "$RUNNER_TEMP/relay-token-contracts.test" \
+            --receipt "$RUNNER_TEMP/relay-token-contracts.json" \
+            --exit-code "${token_results[0]}" --capture-exit "${token_results[1]}" \
+            --uid "$(sudo -n id -u)" --source-head "$NETHUB_SOURCE_HEAD" \
+            --compiler "$(go env GOVERSION)"
+      - name: Retain only bounded contract receipt
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: relay-token-host-contracts
+          path: ${{ runner.temp }}/relay-token-contracts.json
+          if-no-files-found: warn
+          retention-days: 7

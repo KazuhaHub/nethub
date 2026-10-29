@@ -322,6 +322,14 @@ func (s *BoundRelayAuthorityService) Reload(ctx context.Context, ca []byte) erro
 	if err != nil || !bytes.Equal(actual, ca) || CheckFiles(s.binding.Directory) != nil {
 		return ErrRelayAuthority
 	}
+	return s.reloadBound(bounded, ca)
+}
+
+// reloadBound requires its caller to authorize the exact active material. It
+// rechecks the immutable service selection through every bounded reload step.
+func (s *BoundRelayAuthorityService) reloadBound(ctx context.Context, ca []byte) error {
+	bounded, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
 	for _, name := range []string{"nethub-authz", "frps"} {
 		if s.configuration(bounded) != nil {
 			return ErrRelayAuthority

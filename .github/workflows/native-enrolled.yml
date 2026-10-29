@@ -108,6 +108,7 @@ jobs:
             ${{ runner.temp }}/native-enrolled-evidence/deployment-result.json
             ${{ runner.temp }}/native-enrolled-evidence/native/result.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotation.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-shared-token.json
             ${{ runner.temp }}/native-enrolled-evidence/native/compose-tail.json
             ${{ runner.temp }}/native-enrolled-evidence/native/native-fixture-host.json
             ${{ runner.temp }}/native-enrolled-evidence/native/guest-console-probe.json
@@ -121,6 +122,7 @@ jobs:
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate-recovered.png
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate-save-failed.png
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate-save-recovered.png
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate-shared.png
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-remove.png
           if-no-files-found: warn
           retention-days: 7

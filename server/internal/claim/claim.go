@@ -18,6 +18,9 @@ import (
 const timestampLayout = "2006-01-02T15:04:05.000000Z"
 const maxTokenBytes = 3116
 
+// InitialKeyID is the generated deployment's claim signing identity.
+const InitialKeyID = "initial"
+
 var ErrInvalid = errors.New("invalid domain claim")
 var ErrKeyring = errors.New("invalid claim signing configuration")
 

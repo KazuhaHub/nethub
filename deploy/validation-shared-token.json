@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "source_head": "e3dfef5394d6e6f907b67b257b3aca616abfca2b",
+  "date_utc": "2026-10-29",
+  "passed": true,
+  "scope": "Isolated hosted shared-token host command and online native/reference recovery",
+  "environment": {
+    "opnsense": "26.7.7",
+    "unsigned_development_package": "0.0.18",
+    "frp": "0.71.1",
+    "go": "1.26.10",
+    "network": "Owned loopback/NAT fixtures and test CAs"
+  },
+  "runs": {
+    "ci": 40845857458,
+    "protected_linux": 40845857293,
+    "freebsd": 40845857289,
+    "preparation": 40845857269,
+    "installed": 40845857496
+  },
+  "checks": {
+    "protected_linux_cases": 92,
+    "actual_freebsd_cases": 214,
+    "exact_freebsd_source_blobs": 242,
+    "actual_empty_identity_refusal_without_material_or_service_changes": true,
+    "actual_SIGTERM_resumed_same_candidate": true,
+    "actual_superseded_completed_operation_refused_without_rollback": true,
+    "only_authz_and_frps_recreated": true,
+    "other_four_services_and_original_backup_retained": true,
+    "complete_current_key_successor_verified": true,
+    "actual_candidate_previous_candidate_Login_verified": true,
+    "completed_retry_verified_without_reload": true,
+    "native_and_reference_identity_policy_source_grants_retained": true,
+    "native_GUI_key_checks_and_exact_alias_retained": true,
+    "same_assigned_routes_verified_TLS_recovered": true,
+    "old_device_bearers_HTTP_401": true,
+    "all_eight_image_hashes_and_corresponding_visuals_reviewed": true,
+    "standalone_incident_report_retained": true,
+    "guest_exit_zero_and_owned_cleanup_confirmed": true
+  },
+  "observed_recovery_ms": {
+    "two_reference_routes_after_host_cutover": 693,
+    "native_after_shared_token_cutover": 2617,
+    "native_per_device_initial": 2584,
+    "native_lost_committed_response_retry": 2366,
+    "native_received_save_interruption_retry": 2586
+  },
+  "installed_images": {
+    "installed-enroll.png": "686f024178492df7c8663c5d3afef081aada449b48250b271c70f938fa37f50e",
+    "installed-rotate.png": "80eb372bc7d9488bbab5bd4fe15ddf5f6a6d772408d2efd44c3ca9616a238e5c",
+    "installed-rotate-lost.png": "004b960081a0c7ba7be2dcb0ae0baed33718ff1a72e5670ba5c4cbf4d9373b88",
+    "installed-rotate-recovered.png": "80eb372bc7d9488bbab5bd4fe15ddf5f6a6d772408d2efd44c3ca9616a238e5c",
+    "installed-rotate-save-failed.png": "9675be4fe6dfafcc268627ebf19ea042202578e621d4c9b9d6a7cc936ae28929",
+    "installed-rotate-save-recovered.png": "80eb372bc7d9488bbab5bd4fe15ddf5f6a6d772408d2efd44c3ca9616a238e5c",
+    "installed-rotate-shared.png": "80eb372bc7d9488bbab5bd4fe15ddf5f6a6d772408d2efd44c3ca9616a238e5c",
+    "installed-remove.png": "8efb6fa4d73d1811be56f5ca0ea634cdbaabf4a256dfca9b652d94ee90cedb77"
+  },
+  "visual_limitations": [
+    "Remove screenshot stops at the Enrollment heading under the fixed native footer. Cleared state is proven independently by native DOM/database/XML/service/route assertions; the cleared label is not visually visible in that crop.",
+    "Four positive rotation screenshots are byte-identical; each exact hash was checked against the reviewed shared-token image."
+  ],
+  "out_of_scope": [
+    "Public/mobile/operator incident acceptance",
+    "Offline fleet recovery",
+    "Installed trust-publication-conflict scenario",
+    "Complete clean-host/current-key/enrolled-device restoration",
+    "Off-host durability",
+    "Formal signing, release or canary deployment"
+  ],
+  "full_goal_complete": false
+}

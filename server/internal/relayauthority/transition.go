@@ -218,6 +218,9 @@ func (e Transition) Run(ctx context.Context) (TransitionState, error) {
 		return state, err
 	}
 	defer lease.Close()
+	if CheckNoPendingTokenTransition(e.Directory) != nil {
+		return state, ErrTransition
+	}
 	root := filepath.Join(e.Directory, "authority-transitions")
 	if transitionDirectory(root) != nil {
 		return state, ErrTransition

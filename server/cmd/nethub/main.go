@@ -22,6 +22,7 @@ Commands:
   init         Prepare deployment configuration and secrets
   doctor       Check deployment readiness
   backup       Run and monitor restricted database backups
+  relay-token  Replace the deployment's shared relay token
   certificates Manage host certificates and HTTP-01 expiry
   admin        Manage the initial administrator
   version      Print the build version
@@ -81,6 +82,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runDoctor(args[1:], stdout, stderr)
 	case "backup":
 		return runBackup(args[1:], stdout, stderr)
+	case "relay-token":
+		return runRelayToken(args[1:], stdout, stderr)
 	case "authz":
 		return runAuthz(args[1:], stdout, stderr)
 	case "certificates":
