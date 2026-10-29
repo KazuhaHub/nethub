@@ -74,6 +74,15 @@ service logs stay in root-only ephemeral storage. The runner discards them after
 the test. No existing workstation VM, relay, production configuration or formal
 package is used.
 
+The first combined run at `02b2313` passed its image gate and installed the native
+package, then failed during fixture system-trust preparation before enrollment.
+Its owned guest exited with status zero and image cleanup passed. The helper now
+uses `toArray(listtags())` to retain the legacy list representation required by
+native trust handling ([native configuration adapter](https://raw.githubusercontent.com/opnsense/core/master/src/etc/inc/config.inc)).
+Closed fixture-phase diagnostics retain the next failure location without private
+exception text. This correction still needs an actual successful combined run;
+the earlier failed result remains retained.
+
 Serial bootstrap sends short encoded heredoc lines within FreeBSD's canonical
 terminal input bound. Failure results retain only the waiting stage, selected
 prompt flags, byte count and image-verification receipt; raw transcripts remain

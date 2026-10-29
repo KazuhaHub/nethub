@@ -4,11 +4,13 @@
 ini_set('display_errors', '0');
 ini_set('log_errors', '0');
 set_error_handler(static function (): never { throw new RuntimeException('Fixture failed'); });
+$phase = 'host_boundary';
 
 try {
     if ($argc !== 1 || PHP_SAPI !== 'cli' || PHP_OS_FAMILY !== 'BSD' || posix_geteuid() !== 0) {
         throw new RuntimeException('Wrong fixture host');
     }
+    $phase = 'private_nonce';
     $marker = '/root/nethub-ci/native-fixture-nonce';
     $stat = lstat($marker);
     if ($stat === false || is_link($marker) || $stat['uid'] !== 0 || $stat['nlink'] !== 1 ||
@@ -37,16 +39,19 @@ try {
     if ($fields !== $expected) {
         throw new RuntimeException('Unexpected fixture fields');
     }
+    $phase = 'native_config_load';
     require_once('/usr/local/opnsense/mvc/script/load_phalcon.php');
     $configuration = \OPNsense\Core\Config::getInstance();
     $configuration->lock();
     try {
         $root = $configuration->object();
         $gui = $root->system->webgui;
+        $phase = 'native_security_checks';
         if (isset($gui->nodnsrebindcheck) || isset($gui->nohttpreferercheck)) {
             throw new RuntimeException('Native GUI checks must stay enabled');
         }
         if ($action === 'trust') {
+            $phase = 'trust_ca_validation';
             $pem = $request['ca_pem'];
             $ca = is_string($pem) ? openssl_x509_read($pem) : false;
             $info = $ca === false ? false : openssl_x509_parse($ca);
@@ -58,9 +63,11 @@ try {
             $entry->addChild('refid', 'nhfixture' . substr($request['nonce'], 0, 16));
             $entry->addChild('descr', 'NetHub isolated console fixture');
             $entry->addChild('crt', base64_encode($pem));
+            $phase = 'trust_native_save';
             $configuration->save();
             $result = ['trusted' => true];
         } else {
+            $phase = 'native_gui_identity';
             $host = $request['host'];
             if (!is_string($host) || !preg_match('/\A[a-z0-9]{8}\.router\.example\.com\z/D', $host) ||
                 (string)$root->OPNsense->NetHubAgent->subdomain !== explode('.', $host)[0]) {
@@ -85,12 +92,14 @@ try {
             $result = ['key_sha256' => hash('sha256', openssl_pkey_get_details($key)['key']),
                        'security_checks_enabled' => true];
             if ($action === 'csr') {
+                $phase = 'native_gui_csr';
                 $csr = openssl_csr_new(['commonName' => $host], $key, ['digest_alg' => 'sha256']);
                 if ($csr === false || !openssl_csr_export($csr, $public)) {
                     throw new RuntimeException('Public native CSR unavailable');
                 }
                 $result['csr_pem'] = $public;
             } elseif ($action === 'install') {
+                $phase = 'native_gui_leaf_validation';
                 $leaf = openssl_x509_read($request['certificate_pem']);
                 $ca = openssl_x509_read($request['ca_pem']);
                 $info = $leaf === false ? false : openssl_x509_parse($leaf);
@@ -107,6 +116,7 @@ try {
                     $alternates[] = $host;
                 }
                 $gui->althostnames = implode(' ', $alternates);
+                $phase = 'native_gui_save';
                 $configuration->save();
                 $result['installed'] = true;
             } else {
@@ -118,9 +128,11 @@ try {
         $configuration->unlock();
     }
     if ($action === 'trust') {
+        $phase = 'trust_legacy_binding';
         require_once('/usr/local/etc/inc/config.inc');
         require_once('/usr/local/etc/inc/system.inc');
-        $config = $configuration->toArray();
+        $config = $configuration->toArray(listtags());
+        $phase = 'trust_store_regeneration';
         ob_start();
         system_trust_configure();
         ob_end_clean();
@@ -128,6 +140,6 @@ try {
     echo json_encode(['success' => true, 'result' => $result], JSON_THROW_ON_ERROR);
 } catch (Throwable $error) {
     while (ob_get_level() > 0) { ob_end_clean(); }
-    echo '{"success":false}';
+    echo json_encode(['success' => false, 'fixture_phase' => $phase], JSON_THROW_ON_ERROR);
     exit(1);
 }

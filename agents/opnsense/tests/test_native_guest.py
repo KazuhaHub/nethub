@@ -1,6 +1,7 @@
 """Keep hosted appliance preparation behind its host and signed-image boundaries."""
 import importlib.util
 import io
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -63,3 +64,20 @@ def test_serial_command_echo_cannot_hide_a_failed_exit(monkeypatch):
     with pytest.raises(GUEST.GuestError, match='^Owned guest bootstrap command failed$'):
         console.command('printf private-child-diagnostic\n' * 200 + 'exit 19\n')
     assert max(len(line) for line in console.connection.sent.splitlines()) <= 200
+
+
+@pytest.mark.parametrize('value,category', [
+    ({'success': False, 'fixture_phase': 'trust_store_regeneration'}, 'fixture_trust_store_regeneration'),
+    ({'success': False, 'fixture_phase': 'private-value-must-not-escape'}, 'unclassified'),
+    ({'success': False, 'fixture_phase': 'trust_native_save', 'private_message': 'private-value-must-not-escape'}, 'unclassified'),
+    ({'success': True, 'fixture_phase': 'trust_native_save'}, 'unclassified'),
+])
+def test_failed_ssh_exposes_only_closed_fixture_phases(tmp_path, monkeypatch, value, category):
+    guest = GUEST.Guest.__new__(GUEST.Guest)
+    guest.directory, guest.ssh_port = tmp_path, 2222
+    monkeypatch.setattr(GUEST.subprocess, 'run', lambda *args, **kwargs:
+        SimpleNamespace(returncode=1, stdout=json.dumps(value).encode(), stderr=b''))
+    with pytest.raises(GUEST.GuestError) as caught:
+        guest.ssh('false\n', 'native fixture trust')
+    assert str(caught.value) == 'native fixture trust failed: ' + category
+    assert 'private-value' not in str(caught.value)

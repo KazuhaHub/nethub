@@ -2,6 +2,7 @@
 import base64
 import bz2
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -16,6 +17,10 @@ IMAGE = 'OPNsense-26.7-nano-amd64.img'
 IMAGE_SHA256 = '28d5e2f37e40d87468a924e3006ef10e2ddc6de485b85333d9e3958c84d0cb9d'
 KEY_SHA256 = '9f3b76ffef38fb6405595038b324b61043c9a2c375ae5c151d628508e9a845ce'
 BASE = 'https://pkg.opnsense.org/releases/26.7/'
+NATIVE_FIXTURE_PHASES = frozenset(('host_boundary', 'private_nonce', 'native_config_load',
+    'native_security_checks', 'trust_ca_validation', 'trust_native_save', 'trust_legacy_binding',
+    'trust_store_regeneration', 'native_gui_identity', 'native_gui_csr',
+    'native_gui_leaf_validation', 'native_gui_save'))
 ANNOUNCEMENT = ('https://raw.githubusercontent.com/opnsense/changelog/'
                 'fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7')
 
@@ -326,6 +331,14 @@ cat /root/nethub-ci/host-key.pub
                                 ('connection reset', 'guest_ssh_connection_reset')]:
                 if token in text:
                     category = code
+            if len(result.stdout) <= 4096:
+                try:
+                    value = json.loads(result.stdout)
+                    if (isinstance(value, dict) and set(value) == {'success', 'fixture_phase'}
+                            and value['success'] is False and value['fixture_phase'] in NATIVE_FIXTURE_PHASES):
+                        category = 'fixture_' + value['fixture_phase']
+                except (ValueError, TypeError):
+                    pass
             raise GuestError(label + ' failed: ' + category)
         return result.stdout
 
