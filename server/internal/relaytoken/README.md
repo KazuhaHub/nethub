@@ -28,8 +28,15 @@ The concrete integration still has to implement and test:
   below; they do not establish power-loss durability or host incident recovery. The read-only
   material verifier checks exact before/after trees, the original backup and
   an independent successor containing current relay material and maintenance
-  state. Its Linux fixtures use synthetic material. Snapshot
-  construction, synchronization and live publication remain unfinished.
+  state. Its Linux fixtures use synthetic material. Preparation now retains
+  immutable request options, an OS-random candidate and an exact baseline before
+  copying the complete before/after material and independent successor. Each
+  copy uses no-replace atomic publication and file/parent synchronization;
+  interrupted copies resume only with the same bytes. Changed baseline, binding,
+  links or conflicting backup material are refused and retained for local review.
+  This constructor still requires actual root execution. It changes no active
+  file or service, and has no production caller. Host admission and live
+  publication remain unfinished.
 - The shared host lease and persistent admission against unresolved token and
   authority operations, including a crash after publication releases its lease.
 - Exact two-file token replacement, manifest/ownership transitions, and a

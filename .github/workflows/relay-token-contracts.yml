@@ -57,7 +57,7 @@ jobs:
           umask 077
           set +e
           sudo -n timeout --signal=TERM --kill-after=5 120 "$RUNNER_TEMP/relay-token-contracts.test" \
-            -test.v -test.run '^(TestNativeRelayTokenJournal|TestNativeRelayTokenMaterial)$' \
+            -test.v -test.run '^(TestNativeRelayTokenJournal|TestNativeRelayTokenMaterial|TestNativeRelayTokenPreparation)$' \
             2>&1 | tee "$RUNNER_TEMP/relay-token-contracts.log"
           token_results=("${PIPESTATUS[@]}")
           set -e

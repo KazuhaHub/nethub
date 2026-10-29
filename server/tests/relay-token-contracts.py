@@ -8,14 +8,16 @@ import stat
 import subprocess
 
 
-ROOTS = ('TestNativeRelayTokenJournal', 'TestNativeRelayTokenMaterial')
+ROOTS = ('TestNativeRelayTokenJournal', 'TestNativeRelayTokenMaterial', 'TestNativeRelayTokenPreparation')
 JOURNAL = ('ordered durable records and immutable intent', 'concurrent different candidates have one winner',
            'symlink', 'hardlink', 'unknown field', 'mode', 'owner', 'orphan', 'removed directory')
 MATERIAL = ('exact retained material and independent complete successor', 'candidate', 'authority', 'runtime',
             'missing current leaf', 'extra backup file', 'mode', 'hardlink', 'symlink', 'manifest',
             'unknown metadata', 'different request', 'different backup', 'maintenance', 'old backup', 'cancelled')
-REQUIRED = set(ROOTS) | {ROOTS[0] + '/' + name.replace(' ', '_') for name in JOURNAL} | {
-    ROOTS[1] + '/' + name.replace(' ', '_') for name in MATERIAL}
+PREPARATION = ('complete independent copy and immutable retry', 'partial copies', 'changed baseline',
+               'changed binding', 'cancelled', 'conflicting backup', 'linked candidate')
+REQUIRED = set(ROOTS) | {root + '/' + name.replace(' ', '_')
+                         for root, names in zip(ROOTS, (JOURNAL, MATERIAL, PREPARATION)) for name in names}
 
 
 def summarize(raw, exit_code, capture_exit, uid):
