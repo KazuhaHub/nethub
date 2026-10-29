@@ -420,11 +420,13 @@ func TestHTTPStrictJSONOriginsAndHeaders(t *testing.T) {
 	if response := call(server, "HEAD", "/healthz", "", nil, nil); response.Code != 200 || response.Body.Len() != 0 {
 		t.Fatal("HEAD health request returned a body")
 	}
-	request := httptest.NewRequest("GET", "https://wrong.example.com"+prefix+"/session", nil)
-	response := httptest.NewRecorder()
-	server.ServeHTTP(response, request)
-	if response.Code != 400 {
-		t.Fatal("foreign Host accepted")
+	for _, host := range []string{"wrong.example.com", "console.example.com:34567"} {
+		request := httptest.NewRequest("GET", "https://"+host+prefix+"/session", nil)
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, request)
+		if response.Code != 400 {
+			t.Fatal("foreign or noncanonical Host accepted")
+		}
 	}
 }
 

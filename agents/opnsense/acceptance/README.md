@@ -24,7 +24,7 @@ and logged-in, unenrolled page images are uploaded. Scrolled mobile images also
 check that the enrollment field and rotation control are unobscured in the native
 shell's scroll container. No package is signed or published.
 
-Source `548571f` passed the [current preparation run](https://github.com/KazuhaHub/nethub/actions/runs/40798049846):
+Source `340b73c` passed the [current preparation run](https://github.com/KazuhaHub/nethub/actions/runs/40801553084):
 the unsigned package, rebuilt frpc 0.71.1 with Go 1.26.10, agent stopped status reported through configd
 and unenrolled native page were checked on fresh OPNsense 26.7.7. The exact source
 archive, official log and four image hashes/visuals were independently verified;
@@ -93,6 +93,20 @@ failures still stop the fixture. A bounded context can expose only an allowliste
 error class, source category and line number, never exception text or full paths.
 These corrections still need a successful actual run; no installed rotation is
 accepted from the failed trust preparation.
+
+Combined `40801553085` at `340b73c` completed the native trust helper, then failed
+in the guest's verified console probe before enrollment. Its old probe did not
+classify the DNS/TCP/TLS/HTTP failure. The original fixture also used the host's
+random forwarding port in its console URL, which conflicts with the existing
+canonical Host check. The server still rejects that host/port combination.
+The guest now uses `https://console.example.com` and virtual TCP forwards for
+443 and 7000 to the owned host's loopback services. Per-connection
+[QEMU guest forwarding](https://www.qemu.org/docs/master/system/invocation.html)
+uses netcat as a byte pipe; TLS still terminates and verifies at the actual
+console/relay. No server Host, Origin or TLS rule is relaxed. A closed probe
+records DNS, TCP, default-system-TLS and HTTP categories without peer names,
+paths or exception text. This correction requires another actual run; the prior
+probe's exact failure type is not retrospectively established by source review.
 
 The additional unknown-commit fixture loses both real rotation responses after
 the upstream returns, using the owned edge's

@@ -110,12 +110,16 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     ca = (stage / 'console-ca.pem').read_text(encoding='ascii')
     if fixture('trust', ca_pem=ca) != {'trusted': True}:
         raise GuestError('Native console system trust unavailable')
-    guest.ssh("printf '\\n10.0.2.2 console.example.com\\n' >> /etc/hosts\n"
-              "/usr/local/bin/python3.13 - <<'PY'\n"
-              "import socket,ssl,urllib.request\n"
-              "assert socket.gethostbyname('console.example.com')=='10.0.2.2'\n"
-              f"with urllib.request.urlopen('https://console.example.com:{port}/',timeout=10) as r: assert r.status==200\n"
-              "PY\n", 'guest verified console trust and egress')
+    guest.ssh("printf '\\n10.0.2.100 console.example.com\\n' >> /etc/hosts\n",
+              'owned canonical console name')
+    guest.put(Path(__file__).with_name('console_probe.py'), 'console_probe.py')
+    from console_probe import validate_result
+    probe = json.loads(guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/console_probe.py\n',
+                                 'closed guest console probe'))
+    validate_result(probe)
+    private_json(evidence / 'guest-console-probe.json', probe)
+    if probe['passed'] is not True:
+        raise GuestError('Guest console probe failed at ' + probe['phase'] + ': ' + probe['failure'])
 
     token = request('/api/v1/console/enroll-tokens', {}, expected=201)['token']
     private_json(work / 'native-enrollment-token.json', {'token': token})
@@ -124,7 +128,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
 
     def page_action(action, *, expected=True, label=None):
         private_json(config, {'origin': f'https://127.0.0.1:{guest.gui_port}',
-                             'console': f'https://console.example.com:{port}', 'token': token,
+                             'console': 'https://console.example.com', 'token': token,
                              'action': action, 'expected_success': expected,
                              'label': label or action, 'evidence': str(evidence)})
         invoke([os.environ['NETHUB_NODE_BINARY'], str(browser), str(config)],

@@ -8,7 +8,7 @@ const require = createRequire(new URL('../../../server/web/package.json', import
 const { chromium } = require('playwright');
 const config = JSON.parse(readFileSync(process.argv[2], 'utf8'));
 assert.match(config.origin, /^https:\/\/127\.0\.0\.1:[0-9]+$/);
-assert.match(config.console, /^https:\/\/console\.example\.com:[0-9]+$/);
+assert.equal(config.console, 'https://console.example.com');
 assert.ok(['enroll', 'rotate'].includes(config.action));
 const expectedSuccess = config.expected_success ?? true;
 assert.equal(typeof expectedSuccess, 'boolean');

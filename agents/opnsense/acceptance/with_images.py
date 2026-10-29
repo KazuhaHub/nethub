@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[3]
 JOBS = {'workflow lint', 'Go vulnerability checks', 'weekend0 kit checks',
         'OPNsense plugin checks', 'Control plane checks', 'Deployment checks'}
 PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installed-rotation.json',
+                'native/guest-console-probe.json',
                 'native/native-fixture-host.json',
                 'native/installed-enroll-page.json', 'native/installed-rotate-page.json',
                 'native/installed-enroll.png', 'native/installed-rotate.png',

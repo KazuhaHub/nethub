@@ -14,6 +14,23 @@ GUEST = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(GUEST)
 
 
+def test_default_guest_does_not_forward_a_console():
+    assert GUEST.wan_network() == 'user,id=wan,net=10.0.2.0/24'
+
+
+@pytest.mark.parametrize('port', [0, 65536, True, '443', '443;private-command'])
+def test_console_forwarding_refuses_nonliteral_ports(port):
+    with pytest.raises(GUEST.GuestError, match='Owned console forwarding port required'):
+        GUEST.wan_network(port)
+
+
+def test_console_forwarding_keeps_standard_guest_origin_and_local_targets():
+    value = GUEST.wan_network(34567)
+    assert value == ('user,id=wan,net=10.0.2.0/24,'
+        'guestfwd=tcp:10.0.2.100:443-cmd:nc -N 127.0.0.1 34567,'
+        'guestfwd=tcp:10.0.2.100:7000-cmd:nc -N 127.0.0.1 7000')
+
+
 @pytest.mark.parametrize('version,accepted', [
     ('26.7', False), ('26.7.1', False), ('26.7.1_0', False), ('26.7.01_1', False),
     ('26.7.1_1', True), ('26.7.2', True), ('26.7.7_1', True), ('27.1.1', False),

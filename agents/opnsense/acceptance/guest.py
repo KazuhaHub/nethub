@@ -30,6 +30,16 @@ class GuestError(Exception):
     """A fixed operation label; never expose private child output or arguments."""
 
 
+def wan_network(console_port=None):
+    network = 'user,id=wan,net=10.0.2.0/24'
+    if console_port is None:
+        return network
+    if type(console_port) is not int or not 1 <= console_port <= 65535:
+        raise GuestError('Owned console forwarding port required')
+    return (network + ',guestfwd=tcp:10.0.2.100:443-cmd:nc -N 127.0.0.1 ' + str(console_port)
+            + ',guestfwd=tcp:10.0.2.100:7000-cmd:nc -N 127.0.0.1 7000')
+
+
 def invoke(arguments, label, *, timeout=60, input=None):
     try:
         result = subprocess.run(arguments, input=input, capture_output=True, timeout=timeout)
@@ -196,12 +206,13 @@ class Console:
 
 class Guest:
     """Close only this process; the caller owns disposal of its private directory."""
-    def __init__(self, directory):
+    def __init__(self, directory, *, console_port=None):
         if (os.name != 'posix' or os.uname().sysname != 'Linux'
                 or os.environ.get('GITHUB_ACTIONS') != 'true'
                 or os.environ.get('RUNNER_ENVIRONMENT') != 'github-hosted'
                 or not Path('/dev/kvm').is_char_device()):
             raise GuestError('Fresh Linux CI with KVM is required')
+        self.wan_network = wan_network(console_port)
         self.directory = Path(directory).absolute()
         if self.directory != self.directory.resolve():
             raise GuestError('Aliased guest storage refused')
@@ -232,7 +243,7 @@ class Guest:
                            f'hostfwd=tcp:127.0.0.1:{self.ssh_port}-192.168.1.1:2222,'
                            f'hostfwd=tcp:127.0.0.1:{self.gui_port}-192.168.1.1:443',
                 '-device', 'e1000,netdev=lan',
-                '-netdev', 'user,id=wan,net=10.0.2.0/24', '-device', 'e1000,netdev=wan',
+                '-netdev', self.wan_network, '-device', 'e1000,netdev=wan',
             ], stdin=subprocess.DEVNULL, stdout=self.qemu_log, stderr=self.qemu_log)
             self.console = Console(self.directory / 'serial.sock', self.directory / 'serial-private.log')
             self.console.login()

@@ -52,7 +52,7 @@ def main():
         if digest(sdk) != SDK_SHA256:
             raise GuestError('Pinned guest compiler checksum differs')
         result['phase'] = 'signed_guest'
-        owned = Guest(directory / 'guest')
+        owned = Guest(directory / 'guest', console_port=args.console_port)
         with owned as guest:
             result['image'] = guest.image_receipt
             result['guest_memory_mib'] = 3072
