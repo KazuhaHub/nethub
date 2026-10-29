@@ -8,7 +8,8 @@ import stat
 import subprocess
 
 
-ROOTS = ('TestNativeRelayTokenJournal', 'TestNativeRelayTokenMaterial', 'TestNativeRelayTokenPreparation')
+ROOTS = ('TestNativeRelayTokenJournal', 'TestNativeRelayTokenMaterial', 'TestNativeRelayTokenPreparation',
+         'TestNativeRelayTokenPublication')
 JOURNAL = ('ordered durable records and immutable intent', 'concurrent different candidates have one winner',
            'symlink', 'hardlink', 'unknown field', 'mode', 'owner', 'orphan', 'removed directory')
 MATERIAL = ('exact retained material and independent complete successor', 'candidate', 'authority', 'runtime',
@@ -16,8 +17,11 @@ MATERIAL = ('exact retained material and independent complete successor', 'candi
             'unknown metadata', 'different request', 'different backup', 'maintenance', 'old backup', 'cancelled')
 PREPARATION = ('complete independent copy and immutable retry', 'partial copies', 'changed baseline',
                'changed binding', 'cancelled', 'conflicting backup', 'linked candidate')
+PUBLICATION = ('none', 'secrets_authz_frp_token', 'secrets_frps_frp_token', 'setup.json',
+               'unknown live state', 'changed maintenance', 'damaged backup', 'wrong binding',
+               'wrong snapshot', 'complete journal', 'cancelled')
 REQUIRED = set(ROOTS) | {root + '/' + name.replace(' ', '_')
-                         for root, names in zip(ROOTS, (JOURNAL, MATERIAL, PREPARATION)) for name in names}
+                         for root, names in zip(ROOTS, (JOURNAL, MATERIAL, PREPARATION, PUBLICATION)) for name in names}
 
 
 def summarize(raw, exit_code, capture_exit, uid):
@@ -29,7 +33,7 @@ def summarize(raw, exit_code, capture_exit, uid):
         raise ValueError('Every selected contract must pass without skips')
     passed = []
     for line in lines:
-        match = re.fullmatch(r'\s*--- PASS: ([A-Za-z0-9_/]{1,240}) \([0-9.]+s\)', line)
+        match = re.fullmatch(r'\s*--- PASS: ([A-Za-z0-9_/.]{1,240}) \([0-9.]+s\)', line)
         if match:
             name = match[1]
             if not any(name == root or name.startswith(root + '/') for root in ROOTS):

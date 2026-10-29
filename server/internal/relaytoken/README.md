@@ -34,13 +34,20 @@ The concrete integration still has to implement and test:
   copy uses no-replace atomic publication and file/parent synchronization;
   interrupted copies resume only with the same bytes. Changed baseline, binding,
   links or conflicting backup material are refused and retained for local review.
-  This constructor still requires actual root execution. It changes no active
+  The constructor passed seven actual protected-root cases (35 total required
+  case identities) at source `03a197d` in run `40824419031`. The exact-source
+  validator, official log and bounded receipt were independently checked. It changes no active
   file or service, and has no production caller. Host admission and live
-  publication remain unfinished.
+  runtime integration remain unfinished.
 - The shared host lease and persistent admission against unresolved token and
   authority operations, including a crash after publication releases its lease.
-- Exact two-file token replacement, manifest/ownership transitions, and a
-  complete independent successor backup verified before live publication.
+- The protected file publisher now requires the exact durable intent and
+  publishing phase, independently verified snapshot/backup and known live
+  before/after bytes. It changes only the two tokens and then the manifest,
+  re-syncs acknowledged bytes, and refuses completed journals or unknown material.
+  Cancellation after each real file replacement is covered by new root cases;
+  these still require actual execution. It does not reload services or claim
+  admission/recovery completion.
   The pure manifest planner now restricts changes to the two token digests and
   a disjoint successor-backup path, retaining deployment identity, owners and
   unrelated authority/credential entries. Its local tests do not establish
