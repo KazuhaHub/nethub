@@ -160,6 +160,14 @@ save and its idempotent retry from journal-order snapshots; missing/extra fields
 and identity/policy changes remain refused. A failed-page probe reads only
 journal phase and model-match booleans; it performs no HTTP retry or native save.
 Successful installed recovery still requires actual execution.
+The first FreeBSD run of this correction executed 214 cases with zero nonpassing
+cases, but its required-case receipt failed: the older summarizer removed all
+parameter labels, including the now-required `[journal]` identity. The summarizer
+now preserves only explicitly allowlisted full identities; other parameter data
+stays excluded. Missing, skipped, failed or alternate variants cannot receive the
+required credit. The failed receipt remains retained and the revised driver still
+requires actual hosted acceptance.
+
 
 The additional unknown-commit fixture loses both real rotation responses after
 the upstream returns, using the owned edge's

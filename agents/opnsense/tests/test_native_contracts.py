@@ -87,3 +87,23 @@ def test_skipped_native_lockf_case_is_not_a_pass(tmp_path):
     report.write_text(f'<testsuite><testcase name="{name}"><skipped/></testcase><testcase name="test_plain"/></testsuite>')
     result = NATIVE.summarize_xml(report)
     assert result == {'tests': 2, 'passed': 1, 'native_cases_passed': [], 'nonpassing_cases': [name]}
+
+
+def test_required_parameter_identity_keeps_only_the_allowlisted_variant(tmp_path):
+    report = tmp_path / 'tests.xml'
+    base = 'test_native_rotation_model_keeps_policy_and_confirms_single_save'
+    report.write_text(f'<testsuite><testcase name="{base}[native]"/>'
+                      f'<testcase name="{base}[journal]"/>'
+                      '<testcase name="test_plain[private-value-must-not-escape]"/></testsuite>')
+    result = NATIVE.summarize_xml(report)
+    assert result == {'tests': 3, 'passed': 3, 'nonpassing_cases': [],
+                      'native_cases_passed': [base + '[journal]']}
+
+
+@pytest.mark.parametrize('outcome', ['skipped', 'failure', 'error'])
+def test_nonpassing_required_parameter_variant_never_receives_credit(tmp_path, outcome):
+    report = tmp_path / 'tests.xml'
+    name = 'test_native_rotation_model_keeps_policy_and_confirms_single_save[journal]'
+    report.write_text(f'<testsuite><testcase name="{name}"><{outcome}/></testcase></testsuite>')
+    result = NATIVE.summarize_xml(report)
+    assert result == {'tests': 1, 'passed': 0, 'native_cases_passed': [], 'nonpassing_cases': [name]}
