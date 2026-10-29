@@ -24,11 +24,11 @@ The concrete integration still has to implement and test:
 
 - The Linux journal adapter in `setup` now uses the existing protected file
   helpers, no-replace intent publication, atomic phase replacement and synced
-  file/directory writes. Its root filesystem tests still require actual Linux
-  execution; source and cross-compilation do not prove durability. The read-only
+  file/directory writes. Root filesystem checks passed at the scoped checkpoint
+  below; they do not establish power-loss durability or host incident recovery. The read-only
   material verifier checks exact before/after trees, the original backup and
   an independent successor containing current relay material and maintenance
-  state. Its Linux fixtures are not yet accepted execution evidence. Snapshot
+  state. Its Linux fixtures use synthetic material. Snapshot
   construction, synchronization and live publication remain unfinished.
 - The shared host lease and persistent admission against unresolved token and
   authority operations, including a crash after publication releases its lease.
@@ -48,3 +48,12 @@ request/snapshot/state, orphaned records and unconfirmed write readback. Their
 host and journal are logical fixtures. They establish coordinator ordering and
 recovery choices; they do not establish filesystem durability, real service
 reload, incident recovery or complete W7-4 acceptance.
+
+Actual Linux root checkpoint: source `b0dc115` passed 27 cases without skips in
+[run 40816958107](https://github.com/KazuhaHub/nethub/actions/runs/40816958107).
+The exact-source validator, complete official log and bounded compiler/binary/case
+receipt were independently checked. The first run failed because the fixture
+did not explicitly protect its backup parent; that failure remains retained.
+The correction sets the test parent to 0700 and preserves production checks.
+These are protected filesystem fixtures with synthetic bytes, not valid live
+certificates, a restored control plane or recovering devices.

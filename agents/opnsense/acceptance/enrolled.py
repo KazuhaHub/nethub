@@ -137,8 +137,20 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
                              'console': 'https://console.example.com', 'token': token,
                              'action': action, 'expected_success': expected,
                              'label': label or action, 'evidence': str(evidence)})
-        invoke([os.environ['NETHUB_NODE_BINARY'], str(browser), str(config)],
-               'installed native ' + action + ' page', timeout=120)
+        try:
+            invoke([os.environ['NETHUB_NODE_BINARY'], str(browser), str(config)],
+                   'installed native ' + action + ' page', timeout=120)
+        except GuestError:
+            try:
+                from native_model_probe import validate_rotation_conditions
+                conditions = json.loads(guest.ssh(
+                    '/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py rotation\n',
+                    'read-only native recovery conditions'))
+                validate_rotation_conditions(conditions)
+                private_json(evidence / 'rotation-recovery-probe.json', conditions)
+            except (GuestError, ValueError, TypeError, OSError):
+                pass
+            raise
 
     def native_read(name):
         guest.put(Path(__file__).with_name('native_model_probe.py'), 'native_model_probe.py')

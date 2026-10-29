@@ -12,8 +12,8 @@ verification. All source bytes must match before and after the selected tests.
 
 The groups exercise enrollment/scheduler lock exclusion and PHP handoff,
 service/circuit/watchdog behavior, shared wire/model encoding and rotation
-candidate durability/recovery. Both actual
-FreeBSD `lockf` tests must execute. A skipped or failed case, missing group,
+candidate durability/recovery. The three actual FreeBSD `lockf` cases and the
+PHP recovery case with journal-sorted model keys must execute. A skipped or failed case, missing group,
 source mismatch or incorrect platform fails acceptance. The guest records its
 Python/tool versions and bounded outcomes; the host independently checks them.
 A guest test failure returns its receipt for inspection, and the following host

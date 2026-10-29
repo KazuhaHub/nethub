@@ -13,6 +13,44 @@ SOURCES = ('entry', 'store', 'gui_store', 'app_config', 'config', 'model', 'enro
 STORAGE_FIELDS = ('state_exists', 'state_directory', 'state_owner_root', 'state_mode_private',
                   'state_canonical', 'lock_exists', 'lock_regular', 'lock_owner_root',
                   'lock_mode_private', 'lock_single_link', 'lock_empty', 'lock_canonical')
+ROTATION_FLAGS = ('pending_exists', 'pending_valid', 'native_readable',
+                  'current_matches_before', 'current_matches_after')
+
+
+def validate_rotation_conditions(value):
+    if (not isinstance(value, dict) or set(value) != set(ROTATION_FLAGS) | {'phase'}
+            or any(type(value[key]) is not bool for key in ROTATION_FLAGS)
+            or value['phase'] not in ('absent', 'invalid', 'prepared', 'received')):
+        raise ValueError('Unexpected rotation recovery conditions')
+
+
+def rotation_conditions():
+    """Inspect retained recovery state without retrying HTTP or native saves."""
+    sys.path.insert(0, '/usr/local/opnsense/scripts/nethub-agent')
+    from rotation import RotationJournal
+    from rotation_backend import NativeRotationBackend, replacement
+    value = dict.fromkeys(ROTATION_FLAGS, False)
+    value['phase'] = 'absent'
+    pending = None
+    journal = RotationJournal('/var/db/nethub-agent')
+    value['pending_exists'] = journal.path.exists() or journal.path.is_symlink()
+    if value['pending_exists']:
+        value['phase'] = 'invalid'
+        try:
+            pending = journal._read()
+            value.update(pending_valid=True, phase=pending['phase'])
+        except Exception:
+            pass
+    try:
+        current = NativeRotationBackend().read()
+        value['native_readable'] = True
+        if pending is not None and pending['native_before'] is not None:
+            value['current_matches_before'] = current == pending['native_before']
+            if pending['phase'] == 'received':
+                value['current_matches_after'] = current == replacement(pending['native_before'], pending['assignment'])
+    except Exception:
+        pass
+    return value
 
 
 def validate_storage(value):
@@ -93,7 +131,9 @@ def read_native():
 
 
 if __name__ == '__main__':
-    if sys.argv[1:] == ['storage']:
+    if sys.argv[1:] == ['rotation']:
+        print(json.dumps(rotation_conditions()))
+    elif sys.argv[1:] == ['storage']:
         print(json.dumps(storage_conditions()))
     elif not sys.argv[1:]:
         print(json.dumps(read_native()))

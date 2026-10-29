@@ -49,6 +49,15 @@ $payload = json_decode(base64_decode(strtr($parts[0], '-_', '+/')), true, 8, JSO
 $payload['issued_at'] = '2026-10-28T00:00:00.000001Z';
 $after['domain_claim'] = rtrim(strtr(base64_encode(json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)), '+/', '-_'), '=') . '.' . $parts[1];
 $request = ['before' => $before, 'after' => $after];
+$fieldOrder = $argv[5] ?? 'native';
+if (!in_array($fieldOrder, ['native', 'journal'], true)) { exit(2); }
+if ($fieldOrder === 'journal') {
+    // Match the sorted native snapshots read back from a durable JSON journal.
+    ksort($request['before']);
+    ksort($request['after']);
+    $request = json_decode(json_encode($request, JSON_THROW_ON_ERROR), true, 32, JSON_THROW_ON_ERROR);
+    if (array_keys($request['before']) === NativeRotationStore::FIELDS) { exit(15); }
+}
 // Operator stop/circuit policy remains in place; credential replacement does not start services.
 file_put_contents($directory . '/disabled', '');
 $first = $store->dispatch('install', $request);
@@ -61,8 +70,15 @@ foreach (['enabled', 'device_id', 'console_url', 'relay_trust_state'] as $field)
     $bad['after'][$field] = $field === 'enabled' ? '1' : 'changed';
     try { $store->dispatch('install', $bad); exit(12); } catch (RuntimeException $error) {}
 }
+foreach (['missing', 'extra'] as $shape) {
+    $bad = $request;
+    if ($shape === 'missing') { unset($bad['after']['domain_claim']); }
+    else { $bad['after']['unexpected'] = 'value'; }
+    try { $store->dispatch('install', $bad); exit(16); } catch (RuntimeException $error) {}
+}
 file_put_contents($directory . '/revoked', '');
 try { $store->dispatch('install', $request); exit(13); } catch (RuntimeException $error) {}
 if (end($GLOBALS['events']) !== 'unlock') { exit(14); }
 echo json_encode(['stable_policy' => true, 'single_save' => true, 'readback' => true,
-    'conflicts_refused' => true, 'revoked_refused' => true], JSON_THROW_ON_ERROR);
+    'conflicts_refused' => true, 'revoked_refused' => true,
+    'journal_key_order' => $fieldOrder === 'journal', 'invalid_field_sets_refused' => true], JSON_THROW_ON_ERROR);

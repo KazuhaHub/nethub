@@ -27,7 +27,7 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_rotation_agent.py',
         'agents/opnsense/plugin/tests/test_lifecycle_agent.py::test_removal_after_unknown_rotation_commit_uses_saved_candidate',
     ]),
-    'wire': (148, [
+    'wire': (149, [
         'agents/opnsense/tests/test_protocol.py',
         'agents/opnsense/plugin/tests/test_relay_trust_backend.py',
         'agents/opnsense/tests/test_rotation_journal.py',
@@ -40,7 +40,8 @@ GROUPS = {
 }
 REQUIRED_NATIVE_CASES = {'test_enrollment_lock_interoperates_with_native_scheduler_lockf',
                          'test_native_lockf_excludes_both_python_operations',
-                         'test_external_lock_mode_is_hardened_without_replacing_its_inode'}
+                         'test_external_lock_mode_is_hardened_without_replacing_its_inode',
+                         'test_native_rotation_model_keeps_policy_and_confirms_single_save[journal]'}
 
 
 def digest(data):
@@ -185,7 +186,7 @@ def validate_receipt(value, head, manifest_sha):
             raise ValueError('A native contract did not pass')
         native_cases.update(summary['native_cases_passed'])
     if native_cases != REQUIRED_NATIVE_CASES:
-        raise ValueError('Native lockf checks are missing')
+        raise ValueError('Required native contract checks are missing')
 
 
 def verify(directory, head, manifest_sha):

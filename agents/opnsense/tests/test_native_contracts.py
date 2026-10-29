@@ -17,6 +17,7 @@ def receipt():
     groups['enrollment']['native_cases_passed'] = ['test_enrollment_lock_interoperates_with_native_scheduler_lockf']
     groups['service']['native_cases_passed'] = ['test_native_lockf_excludes_both_python_operations',
         'test_external_lock_mode_is_hardened_without_replacing_its_inode']
+    groups['wire']['native_cases_passed'] = ['test_native_rotation_model_keeps_policy_and_confirms_single_save[journal]']
     return {'version': 1, 'source_head': HEAD, 'manifest_sha': SHA, 'system': 'FreeBSD',
             'release': '15.1-RELEASE-p4', 'machine': 'amd64', 'uid': 0,
             'groups': groups, 'passed': True, 'source_unchanged': True,
@@ -41,11 +42,13 @@ def test_relabeling_platform_and_broader_acceptance_claims_fail(field, value):
         NATIVE.validate_receipt(result, HEAD, SHA)
 
 
-@pytest.mark.parametrize('change', ['missing_native', 'skipped_case', 'failed_guest', 'missing_group', 'boolean_exit'])
+@pytest.mark.parametrize('change', ['missing_native', 'missing_recovery', 'skipped_case', 'failed_guest', 'missing_group', 'boolean_exit'])
 def test_a_top_level_green_flag_cannot_hide_missing_or_failed_checks(change):
     result = copy.deepcopy(receipt())
     if change == 'missing_native':
         result['groups']['enrollment']['native_cases_passed'] = []
+    elif change == 'missing_recovery':
+        result['groups']['wire']['native_cases_passed'] = []
     elif change == 'skipped_case':
         result['groups']['service']['passed'] -= 1
     elif change == 'failed_guest':
