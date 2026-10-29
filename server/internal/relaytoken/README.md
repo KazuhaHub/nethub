@@ -39,14 +39,21 @@ The concrete integration still has to implement and test:
   validator, official log and bounded receipt were independently checked. It changes no active
   file or service, and has no production caller. Host admission and live
   runtime integration remain unfinished.
-- The shared host lease and persistent admission against unresolved token and
-  authority operations, including a crash after publication releases its lease.
+- Persistent admission now refuses partial or nonterminal token operations even
+  after their process lease is released. Ordinary authority checks, relay
+  maintenance and authority transition/preparation/cancellation enforce it. Only
+  canonical, protected, operation/deployment-bound complete journals release this
+  guard. New protected-root cases still require actual execution. The token host
+  caller still has to acquire the shared lease and admit its own exact recovery
+  request against other pending operations.
 - The protected file publisher now requires the exact durable intent and
   publishing phase, independently verified snapshot/backup and known live
   before/after bytes. It changes only the two tokens and then the manifest,
   re-syncs acknowledged bytes, and refuses completed journals or unknown material.
   Cancellation after each real file replacement is covered by new root cases;
-  these still require actual execution. It does not reload services or claim
+  these passed at source `c0eb283` in run `40824974675` (47 required root
+  case identities). The exact-source validator, official log and bounded receipt
+  were independently checked. It does not reload services or claim
   admission/recovery completion.
   The pure manifest planner now restricts changes to the two token digests and
   a disjoint successor-backup path, retaining deployment identity, owners and

@@ -9,7 +9,7 @@ import subprocess
 
 
 ROOTS = ('TestNativeRelayTokenJournal', 'TestNativeRelayTokenMaterial', 'TestNativeRelayTokenPreparation',
-         'TestNativeRelayTokenPublication')
+         'TestNativeRelayTokenPublication', 'TestNativeRelayTokenAdmission')
 JOURNAL = ('ordered durable records and immutable intent', 'concurrent different candidates have one winner',
            'symlink', 'hardlink', 'unknown field', 'mode', 'owner', 'orphan', 'removed directory')
 MATERIAL = ('exact retained material and independent complete successor', 'candidate', 'authority', 'runtime',
@@ -20,8 +20,10 @@ PREPARATION = ('complete independent copy and immutable retry', 'partial copies'
 PUBLICATION = ('none', 'secrets_authz_frp_token', 'secrets_frps_frp_token', 'setup.json',
                'unknown live state', 'changed maintenance', 'damaged backup', 'wrong binding',
                'wrong snapshot', 'complete journal', 'cancelled')
+ADMISSION = ('released lease does not clear pending operation', 'complete bound journal permits admission',
+             'partial preparation', 'unknown options', 'wrong directory', 'linked state', 'public mode', 'different operation')
 REQUIRED = set(ROOTS) | {root + '/' + name.replace(' ', '_')
-                         for root, names in zip(ROOTS, (JOURNAL, MATERIAL, PREPARATION, PUBLICATION)) for name in names}
+                         for root, names in zip(ROOTS, (JOURNAL, MATERIAL, PREPARATION, PUBLICATION, ADMISSION)) for name in names}
 
 
 def summarize(raw, exit_code, capture_exit, uid):

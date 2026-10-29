@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/KazuhaHub/nethub/server/internal/relayauthority"
 )
 
 // Confirm requires a verified local backup and correct Linux container ownership.
@@ -61,6 +63,9 @@ func Confirm(directory, backup, phrase string) error {
 // It deliberately does not require an unexpired or complete runtime leaf pair,
 // so maintenance can recover expiry or an interrupted pair replacement.
 func CheckAuthority(directory string) error {
+	if err := relayauthority.CheckNoPendingTokenTransition(directory); err != nil {
+		return errors.New("shared relay token operation requires recovery")
+	}
 	manifest, err := Load(directory)
 	if err != nil {
 		return err

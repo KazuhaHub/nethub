@@ -201,6 +201,9 @@ func PrepareRelayAuthoritySnapshot(ctx context.Context, o RelayAuthoritySnapshot
 		return "", ErrRelayAuthority
 	}
 	defer lease.Close()
+	if relayauthority.CheckNoPendingTokenTransition(o.Directory) != nil {
+		return "", ErrRelayAuthority
+	}
 	root := filepath.Join(o.Directory, "authority-transitions")
 	if authorityPrivateDirectory(root) != nil {
 		return "", ErrRelayAuthority
