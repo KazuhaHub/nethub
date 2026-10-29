@@ -18,6 +18,7 @@ JOBS = {'workflow lint', 'Go vulnerability checks', 'weekend0 kit checks',
         'OPNsense plugin checks', 'Control plane checks', 'Deployment checks'}
 PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installed-rotation.json',
                 'native/installed-shared-token.json', 'native/installed-rotate-shared-page.json',
+                'native/installed-host-restore.json',
                 'native/installed-rotate-shared.png',
                 'native/compose-tail.json', 'native/installed-remove-page.json', 'native/installed-remove.png',
                 'native/guest-console-probe.json',
@@ -126,13 +127,14 @@ def main():
             variable = 'NETHUB_RUNTIME_TEST_IMAGE' if name == 'runtime' else 'NETHUB_' + name.upper() + '_TEST_IMAGE'
             environment[variable] = images[name]['tag']
         environment.update(NETHUB_NATIVE_TEST='1', NETHUB_SCAN_IMAGES='0', NETHUB_BROWSER_TEST='0',
+                           NETHUB_RECOVERY_TEST='1',
                            NETHUB_NATIVE_DIRECTORY=str(directory / 'native-private'),
                            NETHUB_NATIVE_EVIDENCE=str(evidence / 'native'))
         with (directory / 'compose-private.log').open('xb') as log:
             child = subprocess.Popen(['sh', str(ROOT / 'server/tests/compose.sh')], env=environment,
                                      stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
             try:
-                child.wait(timeout=1500)
+                child.wait(timeout=2100)
             except BaseException:
                 # Signal only the session created above, giving the owned shell's
                 # cleanup trap and its native guest a bounded termination window.
@@ -159,6 +161,9 @@ def main():
         native = json.loads((evidence / 'native/installed-rotation.json').read_text(encoding='utf-8'))
         if native.get('passed') is not True:
             raise GuestError('Installed native rotation proof missing')
+        restored = native.get('clean_host_restoration')
+        if not isinstance(restored, dict) or restored.get('passed') is not True:
+            raise GuestError('Installed native clean-host restoration proof missing')
         result['installed_rotation'] = native
         result['passed'] = True
         result['phase'] = 'completed'

@@ -1,10 +1,13 @@
 """Own a new Linux recovery target on an isolated hosted runner."""
 import hashlib
+from contextlib import contextmanager
+import ipaddress
 import json
 import os
 from pathlib import Path
 import re
 import signal
+import shlex
 import socket
 import subprocess
 import sys
@@ -184,13 +187,68 @@ class LinuxGuest:
             self.__exit__(None, None, None)
             raise
 
-    def ssh(self, script, label, *, timeout=60):
-        return invoke(['ssh', '-F', '/dev/null', '-i', str(self.directory / 'client'),
+    def ssh_arguments(self):
+        return ['ssh', '-F', '/dev/null', '-T', '-i', str(self.directory / 'client'),
                        '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
                        '-o', 'IdentitiesOnly=yes', '-o', 'ConnectTimeout=5',
                        '-o', 'UserKnownHostsFile=' + str(self.directory / 'known_hosts'),
-                       '-p', str(self.port), 'root@127.0.0.1', 'sh', '-se'],
+                       '-p', str(self.port)]
+
+    def ssh(self, script, label, *, timeout=60):
+        return invoke(self.ssh_arguments() + ['root@127.0.0.1', 'sh', '-se'],
                       label, timeout=timeout, data=script.encode())
+
+    def send(self, source, name, *, timeout=180):
+        if re.fullmatch('[a-z][a-z0-9_.-]{0,63}', name) is None:
+            raise RecoveryError('Private recovery transfer name refused')
+        source = Path(source)
+        info = source.lstat()
+        if (source != source.resolve(strict=True) or not source.is_file() or info.st_nlink != 1
+                or info.st_uid != 0 or info.st_mode & 0o077 or info.st_size > 2 * 1024**3):
+            raise RecoveryError('Private recovery transfer file refused')
+        receiver = ('import os,sys; os.umask(0o077); '
+                    'p="/root/nethub-recovery/"+sys.argv[1]; '
+                    'f=open(p,"xb"); '
+                    'import shutil; shutil.copyfileobj(sys.stdin.buffer,f); '
+                    'f.flush(); os.fsync(f.fileno()); f.close()')
+        with source.open('rb') as stream:
+            result = subprocess.run(self.ssh_arguments() + ['root@127.0.0.1',
+                shlex.join(['python3', '-c', receiver, name])], stdin=stream, capture_output=True, timeout=timeout)
+        if result.returncode:
+            raise RecoveryError('Private recovery transfer failed')
+        target = '/root/nethub-recovery/' + name
+        actual = self.ssh('sha256sum ' + shlex.quote(target) + '\n', 'Private transfer integrity').split()[0].decode()
+        if actual != sha256(source):
+            raise RecoveryError('Private recovery transfer integrity differs')
+        return target
+
+    @contextmanager
+    def forward(self, bindings):
+        arguments = self.ssh_arguments() + ['-N', '-o', 'ExitOnForwardFailure=yes']
+        for address, port, target, target_port in bindings:
+            for value in (address, target):
+                ip = ipaddress.IPv4Address(value)
+                if not ip.is_private or ip.is_unspecified or ip.is_multicast:
+                    raise RecoveryError('Owned private recovery endpoint required')
+            if any(type(value) is not int or not 1 <= value <= 65535 for value in (port, target_port)):
+                raise RecoveryError('Owned recovery port required')
+            arguments += ['-L', f'{address}:{port}:{target}:{target_port}']
+        with (self.directory / ('forward-' + uuid.uuid4().hex + '-private.log')).open('xb') as log:
+            process = subprocess.Popen(arguments + ['root@127.0.0.1'], stdin=subprocess.DEVNULL,
+                                       stdout=log, stderr=log, start_new_session=True)
+            try:
+                time.sleep(.5)
+                if process.poll() is not None:
+                    raise RecoveryError('Owned recovery endpoint forwarding failed')
+                yield
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait(timeout=5)
 
     def prepare(self):
         self.ssh('export DEBIAN_FRONTEND=noninteractive\n'
