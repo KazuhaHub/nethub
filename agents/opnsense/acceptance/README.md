@@ -108,6 +108,31 @@ records DNS, TCP, default-system-TLS and HTTP categories without peer names,
 paths or exception text. This correction requires another actual run; the prior
 probe's exact failure type is not retrospectively established by source review.
 
+Combined `40805730620` at `2db02e2` subsequently passed canonical console HTTPS
+with the guest's default system CA directory and returned HTTP 200. Its actual
+native enrollment page action passed, with the cleared token field and image
+hash checked. The run then failed in the native backend read before rotation;
+the original model failure class and lock mode were not exported. Overall
+installed rotation remains unaccepted, and both official logs and cleanup were
+retained.
+
+One concrete initialization defect is corrected: FreeBSD
+[`lockf` creates its file with mode 0666](https://raw.githubusercontent.com/freebsd/freebsd-src/releng/15.1/usr.bin/lockf/lockf.c)
+subject to the caller's umask. Package reconciliation previously did not set a
+private umask before its first lock. The package now does so after restarting
+configd; normal agent actions tighten an existing empty, owned, single-link lock
+to 0600 only after acquisition, without replacing its inode. Links, shared inodes
+and unknown content are refused. A required real FreeBSD regression forces the
+old 022 umask and checks mode and inode retention. The original failed guest's
+mode is still unknown; this is a demonstrated initialization defect rather than
+a retrospective claim about that failure.
+
+Root model failures retain only closed phase/class/source-category/line metadata;
+the agent and page keep their fixed error responses. The hosted read probe still
+calls the real native backend, exporting only that closed metadata on failure.
+An earlier boolean storage receipt records actual lock/directory prerequisites.
+No private node values or raw exception messages enter uploaded diagnostics.
+
 The additional unknown-commit fixture loses both real rotation responses after
 the upstream returns, using the owned edge's
 [response interception](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#intercepting-responses)

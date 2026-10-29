@@ -1,10 +1,59 @@
 """Dispatch rotation under the shared lock without exposing private assignments."""
 from unittest import mock
+import os
+import subprocess
+import sys
 import xml.etree.ElementTree as ET
 
 import pytest
 import test_reconcile as base
 from test_lifecycle_agent import case as enrolled_case
+
+
+@pytest.mark.skipif(not sys.platform.startswith('freebsd'), reason='This case requires actual FreeBSD lockf')
+def test_external_lock_mode_is_hardened_without_replacing_its_inode(case):
+    case.agent.state.mkdir(parents=True, exist_ok=True)
+    case.agent.state.chmod(0o700)
+    path = case.agent.state / 'reconcile.lock'
+    subprocess.run(['/bin/sh', '-c', 'umask 022; exec /usr/bin/lockf -sk -t 0 "$1" /usr/bin/true',
+                    'nethub-lock-mode', str(path)], check=True, capture_output=True, timeout=5)
+    original = path.stat()
+    assert original.st_mode & 0o777 == 0o644
+    assert case.agent.apply('stop')['success'] is True
+    actual = path.stat()
+    assert actual.st_mode & 0o777 == 0o600
+    assert (actual.st_dev, actual.st_ino) == (original.st_dev, original.st_ino)
+
+
+def test_mutation_lock_never_follows_a_link(case):
+    case.agent.state.mkdir(parents=True, exist_ok=True)
+    target = case.root / 'unrelated-lock'
+    target.write_bytes(b'private value must remain unchanged')
+    (case.agent.state / 'reconcile.lock').symlink_to(target)
+    with pytest.raises(OSError):
+        case.agent.open_mutation_lock()
+    assert target.read_bytes() == b'private value must remain unchanged'
+    assert case.active is True
+
+
+def test_mutation_lock_does_not_chmod_a_shared_inode(case):
+    case.agent.state.mkdir(parents=True, exist_ok=True)
+    target = case.root / 'unrelated-lock'
+    target.write_bytes(b'')
+    target.chmod(0o644)
+    os.link(target, case.agent.state / 'reconcile.lock')
+    assert case.agent.apply('stop')['success'] is False
+    assert target.stat().st_mode & 0o777 == 0o644
+    assert case.active is True
+
+
+def test_mutation_lock_does_not_clear_unrecognized_content(case):
+    case.agent.state.mkdir(parents=True, exist_ok=True)
+    path = case.agent.state / 'reconcile.lock'
+    path.write_bytes(b'private value must remain unchanged')
+    assert case.agent.apply('stop')['success'] is False
+    assert path.read_bytes() == b'private value must remain unchanged'
+    assert case.active is True
 
 
 @pytest.fixture

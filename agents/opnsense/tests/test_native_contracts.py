@@ -15,7 +15,8 @@ def receipt():
     groups = {name: {'tests': spec[0], 'passed': spec[0], 'exit_code': 0, 'native_cases_passed': [], 'nonpassing_cases': []}
               for name, spec in NATIVE.GROUPS.items()}
     groups['enrollment']['native_cases_passed'] = ['test_enrollment_lock_interoperates_with_native_scheduler_lockf']
-    groups['service']['native_cases_passed'] = ['test_native_lockf_excludes_both_python_operations']
+    groups['service']['native_cases_passed'] = ['test_native_lockf_excludes_both_python_operations',
+        'test_external_lock_mode_is_hardened_without_replacing_its_inode']
     return {'version': 1, 'source_head': HEAD, 'manifest_sha': SHA, 'system': 'FreeBSD',
             'release': '15.1-RELEASE-p4', 'machine': 'amd64', 'uid': 0,
             'groups': groups, 'passed': True, 'source_unchanged': True,

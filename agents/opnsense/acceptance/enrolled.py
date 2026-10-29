@@ -95,6 +95,12 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     if set(conditions) != expected_conditions or any(type(value) is not bool for value in conditions.values()):
         raise GuestError('Unexpected native runtime condition fields')
     private_json(evidence / 'native-fixture-host.json', conditions)
+    guest.put(Path(__file__).with_name('native_model_probe.py'), 'native_model_probe.py')
+    from native_model_probe import validate_storage
+    storage = json.loads(guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py storage\n',
+                                  'closed native storage conditions'))
+    validate_storage(storage)
+    private_json(evidence / 'native-storage-probe.json', storage)
 
     def fixture(action, **values):
         path = work / 'native-fixture-input.json'
@@ -135,11 +141,17 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
                'installed native ' + action + ' page', timeout=120)
 
     def native_read(name):
-        raw = guest.ssh("cd /usr/local/opnsense/scripts/nethub-agent\n"
-                        "/usr/local/bin/python3.13 - <<'PY'\n"
-                        "import json\nfrom rotation_backend import NativeRotationBackend\n"
-                        "print(json.dumps(NativeRotationBackend().read()))\nPY\n", 'native model readback')
+        guest.put(Path(__file__).with_name('native_model_probe.py'), 'native_model_probe.py')
+        raw = guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py\n',
+                        'native model readback')
         value = json.loads(raw)
+        if isinstance(value, dict) and set(value) == {'native_model_failure'}:
+            from native_model_probe import validate_projection
+            failure = value['native_model_failure']
+            validate_projection(failure)
+            private_json(evidence / 'native-model-probe.json', {'passed': False, 'failure': failure})
+            raise GuestError('Native model read failed at ' + failure['phase'] + '/' + failure['kind']
+                             + '/' + failure['source'] + '/' + str(failure['line']))
         private_json(work / name, value)
         return value
 

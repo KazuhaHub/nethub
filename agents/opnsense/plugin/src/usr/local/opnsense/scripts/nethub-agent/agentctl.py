@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import signal
+import stat
 import subprocess
 import sys
 import syslog
@@ -130,13 +131,33 @@ class Agent:
         path.chmod(0o600)
         return managed
 
+    def open_mutation_lock(self):
+        descriptor = os.open(self.state / 'reconcile.lock',
+                             os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+        return os.fdopen(descriptor, 'a')
+
+    def protect_mutation_lock(self, lock):
+        """Tighten an existing lock without replacing a held lockf inode."""
+        path = self.state / 'reconcile.lock'
+        opened, current, parent = os.fstat(lock.fileno()), path.lstat(), self.state.lstat()
+        if (not stat.S_ISREG(opened.st_mode) or opened.st_uid != os.geteuid() or opened.st_nlink != 1
+                or opened.st_size != 0 or (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino)
+                or not stat.S_ISDIR(parent.st_mode) or parent.st_uid != os.geteuid()
+                or stat.S_IMODE(parent.st_mode) != 0o700 or path.resolve() != path):
+            raise AgentError('Private mutation lock needs local review')
+        os.fchmod(lock.fileno(), 0o600)
+        after = path.lstat()
+        if ((after.st_dev, after.st_ino) != (opened.st_dev, opened.st_ino)
+                or stat.S_IMODE(after.st_mode) != 0o600):
+            raise AgentError('Private mutation lock changed; local review is required')
+
     def enroll(self, request_file, locked=False):
         try:
             for directory in (self.config, self.state):
                 directory.mkdir(parents=True, exist_ok=True)
                 directory.chmod(0o700)
             os.umask(0o077)
-            with (self.state / 'reconcile.lock').open('a') as lock:
+            with self.open_mutation_lock() as lock:
                 if not locked:
                     deadline = time.monotonic() + 3
                     while True:
@@ -148,8 +169,9 @@ class Agent:
                             if remaining <= 0:
                                 return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
                             time.sleep(min(0.1, remaining))
+                self.protect_mutation_lock(lock)
                 return self.enroll_locked(request_file)
-        except OSError:
+        except (OSError, AgentError):
             return {'success': False, 'message': 'Private enrollment storage is unavailable'}
 
     def enroll_locked(self, request_file):
@@ -541,13 +563,14 @@ class Agent:
             directory.mkdir(parents=True, exist_ok=True)
             directory.chmod(0o700)
         os.umask(0o077)
-        with (self.state / 'reconcile.lock').open('a') as lock:
+        with self.open_mutation_lock() as lock:
             try:
                 if not locked:
                     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
             try:
+                self.protect_mutation_lock(lock)
                 if action == 'disable':
                     # Stop remains available when XML or trust recovery is broken.
                     self.circuit_marker(True)
