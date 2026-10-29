@@ -1,6 +1,6 @@
 # NetHub threat model
 
-> Implementation review: 2026-10-26. NetHub is pre-alpha, without a signed
+> Implementation review: 2026-10-29 UTC. NetHub is pre-alpha, without a signed
 > production release. This review reconciles the original 2026-10-16 design
 > draft with current sources and accepted records. It is not an independent
 > penetration test or a claim that W5-W7 are complete.
@@ -53,6 +53,8 @@ flowchart LR
   Authz -->|Private admin API| Relay
   Web -->|Web database role| DB[(PostgreSQL)]
   Authz -->|Authz database role| DB
+  Backup[Scheduled backup worker] -->|Restricted backup role| DB
+  Backup --> Archives[Private archive volume]
   Browser <-->|OIDC / SAML browser flow| IdP[Configured identity provider]
   Web -->|OIDC discovery / token / keys| IdP
 ```
@@ -328,12 +330,25 @@ networks or a universal deadline covered.
 
 ### F4. Complete restore, operational rotation and doctor coverage remain open
 
-Scheduled database backups/retention, protected off-host durability and a full
-clean-host restore with an existing device reconnecting have not passed W7.
-The rotate wire shapes do not expose a working HTTP/agent/UI operation. Doctor's
-file mode checks initialization/secret/backup/relay material and optional DNS.
-Its separate [audit mode](../deploy/audit-chain.md) verifies linked snapshots;
-runtime reachability, scheduled-backup and complete restore checks remain open.
+The [scheduled backup worker](../deploy/database-backups.md) passed scoped
+container, restricted-role archive/restore, retention, corruption refusal,
+restart and cancellation checks. It holds only the backup-role password and
+writes a private archive volume; it does not receive authority keys or Docker
+administration access. Archives contain device credentials and account data.
+Protected off-host durability and a full clean-host/current-key restoration with
+an already enrolled device reconnecting remain unaccepted.
+
+Per-device rotation now has an HTTP endpoint, durable agent recovery and a native
+page action under combined validation. Actual SQL and official Linux frpc
+checks do not establish installed native rotation or its interruption recovery.
+Coordinated shared-token replacement and its incident procedure remain open.
+See [rotation scope](../deploy/device-rotation.md).
+
+Doctor has separate file/DNS, console TLS, read-only database-role, runtime
+container, relay Login-rejection, recent-archive and
+[audit-chain](../deploy/audit-chain.md) modes. Their scoped checks do not prove
+independent external port reachability, agreement with a formally published
+appliance package or complete restoration. See [operation boundaries](deployment.md#verify-readiness).
 
 ## 6. Accepted risks and known open risks
 
@@ -379,5 +394,6 @@ not solved by this single-host v1 model.
 | Real native cutoff and recovery                                       | [Installed heartbeat/Revoke](../deploy/validation-native-w5-heartbeat.md), including the slower bound and missing mobile sample.                                                                                                                                                                                                         |
 | Two actual OIDC issuers                                               | [Two-Dex deployment](../deploy/validation-two-dex.md). Public-provider acceptance is separate.                                                                                                                                                                                                                                           |
 | Actual signed SAML vendor                                             | [Keycloak deployment](../deploy/validation-keycloak-saml.md). Fixture inventory is not agent/tunnel evidence; no assertion-encryption or public/mobile claim.                                                                                                                                                                            |
+| Scheduled database archives and worker isolation | [Backup service checkpoint](../deploy/validation-database-backups.md). The restored device is a database fixture; complete current-key/control-plane/enrolled-device recovery and off-host custody remain open. |
 | Device-local client attribution, hostile streams and broader networks | Do not infer complete GUI lockout/logging behavior or malicious-client cutoff from normal browser samples. These remain unverified where no direct measurement exists.                                                                                                                                                                   |
 | Operational release/restore/disclosure                                | W7 and owner gates remain open. Repository publication does not by itself complete D12 or authorize history rewriting.                                                                                                                                                                                                                   |
