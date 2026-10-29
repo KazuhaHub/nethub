@@ -46,6 +46,12 @@ compose_for() (
         -f "$stage/test.yml" "$@"
 )
 compose() { compose_for 210 "$@"; }
+native_tail_phase() {
+    if [ "${NETHUB_NATIVE_TEST:-0}" = 1 ]; then
+        python3 "$root/agents/opnsense/acceptance/compose_tail.py" \
+            --directory "$NETHUB_NATIVE_EVIDENCE" --phase "$1"
+    fi
+}
 cleanup() {
     status=$?
     trap - EXIT HUP INT TERM
@@ -333,6 +339,7 @@ if [ "${NETHUB_NATIVE_TEST:-0}" = 1 ]; then
         --directory "$NETHUB_NATIVE_DIRECTORY" --evidence "$NETHUB_NATIVE_EVIDENCE" \
         --deployment-stage "$stage" --console-port "$port" --project "$project"
 fi
+native_tail_phase runtime_log_scan
 compose logs --no-color > "$stage/relay-runtime.log"
 python3 - "$stage" <<'PY'
 import json,pathlib,sys
@@ -359,11 +366,13 @@ PY
 database_id=$(compose ps -q postgres)
 [ -n "$database_id" ]
 database_image_id=$(docker image inspect --format '{{.Id}}' "$postgres_image")
+native_tail_phase privileged_service_checks
 NETHUB_TEST_GUI_SQL_CONTAINER="$database_id" NETHUB_TEST_GUI_SQL_IMAGE="$database_image_id" \
 NETHUB_TEST_GUI_SQL_PROJECT="$project" NETHUB_TEST_AUTHORITY_DIRECTORY="$stage/deployment" \
 NETHUB_TEST_AUTHORITY_CLI="$stage/http01-nethub" \
 NETHUB_TEST_AUTHORITY_COMPOSE="$stage/test.yml" "$stage/guiissuer.test" -test.v \
     -test.run '^TestNative(DockerSQLRunner|RelayAuthorityService|RelayAuthorityTransition)$' -test.timeout=300s
+native_tail_phase authority_process_recovery
 NETHUB_TEST_GUI_SQL_PROJECT="$project" NETHUB_TEST_AUTHORITY_DIRECTORY="$stage/deployment" \
 NETHUB_TEST_AUTHORITY_COMPOSE="$stage/test.yml" NETHUB_TEST_AUTHORITY_CLI="$stage/http01-nethub" \
 NETHUB_TEST_HTTP01_CLI_REQUIRED=1 "$stage/setup.test" -test.v \
@@ -373,12 +382,16 @@ NETHUB_TEST_HTTP01_CLI_REQUIRED=1 "$stage/setup.test" -test.v \
 database_id=$(compose ps -q postgres)
 [ -n "$database_id" ] || { echo "Required GUI issuer database fixture is missing" >&2; exit 1; }
 database_image_id=$(docker image inspect --format '{{.Id}}' "$postgres_image")
+native_tail_phase issuer_database_recovery
 NETHUB_GUIACME_PEBBLE_IMAGE="$pebble_image" NETHUB_GUIACME_CADDY_IMAGE="$caddy_image" \
 NETHUB_TEST_GUI_SQL_CONTAINER="$database_id" NETHUB_TEST_GUI_SQL_IMAGE="$database_image_id" \
 NETHUB_TEST_GUI_SQL_PROJECT="$project" "$stage/guiacme.test" -test.v \
     -test.run '^TestPebbleCoordinatorDatabaseRecovery$' -test.timeout=120s
+native_tail_phase stack_teardown
 compose down -v --remove-orphans > "$stage/down.log" 2>&1
+native_tail_phase external_proxy
 python3 "$root/server/tests/external-proxy.py" "$stage" "$root" "$image" "$postgres_image" "$caddy_image" "$frps_image" "$backup_image"
+native_tail_phase migration_failure
 cat > "$stage/failure.yml" <<'YAML'
 services:
   migrate:
@@ -397,6 +410,7 @@ if printf '%s\n' "$running" | grep -Eq '^(nethub-authz|frps)$'; then echo 'Relay
 if printf '%s\n' "$running" | grep -qx backup; then echo 'Backup started after failed migration' >&2; exit 1; fi
 echo 'Failed migration prevented console startup'
 if [ -n "${NETHUB_IMAGE_EVIDENCE:-}" ]; then
+    native_tail_phase image_export
     mkdir -p "$NETHUB_IMAGE_EVIDENCE"
     docker image save -o "$NETHUB_IMAGE_EVIDENCE/images.tar" "$image" "$postgres_image" "$caddy_image" "$frps_image" "$backup_image"
     gzip -1 "$NETHUB_IMAGE_EVIDENCE/images.tar"
@@ -421,3 +435,4 @@ PY
         "$NETHUB_IMAGE_EVIDENCE/images.tar.gz" "$NETHUB_IMAGE_EVIDENCE/SHA256SUMS" "$NETHUB_IMAGE_EVIDENCE/images.json"
     echo 'Saved only tested immutable images and checksums; runtime credentials are excluded'
 fi
+native_tail_phase completed
