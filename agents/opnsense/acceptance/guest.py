@@ -20,7 +20,7 @@ BASE = 'https://pkg.opnsense.org/releases/26.7/'
 NATIVE_FIXTURE_PHASES = frozenset(('host_boundary', 'private_nonce', 'native_config_load',
     'host_arguments', 'host_php_cli', 'host_freebsd', 'host_effective_uid',
     'native_security_checks', 'trust_ca_validation', 'trust_native_save', 'trust_legacy_binding',
-    'trust_store_regeneration', 'native_gui_identity', 'native_gui_csr',
+    'trust_legacy_functions', 'trust_store_regeneration', 'native_gui_identity', 'native_gui_csr',
     'native_gui_leaf_validation', 'native_gui_save'))
 ANNOUNCEMENT = ('https://raw.githubusercontent.com/opnsense/changelog/'
                 'fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7')
@@ -335,9 +335,21 @@ cat /root/nethub-ci/host-key.pub
             if len(result.stdout) <= 4096:
                 try:
                     value = json.loads(result.stdout)
-                    if (isinstance(value, dict) and set(value) == {'success', 'fixture_phase'}
-                            and value['success'] is False and value['fixture_phase'] in NATIVE_FIXTURE_PHASES):
-                        category = 'fixture_' + value['fixture_phase']
+                    if (isinstance(value, dict) and set(value) in
+                            ({'success', 'fixture_phase'}, {'success', 'fixture_phase', 'fixture_context'})
+                            and value['success'] is False and isinstance(value['fixture_phase'], str)
+                            and value['fixture_phase'] in NATIVE_FIXTURE_PHASES):
+                        context = value.get('fixture_context')
+                        if context is None and 'fixture_context' not in value:
+                            category = 'fixture_' + value['fixture_phase']
+                        elif (isinstance(context, dict) and set(context) == {'kind', 'source', 'line'}
+                                and isinstance(context['kind'], str) and context['kind'] in
+                                    ('Error', 'ErrorException', 'TypeError', 'ValueError', 'RuntimeException', 'other')
+                                and isinstance(context['source'], str) and context['source'] in
+                                    ('system', 'util', 'config', 'legacy', 'configuration', 'trust', 'fixture', 'other')
+                                and type(context['line']) is int and 0 <= context['line'] <= 20000):
+                            category = ('fixture_' + value['fixture_phase'] + '_' + context['kind']
+                                        + '_' + context['source'] + '_' + str(context['line']))
                 except (ValueError, TypeError):
                     pass
             raise GuestError(label + ' failed: ' + category)

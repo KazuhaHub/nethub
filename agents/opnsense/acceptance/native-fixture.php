@@ -3,7 +3,10 @@
 // Disposable guest provisioning only; this file is never installed in the plugin.
 ini_set('display_errors', '0');
 ini_set('log_errors', '0');
-set_error_handler(static function (): never { throw new RuntimeException('Fixture failed'); });
+set_error_handler(static function (int $severity, string $message, string $file, int $line): bool {
+    if (!(error_reporting() & $severity)) { return false; }
+    throw new ErrorException('Fixture failed', 0, $severity, $file, $line);
+});
 $phase = 'host_boundary';
 
 try {
@@ -145,8 +148,14 @@ try {
     if ($action === 'trust') {
         $phase = 'trust_legacy_binding';
         require_once('/usr/local/etc/inc/config.inc');
+        require_once('/usr/local/etc/inc/util.inc');
+        require_once('/usr/local/etc/inc/legacy_bindings.inc');
         require_once('/usr/local/etc/inc/system.inc');
         $config = $configuration->toArray(listtags());
+        $phase = 'trust_legacy_functions';
+        foreach (['service_log', 'pass_safe', 'file_safe', 'configd_run'] as $helper) {
+            if (!function_exists($helper)) { throw new RuntimeException('Missing native trust helper'); }
+        }
         $phase = 'trust_store_regeneration';
         ob_start();
         system_trust_configure();
@@ -155,6 +164,20 @@ try {
     echo json_encode(['success' => true, 'result' => $result], JSON_THROW_ON_ERROR);
 } catch (Throwable $error) {
     while (ob_get_level() > 0) { ob_end_clean(); }
-    echo json_encode(['success' => false, 'fixture_phase' => $phase], JSON_THROW_ON_ERROR);
+    $failure = ['success' => false, 'fixture_phase' => $phase];
+    if (str_starts_with($phase, 'trust_')) {
+        $sources = ['system.inc' => 'system', 'util.inc' => 'util', 'config.inc' => 'config',
+                    'legacy_bindings.inc' => 'legacy', 'Config.php' => 'configuration',
+                    'General.php' => 'trust', 'native-fixture.php' => 'fixture'];
+        $source = $sources[basename($error->getFile())] ?? 'other';
+        $kind = get_class($error);
+        $failure['fixture_context'] = [
+            'kind' => in_array($kind, ['Error', 'ErrorException', 'TypeError', 'ValueError', 'RuntimeException'], true)
+                ? $kind : 'other',
+            'source' => $source,
+            'line' => $source !== 'other' && $error->getLine() <= 20000 ? $error->getLine() : 0,
+        ];
+    }
+    echo json_encode($failure, JSON_THROW_ON_ERROR);
     exit(1);
 }
