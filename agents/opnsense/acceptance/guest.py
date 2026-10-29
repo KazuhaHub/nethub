@@ -40,9 +40,10 @@ def wan_network(console_port=None):
             + ',guestfwd=tcp:10.0.2.100:7000-cmd:nc -N 127.0.0.1 7000')
 
 
-def invoke(arguments, label, *, timeout=60, input=None):
+def invoke(arguments, label, *, timeout=60, input=None, combine_output=False):
     try:
-        result = subprocess.run(arguments, input=input, capture_output=True, timeout=timeout)
+        result = subprocess.run(arguments, input=input, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT if combine_output else subprocess.PIPE, timeout=timeout)
     except subprocess.TimeoutExpired:
         raise GuestError(label + ' timed out') from None
     if result.returncode:

@@ -345,7 +345,8 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     authz = invoke(compose + ['ps', '-q', 'nethub-authz'], 'native authorization service identity').decode().strip()
 
     def hook_events():
-        raw = invoke(['docker', 'logs', authz], 'native hook admission evidence')
+        # Authz writes decisions to stderr; Docker preserves the stream split.
+        raw = invoke(['docker', 'logs', authz], 'native hook admission evidence', combine_output=True)
         if len(raw) > 8 * 1024**2:
             raise GuestError('Native hook evidence exceeds bound')
         events = []

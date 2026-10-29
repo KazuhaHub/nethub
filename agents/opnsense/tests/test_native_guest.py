@@ -3,6 +3,7 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -12,6 +13,29 @@ SOURCE = Path(__file__).resolve().parents[1] / 'acceptance/guest.py'
 SPEC = importlib.util.spec_from_file_location('nethub_native_guest', SOURCE)
 GUEST = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(GUEST)
+
+
+def test_combined_log_capture_includes_real_stderr_decisions():
+    output = GUEST.invoke([sys.executable, '-c',
+        'import sys; print("startup", flush=True); '
+        'print(\'{"msg":"Relay hook decision","operation":"Login","decision":"device_denied"}\', file=sys.stderr, flush=True)'],
+        'private log capture', combine_output=True)
+    assert output.splitlines()[0] == b'startup'
+    assert json.loads(output.splitlines()[1]) == {
+        'msg': 'Relay hook decision', 'operation': 'Login', 'decision': 'device_denied'}
+
+
+def test_normal_command_capture_keeps_stderr_separate():
+    output = GUEST.invoke([sys.executable, '-c',
+        'import sys; print("public result"); print("private diagnostic", file=sys.stderr)'], 'private command')
+    assert output.strip() == b'public result'
+
+
+def test_failed_combined_capture_does_not_disclose_child_output():
+    with pytest.raises(GUEST.GuestError, match='^private log capture failed$'):
+        GUEST.invoke([sys.executable, '-c',
+            'import sys; print("private value"); print("private diagnostic", file=sys.stderr); sys.exit(7)'],
+            'private log capture', combine_output=True)
 
 
 def test_default_guest_does_not_forward_a_console():

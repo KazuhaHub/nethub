@@ -133,6 +133,18 @@ calls the real native backend, exporting only that closed metadata on failure.
 An earlier boolean storage receipt records actual lock/directory prerequisites.
 No private node values or raw exception messages enter uploaded diagnostics.
 
+Combined source `1c179ba` (`40812204828`) subsequently passed native enrollment,
+Rotate, model readback, same-route verified TLS and retained GUI key/security
+checks. Its two native page images were independently hashed and reviewed. All
+twelve installed storage conditions passed. The run then failed at the required
+old-claim Login evidence check, before both interruption cases. The old client
+exited nonzero, but that alone does not prove authorization refusal. Authz logs
+its decisions to stderr; the collector had read only Docker's stdout. It now
+explicitly combines both streams, with actual subprocess regressions for stderr
+events and fixed failure diagnostics. The original exact Login decision remains
+unknown. Exact source, both official logs and owned cleanup are retained; this
+partial positive path does not accept the complete installed workflow.
+
 The additional unknown-commit fixture loses both real rotation responses after
 the upstream returns, using the owned edge's
 [response interception](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#intercepting-responses)
