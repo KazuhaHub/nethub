@@ -7,8 +7,23 @@ set_error_handler(static function (): never { throw new RuntimeException('Fixtur
 $phase = 'host_boundary';
 
 try {
-    if ($argc !== 1 || PHP_SAPI !== 'cli' || PHP_OS_FAMILY !== 'BSD' || posix_geteuid() !== 0) {
+    $phase = 'host_arguments';
+    if (($argc ?? null) !== 1) {
+        throw new RuntimeException('Unexpected fixture arguments');
+    }
+    $phase = 'host_php_cli';
+    if (PHP_SAPI !== 'cli') {
+        throw new RuntimeException('Fixture CLI required');
+    }
+    $phase = 'host_freebsd';
+    if (PHP_OS !== 'FreeBSD') {
         throw new RuntimeException('Wrong fixture host');
+    }
+    $phase = 'host_effective_uid';
+    $identities = [];
+    exec('/usr/bin/id -u', $identities, $identityStatus);
+    if ($identityStatus !== 0 || $identities !== ['0']) {
+        throw new RuntimeException('Fixture effective root required');
     }
     $phase = 'private_nonce';
     $marker = '/root/nethub-ci/native-fixture-nonce';

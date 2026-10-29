@@ -108,6 +108,7 @@ jobs:
             ${{ runner.temp }}/native-enrolled-evidence/deployment-result.json
             ${{ runner.temp }}/native-enrolled-evidence/native/result.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotation.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/native-fixture-host.json
             ${{ runner.temp }}/native-enrolled-evidence/native/*-page.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-enroll.png
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate.png

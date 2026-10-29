@@ -79,12 +79,27 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     guest.put(marker, marker.name)
     guest.put(Path(__file__).with_name('native-fixture.php'), 'native-fixture.php')
     guest.ssh('chmod 0600 /root/nethub-ci/native-fixture-nonce\n', 'private native fixture identity')
+    host_probe = guest.ssh("/usr/local/bin/php -r 'echo json_encode(["
+        "\"argument_count_available\"=>isset($argc),"
+        "\"argument_count_one\"=>isset($argc)&&$argc===1,"
+        "\"cli_sapi\"=>PHP_SAPI===\"cli\","
+        "\"freebsd\"=>PHP_OS===\"FreeBSD\","
+        "\"bsd_family\"=>PHP_OS_FAMILY===\"BSD\","
+        "\"base_exec_available\"=>function_exists(\"exec\"),"
+        "\"posix_euid_available\"=>function_exists(\"posix_geteuid\")]);'\n",
+        'closed native PHP runtime conditions')
+    conditions = json.loads(host_probe)
+    expected_conditions = {'argument_count_available', 'argument_count_one', 'cli_sapi', 'freebsd',
+                           'bsd_family', 'base_exec_available', 'posix_euid_available'}
+    if set(conditions) != expected_conditions or any(type(value) is not bool for value in conditions.values()):
+        raise GuestError('Unexpected native runtime condition fields')
+    private_json(evidence / 'native-fixture-host.json', conditions)
 
     def fixture(action, **values):
         path = work / 'native-fixture-input.json'
         private_json(path, dict(action=action, nonce=nonce, **values))
         guest.put(path, path.name)
-        raw = guest.ssh('/usr/local/bin/php /root/nethub-ci/native-fixture.php '
+        raw = guest.ssh('/usr/local/bin/php -d register_argc_argv=1 /root/nethub-ci/native-fixture.php '
                         '< /root/nethub-ci/native-fixture-input.json\n', 'native fixture ' + action)
         value = json.loads(raw)
         if value.get('success') is not True or not isinstance(value.get('result'), dict):

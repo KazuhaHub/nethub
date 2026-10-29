@@ -83,6 +83,13 @@ Closed fixture-phase diagnostics retain the next failure location without privat
 exception text. This correction still needs an actual successful combined run;
 the earlier failed result remains retained.
 
+The next combined run at `3b9b38a` failed at the fixture's PHP host boundary,
+before CA import. Root identity now uses FreeBSD's base `id` command instead of
+assuming the optional PHP POSIX extension. The helper still requires one CLI
+argument, FreeBSD and effective UID zero; the caller explicitly enables CLI
+argument registration. A closed boolean runtime-condition receipt distinguishes
+these prerequisites on the actual guest. This remains pending real execution.
+
 Serial bootstrap sends short encoded heredoc lines within FreeBSD's canonical
 terminal input bound. Failure results retain only the waiting stage, selected
 prompt flags, byte count and image-verification receipt; raw transcripts remain

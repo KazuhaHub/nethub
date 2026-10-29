@@ -68,6 +68,8 @@ def test_serial_command_echo_cannot_hide_a_failed_exit(monkeypatch):
 
 @pytest.mark.parametrize('value,category', [
     ({'success': False, 'fixture_phase': 'trust_store_regeneration'}, 'fixture_trust_store_regeneration'),
+    ({'success': False, 'fixture_phase': 'host_effective_uid'}, 'fixture_host_effective_uid'),
+    ({'success': False, 'fixture_phase': {'private_value': 'private-value-must-not-escape'}}, 'unclassified'),
     ({'success': False, 'fixture_phase': 'private-value-must-not-escape'}, 'unclassified'),
     ({'success': False, 'fixture_phase': 'trust_native_save', 'private_message': 'private-value-must-not-escape'}, 'unclassified'),
     ({'success': True, 'fixture_phase': 'trust_native_save'}, 'unclassified'),
