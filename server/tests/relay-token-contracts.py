@@ -10,7 +10,7 @@ import subprocess
 
 ROOTS = ('TestNativeRelayTokenJournal', 'TestNativeRelayTokenMaterial', 'TestNativeRelayTokenPreparation',
          'TestNativeRelayTokenPublication', 'TestNativeRelayTokenAdmission', 'TestNativeRelayTokenRuntimeMaterial',
-         'TestNativeRelayTokenRecoveryAdmission')
+         'TestNativeRelayTokenRecoveryAdmission', 'TestNativeRelayTokenCommandRecords')
 JOURNAL = ('ordered durable records and immutable intent', 'concurrent different candidates have one winner',
            'symlink', 'hardlink', 'unknown field', 'mode', 'owner', 'orphan', 'removed directory')
 MATERIAL = ('exact retained material and independent complete successor', 'candidate', 'authority', 'runtime',
@@ -31,8 +31,12 @@ RECOVERY = ('only original pending request can resume', 'empty original initiali
             'pending authority still blocks token recovery',
             'changed binding', 'another pending token', 'missing options in nonempty directory',
             'wrong directory', 'malformed options', 'different operation')
+COMMAND = ('immutable input and read only inspection', 'retained input blocks before initialization',
+           'competing shared lease refuses execution', 'changed retry arguments leave the original record',
+           'changed baseline', 'changed binding', 'unknown field', 'symlink', 'hardlink', 'mode',
+           'owner', 'different operation', 'cancelled')
 REQUIRED = set(ROOTS) | {root + '/' + name.replace(' ', '_')
-                         for root, names in zip(ROOTS, (JOURNAL, MATERIAL, PREPARATION, PUBLICATION, ADMISSION, RUNTIME, RECOVERY)) for name in names}
+                         for root, names in zip(ROOTS, (JOURNAL, MATERIAL, PREPARATION, PUBLICATION, ADMISSION, RUNTIME, RECOVERY, COMMAND)) for name in names}
 
 
 def summarize(raw, exit_code, capture_exit, uid):

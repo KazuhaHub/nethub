@@ -31,6 +31,9 @@ func checkTokenAdmission(directory string, own *relaytoken.Request) error {
 	if !canonical(directory) {
 		return ErrTransition
 	}
+	if checkTokenCommandAdmission(directory, own) != nil {
+		return ErrTransition
+	}
 	root := filepath.Join(directory, "token-transitions")
 	if _, err := os.Lstat(root); os.IsNotExist(err) {
 		return nil
@@ -85,6 +88,50 @@ func checkTokenAdmission(directory string, own *relaytoken.Request) error {
 			readTransitionJSON(filepath.Join(operation, "state.json"), &state) != nil ||
 			!intent.Valid() || options.Request != intent.Request ||
 			!state.Valid(intent) || state.Phase != "complete" {
+			return ErrTransition
+		}
+	}
+	return nil
+}
+
+// Retained input also fences the interval before an operation directory exists.
+// A crashed initializer cannot reopen maintenance or admit another incident.
+func checkTokenCommandAdmission(directory string, own *relaytoken.Request) error {
+	root := filepath.Join(directory, "token-commands")
+	if _, err := os.Lstat(root); os.IsNotExist(err) {
+		return nil
+	}
+	if !canonical(root) {
+		return ErrTransition
+	}
+	if _, err := protected(root, true); err != nil {
+		return ErrTransition
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil || len(entries) > 4096 {
+		return ErrTransition
+	}
+	for _, entry := range entries {
+		var command relaytoken.Command
+		if readTransitionJSON(filepath.Join(root, entry.Name()), &command) != nil || !command.Valid() ||
+			command.Directory != directory || entry.Name() != command.Request.OperationID+".json" {
+			return ErrTransition
+		}
+		if own != nil && command.Request == *own {
+			continue
+		}
+		operation := filepath.Join(directory, "token-transitions", command.Request.OperationID)
+		if !canonical(operation) {
+			return ErrTransition
+		}
+		if _, err := protected(operation, true); err != nil {
+			return ErrTransition
+		}
+		var intent relaytoken.Intent
+		var state relaytoken.State
+		if readTransitionJSON(filepath.Join(operation, "intent.json"), &intent) != nil ||
+			readTransitionJSON(filepath.Join(operation, "state.json"), &state) != nil ||
+			intent.Request != command.Request || !state.Valid(intent) || state.Phase != "complete" {
 			return ErrTransition
 		}
 	}

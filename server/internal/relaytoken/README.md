@@ -1,9 +1,10 @@
 # Shared relay token transition core
 
 This internal coordinator preserves one incident operation across ambiguous
-publication, reload and journal responses. It has no production caller yet.
-It does not replace the missing protected host command, incident runbook or
-online-device recovery workflow.
+publication, reload and journal responses. The Linux host command is implemented
+and remains under isolated acceptance testing; see the
+[incident procedure](../../../deploy/shared-relay-token-rotation.md).
+Server completion does not establish online-device or native incident recovery.
 
 The intent binds a canonical operation ID, original deployment/service digest,
 immutable snapshot digest and distinct previous/candidate token digests. There
@@ -37,8 +38,8 @@ The concrete integration still has to implement and test:
   The constructor passed seven actual protected-root cases (35 total required
   case identities) at source `03a197d` in run `40824419031`. The exact-source
   validator, official log and bounded receipt were independently checked. It changes no active
-  file or service, and has no production caller. Host admission and live
-  runtime integration remain unfinished.
+  file or service by itself. The host command now calls it under the shared
+  lease; full incident runtime acceptance remains unfinished.
 - Persistent admission now refuses partial or nonterminal token operations even
   after their process lease is released. Ordinary authority checks, relay
   maintenance and authority transition/preparation/cancellation enforce it. Only
@@ -50,8 +51,8 @@ The concrete integration still has to implement and test:
   before admission. Source `3a302d7` passed all 57 required actual root case
   identities in run `40826372112`, including that relative-path regression; exact
   validator/log/receipt were independently checked. The token host
-  caller still has to acquire the shared lease and admit its own exact recovery
-  request against other pending operations.
+  caller acquires the shared lease and admits its own exact recovery request
+  against other pending operations; actual command execution remains pending.
 - The protected file publisher now requires the exact durable intent and
   publishing phase, independently verified snapshot/backup and known live
   before/after bytes. It changes only the two tokens and then the manifest,
@@ -71,8 +72,9 @@ The concrete integration still has to implement and test:
   performs candidate/previous/candidate Login checks using a read-only existing
   device identity and the deployment's existing claim key. No fixture device is
   inserted. These callbacks still need actual runtime acceptance. New root
-  material/own-recovery gates require 78 protected case identities; those are
-  synthetic file/phase checks, not service acceptance. The command must verify
+  material/own-recovery gates passed all 78 protected case identities at source
+  `3c5f13a` in run `40833147236`; exact-source validator/log/receipt were checked.
+  Those are synthetic file/phase checks, not service acceptance. The command must verify
   retained input and hold the shared lease before using exact own-recovery
   admission; other pending token and authority operations remain blocked.
 - Normal online-agent assignment recovery and the accepted forced-window
@@ -103,3 +105,18 @@ Its original delay is unconfirmed; the corrected test covers the next five-secon
 tick plus both independent two-second production budgets and exports only fixed
 failure counts. The compiled cutoff case passed in source10. This validates the
 Login primitive, not an actual deployment-wide token change.
+
+The new Linux `relay-token` command retains immutable original input before
+creating its operation directory. This retained record fences ordinary work even
+after a crash during initialization. Rotate/resume hold the shared lease and bind
+publication/reload to that original service identity; inspect reports historical
+state without claiming fresh verification. New command-record cases expand the
+required root set to 92. The real Compose harness now invokes the compiled host
+CLI, verifies only authz/frps are re-created, retries completion without another
+reload, then rotates both online reference clients with their existing bearers
+and checks both original assigned HTTPS routes. Actual execution of these new
+cases and genuine installed native shared-token recovery remain pending.
+
+Source `3c5f13a` passed all six CI jobs in `40833147251`; complete logs, the
+compiled cutoff and official-frps Login primitive were independently checked.
+That evidence predates the host-command cutover harness and cannot accept it.
