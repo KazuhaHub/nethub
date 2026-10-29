@@ -26,6 +26,13 @@ acceptance records and the [execution plan](PLAN.md) for remaining requirements.
 | [SAML providers](../deploy/saml-providers.md), [SAML login](../deploy/saml-login.md), [SAML pages](../deploy/saml-console.md)                    | Shared authcore protocol processing, trusted metadata, signed requests, durable replay protection, account admission and administration pages. Deployed vendor IdP acceptance is tracked separately. |
 | [OPNsense plugin](../agents/opnsense/plugin/README.md), [protocol contracts](../proto/README.md)                                                 | Current device implementation and versioned wire contracts. The protocol walkthrough links these contracts and their runtime boundaries.                                                             |
 
+[Device rotation](../deploy/device-rotation.md) and the
+[shared-token incident procedure](../deploy/shared-relay-token-rotation.md) cover
+per-device recovery and the controlled deployment-wide window. The
+[isolated shared-token record](../deploy/validation-shared-token.md) includes actual
+host interruption, native Rotate, superseded-operation refusal and exported
+image review; public/operator, offline fleet and complete restoration remain separate.
+
 [Database backup operations](../deploy/database-backups.md) describes the daily
 worker, health versus full-hash checks, retention and private custody. The
 [container checkpoint](../deploy/validation-database-backups.md) passed; complete

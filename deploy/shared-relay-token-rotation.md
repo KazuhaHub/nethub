@@ -1,6 +1,6 @@
 # Shared relay token replacement
 
-This host operation is under isolated acceptance testing. It changes the two
+This host operation has [isolated hosted acceptance](validation-shared-token.md). It changes the two
 deployment token files, the setup manifest and the bound authz/frps services.
 The existing per-device **Rotate credentials** operation then obtains the new
 assignment using that device's saved bearer over verified console HTTPS.
@@ -13,9 +13,10 @@ settings, exact Alternate Hostnames and source-IP grants remain unchanged.
 
 Before cutover, record which devices will participate through independent
 management and which are offline. Do not count an unavailable device as recovered.
-For offline devices requiring manual re-enrollment, revoke their old console
-inventory entries before returning them to service. Keep at least one participating
-nonrevoked device available for the host command's admission preflight.
+Keep at least one eligible nonrevoked enrolled identity through host verification;
+the probe can use an offline identity. After server completion, revoke offline
+entries requiring manual re-enrollment before returning them to service. A
+deployment with no eligible identity is refused before mutation.
 
 ## Start and verify the server operation
 

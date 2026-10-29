@@ -5,9 +5,10 @@ atomic server mutation, private candidate journal, native model persistence,
 command and explicit page action passed scoped installed acceptance at source
 `986ee4c` in run `40823820125`. Genuine response-loss and native save-lock
 interruptions recovered the same candidate and original verified HTTPS route.
-The separate shared-token host command passed server/reference-client cutover
-at source `6432e37` in run `40838984894`; its installed-native incident recovery
-still requires execution. Neither result completes W7-4 or public acceptance.
+The separate shared-token host command and online native/reference incident
+recovery passed source `e3dfef5` in runs `40845857458` and `40845857496`.
+See the [isolated validation and limits](../deploy/validation-shared-token.md).
+Public/operator, offline fleet and complete restoration acceptance remain separate.
 See [device operation and limits](../deploy/device-rotation.md) and the
 [shared-token incident procedure](../deploy/shared-relay-token-rotation.md).
 

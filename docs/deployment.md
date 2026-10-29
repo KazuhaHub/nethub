@@ -248,7 +248,8 @@ reset. Use the [device rotation operation](../deploy/device-rotation.md) for an
 enrolled device. Deployment-wide frp-token replacement has a separate
 [host incident procedure](../deploy/shared-relay-token-rotation.md), including
 independent management before tunnel interruption and manual offline recovery.
-Its native incident acceptance remains open. Neither procedure is an ad hoc
+Its host and online native recovery have [isolated acceptance](../deploy/validation-shared-token.md);
+public/operator and complete restoration gates remain open. Neither procedure is an ad hoc
 database credential update.
 
 ## Backup and restore boundary

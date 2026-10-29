@@ -75,9 +75,10 @@ native model, official-frpc and six-service workflow, including lost committed
 responses and a native save-lock interruption. Both recovered the same candidate
 without changing identity or source grants. See the [device operation and scoped
 evidence](../deploy/device-rotation.md) and [wire contract](../proto/ROTATION.md).
-Deployment-wide shared-token incident recovery has a separate
-[host procedure](../deploy/shared-relay-token-rotation.md); its native/public
-acceptance remains open.
+Deployment-wide shared-token replacement and native Rotate have separate
+[isolated validation](../deploy/validation-shared-token.md) and a
+[host procedure](../deploy/shared-relay-token-rotation.md). Public/mobile and
+complete restoration gates remain open.
 
 <a id="gui-certificate-lifecycle"></a>
 

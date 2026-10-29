@@ -195,7 +195,7 @@ SNI 透传保留设备自己的登录。正常运行时，新连接还需要匹�
 
 两家 Dex 已有 [OIDC 部署验收](../deploy/validation-two-dex.md)。SAML 后端、页面及独立 [Keycloak 部署](../deploy/validation-keycloak-saml.md)已有范围明确的验收；公开 IdP 和 W6 整体验收尚未完成。
 
-[定时数据库备份服务](../deploy/database-backups.md)已通过[范围明确的容器和恢复检查](../deploy/validation-database-backups.md)。[单设备凭证轮换](../deploy/device-rotation.md)已通过隔离环境的原生安装验收，包括两种真实中断后的恢复。[部署级共享 token 更换](../deploy/shared-relay-token-rotation.md)已有范围明确的服务端／参考客户端切换记录，原生设备事件恢复仍在验证；公网／手机门禁另行验收。完整的全新主机／当前密钥／已入网设备恢复、文档全面核对、朋友从零部署和正式签名／故障版本发布仍是 W7 待办。没有正式发布包，也不宣称已适合生产。
+[定时数据库备份服务](../deploy/database-backups.md)已通过[范围明确的容器和恢复检查](../deploy/validation-database-backups.md)。[单设备凭证轮换](../deploy/device-rotation.md)已通过隔离环境的原生安装验收，包括两种真实中断后的恢复。[部署级共享 token 更换](../deploy/validation-shared-token.md)也已通过隔离环境的主机中断续跑和在线原生／参考客户端恢复；公网／手机、离线设备群和完整恢复另行验收。完整的全新主机／当前密钥／已入网设备恢复、文档全面核对、朋友从零部署和正式签名／故障版本发布仍是 W7 待办。没有正式发布包，也不宣称已适合生产。
 
 ## 路线图
 

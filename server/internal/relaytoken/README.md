@@ -34,42 +34,32 @@ memory; command arguments and public receipts carry only fixed operation data.
 
 ## Checked evidence and remaining boundaries
 
-Source `19bfce2` passed all six CI jobs in
-[run 40841093567](https://github.com/KazuhaHub/nethub/actions/runs/40841093567).
-Complete official logs and the compiled command's actual SIGTERM during durable
-reload, same-candidate resume, two-service reload and no-reload completed retry
-were independently checked. Four unrelated services and the original backup
-survived. Both online official reference clients used their original bearers for
-Rotate/replay, rejected old bearers and recovered their original verified HTTPS
-routes in 876 ms with stable identity and source grants. This reference run has
-no earlier completed operation, so superseded-operation refusal belongs to the
-second/native cutover case.
+Source `e3dfef5` passed all six jobs in
+[CI 40845857458](https://github.com/KazuhaHub/nethub/actions/runs/40845857458),
+including the actual empty-device-table refusal with unchanged material/backup,
+all six service IDs and no candidate/operation records. Actual SIGTERM during
+reload resumed the same candidate; only authz/frps changed, and completed retry
+verified without reload. Both online reference routes recovered through their
+saved bearers in 693 ms with stable identity and source grants.
 
-The same source passed all 92 required protected Linux root identities in
-[run 40841093548](https://github.com/KazuhaHub/nethub/actions/runs/40841093548),
-with exact-source validator, complete log and bounded receipt checked. Those
-cases use synthetic protected material. FreeBSD execution passed 214 cases and
-all 242 source blobs were verified; fresh unsigned OPNsense preparation passed
-installation/configd/page checks with four reviewed image hashes and visuals.
+The same source passed 92 protected Linux root identities and 214 actual
+FreeBSD cases with all 242 source blobs verified. Fresh unsigned OPNsense
+preparation passed installation/configd and four reviewed page images.
+[Complete installed run 40845857496](https://github.com/KazuhaHub/nethub/actions/runs/40845857496)
+performed a second cutover, refused the superseded first operation and recovered
+the genuine native assigned HTTPS route in 2617 ms through the normal Rotate
+page. Policy, identity/grants, GUI key/checks/alias and the independent witness
+survived. Exact archive, both logs, full tail/cleanup, standalone incident JSON
+and all eight image hashes/corresponding visuals were checked.
 
-Complete installed run `40841093577` succeeded, with exact archive, two full
-logs, guest exit zero, completed tail and owned image cleanup checked. Its second
-cutover refused the older completed operation. Genuine native Rotate recovered
-the original verified HTTPS route in 3.210 seconds with identity/grants, GUI
-key/checks/alias and the independent witness retained. The artifact upload omitted
-the standalone incident report and new screenshot; only the nested incident result
-and eighth page/hash receipt survived. Full installed acceptance is withheld
-until corrected execution retains every required export. The upload list and a
-cross-file regression check now cover those omissions.
+Source13's functional success had two missing artifact exports. Its nested
+outcome and seven PNGs remain retained separately; complete acceptance was
+withheld until the corrected run exported every required file. The upload list
+now has a cross-file contract regression.
 
-A new pre-enrollment Compose case requires the real command to refuse an empty
-device table while preserving material, backup and all six services, without
-candidate/operation records. That additional case has compilation/vet/shell
-checks only so far.
-
-Logical coordinator tests cover lost effect/journal acknowledgements, changed
-requests/snapshots, orphaned state and failed readback. They complement the
-actual file, service and native evidence rather than establish those boundaries.
-Earlier protected-parent fixture and cutoff-wait failures remain retained.
-W7-4, public/mobile/operator checks, complete restoration, off-host custody and
-formal release remain open.
+See the [validation record](../../../deploy/validation-shared-token.md) for exact
+runs, measurements and image limitations. Logical coordinator/file fixtures and
+actual host/native execution cover different boundaries. Public/mobile/operator
+checks, offline fleet recovery, the installed trust-publication-conflict scenario,
+complete restoration, off-host custody and formal release remain open. This
+operation's isolated acceptance does not complete the full HANDOFF goal.

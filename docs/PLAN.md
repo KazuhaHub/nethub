@@ -1825,6 +1825,8 @@ W7-3 partial validation (2026-10-27): PR #189 merged as `775e46a` after all six 
 - 把"frps auth token 泄露后怎么轮换"写成运维步骤。
 - 离线的设备需要手动重新 enroll，这一点也写清楚。
 
+W7-4 controlled-window checkpoint (2026-10-29): source `e3dfef5` passed all six CI jobs `40845857458`, 92 exact protected-root identities `40845857293`, 214 actual FreeBSD cases/all 242 blobs `40845857289`, fresh unsigned OPNsense preparation `40845857269` and complete installed/six-service run `40845857496`. Complete logs, exact source, standalone incident result, all eight installed image hashes/corresponding visuals, guest exit and cleanup were checked. Actual empty-identity refusal, SIGTERM/same-candidate resume, no-reload completed retry, superseded-operation refusal and genuine native Rotate recovered the original verified HTTPS route with identity/grants/GUI policy retained. The incident procedure explicitly covers independent management and manual offline revocation/removal/re-enrollment. Earlier artifact omissions remain retained and have an upload-contract regression. This accepts the recorded host/online operation and written procedure; installed conflict-path coverage, public/operator/offline-fleet, full restoration and release gates remain separate. [Validation and limits](../deploy/validation-shared-token.md).
+
 **W7-5 备份和恢复演练。**
 
 - `backup` 服务每天用 `nethub_backup` 角色跑 `pg_dump`，并按保留策略清理旧备份。

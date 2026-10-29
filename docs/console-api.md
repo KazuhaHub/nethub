@@ -981,10 +981,11 @@ Current implementation preserves these decisions:
   invitation and account policy remain NetHub's tenant-bound operations.
 
 Remaining work includes the reserved HTTP routes above, linking extra identities
-into an existing account, deployment-wide shared-token incident recovery,
+into an existing account, public/operator validation of shared-token incidents,
 remaining doctor checks and full clean-host restoration. Monthly traffic,
-scheduled database backups and per-device native rotation have scoped accepted
-evidence; see the current [handoff records](HANDOFF_PROMPT.md). Those scopes do
+scheduled database backups, per-device native rotation and the
+[controlled shared-token operation](../deploy/validation-shared-token.md) have
+scoped accepted evidence; see the current [handoff records](HANDOFF_PROMPT.md). Those scopes do
 not establish public-network incident recovery or complete restoration.
 Public-provider, native mobile/Open, revoke timing comparison, friend deployment,
 disclosure and formal/canary release gates remain open. Accepted isolated SQL,
