@@ -44,7 +44,11 @@ def main():
     finally:
         result['owned_guest_stopped'] = (guest is not None and guest.process is not None
                                          and guest.process.poll() is not None)
-        (evidence / 'target-result.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+        outcome = evidence / 'target-result.json'
+        outcome.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+        # This closed result is the only public export; the guest directory stays private.
+        outcome.chmod(0o644)
+        evidence.chmod(0o755)
     if not result['owned_guest_stopped']:
         raise RecoveryError('Owned recovery guest cleanup incomplete')
     print('Distinct empty hosted Linux recovery target prepared and stopped; restoration remains separate')
