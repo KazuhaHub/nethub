@@ -43,7 +43,11 @@ The concrete integration still has to implement and test:
   after their process lease is released. Ordinary authority checks, relay
   maintenance and authority transition/preparation/cancellation enforce it. Only
   canonical, protected, operation/deployment-bound complete journals release this
-  guard. New protected-root cases still require actual execution. The token host
+  guard. Source `b078c62` passed 56 actual protected-root case identities in
+  run `40825646677`, with exact-source validator/log/receipt checked. Review
+  found that the new canonical-path guard broke relative authority-check input,
+  including doctor's default directory. The wrapper now resolves relative input
+  before admission; its additional root regression still requires execution. The token host
   caller still has to acquire the shared lease and admit its own exact recovery
   request against other pending operations.
 - The protected file publisher now requires the exact durable intent and

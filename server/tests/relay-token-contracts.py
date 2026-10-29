@@ -21,7 +21,8 @@ PUBLICATION = ('none', 'secrets_authz_frp_token', 'secrets_frps_frp_token', 'set
                'unknown live state', 'changed maintenance', 'damaged backup', 'wrong binding',
                'wrong snapshot', 'complete journal', 'cancelled')
 ADMISSION = ('released lease does not clear pending operation', 'complete bound journal permits admission',
-             'partial preparation', 'unknown options', 'wrong directory', 'linked state', 'public mode', 'different operation')
+             'relative directory keeps ordinary checks', 'partial preparation', 'unknown options',
+             'wrong directory', 'linked state', 'public mode', 'different operation')
 REQUIRED = set(ROOTS) | {root + '/' + name.replace(' ', '_')
                          for root, names in zip(ROOTS, (JOURNAL, MATERIAL, PREPARATION, PUBLICATION, ADMISSION)) for name in names}
 

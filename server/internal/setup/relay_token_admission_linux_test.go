@@ -25,22 +25,30 @@ func TestNativeRelayTokenAdmission(t *testing.T) {
 			t.Fatal("ordinary authority checking ignored pending token operation")
 		}
 	})
-	t.Run("complete bound journal permits admission", func(t *testing.T) {
-		o, _, journal := tokenPublicationFixture(t)
-		state, err := journal.ReadState(context.Background())
-		if err != nil {
-			t.Fatal("initial admission state")
-		}
-		for _, phase := range []string{"published", "reloading", "verifying", "complete"} {
-			state.Phase = phase
-			if journal.WriteState(context.Background(), state) != nil {
-				t.Fatal("synthetic terminal admission state")
+	for _, name := range []string{"complete bound journal permits admission", "relative directory keeps ordinary checks"} {
+		t.Run(name, func(t *testing.T) {
+			o, _, journal := tokenPublicationFixture(t)
+			state, err := journal.ReadState(context.Background())
+			if err != nil {
+				t.Fatal("initial admission state")
 			}
-		}
-		if relayauthority.CheckNoPendingTokenTransition(o.Directory) != nil || relayauthority.CheckNoPendingTransition(o.Directory) != nil {
-			t.Fatal("valid complete journal kept admission blocked")
-		}
-	})
+			for _, phase := range []string{"published", "reloading", "verifying", "complete"} {
+				state.Phase = phase
+				if journal.WriteState(context.Background(), state) != nil {
+					t.Fatal("synthetic terminal admission state")
+				}
+			}
+			if relayauthority.CheckNoPendingTokenTransition(o.Directory) != nil || relayauthority.CheckNoPendingTransition(o.Directory) != nil {
+				t.Fatal("valid complete journal kept admission blocked")
+			}
+			if name == "relative directory keeps ordinary checks" {
+				t.Chdir(filepath.Dir(o.Directory))
+				if CheckAuthority("deployment") != nil {
+					t.Fatal("relative deployment path stopped working")
+				}
+			}
+		})
+	}
 	for _, mutation := range []string{"partial preparation", "unknown options", "wrong directory", "linked state", "public mode", "different operation"} {
 		t.Run(mutation, func(t *testing.T) {
 			o, _, journal := tokenPublicationFixture(t)

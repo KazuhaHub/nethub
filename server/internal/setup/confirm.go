@@ -63,6 +63,11 @@ func Confirm(directory, backup, phrase string) error {
 // It deliberately does not require an unexpired or complete runtime leaf pair,
 // so maintenance can recover expiry or an interrupted pair replacement.
 func CheckAuthority(directory string) error {
+	absolute, err := filepath.Abs(directory)
+	if err != nil {
+		return errors.New("deployment directory is unavailable")
+	}
+	directory = absolute
 	if err := relayauthority.CheckNoPendingTokenTransition(directory); err != nil {
 		return errors.New("shared relay token operation requires recovery")
 	}
