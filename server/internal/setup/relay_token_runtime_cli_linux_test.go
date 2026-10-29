@@ -14,19 +14,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/KazuhaHub/nethub/server/internal/guiissuer"
 	"github.com/KazuhaHub/nethub/server/internal/relayauthority"
 	"github.com/KazuhaHub/nethub/server/internal/relaytoken"
 )
 
-// Optional in ordinary unit runs, mandatory with a genuine isolated deployment
-// in the Compose harness. The caller refreshes the real online clients afterward.
-func TestNativeRelayTokenRuntimeCLI(t *testing.T) {
-	directory := os.Getenv("NETHUB_TEST_TOKEN_DEPLOYMENT")
+func tokenRuntimeCLIFixture(t *testing.T) (directory, project, compose, binary, label string, manifest Manifest) {
+	t.Helper()
+	directory = os.Getenv("NETHUB_TEST_TOKEN_DEPLOYMENT")
 	if directory == "" {
 		t.Skip("actual owned Compose deployment required")
 	}
-	project, compose, binary := os.Getenv("NETHUB_TEST_TOKEN_PROJECT"), os.Getenv("NETHUB_TEST_TOKEN_COMPOSE"), os.Getenv("NETHUB_TEST_TOKEN_CLI")
-	label := os.Getenv("NETHUB_TEST_TOKEN_RUNTIME_LABEL")
+	project, compose, binary = os.Getenv("NETHUB_TEST_TOKEN_PROJECT"), os.Getenv("NETHUB_TEST_TOKEN_COMPOSE"), os.Getenv("NETHUB_TEST_TOKEN_CLI")
+	label = os.Getenv("NETHUB_TEST_TOKEN_RUNTIME_LABEL")
 	if label == "" {
 		label = "reference"
 	}
@@ -43,10 +43,88 @@ func TestNativeRelayTokenRuntimeCLI(t *testing.T) {
 	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0700 || !guiRootFile(info) {
 		t.Fatal("actual protected CLI binary unavailable")
 	}
-	manifest, err := Load(directory)
+	manifest, err = Load(directory)
 	if err != nil || manifest.Config.ConsoleHost != "console.example.com" || manifest.Config.DeviceDomain != "router.example.com" || CheckFiles(directory) != nil {
 		t.Fatal("owned confirmed test deployment unavailable")
 	}
+	return
+}
+
+// The Compose caller runs this before enrollment. Genuine empty SQL state must
+// refuse the actual host command without creating candidate/operation material.
+func TestNativeRelayTokenMissingIdentityCLI(t *testing.T) {
+	directory, project, compose, binary, _, _ := tokenRuntimeCLIFixture(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	service, err := BindRelayAuthorityService(ctx, directory, project, compose, "")
+	if err != nil {
+		t.Fatal("empty deployment service binding unavailable")
+	}
+	binding, err := service.host.database(ctx)
+	if err != nil {
+		t.Fatal("empty deployment database binding unavailable")
+	}
+	runner, err := guiissuer.NewDockerSQLRunner(binding)
+	if err != nil {
+		t.Fatal("empty deployment database probe unavailable")
+	}
+	rows, err := runner(ctx, []byte("BEGIN READ ONLY; SELECT count(*) FROM devices; ROLLBACK;\n"))
+	if err != nil || string(bytes.TrimSpace(rows)) != "0" {
+		t.Fatal("actual empty device table required")
+	}
+	ids := func() map[string]string {
+		result := map[string]string{}
+		for _, name := range []string{"postgres", "nethub-web", "nethub-authz", "frps", "caddy", "backup"} {
+			raw, err := service.host.docker(ctx, append(append([]string{}, service.host.compose...), "ps", "--quiet", name)...)
+			if err != nil || !guiContainerID.Match(raw) {
+				t.Fatal("empty deployment service inventory unavailable")
+			}
+			result[name] = string(raw)
+		}
+		return result
+	}
+	beforeIDs := ids()
+	before, err := currentRelayTokenBaseline(ctx, directory)
+	id, idErr := newRelayTokenOperationID()
+	if err != nil || idErr != nil {
+		t.Fatal("empty deployment original material unavailable")
+	}
+	successor := filepath.Join(filepath.Dir(directory), "empty-token-successor-"+id)
+	command := exec.CommandContext(ctx, binary, "relay-token", "rotate", "--directory", directory,
+		"--project-name", project, "--compose-file", compose, "--successor-backup", successor, "--operation-id", id)
+	command.Env = []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin", "HOME=/root", "LANG=C", "LC_ALL=C"}
+	command.Stderr = io.Discard
+	command.WaitDelay = 2 * time.Second
+	output := guiOutput{limit: 65536}
+	command.Stdout = &output
+	err = command.Run()
+	var result RelayTokenCommandResult
+	if err == nil || output.overflow || json.Unmarshal(output.Bytes(), &result) != nil || result.OperationID != id ||
+		result.Verified || result.DeviceRotationRequired || result.State != nil || result.Phase != "preparing" {
+		t.Fatal("empty deployment did not refuse the actual command before preparation")
+	}
+	after, err := currentRelayTokenBaseline(ctx, directory)
+	if err != nil || before != after || CheckFiles(directory) != nil {
+		t.Fatal("missing-identity preflight changed active material or its backup")
+	}
+	for _, path := range []string{successor, filepath.Join(directory, "token-commands"), filepath.Join(directory, "token-transitions")} {
+		if _, err := os.Lstat(path); !os.IsNotExist(err) {
+			t.Fatal("missing-identity preflight created candidate or operation material")
+		}
+	}
+	for name, current := range ids() {
+		if current != beforeIDs[name] {
+			t.Fatal("missing-identity preflight re-created a service")
+		}
+	}
+	t.Log("Actual compiled shared-token command refused an empty device table with unchanged secrets, runtime, backup and six services; no command, operation or candidate backup was created")
+}
+
+// Optional in ordinary unit runs, mandatory with a genuine isolated deployment
+// in the Compose harness. The caller refreshes the real online clients afterward.
+func TestNativeRelayTokenRuntimeCLI(t *testing.T) {
+	directory, project, compose, binary, label, manifest := tokenRuntimeCLIFixture(t)
+	stage := filepath.Dir(directory)
 	resultPath := filepath.Join(stage, "relay-test", "shared-token-runtime-"+label+".json")
 	if _, err := os.Lstat(resultPath); !os.IsNotExist(err) {
 		t.Fatal("runtime fixture result must be new")
