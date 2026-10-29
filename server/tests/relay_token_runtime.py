@@ -38,9 +38,19 @@ def exercise_token_runtime(stage, port, project, assignments, clients, start_cli
     text = output.decode('utf-8')
     if (result.returncode or text.count('--- PASS: TestNativeRelayTokenRuntimeCLI (') != 1
             or '--- SKIP:' in text or '--- FAIL:' in text or not text.rstrip().endswith('PASS')):
-        raise RuntimeError('Actual compiled shared token cutover receipt missing')
+        phase = 'unclassified'
+        try:
+            failed = json.loads((stage / 'relay-test/shared-token-runtime-reference.json').read_text(encoding='utf-8'))
+            if (set(failed) == {'passed', 'phase'} and failed['passed'] is False
+                    and failed['phase'] in ('runtime_binding', 'original_input', 'durable_reload_interrupt',
+                                            'resume', 'published_runtime', 'complete_retry', 'superseded_refusal')):
+                phase = failed['phase']
+        except (OSError, ValueError, TypeError):
+            pass
+        raise RuntimeError('Actual compiled shared token cutover receipt missing at ' + phase)
     host = json.loads((stage / 'relay-test/shared-token-runtime-reference.json').read_text(encoding='utf-8'))
     if (host.get('passed') is not True or host.get('actual_compiled_server_token_command') is not True
+            or host.get('actual_SIGTERM_during_durable_reload_resumed_same_candidate') is not True
             or host.get('online_or_native_fleet_recovery_accepted') is not False):
         raise RuntimeError('Closed host token replacement outcome missing')
     started = time.monotonic()

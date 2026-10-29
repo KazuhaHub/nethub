@@ -208,6 +208,17 @@ recorded in a bounded `compose-tail.json`; child output stays private. Overall
 success requires a completed tail as well as the native result. These new cleanup
 and phase checks still require actual execution.
 
+The shared-token incident extension invokes the actual host CLI after native
+enrollment. Its host fixture interrupts the process at a durable reload decision,
+then requires the same candidate and bound services to recover through resume.
+The genuine native Rotate page must obtain a different shared token using its
+stored device bearer, retain all other model policy and GUI key/checks/alias,
+and recover the same assigned route over verified TLS. An independent official
+client also rotates and recovers; retained reference assignments are refreshed
+for the later authority tests. A separate page image and bounded incident result
+are retained. These added cases still require actual hosted execution; source
+and negative evidence-validator tests do not establish native incident recovery.
+
 Serial bootstrap sends short encoded heredoc lines within FreeBSD's canonical
 terminal input bound. Failure results retain only the waiting stage, selected
 prompt flags, byte count and image-verification receipt; raw transcripts remain

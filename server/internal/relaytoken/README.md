@@ -111,7 +111,9 @@ creating its operation directory. This retained record fences ordinary work even
 after a crash during initialization. Rotate/resume hold the shared lease and bind
 publication/reload to that original service identity; inspect reports historical
 state without claiming fresh verification. New command-record cases expand the
-required root set to 92. The real Compose harness now invokes the compiled host
+required root set to 92; all passed at source `6432e37` in run
+`40838984845`, with exact-source validator/log/receipt independently checked.
+The real Compose harness now invokes the compiled host
 CLI, verifies only authz/frps are re-created, retries completion without another
 reload, then rotates both online reference clients with their existing bearers
 and checks both original assigned HTTPS routes. Actual execution of these new
@@ -120,3 +122,11 @@ cases and genuine installed native shared-token recovery remain pending.
 Source `3c5f13a` passed all six CI jobs in `40833147251`; complete logs, the
 compiled cutoff and official-frps Login primitive were independently checked.
 That evidence predates the host-command cutover harness and cannot accept it.
+
+The next runtime fixture sends SIGTERM to the actual command after observing its
+durable reload phase. Resume must retain that phase's candidate and recover the
+bound services; completed retry still must not reload. A second cutover in the
+installed-native harness also requires the first completed operation to refuse
+without changing token bytes or service IDs. The genuine native Rotate page and
+independent official-client witness then recover the original verified HTTPS
+routes. These new runtime/native cases remain unaccepted pending execution.

@@ -17,6 +17,7 @@ import uuid
 
 from guest import GuestError, invoke
 from rotation_recovery import exercise_response_loss, exercise_save_interruption
+from shared_token import exercise_shared_token
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -419,6 +420,23 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         raise GuestError('Unknown commit recovery interrupted the independent device')
     if fixture('inspect', host=host) != checked:
         raise GuestError('Unknown commit recovery changed native GUI identity or checks')
+
+    def refresh_incident_witness(replacement):
+        nonlocal survivor
+        stop_survivor()
+        other.update(replacement)
+        configuration = json.loads(other_config.read_text(encoding='utf-8'))
+        configuration['auth']['token'] = other['frp_token']
+        configuration['metadatas']['domain_claim'] = other['domain_claim']
+        private_json(other_config, configuration)
+        survivor = subprocess.Popen([str(stage / 'official/frpc'), '-c', str(other_config)], stdout=other_log, stderr=other_log)
+
+    shared_token, incident_credentials = exercise_shared_token(
+        stage, project, evidence, native_read, page_action, route, lambda: fixture('inspect', host=host),
+        checked, sql, stable_query, grants_query, request, other, refresh_incident_witness, survivor_route)
+    original_survivor = survivor_sockets()
+    if not original_survivor:
+        raise GuestError('Recovered incident witness control was not observed')
     native_logs = guest.ssh("/usr/local/bin/python3.13 - <<'PY'\n"
         "import os,pathlib,stat,sys\n"
         "for name in ('frpc.log','scheduler.log'):\n"
@@ -433,7 +451,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     native_log_path.write_bytes(native_logs)
     native_log_path.chmod(0o600)
     for value in (token, before['device_secret'], after['device_secret'], before['frp_token'],
-                  before['domain_claim'], after['domain_claim'], *recovery_credentials, *received_credentials):
+                  before['domain_claim'], after['domain_claim'], *recovery_credentials, *received_credentials, *incident_credentials):
         if value.encode('ascii') in native_logs:
             raise GuestError('Native runtime log disclosed a credential')
     # Later authority tests own the two original device assignments. Remove the
@@ -470,6 +488,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
               'unknown_committed_response_recovery': recovered,
               'received_assignment_save_recovery': received,
               'interrupted_native_recovery_acceptance': True,
+              'shared_token_incident_native_recovery': shared_token,
               'fixture_removed_through_native_page': True,
               'removed_fixture_revoked_model_cleared_service_stopped_route_closed': True,
               'independent_device_preserved_after_fixture_removal': True,
