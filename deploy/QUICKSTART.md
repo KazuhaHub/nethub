@@ -1,8 +1,9 @@
 # Deployment workflow
 
-This stack contains PostgreSQL, migration, web, authz, frps, Caddy, and an opt-in
-initial administrator service. Appliance and public relay acceptance remain W4. Public TLS,
-external reachability, and complete deployed browser acceptance must be verified
+This stack contains PostgreSQL, migration, web, authz, frps, Caddy, the scheduled
+backup worker, and an opt-in initial administrator service. Scoped appliance and
+public relay acceptance is recorded in the [W4 evidence](validation-native-public-certificate.md). Public TLS,
+external reachability, and complete deployed browser behavior must be verified
 before calling the deployment ready. The isolated acceptance script uses an
 internal test CA, not a public certificate.
 
@@ -81,7 +82,7 @@ Keep the source checkout and protected state/backup parents available.
 4. After confirmation, change into the generated deployment directory:
 
    ```sh
-   docker compose build migrate postgres caddy frps
+   docker compose build migrate postgres caddy frps backup
    docker compose up -d
    docker compose run --rm admin-bootstrap --email YOUR_EMAIL
    nethub doctor --directory . --expected-address YOUR_PUBLIC_RELAY_ADDRESS

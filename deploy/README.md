@@ -1,7 +1,7 @@
 # Deploying NetHub
 
 The stack includes PostgreSQL, one-shot migration, the nonroot web/authz
-services, frps, Caddy, and an opt-in initial-administrator service. Use the
+services, frps, Caddy, the scheduled backup worker, and an opt-in initial-administrator service. Use the
 [deployment workflow](QUICKSTART.md) for the current commands and limits.
 Review [heartbeat availability and revocation](revocation-and-heartbeats.md)
 before restarting authz or migrating an existing callback configuration.
@@ -80,8 +80,10 @@ and logout. Private failure diagnostics and token/session hashes remain beside
 the config; neither belongs in published evidence. Public reachability and
 clean-host provenance are separate claims; this script proves the former flows.
 
-Appliance enrollment and public relay acceptance remain W4; Open/revocation UI is W5; invitation and full
-OIDC/SAML flows are W6; scheduled backups and final operational acceptance are W7.
+Scoped [native/public W4 acceptance](validation-native-public-certificate.md),
+[two-Dex OIDC](validation-two-dex.md) and [Keycloak SAML](validation-keycloak-saml.md)
+are recorded separately. Remaining W5 measurements, public-provider checks and
+final W7 operational/release acceptance remain open.
 The [daily backup service](database-backups.md) passed the [scoped container checkpoint](validation-database-backups.md); complete clean-host/key/device restoration remains open.
 Protected relay authority activation and retained-operation recovery commands
 are documented in [Relay authority operations](relay-authority-operations.md).
@@ -105,4 +107,5 @@ Web loads the existing private `secrets/web/secrets_key` through
 `--secrets-key-file`; generated bundles bind `/run/secrets/secrets_key`. Preserve
 this file with the deployment backup. Missing or invalid material prevents Web
 startup. The [credential envelope and startup checks](provider-secrets.md) are
-implemented; provider administration and SSO acceptance remain W6 work.
+implemented. Provider administration and scoped deployed OIDC/SAML checks have
+accepted evidence above; public-provider and complete W6 acceptance remain open.
