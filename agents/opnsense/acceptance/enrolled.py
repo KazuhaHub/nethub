@@ -11,6 +11,7 @@ import re
 import socket
 import ssl
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -270,7 +271,8 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     cleanup.callback(backend.shutdown)
     other_config = work / 'native-other-device.json'
     private_json(other_config, {'serverAddr': '127.0.0.1', 'serverPort': other['server_port'],
-        'loginFailExit': True, 'auth': {'method': 'token', 'token': other['frp_token']},
+        # This retained witness must retry during the planned full-host outage.
+        'loginFailExit': False, 'auth': {'method': 'token', 'token': other['frp_token']},
         'log': {'to': 'console', 'level': 'warn'},
         'metadatas': {'device_id': other['device_id'], 'domain_claim': other['domain_claim']},
         'transport': {'heartbeatInterval': 10, 'heartbeatTimeout': 30,
@@ -437,6 +439,21 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     original_survivor = survivor_sockets()
     if not original_survivor:
         raise GuestError('Recovered incident witness control was not observed')
+    host_restore = None
+    if os.environ.get('NETHUB_RECOVERY_TEST') == '1':
+        sys.path.insert(0, str(ROOT / 'server/tests/recovery'))
+        from linux_guest import RecoveryError
+        from restore import exercise as exercise_host_restore
+        try:
+            host_restore = exercise_host_restore(stage, port, project, evidence, native_read,
+                lambda: fixture('inspect', host=host), route, survivor_route, survivor)
+        except RecoveryError as error:
+            raise GuestError('Owned full-host recovery failed: ' + str(error)) from None
+        # Planned host shutdown necessarily replaces both control connections.
+        # Use the recovered source connection as the subsequent Remove baseline.
+        original_survivor = survivor_sockets()
+        if not original_survivor:
+            raise GuestError('Returned witness control was not observed after recovery')
     native_logs = guest.ssh("/usr/local/bin/python3.13 - <<'PY'\n"
         "import os,pathlib,stat,sys\n"
         "for name in ('frpc.log','scheduler.log'):\n"
@@ -489,6 +506,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
               'received_assignment_save_recovery': received,
               'interrupted_native_recovery_acceptance': True,
               'shared_token_incident_native_recovery': shared_token,
+              'clean_host_restoration': host_restore,
               'fixture_removed_through_native_page': True,
               'removed_fixture_revoked_model_cleared_service_stopped_route_closed': True,
               'independent_device_preserved_after_fixture_removal': True,
