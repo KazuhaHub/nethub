@@ -52,12 +52,20 @@ cases use synthetic protected material. FreeBSD execution passed 214 cases and
 all 242 source blobs were verified; fresh unsigned OPNsense preparation passed
 installation/configd/page checks with four reviewed image hashes and visuals.
 
-Complete installed run `40841093577` is executing the second server cutover,
-older-operation refusal, genuine native Rotate and independent witness recovery.
-Its actual outcomes and eight page images remain pending. A new pre-enrollment
-Compose case requires the real command to refuse an empty device table while
-preserving material, backup and all six services, without candidate/operation
-records. That additional case has compilation/vet/shell checks only so far.
+Complete installed run `40841093577` succeeded, with exact archive, two full
+logs, guest exit zero, completed tail and owned image cleanup checked. Its second
+cutover refused the older completed operation. Genuine native Rotate recovered
+the original verified HTTPS route in 3.210 seconds with identity/grants, GUI
+key/checks/alias and the independent witness retained. The artifact upload omitted
+the standalone incident report and new screenshot; only the nested incident result
+and eighth page/hash receipt survived. Full installed acceptance is withheld
+until corrected execution retains every required export. The upload list and a
+cross-file regression check now cover those omissions.
+
+A new pre-enrollment Compose case requires the real command to refuse an empty
+device table while preserving material, backup and all six services, without
+candidate/operation records. That additional case has compilation/vet/shell
+checks only so far.
 
 Logical coordinator tests cover lost effect/journal acknowledgements, changed
 requests/snapshots, orphaned state and failed readback. They complement the
