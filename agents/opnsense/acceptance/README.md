@@ -57,11 +57,9 @@ The fixture checks retained identity/source grants/GUI key, native credential an
 claim replacement, old-credential HTTP refusal, a genuine official-frpc stale
 Login refusal, and verified TLS recovery at the same assigned route. It also
 keeps an independent enrolled official client alive and checks its original
-control socket and verified TLS before/after the native rotation. Recovery
-after an interrupted installed operation still needs additional installed
-coverage; Linux relay and FreeBSD
-contracts remain separate evidence. The new combined fixture is unaccepted until
-an actual exact-source run and its retained outcomes/images are reviewed.
+control socket and verified TLS before/after the native rotation. Both installed interruption cases have scoped execution evidence below. Linux
+relay and FreeBSD contracts remain separate evidence; the complete combined
+workflow still requires a successful exact-source run.
 
 Only closed outcomes and selected native page images are made readable to the
 artifact uploader. Tokens, snapshots, CSRs, fixture keys, raw child output and
@@ -160,6 +158,14 @@ save and its idempotent retry from journal-order snapshots; missing/extra fields
 and identity/policy changes remain refused. A failed-page probe reads only
 journal phase and model-match booleans; it performs no HTTP retry or native save.
 Successful installed recovery still requires actual execution.
+The first FreeBSD run of this correction executed 214 cases with zero nonpassing
+cases, but its required-case receipt failed: the older summarizer removed all
+parameter labels, including the now-required `[journal]` identity. The summarizer
+now preserves only explicitly allowlisted full identities; other parameter data
+stays excluded. Missing, skipped, failed or alternate variants cannot receive the
+required credit. The failed receipt remains retained and the revised driver still
+requires actual hosted acceptance.
+
 
 The additional unknown-commit fixture loses both real rotation responses after
 the upstream returns, using the owned edge's
@@ -170,7 +176,7 @@ in `finally`. A failed page action must leave the original native model and a
 prepared journal while exactly one candidate-bound operation/audit is committed.
 The same page action then retries that retained operation, removes the completed
 journal and restores verified TLS without changing identity, source grants or
-the independent original control. This fixture still requires actual execution.
+the independent original control. Its actual recovery passed at source `1779316`, as recorded below.
 
 A second owned helper waits for the real prepared journal, then holds the native
 Core Config lock beyond the existing PHP save timeout. It never saves configuration
@@ -179,8 +185,28 @@ a received assignment, unchanged native model and one committed operation/audit.
 After releasing the lock, the page must recover with the rotation endpoint serving
 503, apply that same candidate, remove its journal and recover verified TLS.
 The original edge configuration is restored in `finally`. A missed lock race
-fails the fixture. Both interruption cases still require actual hosted execution;
-source and unit tests alone do not establish installed recovery.
+fails the fixture. Both interruption cases passed actual hosted execution at
+source `1779316`; source and unit tests alone do not establish installed recovery.
+
+
+Source `1779316` in [combined run 40818621704](https://github.com/KazuhaHub/nethub/actions/runs/40818621704)
+passed its inner native result, including original-claim Login denial, old HTTP
+credential refusal and both interrupted recoveries. Initial rotation recovered
+verified route TLS in 3.053 seconds; response-loss retry took 3.104 seconds and
+received-assignment retry with verified endpoint 503 took 3.522 seconds. Identity,
+grants, GUI key/checks/alias, one-operation/audit replay and the independent original
+control/TLS survived. Exact source, both official logs, six image hashes/visuals,
+guest exit zero and owned image cleanup were reviewed. The outer Compose result
+failed after native completion; its exact stage was not exported. This is scoped
+native evidence, not a successful complete combined job.
+
+The next fixture removes its extra enrolled device through the actual Remove
+enrollment page before later authority transitions. It requires database revocation,
+empty native credentials, disabled/stopped service, absent journal, closed assigned
+route and the independent device still alive. Fixed post-native phase names are
+recorded in a bounded `compose-tail.json`; child output stays private. Overall
+success requires a completed tail as well as the native result. These new cleanup
+and phase checks still require actual execution.
 
 Serial bootstrap sends short encoded heredoc lines within FreeBSD's canonical
 terminal input bound. Failure results retain only the waiting stage, selected

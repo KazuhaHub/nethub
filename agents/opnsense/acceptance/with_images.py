@@ -10,12 +10,14 @@ import subprocess
 import sys
 
 from guest import GuestError, invoke
+from compose_tail import read_phase
 
 
 ROOT = Path(__file__).resolve().parents[3]
 JOBS = {'workflow lint', 'Go vulnerability checks', 'weekend0 kit checks',
         'OPNsense plugin checks', 'Control plane checks', 'Deployment checks'}
 PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installed-rotation.json',
+                'native/compose-tail.json', 'native/installed-remove-page.json', 'native/installed-remove.png',
                 'native/guest-console-probe.json',
                 'native/native-model-probe.json',
                 'native/rotation-recovery-probe.json',
@@ -142,8 +144,16 @@ def main():
                     os.killpg(child.pid, signal.SIGKILL)
                     child.wait(timeout=10)
                 raise
+        try:
+            tail = read_phase(evidence / 'native')
+        except (OSError, ValueError, TypeError):
+            tail = None
+        result['compose_tail'] = tail
         if child.returncode:
-            raise GuestError('Owned native deployment acceptance failed')
+            phase = tail['phase'] if tail is not None else 'unclassified'
+            raise GuestError('Owned native deployment failed at ' + phase)
+        if tail is None or tail['passed'] is not True:
+            raise GuestError('Owned native deployment completion proof missing')
         native = json.loads((evidence / 'native/installed-rotation.json').read_text(encoding='utf-8'))
         if native.get('passed') is not True:
             raise GuestError('Installed native rotation proof missing')

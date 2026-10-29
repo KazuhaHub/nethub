@@ -9,14 +9,15 @@ const { chromium } = require('playwright');
 const config = JSON.parse(readFileSync(process.argv[2], 'utf8'));
 assert.match(config.origin, /^https:\/\/127\.0\.0\.1:[0-9]+$/);
 assert.equal(config.console, 'https://console.example.com');
-assert.ok(['enroll', 'rotate'].includes(config.action));
+assert.ok(['enroll', 'rotate', 'remove'].includes(config.action));
 const expectedSuccess = config.expected_success ?? true;
 assert.equal(typeof expectedSuccess, 'boolean');
 assert.ok(config.action === 'rotate' || expectedSuccess);
 const label = config.label ?? config.action;
 assert.ok(['enroll', 'rotate', 'rotate-lost', 'rotate-recovered',
-  'rotate-save-failed', 'rotate-save-recovered'].includes(label));
+  'rotate-save-failed', 'rotate-save-recovered', 'remove'].includes(label));
 assert.equal(label === 'enroll', config.action === 'enroll');
+assert.equal(label === 'remove', config.action === 'remove');
 assert.equal(expectedSuccess, !['rotate-lost', 'rotate-save-failed'].includes(label));
 let browser;
 let phase = 'private_gui_login';
@@ -32,7 +33,8 @@ try {
   await page.locator('a[href*=logout]').first().waitFor();
   phase = 'native_' + config.action;
   await page.goto(config.origin + '/ui/nethubagent/', { waitUntil: 'domcontentloaded' });
-  const endpoint = config.action === 'enroll' ? '/api/nethubagent/enroll/enroll' : '/api/nethubagent/service/rotate';
+  const endpoint = config.action === 'enroll' ? '/api/nethubagent/enroll/enroll'
+    : config.action === 'remove' ? '/api/nethubagent/remove/remove' : '/api/nethubagent/service/rotate';
   const pending = page.waitForResponse(response => new URL(response.url()).pathname === endpoint, { timeout: 100000 });
   if (config.action === 'enroll') {
     await page.locator('#nethubEnrollmentInfo').filter({ hasText: 'Not enrolled' }).waitFor();
@@ -41,9 +43,11 @@ try {
     await page.locator('#enrollNetHub').click();
   } else {
     await page.locator('#nethubEnrollmentInfo').filter({ hasText: 'Enrolled device' }).waitFor();
-    await page.waitForFunction(() => !document.querySelector('#rotateNetHub').disabled);
+    const control = config.action === 'remove' ? '#removeNetHub' : '#rotateNetHub';
+    await page.locator(control).waitFor({ state: 'visible' });
+    await page.waitForFunction(selector => !document.querySelector(selector).disabled, control);
     page.once('dialog', dialog => dialog.accept());
-    await page.locator('#rotateNetHub').click();
+    await page.locator(control).click();
   }
   const response = await pending;
   assert.equal(response.status(), 200);
@@ -52,6 +56,10 @@ try {
   if (config.action === 'enroll') {
     assert.equal(result.enrolled, true);
     await page.locator('#nethubEnrollmentInfo').filter({ hasText: 'Enrolled device' }).waitFor();
+  } else if (config.action === 'remove') {
+    assert.equal(result.enrolled, false);
+    assert.equal(result.cleanup_complete, true);
+    await page.locator('#nethubEnrollmentInfo').filter({ hasText: 'Not enrolled' }).waitFor();
   } else if (expectedSuccess) {
     assert.equal(result.phase, 'applied');
     await page.locator('#nethubRotationResult').filter({ hasText: 'Credentials rotated' }).waitFor();
@@ -60,7 +68,7 @@ try {
     await page.locator('#nethubRotationResult').filter({ hasText: 'Rotation response unavailable' }).waitFor();
   }
   assert.equal(await page.locator('#nethubEnrollToken').inputValue(), '');
-  await page.locator('#rotateNetHub').scrollIntoViewIfNeeded();
+  await page.locator(config.action === 'remove' ? '#nethubEnrollmentInfo' : '#rotateNetHub').scrollIntoViewIfNeeded();
   const screenshot = 'installed-' + label + '.png';
   await page.screenshot({ path: join(config.evidence, screenshot), mask: [page.locator('#nethubStatus')] });
   writeFileSync(join(config.evidence, 'installed-' + label + '-page.json'),

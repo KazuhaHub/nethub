@@ -436,6 +436,29 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
                   before['domain_claim'], after['domain_claim'], *recovery_credentials, *received_credentials):
         if value.encode('ascii') in native_logs:
             raise GuestError('Native runtime log disclosed a credential')
+    # Later authority tests own the two original device assignments. Remove the
+    # extra installed device through its real UI before their cutover barriers.
+    page_action('remove')
+    if sql("SELECT count(*) FROM devices WHERE id='" + device + "' AND revoked_at IS NOT NULL;") != '1':
+        raise GuestError('Installed fixture removal did not revoke the device')
+    guest.ssh("/usr/local/bin/python3.13 - <<'PY'\n"
+        "from pathlib import Path\n"
+        "import subprocess,xml.etree.ElementTree as ET\n"
+        "node=ET.parse('/conf/config.xml').getroot().find('OPNsense/NetHubAgent')\n"
+        "assert node is not None\n"
+        "for name in ('console_url','server_addr','server_name','relay_ca','relay_trust_state',"
+        "'subdomain','device_id','device_secret','frp_token','domain_claim'):\n"
+        " assert (node.findtext(name) or '')==''\n"
+        "assert node.findtext('enabled')=='0'\n"
+        "assert not Path('/var/db/nethub-agent/rotation.json').exists()\n"
+        "result=subprocess.run(['/usr/sbin/service','nethub_agent_frpc','onestatus'],capture_output=True,timeout=10)\n"
+        "assert result.returncode!=0\n"
+        "PY\n", 'removed native model and stopped service')
+    if route():
+        raise GuestError('Removed native fixture route remained available')
+    if (survivor.poll() is not None or not survivor_route()
+            or not original_survivor.issubset(survivor_sockets())):
+        raise GuestError('Native fixture removal interrupted the independent device')
     result = {'passed': True, 'actual_native_page_enrollment_and_rotation': True,
               'native_model_readback_verified': True, 'same_route_verified_TLS_before_and_after': True,
               'old_credential_HTTP_401': True, 'identity_and_source_grants_retained': True,
@@ -447,6 +470,9 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
               'unknown_committed_response_recovery': recovered,
               'received_assignment_save_recovery': received,
               'interrupted_native_recovery_acceptance': True,
+              'fixture_removed_through_native_page': True,
+              'removed_fixture_revoked_model_cleared_service_stopped_route_closed': True,
+              'independent_device_preserved_after_fixture_removal': True,
               'public_network_or_formal_release_acceptance': False, 'full_goal_complete': False}
     private_json(evidence / 'installed-rotation.json', result)
     return result

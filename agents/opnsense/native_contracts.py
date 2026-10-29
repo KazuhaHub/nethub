@@ -105,11 +105,15 @@ def summarize_xml(path):
     passed = []
     nonpassing = []
     for case in cases:
-        name = case.get('name', '').split('[', 1)[0]
+        reported = case.get('name', '')
+        # Preserve only an explicitly required parameter identity. Arbitrary
+        # parameter values remain excluded from published diagnostics.
+        name = reported if reported in REQUIRED_NATIVE_CASES else reported.split('[', 1)[0]
         if any(case.find(tag) is not None for tag in ['failure', 'error', 'skipped']):
-            nonpassing.append(name if re.fullmatch(r'[A-Za-z0-9_]{1,160}', name) else 'collection_error')
+            nonpassing.append(name if name in REQUIRED_NATIVE_CASES or re.fullmatch(r'[A-Za-z0-9_]{1,160}', name)
+                              else 'collection_error')
             continue
-        if not re.fullmatch(r'[A-Za-z0-9_]+', name):
+        if name not in REQUIRED_NATIVE_CASES and not re.fullmatch(r'[A-Za-z0-9_]+', name):
             raise ValueError('Unexpected test identity')
         passed.append(name)
     return {'tests': len(cases), 'passed': len(passed),
