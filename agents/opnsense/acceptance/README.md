@@ -145,6 +145,22 @@ events and fixed failure diagnostics. The original exact Login decision remains
 unknown. Exact source, both official logs and owned cleanup are retained; this
 partial positive path does not accept the complete installed workflow.
 
+Combined `271f2a3` (`40814962539`) then passed the actual stale official-client
+Login denial and old HTTP credential refusal. Response interception committed
+exactly one operation/audit while retaining the same prepared candidate and
+unchanged native model. The subsequent recovery page failed before completion;
+the original internal error was not exported. Three successful page images and
+hashes, exact source, both logs and owned cleanup were checked.
+
+A concrete recovery defect is corrected: canonical journal JSON sorts native
+snapshot keys. PHP previously required insertion order and compared native arrays
+strictly. Validation now enforces the same exact field set and normalizes its
+order before CAS/readback. A mandatory actual PHP case exercises both the initial
+save and its idempotent retry from journal-order snapshots; missing/extra fields
+and identity/policy changes remain refused. A failed-page probe reads only
+journal phase and model-match booleans; it performs no HTTP retry or native save.
+Successful installed recovery still requires actual execution.
+
 The additional unknown-commit fixture loses both real rotation responses after
 the upstream returns, using the owned edge's
 [response interception](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#intercepting-responses)

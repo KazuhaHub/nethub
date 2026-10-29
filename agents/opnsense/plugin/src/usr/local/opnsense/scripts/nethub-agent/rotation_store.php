@@ -50,7 +50,7 @@ final class NativeRotationStore
 
     private static function validate(mixed $nodes): array
     {
-        if (!is_array($nodes) || array_keys($nodes) !== self::FIELDS ||
+        if (!is_array($nodes) || count($nodes) !== count(self::FIELDS) || array_diff(self::FIELDS, array_keys($nodes)) ||
             array_filter($nodes, static fn($value) => !is_string($value)) ||
             !in_array($nodes['enabled'], ['0', '1'], true) ||
             \OPNsense\NetHubAgent\Enrollment::origin($nodes['console_url']) !== $nodes['console_url'] ||
@@ -68,7 +68,11 @@ final class NativeRotationStore
         if (\OPNsense\NetHubAgent\Enrollment::assignment($assignment) === null) {
             throw new RuntimeException('Invalid native rotation assignment');
         }
-        return $nodes;
+        // Canonical journals sort object keys. Normalize before strict native
+        // CAS/readback comparisons while retaining the exact field set.
+        $ordered = [];
+        foreach (self::FIELDS as $field) { $ordered[$field] = $nodes[$field]; }
+        return $ordered;
     }
 
     private function flush(array $target): void

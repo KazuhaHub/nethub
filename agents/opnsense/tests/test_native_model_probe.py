@@ -38,6 +38,28 @@ def test_native_storage_receipt_accepts_only_fixed_booleans():
         PROBE.validate_storage(value)
 
 
+@pytest.mark.parametrize('phase', ['absent', 'invalid', 'prepared', 'received'])
+def test_rotation_condition_receipt_accepts_only_known_phase_and_booleans(phase):
+    value = dict.fromkeys(PROBE.ROTATION_FLAGS, False)
+    value['phase'] = phase
+    PROBE.validate_rotation_conditions(value)
+    value['pending_valid'] = 'private-value-must-not-escape'
+    with pytest.raises(ValueError):
+        PROBE.validate_rotation_conditions(value)
+    value['pending_valid'] = True
+    value['candidate'] = 'private-value-must-not-escape'
+    with pytest.raises(ValueError):
+        PROBE.validate_rotation_conditions(value)
+
+
+@pytest.mark.parametrize('phase', ['private-value-must-not-escape', [], {}, None, True])
+def test_unknown_rotation_phase_is_not_exported(phase):
+    value = dict.fromkeys(PROBE.ROTATION_FLAGS, False)
+    value['phase'] = phase
+    with pytest.raises(ValueError):
+        PROBE.validate_rotation_conditions(value)
+
+
 @pytest.mark.parametrize('mutation', ['extra', 'phase', 'source', 'kind', 'line', 'message', 'success', 'context_extra'])
 def test_private_or_malformed_model_failure_is_not_projected(mutation):
     value = copy.deepcopy(failure())
