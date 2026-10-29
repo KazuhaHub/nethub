@@ -17,6 +17,7 @@ from relay_maintenance import exercise
 from relay_heartbeat import exercise_heartbeats
 from relay_traffic import exercise_traffic
 from relay_rotation import exercise_rotation
+from relay_token_probe import exercise_token_probe
 
 
 stage, port = Path(sys.argv[1]), int(sys.argv[2])
@@ -353,6 +354,7 @@ try:
 
     exercise_heartbeats(stage, compose, assignments, valid_clients, gateway, sql,
                         check_tunnels, probe, local_source, hook_events, revocation_client)
+    exercise_token_probe(stage, assignments, valid_clients, check_tunnels)
     exercise_rotation(stage, port, assignments, valid_clients, start_client, stop_client,
                       backend.server_port, local_source, probe, check_tunnels, hook_events, sql)
 finally:

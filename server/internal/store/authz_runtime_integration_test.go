@@ -117,6 +117,7 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, webRole *sql.DB, tenan
 	go func() { completed <- command.Wait() }()
 	exited := false
 	defer func() {
+		alreadyExited := exited
 		if !exited {
 			_ = command.Process.Signal(syscall.SIGTERM)
 			select {
@@ -129,6 +130,14 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, webRole *sql.DB, tenan
 				<-completed
 				t.Error("authz exceeded the graceful shutdown deadline")
 			}
+		}
+		if t.Failed() {
+			// Wait above joins both output writers. Publish only fixed-condition
+			// counts, never the child's raw diagnostic text or request metadata.
+			errors := stderr.String()
+			t.Logf("Compiled authz failure conditions: exited_before_cleanup=%t refresh_failures=%d pending_disconnect_reports=%d observation_failures=%d",
+				alreadyExited, strings.Count(errors, "Revocation refresh failed; retaining previous snapshot"),
+				strings.Count(errors, "Disconnect requests remain pending"), strings.Count(errors, "Relay observation unavailable"))
 		}
 	}()
 	client := &http.Client{Timeout: 15 * time.Second}
@@ -341,7 +350,9 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, webRole *sql.DB, tenan
 	if err != nil {
 		t.Fatal("compiled runtime cutoff request failed", err)
 	}
-	deadline = time.Now().Add(relayhook.RevocationInterval + 3*time.Second)
+	// The next tick runs Refresh and ProcessDisconnects in sequence, each with
+	// its own production budget. Keep the separate five-second cadence checks.
+	deadline = time.Now().Add(relayhook.RevocationInterval + 2*relayhook.RevocationBudget + time.Second)
 	for {
 		var armed bool
 		if err = f.owner.QueryRowContext(f.ctx, `SELECT processed_at IS NOT NULL FROM device_disconnect_requests WHERE id=$1`, requestReceipt.RequestID).Scan(&armed); err != nil {
