@@ -1,7 +1,7 @@
 # Device protocol walkthrough
 
 This guide describes the current major-1 device contract. The protocol version is
-[`proto/VERSION`](../proto/VERSION), currently `1.5.0`; the authoritative wire
+[`proto/VERSION`](../proto/VERSION), currently `1.6.0`; the authoritative wire
 shapes are the [schemas](../proto/v1/) and shared
 [example manifest](../proto/examples/manifest.json). Protocol compatibility does
 not establish a supported platform, native installation or a stable release.
@@ -70,12 +70,14 @@ The lifecycle router implements `/api/v1/devices/{status,unenroll,rotate}`.
 Protocol 1.6 rotation binds one privately journaled candidate to one operation;
 its transaction advances the credential hash and claim timestamp with an immutable
 operation/audit. A response-loss retry authenticates the committed candidate and
-recovers that assignment. The server implementation is under genuine database
-and relay validation. The native journal/model workflow, command and UI are under combined
+recovers that assignment. Genuine SQL/publication-fence and official Linux frpc
+checks have passed; they do not establish installed-device acceptance. The native journal/model workflow, command and UI are under combined
 validation; this is not yet accepted operational device rotation. See the
 [rotation contract and limits](../proto/ROTATION.md).
 
-## GUI certificate lifecycle
+<a id="gui-certificate-lifecycle"></a>
+
+## Protocol extensions and GUI certificates
 
 The extensions add separate checks; none grants general remote configuration
 authority over the router.
@@ -87,6 +89,7 @@ authority over the router.
 | 1.3           | Authenticated delivery of a pending or issued public certificate generation.                           |
 | 1.4           | Authenticated report of a verified, durably applied GUI generation.                                    |
 | 1.5           | Authenticated current relay trust delivery and application receipt.                                    |
+| 1.6           | Operation-bound credential rotation with an exact retained relay-trust digest and recoverable candidate. |
 
 The optional enrollment key is canonical unpadded base64url P-256 SubjectPublicKeyInfo.
 Its acknowledgement is the SHA256 of its DER bytes. A supplied key must receive
