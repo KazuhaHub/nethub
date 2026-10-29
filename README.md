@@ -310,7 +310,12 @@ have scoped accepted evidence. Public-provider and complete W6 acceptance remain
 
 The [scheduled database backup service](deploy/database-backups.md) passed
 [scoped container and restore checks](deploy/validation-database-backups.md).
-Complete clean-host/current-key/device recovery, credential rotation, full document
+Per-device [credential rotation](deploy/device-rotation.md), including two genuine
+native interruption recoveries, has scoped installed acceptance. Deployment-wide
+[shared-token incident recovery](deploy/shared-relay-token-rotation.md) has scoped
+server/reference-client cutover evidence; its installed-native recovery remains
+under validation. Public/mobile gates remain separate.
+Complete clean-host/current-key/device recovery, full document
 review, friend-from-zero deployment and signed/faulty-version release gates remain
 W7 work. There is no released package or production-readiness claim.
 

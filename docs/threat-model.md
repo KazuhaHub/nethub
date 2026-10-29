@@ -256,8 +256,9 @@ These controls do not make a malicious enabled IdP trustworthy.
 
 Device root can read its local credentials and act as that device. A leaked
 shared frp token does not supply another device's valid assigned claim. It still
-requires a deployment rotation/recovery procedure; operational rotation is not
-implemented merely because its schema exists.
+requires the [deployment incident procedure](../deploy/shared-relay-token-rotation.md).
+Server/reference-client cutover has passed, while genuine native incident and
+public-network acceptance remain open.
 
 One-way database revocation, combined Ping/Login/NewProxy denial and fresh
 connection denial provide observed cutoff for the tested normal clients. The
@@ -338,11 +339,15 @@ administration access. Archives contain device credentials and account data.
 Protected off-host durability and a full clean-host/current-key restoration with
 an already enrolled device reconnecting remain unaccepted.
 
-Per-device rotation now has an HTTP endpoint, durable agent recovery and a native
-page action under combined validation. Actual SQL and official Linux frpc
-checks do not establish installed native rotation or its interruption recovery.
-Coordinated shared-token replacement and its incident procedure remain open.
-See [rotation scope](../deploy/device-rotation.md).
+Per-device rotation passed the genuine native page/model/relay workflow at source
+`986ee4c`, including response loss, native save-lock interruption and real Remove
+cleanup. Identity, grants, GUI key/checks/alias and the independent original
+control survived within that isolated scope. The shared-token host command and
+incident procedure passed server/reference-client cutover at source `6432e37`;
+interrupted-host and installed-native incident execution remain pending.
+See [device scope](../deploy/device-rotation.md) and
+[shared-token procedure](../deploy/shared-relay-token-rotation.md). These checks
+do not establish fleet, public-network or complete restoration acceptance.
 
 Doctor has separate file/DNS, console TLS, read-only database-role, runtime
 container, relay Login-rejection, recent-archive and

@@ -244,9 +244,12 @@ manual CA-file substitution. Preserve overlap and offline-device recovery paths.
 
 Preserve Web's `secrets_key` with the secret backup: it protects stored provider
 credentials, SAML signing identities and flow state. Changing it is not a password
-reset. Device credential rotation, deployment frp-token rotation and their
-offline-device recovery procedure remain W7 work; do not substitute a schema
-example or ad hoc database update for those operations.
+reset. Use the [device rotation operation](../deploy/device-rotation.md) for an
+enrolled device. Deployment-wide frp-token replacement has a separate
+[host incident procedure](../deploy/shared-relay-token-rotation.md), including
+independent management before tunnel interruption and manual offline recovery.
+Its native incident acceptance remains open. Neither procedure is an ad hoc
+database credential update.
 
 ## Backup and restore boundary
 
