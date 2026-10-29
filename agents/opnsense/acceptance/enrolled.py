@@ -16,6 +16,7 @@ import time
 import uuid
 
 from guest import GuestError, invoke
+from rotation_recovery import exercise_response_loss, exercise_save_interruption
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -121,10 +122,11 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     config = work / 'native-browser-private.json'
     browser = Path(__file__).with_name('enrolled-browser.mjs')
 
-    def page_action(action):
+    def page_action(action, *, expected=True, label=None):
         private_json(config, {'origin': f'https://127.0.0.1:{guest.gui_port}',
                              'console': f'https://console.example.com:{port}', 'token': token,
-                             'action': action, 'evidence': str(evidence)})
+                             'action': action, 'expected_success': expected,
+                             'label': label or action, 'evidence': str(evidence)})
         invoke([os.environ['NETHUB_NODE_BINARY'], str(browser), str(config)],
                'installed native ' + action + ' page', timeout=120)
 
@@ -370,6 +372,24 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             'operation_id': str(uuid.uuid4()), 'replacement_secret': before['device_secret'],
             'expected_relay_ca_sha256': hashlib.sha256(base64.b64decode(before['relay_ca'], validate=True)).hexdigest()},
             secret=before['device_secret'], expected=401)
+    recovered, recovery_credentials = exercise_response_loss(
+        guest, stage, compose, page_action, native_read, sql, route, device, stable_query, grants_query)
+
+    def check_rotation_unavailable():
+        raw = invoke(base + ['--write-out', '\n%{http_code}',
+            'https://console.example.com/api/v1/devices/rotate'],
+            'verified unavailable rotation endpoint', timeout=12)
+        if raw.rpartition(b'\n')[2] != b'503':
+            raise GuestError('Rotation endpoint unavailability was not observed over verified TLS')
+
+    received, received_credentials = exercise_save_interruption(
+        guest, stage, compose, page_action, native_read, sql, route,
+        device, stable_query, grants_query, nonce, check_rotation_unavailable)
+    if (survivor.poll() is not None or not survivor_route()
+            or not original_survivor.issubset(survivor_sockets())):
+        raise GuestError('Unknown commit recovery interrupted the independent device')
+    if fixture('inspect', host=host) != checked:
+        raise GuestError('Unknown commit recovery changed native GUI identity or checks')
     native_logs = guest.ssh("/usr/local/bin/python3.13 - <<'PY'\n"
         "import os,pathlib,stat,sys\n"
         "for name in ('frpc.log','scheduler.log'):\n"
@@ -384,7 +404,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     native_log_path.write_bytes(native_logs)
     native_log_path.chmod(0o600)
     for value in (token, before['device_secret'], after['device_secret'], before['frp_token'],
-                  before['domain_claim'], after['domain_claim']):
+                  before['domain_claim'], after['domain_claim'], *recovery_credentials, *received_credentials):
         if value.encode('ascii') in native_logs:
             raise GuestError('Native runtime log disclosed a credential')
     result = {'passed': True, 'actual_native_page_enrollment_and_rotation': True,
@@ -395,7 +415,9 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
               'native_GUI_key_retained': True, 'GUI_security_checks_and_exact_alias_retained': True,
               'rotation_to_verified_route_ms': elapsed,
               'independent_device_original_control_and_verified_TLS_preserved': True,
-              'interrupted_native_recovery_acceptance': False,
+              'unknown_committed_response_recovery': recovered,
+              'received_assignment_save_recovery': received,
+              'interrupted_native_recovery_acceptance': True,
               'public_network_or_formal_release_acceptance': False, 'full_goal_complete': False}
     private_json(evidence / 'installed-rotation.json', result)
     return result

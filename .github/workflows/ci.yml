@@ -339,7 +339,9 @@ jobs:
           sudo apt-get "${apt_options[@]}" install -y --no-install-recommends php8.3-cli php8.3-xml
 
       - name: Check native acceptance helper syntax
-        run: /usr/bin/php8.3 -l agents/opnsense/acceptance/native-fixture.php
+        run: |
+          /usr/bin/php8.3 -l agents/opnsense/acceptance/native-fixture.php
+          /usr/bin/php8.3 -l agents/opnsense/acceptance/rotation-save-lock.php
 
       - name: Install test runner
         run: python3 -m pip install pytest==8.3.5 jinja2==3.1.6 jsonschema==4.25.1

@@ -112,5 +112,9 @@ jobs:
             ${{ runner.temp }}/native-enrolled-evidence/native/*-page.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-enroll.png
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate.png
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate-lost.png
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate-recovered.png
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate-save-failed.png
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate-save-recovered.png
           if-no-files-found: warn
           retention-days: 7

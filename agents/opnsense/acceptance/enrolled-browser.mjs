@@ -10,6 +10,14 @@ const config = JSON.parse(readFileSync(process.argv[2], 'utf8'));
 assert.match(config.origin, /^https:\/\/127\.0\.0\.1:[0-9]+$/);
 assert.match(config.console, /^https:\/\/console\.example\.com:[0-9]+$/);
 assert.ok(['enroll', 'rotate'].includes(config.action));
+const expectedSuccess = config.expected_success ?? true;
+assert.equal(typeof expectedSuccess, 'boolean');
+assert.ok(config.action === 'rotate' || expectedSuccess);
+const label = config.label ?? config.action;
+assert.ok(['enroll', 'rotate', 'rotate-lost', 'rotate-recovered',
+  'rotate-save-failed', 'rotate-save-recovered'].includes(label));
+assert.equal(label === 'enroll', config.action === 'enroll');
+assert.equal(expectedSuccess, !['rotate-lost', 'rotate-save-failed'].includes(label));
 let browser;
 let phase = 'private_gui_login';
 try {
@@ -40,24 +48,28 @@ try {
   const response = await pending;
   assert.equal(response.status(), 200);
   const result = await response.json();
-  assert.equal(result.success, true);
+  assert.equal(result.success, expectedSuccess);
   if (config.action === 'enroll') {
     assert.equal(result.enrolled, true);
     await page.locator('#nethubEnrollmentInfo').filter({ hasText: 'Enrolled device' }).waitFor();
-  } else {
+  } else if (expectedSuccess) {
     assert.equal(result.phase, 'applied');
     await page.locator('#nethubRotationResult').filter({ hasText: 'Credentials rotated' }).waitFor();
+  } else {
+    assert.equal(result.phase, 'error');
+    await page.locator('#nethubRotationResult').filter({ hasText: 'Rotation response unavailable' }).waitFor();
   }
   assert.equal(await page.locator('#nethubEnrollToken').inputValue(), '');
   await page.locator('#rotateNetHub').scrollIntoViewIfNeeded();
-  const screenshot = 'installed-' + config.action + '.png';
+  const screenshot = 'installed-' + label + '.png';
   await page.screenshot({ path: join(config.evidence, screenshot), mask: [page.locator('#nethubStatus')] });
-  writeFileSync(join(config.evidence, 'installed-' + config.action + '-page.json'),
-    JSON.stringify({ passed: true, action: config.action, actual_native_write_API: true,
+  writeFileSync(join(config.evidence, 'installed-' + label + '-page.json'),
+    JSON.stringify({ passed: true, action: config.action, expected_success: expectedSuccess,
+      actual_native_write_API: true,
       screenshots: { [screenshot]: createHash('sha256').update(readFileSync(join(config.evidence, screenshot))).digest('hex') } }, null, 2));
   await context.close();
 } catch {
-  writeFileSync(join(config.evidence, 'installed-' + config.action + '-page.json'),
+  writeFileSync(join(config.evidence, 'installed-' + label + '-page.json'),
     JSON.stringify({ passed: false, phase }, null, 2));
   throw new Error('Installed device browser check failed at ' + phase);
 } finally {

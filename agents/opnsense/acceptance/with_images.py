@@ -18,7 +18,11 @@ JOBS = {'workflow lint', 'Go vulnerability checks', 'weekend0 kit checks',
 PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installed-rotation.json',
                 'native/native-fixture-host.json',
                 'native/installed-enroll-page.json', 'native/installed-rotate-page.json',
-                'native/installed-enroll.png', 'native/installed-rotate.png')
+                'native/installed-enroll.png', 'native/installed-rotate.png',
+                'native/installed-rotate-lost-page.json', 'native/installed-rotate-recovered-page.json',
+                'native/installed-rotate-lost.png', 'native/installed-rotate-recovered.png',
+                'native/installed-rotate-save-failed-page.json', 'native/installed-rotate-save-recovered-page.json',
+                'native/installed-rotate-save-failed.png', 'native/installed-rotate-save-recovered.png')
 
 
 def publish_evidence(directory):

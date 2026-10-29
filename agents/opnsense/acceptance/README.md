@@ -24,20 +24,15 @@ and logged-in, unenrolled page images are uploaded. Scrolled mobile images also
 check that the enrollment field and rotation control are unobscured in the native
 shell's scroll container. No package is signed or published.
 
-Source `b148325` passed the [initial preparation run](https://github.com/KazuhaHub/nethub/actions/runs/40781008446):
-the current unsigned package, rebuilt frpc 0.71.1, configd stopped status and
-unenrolled native desktop page were checked on a fresh OPNsense 26.7.7 guest.
-The exact source archive, official log and both original image hashes were
-independently verified; the owned guest terminated with exit status zero.
-The original mobile image cropped lower controls in the native scroll container.
-The supplementary mobile captures above still require execution and review.
-Enrollment, rotation and relay recovery remain separate acceptance work.
-
-Source `c2b91a9` installed the package and captured enrollment plus the visible
-disabled rotation control, but its foreground assertion failed. The check now
-accounts for Bootstrap's disabled-button hit testing and records closed boolean
-geometry/hit results and a fixed failure phase. This correction needs a real run;
-the earlier failed overall preparation result remains retained.
+Source `548571f` passed the [current preparation run](https://github.com/KazuhaHub/nethub/actions/runs/40798049846):
+the unsigned package, rebuilt frpc 0.71.1 with Go 1.26.10, agent stopped status reported through configd
+and unenrolled native page were checked on fresh OPNsense 26.7.7. The exact source
+archive, official log and four image hashes/visuals were independently verified;
+the owned guest terminated with exit status zero. Supplementary mobile viewports
+confirmed unobscured enrollment and disabled rotation controls. The earlier
+cropped capture and disabled-button foreground failure remain retained. Bootstrap's
+disabled hit testing now has actual runtime evidence. Enrollment, rotation and
+relay recovery remain separate acceptance work.
 
 ## Combined installed-device acceptance
 
@@ -88,7 +83,37 @@ before CA import. Root identity now uses FreeBSD's base `id` command instead of
 assuming the optional PHP POSIX extension. The helper still requires one CLI
 argument, FreeBSD and effective UID zero; the caller explicitly enables CLI
 argument registration. A closed boolean runtime-condition receipt distinguishes
-these prerequisites on the actual guest. This remains pending real execution.
+these prerequisites on the actual guest. Run `40798049843` at `548571f` confirmed
+all host prerequisites and the absence of the POSIX extension, then failed during
+native trust-store regeneration before enrollment. Exact source, both official
+logs, closed runtime conditions and owned cleanup were independently retained.
+The helper now loads `util.inc` and `legacy_bindings.inc`, checks required native
+functions and respects deliberately suppressed native warnings. Unsuppressed
+failures still stop the fixture. A bounded context can expose only an allowlisted
+error class, source category and line number, never exception text or full paths.
+These corrections still need a successful actual run; no installed rotation is
+accepted from the failed trust preparation.
+
+The additional unknown-commit fixture loses both real rotation responses after
+the upstream returns, using the owned edge's
+[response interception](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#intercepting-responses)
+and [abort handler](https://caddyserver.com/docs/caddyfile/directives/abort).
+It keeps console HTTPS unchanged and restores the original edge configuration
+in `finally`. A failed page action must leave the original native model and a
+prepared journal while exactly one candidate-bound operation/audit is committed.
+The same page action then retries that retained operation, removes the completed
+journal and restores verified TLS without changing identity, source grants or
+the independent original control. This fixture still requires actual execution.
+
+A second owned helper waits for the real prepared journal, then holds the native
+Core Config lock beyond the existing PHP save timeout. It never saves configuration
+and has an external deadline. The fixture requires acknowledged lock ownership,
+a received assignment, unchanged native model and one committed operation/audit.
+After releasing the lock, the page must recover with the rotation endpoint serving
+503, apply that same candidate, remove its journal and recover verified TLS.
+The original edge configuration is restored in `finally`. A missed lock race
+fails the fixture. Both interruption cases still require actual hosted execution;
+source and unit tests alone do not establish installed recovery.
 
 Serial bootstrap sends short encoded heredoc lines within FreeBSD's canonical
 terminal input bound. Failure results retain only the waiting stage, selected
