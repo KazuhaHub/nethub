@@ -72,7 +72,7 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 	listen := flags.String("listen", "127.0.0.1:8081", "Private device API listen address")
 	origin := flags.String("origin", "", "External HTTPS console origin without a path")
 	claimFile := flags.String("claim-key-file", "", "Private deployment claim key file")
-	keyID := flags.String("claim-key-id", "initial", "Active deployment claim key identifier")
+	keyID := flags.String("claim-key-id", claim.InitialKeyID, "Active deployment claim key identifier")
 	frpFile := flags.String("frp-token-file", "", "Private deployment frp token file")
 	caFile := flags.String("relay-ca-file", "", "Public relay CA PEM bundle file")
 	relayAddr := flags.String("relay-addr", "", "Relay control-channel hostname or IP")

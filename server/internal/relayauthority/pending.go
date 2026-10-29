@@ -11,7 +11,17 @@ import (
 // transition completed. Partial, malformed or nonterminal journals fail closed.
 // Call again under the shared relay lease before mutating any active files.
 func CheckNoPendingTransition(directory string) error {
-	if !canonical(directory) || CheckNoPendingTokenTransition(directory) != nil {
+	if CheckNoPendingTokenTransition(directory) != nil {
+		return ErrTransition
+	}
+	return CheckNoPendingAuthorityTransition(directory)
+}
+
+// CheckNoPendingAuthorityTransition is the authority-only half of admission.
+// A token recovery caller must also check its exact token-operation admission
+// while holding the shared relay lease; ordinary callers use the combined guard.
+func CheckNoPendingAuthorityTransition(directory string) error {
+	if !canonical(directory) {
 		return ErrTransition
 	}
 	root := filepath.Join(directory, "authority-transitions")

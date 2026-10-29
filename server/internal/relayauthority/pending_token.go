@@ -12,6 +12,22 @@ import (
 // admission; partial preparation, malformed records and nonterminal phases never
 // expire. Call again while holding relay-operation.lock before active effects.
 func CheckNoPendingTokenTransition(directory string) error {
+	return checkTokenAdmission(directory, nil)
+}
+
+// CheckTokenRecoveryAdmission admits only the caller's retained exact request.
+// The privileged caller must first verify its immutable command/options and
+// hold relay-operation.lock. An empty own directory can finish initialization;
+// a nonempty directory missing its options is damaged and cannot be repaired by
+// this guard. Other incomplete operations remain blocked without a time limit.
+func CheckTokenRecoveryAdmission(directory string, request relaytoken.Request) error {
+	if !request.Valid() {
+		return ErrTransition
+	}
+	return checkTokenAdmission(directory, &request)
+}
+
+func checkTokenAdmission(directory string, own *relaytoken.Request) error {
 	if !canonical(directory) {
 		return ErrTransition
 	}
@@ -37,6 +53,15 @@ func CheckNoPendingTokenTransition(directory string) error {
 		if _, err := protected(operation, true); err != nil {
 			return ErrTransition
 		}
+		if own != nil && entry.Name() == own.OperationID {
+			children, err := os.ReadDir(operation)
+			if err != nil {
+				return ErrTransition
+			}
+			if len(children) == 0 {
+				continue
+			}
+		}
 		var options struct {
 			Directory       string             `json:"deployment"`
 			SuccessorBackup string             `json:"successor_backup"`
@@ -45,11 +70,20 @@ func CheckNoPendingTokenTransition(directory string) error {
 		var intent relaytoken.Intent
 		var state relaytoken.State
 		if readTransitionJSON(filepath.Join(operation, "options.json"), &options) != nil ||
-			readTransitionJSON(filepath.Join(operation, "intent.json"), &intent) != nil ||
-			readTransitionJSON(filepath.Join(operation, "state.json"), &state) != nil ||
 			options.Directory != directory || !filepath.IsAbs(options.SuccessorBackup) ||
 			filepath.Clean(options.SuccessorBackup) != options.SuccessorBackup ||
-			!intent.Valid() || intent.Request.OperationID != entry.Name() || options.Request != intent.Request ||
+			!options.Request.Valid() || options.Request.OperationID != entry.Name() {
+			return ErrTransition
+		}
+		if own != nil && entry.Name() == own.OperationID {
+			if options.Request != *own {
+				return ErrTransition
+			}
+			continue
+		}
+		if readTransitionJSON(filepath.Join(operation, "intent.json"), &intent) != nil ||
+			readTransitionJSON(filepath.Join(operation, "state.json"), &state) != nil ||
+			!intent.Valid() || options.Request != intent.Request ||
 			!state.Valid(intent) || state.Phase != "complete" {
 			return ErrTransition
 		}

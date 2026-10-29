@@ -65,8 +65,16 @@ The concrete integration still has to implement and test:
   a disjoint successor-backup path, retaining deployment identity, owners and
   unrelated authority/credential entries. Its local tests do not establish
   protected file publication, an actual backup or runtime recovery.
-- Reload and genuine admission/TLS observations for only the selected runtime
-  services, without distributing authority private keys to containers.
+- A private runtime host now gates reload on the exact retained publishing
+  history, original-input digest, independent backup and all candidate live bytes.
+  It reuses the bound two-service reload primitive, verifies the served leaf and
+  performs candidate/previous/candidate Login checks using a read-only existing
+  device identity and the deployment's existing claim key. No fixture device is
+  inserted. These callbacks still need actual runtime acceptance. New root
+  material/own-recovery gates require 78 protected case identities; those are
+  synthetic file/phase checks, not service acceptance. The command must verify
+  retained input and hold the shared lease before using exact own-recovery
+  admission; other pending token and authority operations remain blocked.
 - Normal online-agent assignment recovery and the accepted forced-window
   procedure for offline devices, with native installed execution evidence.
 
@@ -84,3 +92,14 @@ did not explicitly protect its backup parent; that failure remains retained.
 The correction sets the test parent to 0700 and preserves production checks.
 These are protected filesystem fixtures with synthetic bytes, not valid live
 certificates, a restored control plane or recovering devices.
+
+
+The standalone Login verifier passed genuine official-frps/authz valid/wrong/valid
+admission in source `d6da675`, CI `40829521750`, with both original official-client
+controls and verified TLS preserved. All six CI logs and that closed outcome were
+independently checked; the protected root receipt in `40829521725` passed 57
+required identities. The earlier source8 compiled cutoff wait failure is retained.
+Its original delay is unconfirmed; the corrected test covers the next five-second
+tick plus both independent two-second production budgets and exports only fixed
+failure counts. The compiled cutoff case passed in source10. This validates the
+Login primitive, not an actual deployment-wide token change.

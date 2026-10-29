@@ -9,7 +9,8 @@ import subprocess
 
 
 ROOTS = ('TestNativeRelayTokenJournal', 'TestNativeRelayTokenMaterial', 'TestNativeRelayTokenPreparation',
-         'TestNativeRelayTokenPublication', 'TestNativeRelayTokenAdmission')
+         'TestNativeRelayTokenPublication', 'TestNativeRelayTokenAdmission', 'TestNativeRelayTokenRuntimeMaterial',
+         'TestNativeRelayTokenRecoveryAdmission')
 JOURNAL = ('ordered durable records and immutable intent', 'concurrent different candidates have one winner',
            'symlink', 'hardlink', 'unknown field', 'mode', 'owner', 'orphan', 'removed directory')
 MATERIAL = ('exact retained material and independent complete successor', 'candidate', 'authority', 'runtime',
@@ -23,8 +24,15 @@ PUBLICATION = ('none', 'secrets_authz_frp_token', 'secrets_frps_frp_token', 'set
 ADMISSION = ('released lease does not clear pending operation', 'complete bound journal permits admission',
              'relative directory keeps ordinary checks', 'partial preparation', 'unknown options',
              'wrong directory', 'linked state', 'public mode', 'different operation')
+RUNTIME = ('exact candidate gate', 'complete permits verification but never reload', 'wrong phase',
+           'changed binding', 'changed original baseline', 'unknown live material', 'damaged backup', 'changed maintenance',
+           'wrong snapshot', 'cancelled')
+RECOVERY = ('only original pending request can resume', 'empty original initialization remains recoverable',
+            'pending authority still blocks token recovery',
+            'changed binding', 'another pending token', 'missing options in nonempty directory',
+            'wrong directory', 'malformed options', 'different operation')
 REQUIRED = set(ROOTS) | {root + '/' + name.replace(' ', '_')
-                         for root, names in zip(ROOTS, (JOURNAL, MATERIAL, PREPARATION, PUBLICATION, ADMISSION)) for name in names}
+                         for root, names in zip(ROOTS, (JOURNAL, MATERIAL, PREPARATION, PUBLICATION, ADMISSION, RUNTIME, RECOVERY)) for name in names}
 
 
 def summarize(raw, exit_code, capture_exit, uid):
