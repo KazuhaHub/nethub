@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/KazuhaHub/authcore v0.6.3-0.20261026125641-ee68d852d973
-	github.com/beevik/etree v1.7.0
+	github.com/beevik/etree v1.8.1
 	github.com/crewjam/saml v0.5.1
 	github.com/fatedier/yamux v0.2.0
 	github.com/go-jose/go-jose/v4 v4.1.6
