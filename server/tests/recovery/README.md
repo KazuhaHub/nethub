@@ -37,7 +37,11 @@ post-rotation independent backup. This is an isolated fixture driver, not a
 general production restore CLI.
 
 1. Prepare a distinct empty Linux guest and privately transfer the same tested
-   images. Create only new empty target volumes.
+   images. Bind the source archive's configuration digest to each running
+   container, hash every uncompressed layer against the config's rootfs diff IDs,
+   then export the loaded target images and compare all configuration/layer
+   identities. This permits a different Docker storage backend without accepting
+   changed image content. Create only new empty target volumes.
 2. Acquire the same host operation lease used by relay maintenance. Stop source
    writers, create and hash a new restricted custom archive, and compare all
    public tables, sequences, owners, ACLs and role metadata before/after the dump.

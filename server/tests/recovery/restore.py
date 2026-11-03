@@ -12,6 +12,7 @@ import subprocess
 import time
 
 from database import fingerprint
+from image_archive import inspect_archive
 from linux_guest import LinuxGuest, RecoveryError, sha256
 from payload import pack
 
@@ -170,6 +171,9 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
         images = fixture.work / 'images.tar'
         fixture.command(['docker', 'image', 'save', '-o', str(images), *image_tags], 'Owned tested image export', timeout=180)
         images.chmod(0o600)
+        original_images = inspect_archive(images)
+        if set(original_images) != set(image_ids) or any(original_images[tag]['config'] != identifier for tag, identifier in image_ids.items()):
+            raise RecoveryError('Source saved image configuration differs from running containers')
         result['phase'] = 'target_prepare'
         target_directory = Path(os.environ['RUNNER_TEMP']) / 'native-recovery-target-private'
         target_guest = LinuxGuest(target_directory)
@@ -178,11 +182,17 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
             target.ssh('umask 077\nmkdir /root/nethub-recovery\n', 'Private empty recovery transfer directory')
             target_images = target.send(images, 'images.tar')
             fixture.remote(target, ['docker', 'load', '-i', target_images], 'Recovery image load', timeout=180)
-            for tag, identifier in image_ids.items():
-                actual = fixture.remote(target, ['docker', 'image', 'inspect', '--format', '{{.Id}}', tag],
-                                        'Recovery image identity').decode().strip()
-                if actual != identifier:
-                    raise RecoveryError('Recovery images differ from original tested images')
+            verifier = fixture.work / 'image_archive.py'
+            verifier.write_bytes(Path(__file__).with_name('image_archive.py').read_bytes())
+            verifier.chmod(0o600)
+            remote_verifier = target.send(verifier, 'image_archive.py')
+            exported = '/root/nethub-recovery/reloaded-images.tar'
+            fixture.remote(target, ['docker', 'image', 'save', '-o', exported, *image_tags],
+                           'Loaded recovery image export', timeout=180)
+            actual = json.loads(fixture.remote(target, ['python3', remote_verifier, exported],
+                                              'Loaded recovery configuration and layer verification', timeout=180))
+            if actual != original_images:
+                raise RecoveryError('Loaded recovery configuration or layer bytes differ from original tested images')
             for name, path in fixture.volumes.items():
                 actual = fixture.remote(target, ['docker', 'volume', 'create', '--label',
                     'com.docker.compose.project=' + project, '--label', 'com.docker.compose.volume=' + name,
