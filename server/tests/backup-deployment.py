@@ -182,6 +182,26 @@ class Acceptance:
         denied = self.sql(self.restored, "\\set VERBOSITY sqlstate\nSET SESSION AUTHORIZATION nethub_web; SELECT device_secret_hash FROM devices;\n", check=False)
         require(denied.returncode != 0 and b'42501' in denied.stderr, 'restored Web credential-column refusal')
 
+    def recovery_fingerprint(self):
+        sys.path.insert(0, str(Path(__file__).parent / 'recovery'))
+        from database import fingerprint
+        # PostgreSQL aclitem has equality but no ordering operator. Exercise the
+        # original failure before checking the actual full fingerprint queries.
+        refused = self.sql(self.database,
+            "SELECT acl FROM unnest(ARRAY['postgres=UC/postgres'::aclitem]) acl ORDER BY acl;", check=False)
+        require(refused.returncode != 0 and b'ordering operator for type aclitem' in refused.stderr,
+                'actual PostgreSQL aclitem ordering refusal')
+        read = lambda query: self.sql(self.database, query).stdout.decode().strip()
+        original = fingerprint(read)
+        require(fingerprint(read) == original, 'stable complete recovery database fingerprint')
+        self.sql(self.database, 'GRANT CREATE ON SCHEMA public TO nethub_backup;')
+        try:
+            require(fingerprint(read) != original, 'recovery fingerprint detects changed schema grant')
+        finally:
+            self.sql(self.database, 'REVOKE CREATE ON SCHEMA public FROM nethub_backup;')
+        require(fingerprint(read) == original, 'recovery fingerprint returns to original after grant removal')
+        print('Actual PostgreSQL recovery fingerprint passed all table/sequence/role/ACL queries, refused aclitem ordering and detected a changed schema grant')
+
     def failure_and_retention(self):
         before, _ = self.receipt()
         good = before['latest_success']
@@ -352,6 +372,7 @@ def main():
     passed = False
     try:
         suite.prepare()
+        suite.recovery_fingerprint()
         suite.backup_command()
         state, path = suite.receipt()
         require(state['outcome'] == 'succeeded', 'actual archive publication')
