@@ -1,9 +1,11 @@
 """Project fixed early fixture phases and dependency errors without child output."""
 from pathlib import Path
 import stat
+import re
 
 
-PHASES = ('preflight', 'build_inputs', 'http01', 'gui_issuer', 'setup_build',
+PHASES = ('preflight', 'build_inputs', 'http01', 'gui_issuer', 'gui_acme_build',
+          'pebble_primitives', 'gui_host_source_checks', 'gui_host_runtime', 'gui_host_build', 'setup_build',
           'frps_smoke', 'initialization', 'stack_start', 'backup_fixture',
           'provider_key', 'administrator', 'relay', 'native_guest')
 ERRORS = {'dependency_timeout': (b'TLS handshake timeout', b'i/o timeout', b'context deadline exceeded'),
@@ -13,6 +15,10 @@ ERRORS = {'dependency_timeout': (b'TLS handshake timeout', b'i/o timeout', b'con
           'database_fingerprint': (b'stable complete recovery database fingerprint',
                                    b'recovery fingerprint detects changed schema grant',
                                    b'recovery fingerprint returns to original after grant removal')}
+SOURCES = {'gui-issuer-host.py': 'gui_issuer_host', 'test_gui_issuer_host.py': 'gui_host_source_checks'}
+TESTS = ('TestPebbleOrderAdmission', 'TestPebbleHTTP01Validation', 'TestPebbleCertificateIssuance',
+         'TestPebbleCoordinatorRecovery', 'TestPebbleProtectedHostIssuer',
+         'TestPebbleProtectedHostIssuerRenewal', 'TestPebbleProtectedHostAccountProvisioning')
 
 
 def project(raw, code):
@@ -21,8 +27,21 @@ def project(raw, code):
     phases = [line.removeprefix(b'NETHUB_NATIVE_PHASE=').decode('ascii')
               for line in raw.splitlines() if line.startswith(b'NETHUB_NATIVE_PHASE=')
               and line.removeprefix(b'NETHUB_NATIVE_PHASE=') in {value.encode() for value in PHASES}]
-    return {'version': 1, 'phase': phases[-1] if phases else 'unclassified',
+    locations = set()
+    failed = set()
+    for line in raw.splitlines():
+        for name, source in SOURCES.items():
+            match = re.fullmatch(rb'\s*File "[^"\r\n]*/' + re.escape(name.encode())
+                                 + rb'", line ([0-9]{1,5}), in [a-zA-Z0-9_<>]+', line)
+            if match and 1 <= int(match[1]) <= 10000:
+                locations.add((source, int(match[1])))
+        for name in TESTS:
+            if re.match(rb'\s*--- FAIL: ' + name.encode() + rb'(?:[/\s]|$)', line):
+                failed.add(name)
+    return {'version': 2, 'phase': phases[-1] if phases else 'unclassified',
             'exit_code': code if -255 <= code <= 255 else -255,
+            'locations': [{'source': source, 'line': line} for source, line in sorted(locations)],
+            'failed_tests': sorted(failed),
             'hints': sorted(name for name, needles in ERRORS.items() if any(value in raw for value in needles))}
 
 

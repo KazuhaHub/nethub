@@ -12,6 +12,7 @@ import sys
 from guest import GuestError, invoke
 from compose_tail import read_phase
 from compose_setup import inspect as inspect_setup
+from compose_setup import project as project_setup
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -158,8 +159,7 @@ def main():
             try:
                 result['compose_setup'] = inspect_setup(directory / 'compose-private.log', child.returncode)
             except (OSError, ValueError, UnicodeError):
-                result['compose_setup'] = {'version': 1, 'phase': 'unclassified',
-                                           'exit_code': child.returncode, 'hints': []}
+                result['compose_setup'] = project_setup(b'', child.returncode)
             phase = tail['phase'] if tail is not None else result['compose_setup']['phase']
             raise GuestError('Owned native deployment failed at ' + phase)
         if tail is None or tail['passed'] is not True:

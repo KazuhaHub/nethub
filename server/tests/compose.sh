@@ -125,15 +125,20 @@ python3 "$root/server/tests/http01-cleanup.py" "$root" "$stage/http01-nethub" \
     "$stage/http01.test" "$stage/http01-cleanup"
 docker pull --platform linux/amd64 "$pebble_image" > "$stage/pebble-pull.log" 2>&1
 native_setup_phase gui_issuer
+native_setup_phase gui_acme_build
 docker build --target guiacme-acceptance -f "$root/deploy/Dockerfile" -t "$guiacme_test_image" "$root" > "$stage/guiacme-build.log" 2>&1
 docker create --name "$guiacme_binary_holder" --network none "$guiacme_test_image" /guiacme.test >/dev/null
 docker cp "$guiacme_binary_holder:/guiacme.test" "$stage/guiacme.test"
 docker rm "$guiacme_binary_holder" >/dev/null
 chmod 0700 "$stage/guiacme.test"
+native_setup_phase pebble_primitives
 NETHUB_GUIACME_PEBBLE_IMAGE="$pebble_image" NETHUB_GUIACME_CADDY_IMAGE="$caddy_image" "$stage/guiacme.test" -test.v -test.run '^TestPebble(OrderAdmission|HTTP01Validation|CertificateIssuance|CoordinatorRecovery)$' -test.timeout=180s
+native_setup_phase gui_host_source_checks
 python3 "$root/server/tests/test_gui_issuer_host.py"
+native_setup_phase gui_host_runtime
 python3 "$root/server/tests/gui-issuer-host.py" "$root" "$stage/http01-nethub" \
     "$stage/guiacme.test" "$stage/gui-issuer-host" "$postgres_image" "$caddy_image" "$pebble_image"
+native_setup_phase gui_host_build
 docker build --target guiissuer-acceptance -f "$root/deploy/Dockerfile" -t "$guiissuer_test_image" "$root" > "$stage/guiissuer-build.log" 2>&1
 docker create --name "$guiissuer_binary_holder" --network none "$guiissuer_test_image" /guiissuer.test >/dev/null
 docker cp "$guiissuer_binary_holder:/guiissuer.test" "$stage/guiissuer.test"

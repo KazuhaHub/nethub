@@ -16,7 +16,8 @@ def test_only_closed_phase_and_hints_survive_private_output():
     result = SETUP.project(('NETHUB_NATIVE_PHASE=http01\n' + secret + '\n'
         'NETHUB_NATIVE_PHASE=backup_fixture\nTLS handshake timeout\n'
         'NETHUB_NATIVE_PHASE=' + secret + '\n').encode(), 1)
-    assert result == {'version': 1, 'phase': 'backup_fixture', 'exit_code': 1,
+    assert result == {'version': 2, 'phase': 'backup_fixture', 'exit_code': 1,
+                      'locations': [], 'failed_tests': [],
                       'hints': ['dependency_timeout']}
     assert secret not in str(result)
 
@@ -30,7 +31,19 @@ def test_unbounded_or_wrong_typed_input_refused(raw, code):
 
 def test_missing_phase_is_explicit_and_exit_is_bounded():
     assert SETUP.project(b'private error details', 999) == {
-        'version': 1, 'phase': 'unclassified', 'exit_code': -255, 'hints': []}
+        'version': 2, 'phase': 'unclassified', 'exit_code': -255, 'hints': [],
+        'locations': [], 'failed_tests': []}
+
+
+def test_only_known_source_locations_and_test_identities_survive():
+    raw = (b'  File "/private-secret/gui-issuer-host.py", line 180, in run\n'
+           b'  File "/private-secret/unknown.py", line 9, in private_method\n'
+           b'--- FAIL: TestPebbleCertificateIssuance/private-secret (1s)\n'
+           b'--- FAIL: PrivateSecretTest (1s)\n')
+    value = SETUP.project(raw, 1)
+    assert value['locations'] == [{'source': 'gui_issuer_host', 'line': 180}]
+    assert value['failed_tests'] == ['TestPebbleCertificateIssuance']
+    assert 'private-secret' not in str(value) and 'PrivateSecretTest' not in str(value)
 
 
 def test_hardlinked_log_refused(tmp_path):
