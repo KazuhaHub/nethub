@@ -14,7 +14,7 @@ import time
 from database import fingerprint
 from image_archive import inspect_archive
 from linux_guest import LinuxGuest, RecoveryError, sha256
-from payload import pack
+from payload import PayloadError, SOURCE_REASONS, pack
 
 
 SERVICES = {'postgres', 'backup', 'nethub-web', 'nethub-authz', 'frps', 'caddy'}
@@ -152,6 +152,19 @@ class Restore:
                 '-H', 'Origin: https://console.example.com', '--data', '{}',
                 'https://console.example.com/api/v1/console/devices/' + device + '/open'],
                 'Explicit source grant on recovered host')
+
+    def payload_diagnostic(self, error):
+        scope = 'unclassified'
+        roots = [(self.stage, 'stage_root'), (self.stage / 'deployment', 'deployment'),
+                 (self.stage / 'backup', 'original_backup')]
+        roots += [(path, 'successor_backup') for path in self.stage.glob('token-successor-*')]
+        roots += [(path, name.replace('-', '_')) for name, path in self.volumes.items()]
+        for root, name in roots:
+            if isinstance(error.path, Path) and (error.path == root or error.path.is_relative_to(root)):
+                scope = name
+        return {'version': 1, 'reason': str(error) if str(error) in SOURCE_REASONS else 'other',
+                'source_scope': scope,
+                'observed_mode': format(error.mode, '04o') if type(error.mode) is int and 0 <= error.mode <= 0o7777 else 'unknown'}
 
 
 def exercise(stage, port, project, evidence, native_read, inspect_gui, route, witness_route, witness_process):
@@ -302,6 +315,9 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
             result['restored_target_stack_removed'] = True
         result['owned_recovery_guest_stopped'] = target.process.poll() is not None
         result['phase'] = 'source_fixture_recovery'
+    except PayloadError as error:
+        result['payload_diagnostic'] = fixture.payload_diagnostic(error)
+        raise RecoveryError('Private recovery payload refused') from None
     finally:
         if target_guest is not None and target_guest.process is not None:
             result['owned_recovery_guest_stopped'] = target_guest.process.poll() is not None

@@ -71,3 +71,7 @@ state and key material stay private. The original control connections are
 necessarily replaced by the planned host outage; later removal uses the
 reconnected control as its baseline. Independent encrypted, durable custody and
 public/operator checks remain separate requirements, even after this drill passes.
+
+A refused source payload reports only a fixed reason, source category and bounded
+octal mode. File names, paths, owners, content and raw child diagnostics remain
+private. This diagnostic does not relax source permissions or archive admission.

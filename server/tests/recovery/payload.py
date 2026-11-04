@@ -12,10 +12,15 @@ import tarfile
 
 LIMIT = 256 * 1024**2
 OWNERS = {0, 70, 65532}
+SOURCE_REASONS = {'source_alias', 'source_owner', 'source_permissions',
+                  'source_type', 'source_links', 'source_size', 'source_changed',
+                  'source_size_changed', 'payload_bound', 'archive_bound'}
 
 
 class PayloadError(Exception):
-    pass
+    def __init__(self, message, *, path=None, mode=None):
+        super().__init__(message)
+        self.path, self.mode = path, mode
 
 
 def digest(path):
@@ -35,11 +40,15 @@ def inventory_hash(entries):
 
 def private_info(path):
     info = path.lstat()
-    if (path.absolute() != path.resolve(strict=True) or info.st_uid not in OWNERS
-            or info.st_gid not in OWNERS or stat.S_IMODE(info.st_mode) & ~0o755
-            or not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode))
-            or stat.S_ISREG(info.st_mode) and (info.st_nlink != 1 or info.st_size > 64 * 1024**2)):
-        raise PayloadError('Recovery source contains an unsafe file')
+    checks = [('source_alias', path.absolute() != path.resolve(strict=True)),
+              ('source_owner', info.st_uid not in OWNERS or info.st_gid not in OWNERS),
+              ('source_permissions', bool(stat.S_IMODE(info.st_mode) & ~0o755)),
+              ('source_type', not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode))),
+              ('source_links', stat.S_ISREG(info.st_mode) and info.st_nlink != 1),
+              ('source_size', stat.S_ISREG(info.st_mode) and info.st_size > 64 * 1024**2)]
+    for reason, refused in checks:
+        if refused:
+            raise PayloadError(reason, path=path, mode=stat.S_IMODE(info.st_mode))
     return info
 
 
@@ -61,15 +70,15 @@ def pack(paths, archive):
                 with path.open('rb') as source:
                     current = os.fstat(source.fileno())
                     if (current.st_dev, current.st_ino, current.st_nlink) != (info.st_dev, info.st_ino, 1):
-                        raise PayloadError('Recovery source changed during read')
+                        raise PayloadError('source_changed', path=path, mode=stat.S_IMODE(info.st_mode))
                     content = source.read(64 * 1024**2 + 1)
                     if len(content) != info.st_size or source.read(1):
-                        raise PayloadError('Recovery source size changed')
+                        raise PayloadError('source_size_changed', path=path, mode=stat.S_IMODE(info.st_mode))
                     if unchanged(os.fstat(source.fileno())) != unchanged(current):
-                        raise PayloadError('Recovery source changed during read')
+                        raise PayloadError('source_changed', path=path, mode=stat.S_IMODE(info.st_mode))
                 total += len(content)
                 if total > LIMIT - 1024**2:
-                    raise PayloadError('Recovery payload exceeds its bound')
+                    raise PayloadError('payload_bound')
             member = tarfile.TarInfo(name)
             member.type = tarfile.DIRTYPE if stat.S_ISDIR(info.st_mode) else tarfile.REGTYPE
             member.mode, member.uid, member.gid = stat.S_IMODE(info.st_mode), info.st_uid, info.st_gid
@@ -81,7 +90,7 @@ def pack(paths, archive):
         os.fsync(output.fileno())
     archive.chmod(0o600)
     if archive.stat().st_size > LIMIT:
-        raise PayloadError('Recovery archive exceeds its bound')
+        raise PayloadError('archive_bound')
     return {'sha256': digest(archive), 'inventory_sha256': inventory_hash(entries), 'entries': len(entries)}
 
 
