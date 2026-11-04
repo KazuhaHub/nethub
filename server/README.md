@@ -427,17 +427,20 @@ database write access. What defends against that is the signed domain claim.
 
 ## What the control plane deliberately does not do (v1)
 
-Worth repeating here since it shapes the whole API surface: the control plane
-in v1 does not read a device's `config.xml`, does not modify firewall rules,
-and does not restart services on the device. Its job is console sign-in and
-user management, enrollment, domain-claim issuance and verification, and
-brokering the `frps`/`frpc` tunnel so a user can reach the device's own Web
-UI over HTTPS via SNI passthrough — the device's own PHP frontend is served
-byte-for-byte untouched. A multi-user console widens who may sign in to the
-console; it does not widen what the control plane may do to a device. Anything
-beyond that (config backup, config push, bulk upgrade, telemetry) is out of
-scope for v1; see the top-level [project README](../README.md) and the roadmap
-in [`docs/DESIGN.md`](../docs/DESIGN.md) §11.
+The control plane does not read a device's `config.xml` or offer firewall,
+arbitrary command or general configuration-push APIs. The plugin persists its
+own settings, manages the tunnel and verifies/applies GUI certificates; that
+bounded certificate path can reload the GUI service.
+
+The control plane handles console sign-in, users, enrollment, signed domain
+claims, certificate/trust delivery and tunnel admission. The relay carries the
+device's own PHP frontend byte-for-byte over GUI TLS without decrypting it.
+Multiple console users do not gain a general device command channel.
+
+Configuration backup/push, bulk upgrades and general device health monitoring
+remain outside v1. The console does report approximate monthly tunnel traffic
+with a configurable usage warning; see [accounting limits](../deploy/traffic-counters.md),
+the [project README](../README.md) and [`docs/DESIGN.md`](../docs/DESIGN.md) §11.
 
 ## Shared authentication code
 
