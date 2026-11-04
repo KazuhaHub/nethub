@@ -2,6 +2,7 @@
 from pathlib import Path
 import stat
 import re
+import sys
 
 
 PHASES = ('preflight', 'build_inputs', 'http01', 'gui_issuer', 'gui_acme_build',
@@ -16,6 +17,9 @@ ERRORS = {'dependency_timeout': (b'TLS handshake timeout', b'i/o timeout', b'con
                                    b'recovery fingerprint detects changed schema grant',
                                    b'recovery fingerprint returns to original after grant removal')}
 SOURCES = {'gui-issuer-host.py': 'gui_issuer_host', 'test_gui_issuer_host.py': 'gui_host_source_checks'}
+SOURCES.update({name: name.removesuffix('.go') for name in (
+    'pebble_integration_test.go', 'pebble_http01_test.go', 'pebble_host_linux_test.go',
+    'pebble_host_enrollment_linux_test.go', 'pebble_database_test.go', 'pebble_coordinator_test.go')})
 TESTS = ('TestPebbleOrderAdmission', 'TestPebbleHTTP01Validation', 'TestPebbleCertificateIssuance',
          'TestPebbleCoordinatorRecovery', 'TestPebbleProtectedHostIssuer',
          'TestPebbleProtectedHostIssuerRenewal', 'TestPebbleProtectedHostAccountProvisioning')
@@ -35,14 +39,22 @@ def project(raw, code):
                                  + rb'", line ([0-9]{1,5}), in [a-zA-Z0-9_<>]+', line)
             if match and 1 <= int(match[1]) <= 10000:
                 locations.add((source, int(match[1])))
+            go = re.match(rb'\s*' + re.escape(name.encode()) + rb':([0-9]{1,5}):', line)
+            emitted = re.fullmatch(b'NETHUB_NATIVE_LOCATION=' + source.encode() + rb':([0-9]{1,5})', line)
+            for match in (go, emitted):
+                if match and 1 <= int(match[1]) <= 10000:
+                    locations.add((source, int(match[1])))
         for name in TESTS:
             if re.match(rb'\s*--- FAIL: ' + name.encode() + rb'(?:[/\s]|$)', line):
                 failed.add(name)
+    if len(locations) > 64:
+        raise ValueError('Too many fixture source locations')
     return {'version': 2, 'phase': phases[-1] if phases else 'unclassified',
             'exit_code': code if -255 <= code <= 255 else -255,
             'locations': [{'source': source, 'line': line} for source, line in sorted(locations)],
             'failed_tests': sorted(failed),
-            'hints': sorted(name for name, needles in ERRORS.items() if any(value in raw for value in needles))}
+            'hints': sorted(name for name, needles in ERRORS.items() if any(value in raw for value in needles)
+                            or b'NETHUB_NATIVE_HINT=' + name.encode() in raw.splitlines())}
 
 
 def inspect(path: Path, code):
@@ -51,3 +63,20 @@ def inspect(path: Path, code):
             or path != path.resolve() or info.st_size > 4 * 1024**2):
         raise ValueError('Private fixture log unavailable')
     return project(path.read_bytes(), code)
+
+
+def emit(value):
+    # Emit only the closed projection, never a line from the private Go log.
+    lines = ['--- FAIL: ' + name for name in value['failed_tests']]
+    lines += ['NETHUB_NATIVE_LOCATION=' + item['source'] + ':' + str(item['line']) for item in value['locations']]
+    lines += ['NETHUB_NATIVE_HINT=' + name for name in value['hints']]
+    return '\n'.join(lines)
+
+
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        raise SystemExit('One private fixture log required')
+    try:
+        print(emit(inspect(Path(sys.argv[1]), 1)))
+    except (OSError, ValueError):
+        print('NETHUB_NATIVE_NESTED_LOG=unavailable')

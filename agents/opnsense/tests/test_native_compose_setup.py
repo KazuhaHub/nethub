@@ -46,6 +46,18 @@ def test_only_known_source_locations_and_test_identities_survive():
     assert 'private-secret' not in str(value) and 'PrivateSecretTest' not in str(value)
 
 
+def test_nested_private_go_log_round_trip_exports_only_known_locations():
+    raw = (b'    pebble_host_linux_test.go:180: private-secret endpoint and response\n'
+           b'--- FAIL: TestPebbleProtectedHostIssuer/private-secret (1s)\n'
+           b'    private-secret.go:12: private-secret\n')
+    projected = SETUP.project(raw, 1)
+    closed = SETUP.emit(projected)
+    assert 'private-secret' not in closed
+    result = SETUP.project(closed.encode(), 1)
+    assert result['locations'] == [{'source': 'pebble_host_linux_test', 'line': 180}]
+    assert result['failed_tests'] == ['TestPebbleProtectedHostIssuer']
+
+
 def test_hardlinked_log_refused(tmp_path):
     import os
     path = tmp_path / 'private.log'
