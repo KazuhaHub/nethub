@@ -4,12 +4,12 @@ Thanks for your interest in NetHub. This document covers how contributions are
 licensed, how the repository is organized and how it relates to the separate
 packaging repository, and the conventions we expect from pull requests.
 
-NetHub is **pre-alpha**, with accepted W0 measurements, native W2 OPNsense tunnel
-validation, and W3 console deployment evidence. The console, database boundaries,
-initialization and first-administrator CLI are implemented. Device enrollment,
-relay authorization and full SSO remain unfinished; there is no released version.
-Stage-specific READMEs and validation records distinguish tested behavior from
-planned features.
+NetHub is **pre-alpha**, in W7 implementation and acceptance. The control plane,
+console, OPNsense development plugin, device enrollment, relay authorization and
+local/OIDC/SAML sign-in are implemented. W5-W7 public/operator checks, complete
+restoration and release acceptance remain open; there is no production release.
+Use the [handoff](docs/HANDOFF_PROMPT.md) and stage-specific validation records to
+distinguish tested behavior from remaining work.
 
 ## Table of contents
 
@@ -134,9 +134,7 @@ already-deployed agents. So any PR that touches anything under `proto/`
    versioning scheme. Do not silently change a message shape under an
    existing version number.
 2. **Update or add contract tests** covering the change, for both the Go
-   server side and the Python agent side, in whatever form `proto/README.md`
-   currently documents (this is still being fleshed out — see the note in
-   that file about its pre-alpha state).
+   server side and the Python agent side, as documented in `proto/README.md`.
 3. **State the compatibility impact on already-enrolled agents** in the PR
    description explicitly. At minimum, answer: does an agent running the
    previous protocol version still work against a control plane running this
@@ -160,10 +158,10 @@ change as a blocking request for changes, not a nitpick.
 The Go CLI, React console, console Compose stack and OPNsense development plugin
 exist. Use the commands below for isolated source checks. For a console
 deployment, follow [the quickstart](deploy/QUICKSTART.md), including backup
-acknowledgement and first-administrator creation. The stack does not yet provide
-device enrollment or relay authorization. The W3 clean-host/public validation
-and its environment acceptance limit are recorded in
-[the deployment report](deploy/validation-w3.md).
+acknowledgement and first-administrator creation. Device enrollment and relay
+authorization have scoped installed acceptance; follow the
+[deployment guide](docs/deployment.md) for current operations and the
+[handoff](docs/HANDOFF_PROMPT.md) for environment and acceptance limits.
 
 ### Tools
 
@@ -172,7 +170,7 @@ and its environment acceptance limit are recorded in
 | Git and the GitHub CLI | any recent | everything | `git --version`, `gh --version` |
 | Go | 1.26.10 (the build pin in `server/.go-version`; `go.mod` declares the compatibility floor) | the control plane in `server/` | `go version` |
 | Node.js | 24.14.0, matching CI and the Docker builder | the console source in `server/web/` | `node -v` |
-| Docker and Docker Compose | Compose 2.24.4 or later; tested Engine/Compose versions are in the quickstart | console deployment and isolated database/deployment tests; relay integration remains W4 | `docker version`, `docker compose version` |
+| Docker and Docker Compose | Compose 2.24.4 or later; tested Engine/Compose versions are in the quickstart | console/relay deployment and isolated database/deployment tests | `docker version`, `docker compose version` |
 | Python | 3.13.x on OPNsense 26.7; 3.11 or newer for host-side checks | agent, packaging helpers, deployment checks and Weekend 0 tools | `python3.13 --version` |
 | PHP CLI | the same major and minor version as the test device's OPNsense | syntax checks (`php -l`) of the plugin's PHP files | `php -v` |
 | `psql` | 16 or newer | inspecting the local database | `psql --version` |
@@ -288,8 +286,11 @@ Linux development environment for Docker/POSIX integration checks.
 
 Follow [the quickstart](deploy/QUICKSTART.md) for the exact deployment paths,
 initialization/backup acknowledgement, migration, administrator creation and
-Compose commands. `nethub doctor` currently checks the implemented setup scope;
-complete relay/runtime/backup checks remain W7.
+Compose commands. The [deployment guide](docs/deployment.md#verify-readiness)
+describes the separate setup, console TLS, database-role, container, relay-hook,
+recent-backup and audit doctor modes, including what each does not prove.
+Independent public-port checks and formally published appliance-package agreement
+remain W7 requirements.
 
 The isolated Linux acceptance harness is `sh server/tests/compose.sh`, run as root
 from the repository root. CI enables its assembled-image scan and deployed-browser
@@ -306,8 +307,9 @@ certificate issuance; the deployment report records the separate public test.
   `python3 deploy/frp/check_versions.py`.
 - On the isolated FreeBSD/OPNsense test guest, enter
   `agents/opnsense/plugin/`, run `sh build.sh`, and install
-  `dist/os-nethub-agent.pkg` with `pkg add`. The build downloads the pinned,
-  checksum-verified official frpc archive. It does not require copying source
+  `dist/os-nethub-agent.pkg` with `pkg add`. The build compiles frpc from locked
+  source/dependencies with the Go compiler pinned in `server/.go-version` and
+  verifies the binary's build identity. It does not require copying source
   into or changing the separate packaging repository. See
   [the plugin development guide](agents/opnsense/plugin/README.md) for prerequisites
   and the native installation/service tests.
@@ -319,9 +321,10 @@ certificate issuance; the deployment report records the separate public test.
 parsing, and the OPNsense request builder are checked against the same valid and
 invalid examples. Run `GOWORK=off go test -count=1 ./internal/protocol` from `server/` and
 `python3 -m pytest -q agents/opnsense/tests` from the repository root (pytest 8.3.5,
-jsonschema 4.25.1). Both run in CI. Device handlers and appliance enrollment remain
-W4 work; fixture round-trips do not prove endpoint behavior. Changes to either
-consumer must pass both suites even when they do not modify `proto/`.
+jsonschema 4.25.1). Both run in CI. Device handlers and native enrollment have
+separate HTTP/PostgreSQL and installed-device validation; fixture round-trips
+alone do not prove endpoint behavior. Changes to either consumer must pass both
+suites even when they do not modify `proto/`.
 
 ## Filing issues
 

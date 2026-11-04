@@ -62,12 +62,14 @@ published bundle is refused before credential mutation; only that definitive
 old-credential refusal releases a prepared journal so verified trust sync can
 run. Ambiguous failures and candidate-attempt errors retain the journal.
 Committed operations retain their public bundle for identical replay across
-later publication. The publication/recovery path passed the scoped installed workflow above;
-source changes alone do not establish installed-device acceptance.
+later publication. Publication fencing and synchronization retain separate SQL
+and source-contract checks. The installed workflow above covers response loss
+and native save-lock recovery; an installed trust-publication conflict and
+synchronization scenario remains untested.
 
 This per-device workflow is only part of W7-4. Coordinated deployment-wide frps
-shared-token replacement, protected current-key backup/manifest transitions and
-its incident procedure remain open. Offline devices in a forced replacement
-window require manual re-enrollment, as recorded in the plan. A successful
-per-device button test does not establish fleet incident recovery, complete
-clean-host restoration or release acceptance.
+shared-token replacement, current-key backup/manifest transitions and online
+native/reference recovery have separate [scoped acceptance](validation-shared-token.md).
+Offline devices in a forced replacement window require manual re-enrollment,
+as recorded in the incident procedure. Public-network incidents, an offline-fleet
+drill, complete clean-host restoration and release acceptance remain open.

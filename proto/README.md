@@ -9,8 +9,9 @@ implemented. Native installation/rollback and interrupted boot recovery have
 private-CA appliance evidence; protocol 1.4 adds authenticated application reports.
 Native renewal/trust and public certificate checkpoints are recorded in the
 [handoff](../docs/HANDOFF_PROMPT.md), with their environment and recovery limits.
-Per-device rotation also has scoped installed evidence; deployment-wide incidents,
-full clean-host recovery and remaining public/operator gates are separate work.
+Per-device rotation and online shared-token incident recovery have scoped installed
+evidence. Full clean-host recovery and remaining public/operator gates are open;
+see the [shared-token validation and limits](../deploy/validation-shared-token.md).
 
 ## Messages
 
@@ -118,7 +119,9 @@ verify console HTTPS before accepting them, validate certificates and the relay
 identity before activation, and configure explicit frpc trustedCaFile/serverName.
 The PEM shape permits one or two public CA certificates within 32 KiB for a
 staged transition. This does not replace certificate validity, CA constraints or
-handshake checks. D22 lifecycle details must be settled before enrollment ships.
+handshake checks. Follow the [protected relay authority operations](../deploy/relay-authority-operations.md)
+for publication, overlap and retirement; a wire-valid bundle alone does not prove
+a completed authority transition or provide an offline device's recovery path.
 
 ## Compatibility and bounds
 
@@ -142,10 +145,11 @@ Unbound 1.0 requests remain valid and omit both optional values. A caller that
 supplies a key must require its exact fingerprint acknowledgement: a 1.0 server
 may ignore the extension and consume the token, but it cannot confirm a binding.
 Upgrade that server before issuing another one-use token; do not silently accept
-the downgraded enrollment. The OPNsense request/network helpers support this
-optional binding and validation, but the native enrollment UI does not generate
-or supply a key yet. No GUI certificate capability is advertised or installed by
-this protocol change. Future platform adapters use the same public-key contract.
+the downgraded enrollment. Native OPNsense enrollment creates or reuses its
+protected local P-256 key and supplies the public key through the request helper.
+The server acknowledgement must match before the assignment is saved. Key
+binding alone does not issue or install a GUI certificate; those use the separate
+certificate lifecycle. Future platform adapters use the same public-key contract.
 
 Requests and responses are UTF-8 JSON objects limited to 64 KiB before parsing.
 Known fields have explicit length/type/range limits. Each ordinary message permits
@@ -197,7 +201,7 @@ CI also runs actual-role PostgreSQL migration/identifier checks separately.
 
 These are the first published schema definitions; there is no deployed stable
 protocol agent to migrate. Existing W2 debug settings are not a protocol client.
-Future handlers must validate their actual outputs against these schemas, rather
+Handlers must validate their actual outputs against these schemas, rather
 than treating fixture round-trips as endpoint evidence.
 
 The historical [frp 0.71.0 hook observations](frp-hooks-0.71.0.md) are W0 evidence,

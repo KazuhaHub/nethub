@@ -49,7 +49,7 @@
 
 - **不提供通用设备配置接口。** 没有防火墙、任意命令或配置下发接口。插件管理自己的设置和隧道，受限的 GUI 证书安装路径可能重载 GUI 服务，见[安全模型](#安全模型)。
 - **不做批量运维。** 没有批量升级、定时任务，也没有全网配置下发。
-- **不做遥测。** 不采集指标，没有监控面板，除了"隧道是否在线"之外不做告警。
+- **不提供通用设备监控。** 控制台已有近似的月度隧道流量统计和可配置的用量提醒；设备健康指标和通用监控面板仍不在范围内。详见[流量统计及限制](../deploy/traffic-counters.md)。
 - **不支持 OpenWrt 和 VyOS。** 目录结构和协议设计上不绑定单一平台，但 v1 只面向 OPNsense。
 
 如果你要的是一个批量管理设备配置的工具，那在[路线图](#路线图)里，不在 v1。
@@ -115,7 +115,7 @@ docs/             DESIGN.md（v0.3，中文）、部署/协议/安全/API 参考
 weekend0/         Weekend 0 传输层测试工具（RUNBOOK、frps/frpc 配置、probe.py）
 ```
 
-这是计划中的结构。目前仓库里只有文档和 Weekend 0 测试工具，没有代码。
+仓库已有控制面、控制台、部署工具、OPNsense 开发插件和验收工具。OpenWrt 和 VyOS 适配器仍在规划中。
 
 NetHub 的全部源码都在这个仓库里，包括 `agents/opnsense/plugin/` 下的 OPNsense 插件源码。FreeBSD 软件包在别处**构建**：
 [`KKazuhaK/OPNsense-repo`](https://github.com/KKazuhaK/OPNsense-repo) 将会放一份打包配方：拉取打了 tag 的 NetHub release、校验 checksum，
