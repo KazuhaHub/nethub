@@ -44,3 +44,19 @@ acceptance remain required for this integration.
 The build retains linked dependency licenses and module identities in the final
 image. Dependency verification and source tests do not establish a signed NetHub
 release or production recovery acceptance.
+
+## Storage permissions
+
+The image sets `/config`, `/config/caddy`, `/data` and `/data/caddy` to mode
+0700, owned by root. The generated Caddy service uses that identity. The Compose
+acceptance checks these permissions inside the running service after Docker has
+populated its actual named volumes.
+
+Existing volumes retain their contents and permissions when an image is rebuilt.
+An older volume may still contain [upstream mode-1777 application directories](https://github.com/caddyserver/caddy-docker/blob/master/2.11/alpine/Dockerfile).
+Before backup/restoration, inspect the exact project's Caddy mounts and review
+those directory owners/modes with Caddy stopped and independent management
+available. Correct only the approved directories; do not delete volumes,
+regenerate certificate state or recursively change unrelated files. The recovery
+archive continues to refuse world-writable or special-mode input. Custom runtime
+users and mounts require separate review.

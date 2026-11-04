@@ -279,6 +279,13 @@ python3 "$root/server/tests/backup-deployment.py" --image-only "$stage" "$projec
 echo 'Starting the isolated Compose services (210-second command deadline, 150-second health wait)'
 native_setup_phase stack_start
 compose up -d --wait --wait-timeout 150 > "$stage/start.log" 2>&1
+compose exec -T caddy /bin/sh -ec '
+    for directory in /config /config/caddy /data /data/caddy; do
+        test -d "$directory"
+        test ! -L "$directory"
+        test "$(stat -c "%u:%g:%a" "$directory")" = "0:0:700"
+    done'
+echo 'Actual Caddy named storage directories are root-owned with mode 0700'
 postgres_id=$(compose ps --all --quiet postgres)
 native_setup_phase backup_fixture
 python3 "$root/server/tests/backup-deployment.py" "$stage" "$project" "$image" "$backup_image" "$postgres_id"

@@ -84,13 +84,15 @@ class ActualPayloadRecovery(unittest.TestCase):
             payload.pack([link], self.base / 'linked.tar')
 
     def test_writable_source_refusal_explains_mode_without_disclosing_path(self):
-        self.file.chmod(0o666)
-        with self.assertRaises(payload.PayloadError) as caught:
-            payload.pack([self.file], self.base / 'unsafe.tar')
-        self.assertEqual(str(caught.exception), 'source_permissions')
-        self.assertEqual(caught.exception.mode, 0o666)
-        self.assertEqual(caught.exception.path, self.file)
-        self.assertNotIn(str(self.file), repr(caught.exception))
+        for path, mode in [(self.file, 0o666), (self.root, 0o1777)]:
+            with self.subTest(mode=oct(mode)):
+                path.chmod(mode)
+                with self.assertRaises(payload.PayloadError) as caught:
+                    payload.pack([path], self.base / ('unsafe-' + str(mode) + '.tar'))
+                self.assertEqual(str(caught.exception), 'source_permissions')
+                self.assertEqual(caught.exception.mode, mode)
+                self.assertEqual(caught.exception.path, path)
+                self.assertNotIn(str(path), repr(caught.exception))
 
 
 if __name__ == '__main__':

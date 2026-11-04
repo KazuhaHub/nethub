@@ -17,11 +17,11 @@ class ClosedPayloadFailure(unittest.TestCase):
             fixture = object.__new__(Restore)
             fixture.stage = Path(temporary).resolve()
             volume = fixture.stage / 'private-volume'
-            fixture.volumes = {'caddy-data': volume}
-            error = PayloadError('source_permissions', path=volume / 'private-key', mode=0o777)
+            fixture.volumes = {'caddy-config': volume}
+            error = PayloadError('source_permissions', path=volume / 'private-key', mode=0o1777)
             value = fixture.payload_diagnostic(error)
             self.assertEqual(value, {'version': 1, 'reason': 'source_permissions',
-                                     'source_scope': 'caddy_data', 'observed_mode': '0777'})
+                                     'source_scope': 'caddy_config', 'observed_mode': '1777'})
             self.assertNotIn('private', str(value))
             unknown = PayloadError('private response and path', path=volume, mode=99999)
             value = fixture.payload_diagnostic(unknown)

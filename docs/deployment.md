@@ -21,6 +21,12 @@ uses TCP 80/443; frps uses 7000 for agent control and 8443 for browser passthrou
 Keep PostgreSQL, the frps admin API and authz callbacks private. Opening their
 host ports publicly is not a troubleshooting step.
 
+The bundled image initializes new Caddy storage directories with root ownership
+and mode 0700. Rebuilding does not repair permissions in existing volumes; review
+the [storage boundary](../deploy/images/caddy/README.md#storage-permissions) before
+backup or restoration. Preserve existing certificate state and an independent
+management path during that maintenance.
+
 There are three certificate lifecycles:
 
 | Connection                     | Certificate owner                                                                                                              |
