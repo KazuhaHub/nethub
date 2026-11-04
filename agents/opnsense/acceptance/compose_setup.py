@@ -16,6 +16,14 @@ ERRORS = {'dependency_timeout': (b'TLS handshake timeout', b'i/o timeout', b'con
           'database_fingerprint': (b'stable complete recovery database fingerprint',
                                    b'recovery fingerprint detects changed schema grant',
                                    b'recovery fingerprint returns to original after grant removal')}
+HOST_PROOFS = ('initial_issuance_verified', 'authenticated_delivery_verified', 'renewal_verified',
+               'account_provisioning_verified', 'relay_trust_publication_verified',
+               'relay_authority_preparation_verified', 'relay_operation_lease_verified',
+               'relay_authority_custody_verified', 'relay_authority_snapshot_verified',
+               'relay_authority_file_recovery_verified', 'database_discovery_verified')
+ERRORS.update({'host_' + name: (b'NETHUB_HOST_PROOF_MISSING=' + name.encode(),)
+               for name in HOST_PROOFS})
+ERRORS['host_test_exit'] = (b'NETHUB_HOST_TEST_EXIT=nonzero',)
 SOURCES = {'gui-issuer-host.py': 'gui_issuer_host', 'test_gui_issuer_host.py': 'gui_host_source_checks'}
 SOURCES.update({name: name.removesuffix('.go') for name in (
     'pebble_integration_test.go', 'pebble_http01_test.go', 'pebble_host_linux_test.go',

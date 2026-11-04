@@ -58,6 +58,16 @@ def test_nested_private_go_log_round_trip_exports_only_known_locations():
     assert result['failed_tests'] == ['TestPebbleProtectedHostIssuer']
 
 
+def test_host_proof_markers_remain_closed_through_nested_projection():
+    raw = (b'NETHUB_HOST_PROOF_MISSING=renewal_verified\n'
+           b'NETHUB_HOST_PROOF_MISSING=private-secret\n'
+           b'NETHUB_HOST_TEST_EXIT=nonzero\n')
+    value = SETUP.project(raw, 1)
+    assert value['hints'] == ['host_renewal_verified', 'host_test_exit']
+    assert SETUP.project(SETUP.emit(value).encode(), 1)['hints'] == value['hints']
+    assert 'private-secret' not in str(value)
+
+
 def test_hardlinked_log_refused(tmp_path):
     import os
     path = tmp_path / 'private.log'

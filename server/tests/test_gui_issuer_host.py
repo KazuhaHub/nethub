@@ -54,6 +54,10 @@ class HostFixtureAdmission(unittest.TestCase):
         for missing in lines:
             with self.subTest(missing=missing):
                 self.assertFalse(any(fixture.acceptance_evidence(0, None, log.replace(missing, "")).values()))
+        partial = fixture.acceptance_evidence(0, None, log.replace(snapshot, ""), diagnostic=True)
+        self.assertFalse(partial["relay_authority_snapshot_verified"])
+        self.assertTrue(partial["relay_authority_file_recovery_verified"])
+        self.assertTrue(partial["renewal_verified"])
         for code, failure in ((1, None), (0, "TimeoutExpired")):
             self.assertFalse(any(fixture.acceptance_evidence(code, failure, log).values()))
         for terminal in lines[:3]:
