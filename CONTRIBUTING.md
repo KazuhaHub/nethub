@@ -307,8 +307,9 @@ certificate issuance; the deployment report records the separate public test.
   `python3 deploy/frp/check_versions.py`.
 - On the isolated FreeBSD/OPNsense test guest, enter
   `agents/opnsense/plugin/`, run `sh build.sh`, and install
-  `dist/os-nethub-agent.pkg` with `pkg add`. The build downloads the pinned,
-  checksum-verified official frpc archive. It does not require copying source
+  `dist/os-nethub-agent.pkg` with `pkg add`. The build compiles frpc from locked
+  source/dependencies with the Go compiler pinned in `server/.go-version` and
+  verifies the binary's build identity. It does not require copying source
   into or changing the separate packaging repository. See
   [the plugin development guide](agents/opnsense/plugin/README.md) for prerequisites
   and the native installation/service tests.

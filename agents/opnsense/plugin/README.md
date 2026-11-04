@@ -12,8 +12,10 @@ their tested versions. Later installed-device evidence covers
 [relay authority changes](../../../deploy/validation-relay-authority-native.md)
 and [heartbeat/revocation](../../../deploy/validation-native-w5-heartbeat.md).
 Those results do not automatically cover a newly built client or changed source.
-The current credential-rotation increment and rebuilt package remain under
-combined validation; no signed release containing them is accepted.
+Per-device rotation and online shared-token recovery also have scoped
+[installed acceptance](../../../deploy/validation-shared-token.md), including
+their recorded rebuilt client. Public/operator and complete clean-host recovery
+gates remain open; no signed production release is accepted.
 
 Enter the separate console HTTPS address and one-use token in Enrollment.
 The client uses system trust, refuses redirects and environment proxies, validates
