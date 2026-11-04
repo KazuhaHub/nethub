@@ -11,7 +11,7 @@ import stat
 import subprocess
 import time
 
-from database import capture, differing_categories, snapshot_fingerprint
+from database import capture, difference_details, differing_categories, snapshot_fingerprint
 from image_archive import inspect_archive
 from linux_guest import LinuxGuest, RecoveryError, sha256
 from payload import PayloadError, SOURCE_REASONS, pack
@@ -227,7 +227,8 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
                 after_snapshot = capture(fixture.sql)
                 if snapshot_fingerprint(after_snapshot) != snapshot_fingerprint(original_database):
                     result['database_diagnostic'] = {'version': 1, 'comparison': 'source_after_snapshot',
-                        'different_categories': differing_categories(original_database, after_snapshot)}
+                        'different_categories': differing_categories(original_database, after_snapshot),
+                        'details': difference_details(original_database, after_snapshot)}
                     raise RecoveryError('Source database changed during quiesced backup')
                 fixture.command(fixture.compose + ['stop', '--timeout', '10', 'postgres'], 'Original database shutdown', timeout=30)
                 if fixture.command(fixture.compose + ['ps', '-q'], 'Source shutdown proof').strip():
@@ -267,7 +268,8 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
                 restored_database = capture(sql)
                 if snapshot_fingerprint(restored_database) != snapshot_fingerprint(original_database):
                     result['database_diagnostic'] = {'version': 1, 'comparison': 'target_after_restore',
-                        'different_categories': differing_categories(original_database, restored_database)}
+                        'different_categories': differing_categories(original_database, restored_database),
+                        'details': difference_details(original_database, restored_database)}
                     raise RecoveryError('Restored database contents or role grants differ')
                 result['phase'] = 'services_restore'
                 fixture.remote(target, fixture.compose + ['up', '-d', '--no-build', '--pull', 'never',

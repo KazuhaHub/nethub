@@ -1,8 +1,9 @@
 """Database differences retain every comparison without exporting private values."""
 import copy
+import json
 import unittest
 
-from database import CATEGORIES, differing_categories, snapshot_fingerprint
+from database import CATEGORIES, DETAIL_FIELDS, difference_details, differing_categories, snapshot_fingerprint
 
 
 class ClosedDatabaseDifferences(unittest.TestCase):
@@ -27,6 +28,27 @@ class ClosedDatabaseDifferences(unittest.TestCase):
         with self.assertRaises(ValueError) as caught:
             differing_categories([], [('private-category', 'private-value')])
         self.assertEqual(str(caught.exception), 'Unexpected recovery database category')
+
+    def test_detail_fields_never_export_object_names_or_values(self):
+        for category, (key_size, fields) in DETAIL_FIELDS.items():
+            row = ['private identity or value'] * len(fields)
+            before = [(category, json.dumps(row))]
+            for index in range(key_size, len(fields)):
+                changed = list(row)
+                changed[index] = 'different private value'
+                result = difference_details(before, [(category, json.dumps(changed))])
+                self.assertEqual(result, {category: {'missing_objects': False,
+                    'extra_objects': False, 'fields': [fields[index]]}})
+                self.assertNotIn('private', str(result))
+            missing = difference_details(before, [(category, '')])
+            self.assertTrue(missing[category]['missing_objects'])
+            self.assertNotIn('private', str(missing))
+
+    def test_malformed_detail_rows_are_refused_without_echoing_them(self):
+        for raw in ('private invalid JSON', '["private"]', '{}'):
+            with self.assertRaises(ValueError) as caught:
+                difference_details([('owners', raw)], [('owners', '')])
+            self.assertEqual(str(caught.exception), 'Unexpected recovery database detail layout')
 
 
 if __name__ == '__main__':

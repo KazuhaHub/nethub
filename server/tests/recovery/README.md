@@ -89,3 +89,15 @@ names and the comparison phase; private rows, names, grants and hashes remain
 private. The actual custom-archive regression uses a second owned database and
 substitutes only that fixture's database name. The separate-host drill requires
 the original database identity without that substitution.
+
+`Recovery database diagnosis` is a separate hosted workflow for changed recovery
+sources and manual runs. It builds the
+same PostgreSQL image and bootstrap hooks, applies the actual migration Up DDL as
+its normal owner, dumps as the restricted backup role and compares default,
+session-authorization and precreated-extension restore modes. Its closed report
+contains only fixed categories/field identifiers and missing/extra-object flags.
+Raw SQL output, dumps, credentials and logs are never uploaded. This experiment
+diagnoses restore semantics; it does not run the application migration CLI,
+recover a separate host, preserve production state or accept a successful mode
+as complete application restoration. The strict installed-device drill remains
+required. No restore-mode change is selected automatically from this report.

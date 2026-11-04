@@ -172,7 +172,7 @@ class Acceptance:
 
     def restore(self, path):
         sys.path.insert(0, str(Path(__file__).parent / 'recovery'))
-        from database import capture, differing_categories, snapshot_fingerprint
+        from database import capture, difference_details, differing_categories, snapshot_fingerprint
         original = capture(lambda query: self.sql(self.database, query).stdout.decode().strip())
         self.create_database(self.restored)
         self.command(['cp', str(path), self.postgres + ':' + self.copy_path])
@@ -190,6 +190,8 @@ class Acceptance:
             expected.append(value)
         actual = capture(lambda query: self.sql(self.restored, query).stdout.decode().strip())
         differences = differing_categories(expected, actual)
+        if differences:
+            print('Recovery database comparison: ' + json.dumps(difference_details(expected, actual), sort_keys=True))
         require(snapshot_fingerprint(expected) == snapshot_fingerprint(actual),
                 'restored full database comparison differs in categories: ' + ','.join(differences))
         print('Actual PostgreSQL custom archive restore preserved the full recovery fingerprint with only the fixture database name changed')

@@ -106,3 +106,46 @@ def differing_categories(expected, actual):
         return result
     before, after = grouped(expected), grouped(actual)
     return [name for name in CATEGORIES if before[name] != after[name]]
+
+
+DETAIL_FIELDS = {
+    'owners': (1, ('name', 'kind', 'owner', 'acl_null', 'acl', 'rls', 'force_rls')),
+    'extensions': (1, ('name', 'version', 'owner', 'schema', 'relocatable', 'tables', 'conditions')),
+    'constraints': (2, ('table', 'name', 'kind', 'validated', 'deferrable', 'deferred', 'definition')),
+}
+
+
+def difference_details(expected, actual):
+    """Expose fixed field identifiers, never an object identity or field value."""
+    changed = differing_categories(expected, actual)
+    result = {}
+    for category in changed:
+        if category not in DETAIL_FIELDS:
+            continue
+        key_size, fields = DETAIL_FIELDS[category]
+        def rows(values):
+            entry = [value for value in values if value[0] == category]
+            if len(entry) != 1 or len(entry[0]) != 2:
+                raise ValueError('Unexpected recovery database detail layout')
+            mapped = {}
+            for line in entry[0][1].splitlines():
+                try:
+                    row = json.loads(line)
+                    if not isinstance(row, list) or len(row) != len(fields):
+                        raise ValueError
+                    key = tuple(row[:key_size])
+                    if key in mapped:
+                        raise ValueError
+                    mapped[key] = row
+                except (TypeError, ValueError):
+                    raise ValueError('Unexpected recovery database detail layout') from None
+            return mapped
+        before, after = rows(expected), rows(actual)
+        shared = before.keys() & after.keys()
+        result[category] = {
+            'missing_objects': bool(before.keys() - after.keys()),
+            'extra_objects': bool(after.keys() - before.keys()),
+            'fields': [name for index, name in enumerate(fields)
+                       if any(before[key][index] != after[key][index] for key in shared)],
+        }
+    return result
