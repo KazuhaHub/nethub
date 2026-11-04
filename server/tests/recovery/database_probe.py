@@ -9,7 +9,7 @@ import sys
 import tempfile
 import time
 
-from database import DETAIL_FIELDS, capture, difference_details, differing_categories
+from database import DETAIL_FIELDS, capture, difference_details, differing_categories, snapshot_fingerprint
 
 
 class Probe:
@@ -110,6 +110,31 @@ class Probe:
     def exercise(self):
         count = self.prepare()
         original = capture(lambda query: self.sql('nethub', query))
+        self.sql('nethub', 'GRANT SELECT ON gui_certificate_applications TO nethub_web;')
+        try:
+            changed = capture(lambda query: self.sql('nethub', query))
+            if 'owners' not in differing_categories(original, changed):
+                raise ValueError('Changed table authority was not detected')
+        finally:
+            self.sql('nethub', 'REVOKE SELECT ON gui_certificate_applications FROM nethub_web;')
+        definition = self.sql('nethub', "SELECT pg_get_constraintdef(oid,true) FROM pg_constraint "
+                              "WHERE conrelid='device_rotations'::regclass "
+                              "AND conname='device_rotations_credential_hash_check';")
+        for before, after in (('>= 64', '>= 65'), ('$argon2id$%', '$argon2i$%')):
+            if definition.count(before) != 1:
+                raise ValueError('Expected public migration constraint shape differs')
+            replacement = definition.replace(before, after)
+            self.sql('nethub', 'ALTER TABLE device_rotations DROP CONSTRAINT device_rotations_credential_hash_check; '
+                     'ALTER TABLE device_rotations ADD CONSTRAINT device_rotations_credential_hash_check ' + replacement)
+            try:
+                changed = capture(lambda query: self.sql('nethub', query))
+                if 'constraints' not in differing_categories(original, changed):
+                    raise ValueError('Changed constraint semantics were not detected')
+            finally:
+                self.sql('nethub', 'ALTER TABLE device_rotations DROP CONSTRAINT device_rotations_credential_hash_check; '
+                         'ALTER TABLE device_rotations ADD CONSTRAINT device_rotations_credential_hash_check ' + definition)
+        if snapshot_fingerprint(original) != snapshot_fingerprint(capture(lambda query: self.sql('nethub', query))):
+            raise ValueError('Negative controls did not restore original authority')
         self.command(['exec', '-u', 'postgres', self.name, 'pg_dump', '--format=custom',
                       '--no-password', '-U', 'nethub_backup', '-d', 'nethub', '-f', '/tmp/recovery-probe.dump'])
         if differing_categories(original, capture(lambda query: self.sql('nethub', query))):
@@ -144,6 +169,8 @@ class Probe:
                             'public_migration_metadata_differences': self.public_ddl_differences(expected, actual)}
         return {'version': 1, 'source_head': os.environ['NETHUB_SOURCE_HEAD'],
                 'migration_ddl_files': count, 'modes': result,
+                'changed_table_grant_detected': True, 'changed_constraint_bound_detected': True,
+                'changed_constraint_prefix_detected': True, 'negative_controls_restored': True,
                 'scope': 'Hosted real migration DDL and PostgreSQL restore diagnosis',
                 'complete_application_restore_accepted': False, 'full_goal_complete': False}
 

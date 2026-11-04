@@ -25,7 +25,9 @@ def capture(sql):
             raise ValueError('Recovery sequence name differs')
         values.append(('sequence', name, sql('SELECT last_value,is_called FROM public."' + name + '";')))
     owners = sql("SELECT jsonb_build_array(c.relname,c.relkind,pg_get_userbyid(c.relowner),"
-                 "c.relacl IS NULL,ARRAY(SELECT x::text FROM unnest(c.relacl) x ORDER BY x::text COLLATE \"C\"),"
+                 "ARRAY(SELECT x::text FROM unnest(COALESCE(c.relacl,"
+                 "acldefault(CASE WHEN c.relkind='S' THEN 's' ELSE 'r' END::\"char\",c.relowner))) x "
+                 "ORDER BY x::text COLLATE \"C\"),"
                  "c.relrowsecurity,c.relforcerowsecurity)::text "
                  "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
                  "WHERE n.nspname='public' ORDER BY c.relname;")
@@ -69,7 +71,7 @@ def capture(sql):
                    "FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace "
                    "WHERE n.nspname='public' ORDER BY c.relname,p.polname;")
     constraints = sql("SELECT jsonb_build_array(c.relname,k.conname,k.contype,k.convalidated,k.condeferrable,"
-                      "k.condeferred,pg_get_constraintdef(k.oid))::text FROM pg_constraint k "
+                      "k.condeferred,pg_get_constraintdef(k.oid,true))::text FROM pg_constraint k "
                       "JOIN pg_class c ON c.oid=k.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace "
                       "WHERE n.nspname='public' ORDER BY c.relname,k.conname;")
     indexes = sql("SELECT jsonb_build_array(c.relname,pg_get_indexdef(i.indexrelid),i.indisvalid,i.indisready,"
@@ -109,7 +111,7 @@ def differing_categories(expected, actual):
 
 
 DETAIL_FIELDS = {
-    'owners': (1, ('name', 'kind', 'owner', 'acl_null', 'acl', 'rls', 'force_rls')),
+    'owners': (1, ('name', 'kind', 'owner', 'acl', 'rls', 'force_rls')),
     'extensions': (1, ('name', 'version', 'owner', 'schema', 'relocatable', 'tables', 'conditions')),
     'constraints': (2, ('table', 'name', 'kind', 'validated', 'deferrable', 'deferred', 'definition')),
 }
