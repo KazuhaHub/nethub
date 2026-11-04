@@ -101,3 +101,11 @@ diagnoses restore semantics; it does not run the application migration CLI,
 recover a separate host, preserve production state or accept a successful mode
 as complete application restoration. The strict installed-device drill remains
 required. No restore-mode change is selected automatically from this report.
+
+The separate `test/recovery-metadata-detail` experiment additionally exports only
+the differing relation ACL, extension and constraint metadata created solely from
+public migration DDL on its new network-none fixture. It accepts no existing
+database, includes no table rows, and checks the bounded output against every
+generated test password before export. Generic application restoration snapshots
+and logs retain their closed category-only diagnostics. This diagnostic branch
+is not an application change or accepted restoration mode.

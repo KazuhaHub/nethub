@@ -1,6 +1,8 @@
 name: Recovery database diagnosis
 
 on:
+  push:
+    branches: [test/recovery-metadata-detail]
   pull_request:
     paths:
       - .github/workflows/recovery-database.yml

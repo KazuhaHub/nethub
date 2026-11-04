@@ -9,7 +9,7 @@ import sys
 import tempfile
 import time
 
-from database import capture, difference_details, differing_categories
+from database import DETAIL_FIELDS, capture, difference_details, differing_categories
 
 
 class Probe:
@@ -35,6 +35,35 @@ class Probe:
         return self.command(['exec', '-i', '-u', 'postgres', self.name, 'psql', '-X', '-qAt',
                              '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', database],
                             data=query.encode()).stdout.decode().strip()
+
+    def public_ddl_differences(self, expected, actual):
+        # This probe creates its sole source from committed public migration DDL
+        # on a new network-none container. It accepts no existing database input.
+        # Export only differing metadata from these three categories, never table
+        # rows, function bodies, roles/passwords or generic restoration snapshots.
+        result = {}
+        for category in differing_categories(expected, actual):
+            if category not in DETAIL_FIELDS:
+                continue
+            key_size, _ = DETAIL_FIELDS[category]
+            def rows(values):
+                text = next(value[1] for value in values if value[0] == category)
+                return {tuple(row[:key_size]): row for row in map(json.loads, text.splitlines())}
+            before, after = rows(expected), rows(actual)
+            if before.keys() != after.keys():
+                raise ValueError('Public migration metadata inventory changed')
+            changed = [{'before': before[key], 'after': after[key]}
+                       for key in sorted(before) if before[key] != after[key]]
+            if len(changed) > 128:
+                raise ValueError('Public migration metadata comparison too large')
+            result[category] = changed
+        encoded = json.dumps(result)
+        if len(encoded) > 131072:
+            raise ValueError('Public migration metadata comparison too large')
+        for path in (self.directory / 'secrets').iterdir():
+            if path.read_text().strip() in encoded:
+                raise ValueError('Credential in migration metadata refused')
+        return result
 
     def prepare(self):
         self.command(['build', '--label', self.label + '=' + self.nonce, '-t', self.image,
@@ -111,7 +140,8 @@ class Probe:
             actual = capture(lambda query: self.sql(database, query))
             result[mode] = {'restore_completed': True,
                             'different_categories': differing_categories(expected, actual),
-                            'details': difference_details(expected, actual)}
+                            'details': difference_details(expected, actual),
+                            'public_migration_metadata_differences': self.public_ddl_differences(expected, actual)}
         return {'version': 1, 'source_head': os.environ['NETHUB_SOURCE_HEAD'],
                 'migration_ddl_files': count, 'modes': result,
                 'scope': 'Hosted real migration DDL and PostgreSQL restore diagnosis',
