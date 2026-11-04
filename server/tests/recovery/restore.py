@@ -11,7 +11,7 @@ import stat
 import subprocess
 import time
 
-from database import capture, difference_details, differing_categories, snapshot_fingerprint
+from database import bootstrap_extensions, capture, difference_details, differing_categories, snapshot_fingerprint
 from image_archive import inspect_archive
 from linux_guest import LinuxGuest, RecoveryError, sha256
 from payload import PayloadError, SOURCE_REASONS, pack
@@ -258,6 +258,7 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
                 if (sql("SELECT count(*) FROM pg_tables WHERE schemaname='public';") != '0'
                         or sql('SELECT system_identifier FROM pg_control_system();') == original_system):
                     raise RecoveryError('Recovery requires a distinct empty PostgreSQL cluster')
+                bootstrap_extensions(sql, original_database)
                 fixture.remote(target, ['docker', 'cp', str(fixture.archive), target_postgres + ':/tmp/recovery.dump'],
                                'Private full archive staging')
                 fixture.remote(target, ['docker', 'exec', '--user', '0', target_postgres,

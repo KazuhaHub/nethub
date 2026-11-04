@@ -90,6 +90,28 @@ private. The actual custom-archive regression uses a second owned database and
 substitutes only that fixture's database name. The separate-host drill requires
 the original database identity without that substitution.
 
+Relation grants use PostgreSQL's `acldefault` only when the stored ACL is NULL;
+an explicit empty ACL is still empty. Owner, grantee, grantor, grant options and
+RLS flags remain compared. Constraint definitions use PostgreSQL's own pretty
+deparser on both sides under the same tested image, preserving expression
+precedence without a custom string rewriter. These comparison forms distinguish
+actual authority from the default-ACL and associative-AND representations changed
+by a logical dump/restore. They are not used to generate or edit the dump.
+See PostgreSQL's [catalog function semantics](https://www.postgresql.org/docs/16/functions-info.html).
+
+The dump omits extension ownership. Before import, the driver checks the retained
+inventory and creates only the approved pgcrypto 1.3 extension as its original
+`nethub_owner`, with the original public schema. The existing plpgsql metadata
+must match. Unknown extensions, changed owner/version/schema and conflicting
+existing material are refused; no existing extension is repaired or reassigned.
+The complete fingerprint still checks extension metadata after import.
+
+Real PostgreSQL negative controls add a table grant, change its grant option,
+revoke an owner privilege, and change a constraint's lower bound, hash prefix
+and boolean operator. Each must change the fingerprint, and reverting them must
+recover the original fingerprint. Full dump/restore, original Web safe-column
+access and credential-column refusal remain independent requirements.
+
 `Recovery database diagnosis` is a separate hosted workflow for changed recovery
 sources and manual runs. It builds the
 same PostgreSQL image and bootstrap hooks, applies the actual migration Up DDL as

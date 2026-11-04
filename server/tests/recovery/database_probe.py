@@ -9,7 +9,8 @@ import sys
 import tempfile
 import time
 
-from database import capture, difference_details, differing_categories
+from database import bootstrap_extensions, capture, difference_details, differing_categories, snapshot_fingerprint
+from database_controls import check
 
 
 class Probe:
@@ -80,6 +81,7 @@ class Probe:
 
     def exercise(self):
         count = self.prepare()
+        controls = check(lambda query: self.sql('nethub', query))
         original = capture(lambda query: self.sql('nethub', query))
         self.command(['exec', '-u', 'postgres', self.name, 'pg_dump', '--format=custom',
                       '--no-password', '-U', 'nethub_backup', '-d', 'nethub', '-f', '/tmp/recovery-probe.dump'])
@@ -92,7 +94,7 @@ class Probe:
             self.sql('postgres', 'REVOKE ALL ON DATABASE ' + database + ' FROM PUBLIC; GRANT CONNECT ON DATABASE '
                      + database + ' TO nethub_owner,nethub_web,nethub_authz,nethub_backup;')
             if mode == 'precreated_extension':
-                self.sql(database, 'SET SESSION AUTHORIZATION nethub_owner; CREATE EXTENSION pgcrypto;')
+                bootstrap_extensions(lambda query: self.sql(database, query), original)
             options = ['--use-set-session-authorization'] if mode == 'session_authorization' else []
             restored = self.command(['exec', '-u', 'postgres', self.name, 'pg_restore', '--exit-on-error',
                           '--single-transaction', *options, '-U', 'postgres', '-d', database, '/tmp/recovery-probe.dump'],
@@ -109,11 +111,25 @@ class Probe:
                     entry = ('database', '[' + json.dumps(database) + ',' + entry[1][len(prefix):])
                 expected.append(entry)
             actual = capture(lambda query: self.sql(database, query))
+            refused_conflict = False
+            if mode != 'precreated_extension':
+                try:
+                    bootstrap_extensions(lambda query: self.sql(database, query), original)
+                except ValueError:
+                    refused_conflict = True
+                if (not refused_conflict or snapshot_fingerprint(actual)
+                        != snapshot_fingerprint(capture(lambda query: self.sql(database, query)))):
+                    raise ValueError('Existing extension conflict was not preserved')
+            else:
+                bootstrap_extensions(lambda query: self.sql(database, query), original)
+                if snapshot_fingerprint(actual) != snapshot_fingerprint(capture(lambda query: self.sql(database, query))):
+                    raise ValueError('Approved extension retry changed database authority')
             result[mode] = {'restore_completed': True,
                             'different_categories': differing_categories(expected, actual),
-                            'details': difference_details(expected, actual)}
+                            'details': difference_details(expected, actual),
+                            'conflicting_extension_refused_without_mutation': refused_conflict}
         return {'version': 1, 'source_head': os.environ['NETHUB_SOURCE_HEAD'],
-                'migration_ddl_files': count, 'modes': result,
+                'migration_ddl_files': count, 'modes': result, 'negative_controls': controls,
                 'scope': 'Hosted real migration DDL and PostgreSQL restore diagnosis',
                 'complete_application_restore_accepted': False, 'full_goal_complete': False}
 

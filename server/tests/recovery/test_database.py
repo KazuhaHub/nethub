@@ -3,7 +3,8 @@ import copy
 import json
 import unittest
 
-from database import CATEGORIES, DETAIL_FIELDS, difference_details, differing_categories, snapshot_fingerprint
+from database import (CATEGORIES, DETAIL_FIELDS, bootstrap_extensions, difference_details,
+                      differing_categories, snapshot_fingerprint)
 
 
 class ClosedDatabaseDifferences(unittest.TestCase):
@@ -49,6 +50,30 @@ class ClosedDatabaseDifferences(unittest.TestCase):
             with self.assertRaises(ValueError) as caught:
                 difference_details([('owners', raw)], [('owners', '')])
             self.assertEqual(str(caught.exception), 'Unexpected recovery database detail layout')
+
+    def test_unapproved_source_extension_cannot_issue_sql_or_disclose_values(self):
+        def forbidden(query):
+            self.fail('Unapproved source must be refused before SQL')
+        rows = [['pgcrypto', 'private-version', 'private-owner', 'public', True, [], None],
+                ['plpgsql', '1.0', 'postgres', 'pg_catalog', False, [], None]]
+        with self.assertRaises(ValueError) as caught:
+            bootstrap_extensions(forbidden, [('extensions', '\n'.join(map(json.dumps, rows)))])
+        self.assertEqual(str(caught.exception), 'Recovery extension inventory or ownership differs')
+
+    def test_existing_extension_conflict_is_not_repaired_or_disclosed(self):
+        rows = [['pgcrypto', '1.3', 'nethub_owner', 'public', True, [], None],
+                ['plpgsql', '1.0', 'postgres', 'pg_catalog', False, [], None]]
+        current = copy.deepcopy(rows)
+        current[0][2] = 'private-wrong-owner'
+        calls = []
+        def read(query):
+            calls.append(query)
+            self.assertTrue(query.startswith('SELECT '))
+            return '\n'.join(map(json.dumps, current))
+        with self.assertRaises(ValueError) as caught:
+            bootstrap_extensions(read, [('extensions', '\n'.join(map(json.dumps, rows)))])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(str(caught.exception), 'Recovery extension inventory or ownership differs')
 
 
 if __name__ == '__main__':

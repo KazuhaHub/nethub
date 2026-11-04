@@ -172,9 +172,10 @@ class Acceptance:
 
     def restore(self, path):
         sys.path.insert(0, str(Path(__file__).parent / 'recovery'))
-        from database import capture, difference_details, differing_categories, snapshot_fingerprint
+        from database import bootstrap_extensions, capture, difference_details, differing_categories, snapshot_fingerprint
         original = capture(lambda query: self.sql(self.database, query).stdout.decode().strip())
         self.create_database(self.restored)
+        bootstrap_extensions(lambda query: self.sql(self.restored, query).stdout.decode().strip(), original)
         self.command(['cp', str(path), self.postgres + ':' + self.copy_path])
         self.copy_created = True
         self.command(['exec', '--user', '0', self.postgres, 'chown', '70:70', self.copy_path])
@@ -204,6 +205,7 @@ class Acceptance:
     def recovery_fingerprint(self):
         sys.path.insert(0, str(Path(__file__).parent / 'recovery'))
         from database import fingerprint
+        from database_controls import check
         # PostgreSQL aclitem has equality but no ordering operator. Exercise the
         # original failure before checking the actual full fingerprint queries.
         refused = self.sql(self.database,
@@ -219,6 +221,8 @@ class Acceptance:
         finally:
             self.sql(self.database, 'REVOKE CREATE ON SCHEMA public FROM nethub_backup;')
         require(fingerprint(read) == original, 'recovery fingerprint returns to original after grant removal')
+        require(all(check(read).values()), 'complete recovery authority negative controls')
+        print('Actual PostgreSQL recovery comparison detected changed grants, grant options, owner privileges and constraint bounds, prefixes and operators')
         print('Actual PostgreSQL recovery fingerprint passed all table/sequence/role/ACL queries, refused aclitem ordering and detected a changed schema grant')
 
     def failure_and_retention(self):

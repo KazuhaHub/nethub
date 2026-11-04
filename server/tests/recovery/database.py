@@ -8,6 +8,10 @@ CATEGORIES = ('table', 'sequence', 'owners', 'functions', 'schemas',
               'roles', 'memberships', 'database', 'columns', 'defaults',
               'extensions', 'policies', 'constraints', 'indexes', 'role_settings')
 
+EXTENSIONS_SQL = ("SELECT jsonb_build_array(e.extname,e.extversion,pg_get_userbyid(e.extowner),n.nspname,"
+                  "e.extrelocatable,ARRAY(SELECT x::regclass::text FROM unnest(e.extconfig) x),e.extcondition)::text "
+                  "FROM pg_extension e JOIN pg_namespace n ON n.oid=e.extnamespace ORDER BY e.extname;")
+
 
 def capture(sql):
     read = sql
@@ -25,7 +29,9 @@ def capture(sql):
             raise ValueError('Recovery sequence name differs')
         values.append(('sequence', name, sql('SELECT last_value,is_called FROM public."' + name + '";')))
     owners = sql("SELECT jsonb_build_array(c.relname,c.relkind,pg_get_userbyid(c.relowner),"
-                 "c.relacl IS NULL,ARRAY(SELECT x::text FROM unnest(c.relacl) x ORDER BY x::text COLLATE \"C\"),"
+                 "ARRAY(SELECT x::text FROM unnest(COALESCE(c.relacl,"
+                 "acldefault(CASE WHEN c.relkind='S' THEN 's' ELSE 'r' END::\"char\",c.relowner))) x "
+                 "ORDER BY x::text COLLATE \"C\"),"
                  "c.relrowsecurity,c.relforcerowsecurity)::text "
                  "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
                  "WHERE n.nspname='public' ORDER BY c.relname;")
@@ -59,9 +65,7 @@ def capture(sql):
                    "ARRAY(SELECT x::text FROM unnest(d.defaclacl) x ORDER BY x::text COLLATE \"C\"))::text "
                    "FROM pg_default_acl d LEFT JOIN pg_namespace n ON n.oid=d.defaclnamespace "
                    "ORDER BY pg_get_userbyid(d.defaclrole),n.nspname,d.defaclobjtype;")
-    extensions = sql("SELECT jsonb_build_array(e.extname,e.extversion,pg_get_userbyid(e.extowner),n.nspname,"
-                     "e.extrelocatable,ARRAY(SELECT x::regclass::text FROM unnest(e.extconfig) x),e.extcondition)::text "
-                     "FROM pg_extension e JOIN pg_namespace n ON n.oid=e.extnamespace ORDER BY e.extname;")
+    extensions = sql(EXTENSIONS_SQL)
     policies = sql("SELECT jsonb_build_array(c.relname,p.polname,p.polcmd,p.polpermissive,"
                    "ARRAY(SELECT CASE WHEN x=0 THEN 'PUBLIC' ELSE pg_get_userbyid(x)::text END "
                    "FROM unnest(p.polroles) x ORDER BY CASE WHEN x=0 THEN 'PUBLIC' ELSE pg_get_userbyid(x)::text END COLLATE \"C\"),"
@@ -69,7 +73,7 @@ def capture(sql):
                    "FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace "
                    "WHERE n.nspname='public' ORDER BY c.relname,p.polname;")
     constraints = sql("SELECT jsonb_build_array(c.relname,k.conname,k.contype,k.convalidated,k.condeferrable,"
-                      "k.condeferred,pg_get_constraintdef(k.oid))::text FROM pg_constraint k "
+                      "k.condeferred,pg_get_constraintdef(k.oid,true))::text FROM pg_constraint k "
                       "JOIN pg_class c ON c.oid=k.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace "
                       "WHERE n.nspname='public' ORDER BY c.relname,k.conname;")
     indexes = sql("SELECT jsonb_build_array(c.relname,pg_get_indexdef(i.indexrelid),i.indisvalid,i.indisready,"
@@ -109,7 +113,7 @@ def differing_categories(expected, actual):
 
 
 DETAIL_FIELDS = {
-    'owners': (1, ('name', 'kind', 'owner', 'acl_null', 'acl', 'rls', 'force_rls')),
+    'owners': (1, ('name', 'kind', 'owner', 'acl', 'rls', 'force_rls')),
     'extensions': (1, ('name', 'version', 'owner', 'schema', 'relocatable', 'tables', 'conditions')),
     'constraints': (2, ('table', 'name', 'kind', 'validated', 'deferrable', 'deferred', 'definition')),
 }
@@ -149,3 +153,35 @@ def difference_details(expected, actual):
                        if any(before[key][index] != after[key][index] for key in shared)],
         }
     return result
+
+
+def bootstrap_extensions(sql, original):
+    """Recreate only the approved migration extension with its retained owner."""
+    message = 'Recovery extension inventory or ownership differs'
+    try:
+        entries = [value for value in original if value[0] == 'extensions']
+        if len(entries) != 1 or len(entries[0]) != 2:
+            raise ValueError
+        text = entries[0][1]
+        rows = [json.loads(line) for line in text.splitlines()]
+        if any(not isinstance(row, list) or len(row) != 7 for row in rows):
+            raise ValueError
+        expected = {row[0]: row for row in rows}
+        approved = ['pgcrypto', '1.3', 'nethub_owner', 'public', True, [], None]
+        if len(rows) != 2 or set(expected) != {'pgcrypto', 'plpgsql'} or expected['pgcrypto'] != approved:
+            raise ValueError
+        current_rows = [json.loads(line) for line in sql(EXTENSIONS_SQL).splitlines()]
+        current = {row[0]: row for row in current_rows}
+        if (len(current) != len(current_rows) or current.get('plpgsql') != expected['plpgsql']
+                or set(current) - {'pgcrypto', 'plpgsql'}
+                or 'pgcrypto' in current and current['pgcrypto'] != approved):
+            raise ValueError
+        if 'pgcrypto' not in current:
+            # pg_dump deliberately omits extension ownership. Do not change an
+            # existing extension owner or accept a different version/schema.
+            sql("SET SESSION AUTHORIZATION nethub_owner; "
+                "CREATE EXTENSION pgcrypto WITH SCHEMA public VERSION '1.3'; RESET SESSION AUTHORIZATION;")
+        if sql(EXTENSIONS_SQL) != text:
+            raise ValueError
+    except (IndexError, KeyError, TypeError, ValueError):
+        raise ValueError(message) from None
