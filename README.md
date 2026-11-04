@@ -63,8 +63,10 @@ The execution plan tracks the confirmed scope and its remaining acceptance.
 
 - **No fleet operations.** No bulk upgrades, no scheduled jobs, no
   fleet-wide config push.
-- **No telemetry.** No metrics collection, no dashboards, no alerting beyond
-  "is the tunnel up."
+- **No general device monitoring.** The console reports approximate monthly
+  tunnel traffic and a configurable usage warning. Device health metrics and a
+  general monitoring dashboard remain out of scope. See
+  [traffic accounting and limits](deploy/traffic-counters.md).
 - **No OpenWrt or VyOS support.** The directory layout and protocol are
   designed not to assume a single platform, but v1 targets OPNsense only.
 
@@ -160,8 +162,9 @@ docs/             DESIGN.md (v0.3, in Chinese), operator/protocol/security/API r
 weekend0/         Weekend 0 transport-test kit (RUNBOOK, frps/frpc configs, probe.py)
 ```
 
-This layout includes planned components. The repository currently contains the
-documentation, Weekend 0 kit, and OPNsense development plugin.
+The repository contains the control plane, console, deployment tooling,
+OPNsense development plugin and acceptance fixtures. OpenWrt and VyOS adapters
+remain planned.
 
 All of NetHub lives in this repository, including the OPNsense plugin source
 under `agents/opnsense/plugin/`. FreeBSD packages are *built* elsewhere:
@@ -353,7 +356,8 @@ project and is not affiliated with, endorsed by, or sponsored by Deciso B.V.*
 
 NetHub 是一个自托管的远程访问与设备管理工具：让藏在 CGNAT 或动态 IP 后面的
 开源路由器/防火墙（首发支持 OPNsense）无需端口转发即可远程打开 Web UI。v1
-不提供通用设备配置接口；插件的隧道及 GUI 证书管理有独立边界，批量升级和遥测不在 v1 范围内。控制台
+不提供通用设备配置接口；插件的隧道及 GUI 证书管理有独立边界，批量升级和通用设备监控不在 v1 范围内。
+已实现的月度隧道流量统计是近似值，并支持用量提醒。控制台
 已实现多用户（admin / member，邀请制）、OIDC 和 SAML 登录接口及页面。项目处于 pre-alpha 的 W7 实现和验收阶段，已有按环境和版本记录的原生／公网证书及定时数据库备份验收；W5–W7、公开 IdP 和正式发布仍有未完成项，不能用于生产。中文设计文档见
 [`docs/DESIGN.md`](docs/DESIGN.md)，完整的中文 README 见
 [`docs/README.zh-CN.md`](docs/README.zh-CN.md)。
