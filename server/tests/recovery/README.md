@@ -72,6 +72,20 @@ necessarily replaced by the planned host outage; later removal uses the
 reconnected control as its baseline. Independent encrypted, durable custody and
 public/operator checks remain separate requirements, even after this drill passes.
 
+The fixture does not restore a separately configured protected host issuer's
+ACME account, HTTP-01 publisher policy/state, installed helper binary or systemd
+services/timers. A production cold-host procedure must preserve that state,
+quiesce those writers and verify resumed issuance separately. Six-service
+recovery alone does not establish this certificate-automation recovery scope.
+
 A refused source payload reports only a fixed reason, source category and bounded
 octal mode. File names, paths, owners, content and raw child diagnostics remain
 private. This diagnostic does not relax source permissions or archive admission.
+
+Database comparisons retain table contents, sequences, ownership, object/column
+and default grants, role memberships/settings, function definitions, extensions,
+RLS policies, constraints and indexes. A mismatch reports only fixed category
+names and the comparison phase; private rows, names, grants and hashes remain
+private. The actual custom-archive regression uses a second owned database and
+substitutes only that fixture's database name. The separate-host drill requires
+the original database identity without that substitution.

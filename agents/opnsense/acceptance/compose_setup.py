@@ -47,7 +47,8 @@ def project(raw, code):
                                  + rb'", line ([0-9]{1,5}), in [a-zA-Z0-9_<>]+', line)
             if match and 1 <= int(match[1]) <= 10000:
                 locations.add((source, int(match[1])))
-            go = re.match(rb'\s*' + re.escape(name.encode()) + rb':([0-9]{1,5}):', line)
+            go = re.match(rb'\s*(?:[^\s\r\n]*/)?' + re.escape(name.encode())
+                          + rb':([0-9]{1,5})(?::|\s|$)', line)
             emitted = re.fullmatch(b'NETHUB_NATIVE_LOCATION=' + source.encode() + rb':([0-9]{1,5})', line)
             for match in (go, emitted):
                 if match and 1 <= int(match[1]) <= 10000:

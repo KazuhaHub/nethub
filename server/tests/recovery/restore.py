@@ -11,7 +11,7 @@ import stat
 import subprocess
 import time
 
-from database import fingerprint
+from database import capture, differing_categories, snapshot_fingerprint
 from image_archive import inspect_archive
 from linux_guest import LinuxGuest, RecoveryError, sha256
 from payload import PayloadError, SOURCE_REASONS, pack
@@ -221,10 +221,13 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
                 result['phase'] = 'quiesced_snapshot'
                 stopped = True
                 fixture.command(fixture.compose + ['stop', '--timeout', '10', *WRITERS], 'Source writer quiescence', timeout=75)
-                original_database = fingerprint(fixture.sql)
+                original_database = capture(fixture.sql)
                 original_system = fixture.sql('SELECT system_identifier FROM pg_control_system();')
                 fixture.snapshot()
-                if fingerprint(fixture.sql) != original_database:
+                after_snapshot = capture(fixture.sql)
+                if snapshot_fingerprint(after_snapshot) != snapshot_fingerprint(original_database):
+                    result['database_diagnostic'] = {'version': 1, 'comparison': 'source_after_snapshot',
+                        'different_categories': differing_categories(original_database, after_snapshot)}
                     raise RecoveryError('Source database changed during quiesced backup')
                 fixture.command(fixture.compose + ['stop', '--timeout', '10', 'postgres'], 'Original database shutdown', timeout=30)
                 if fixture.command(fixture.compose + ['ps', '-q'], 'Source shutdown proof').strip():
@@ -261,7 +264,10 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
                 fixture.remote(target, ['docker', 'exec', '-i', '--user', 'postgres', target_postgres,
                     'pg_restore', '--exit-on-error', '--single-transaction', '-U', 'postgres', '-d', 'nethub',
                     '/tmp/recovery.dump'], 'Full schema ownership and ACL recovery', timeout=120)
-                if fingerprint(sql) != original_database:
+                restored_database = capture(sql)
+                if snapshot_fingerprint(restored_database) != snapshot_fingerprint(original_database):
+                    result['database_diagnostic'] = {'version': 1, 'comparison': 'target_after_restore',
+                        'different_categories': differing_categories(original_database, restored_database)}
                     raise RecoveryError('Restored database contents or role grants differ')
                 result['phase'] = 'services_restore'
                 fixture.remote(target, fixture.compose + ['up', '-d', '--no-build', '--pull', 'never',

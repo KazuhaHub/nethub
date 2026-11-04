@@ -68,6 +68,15 @@ def test_host_proof_markers_remain_closed_through_nested_projection():
     assert 'private-secret' not in str(value)
 
 
+def test_go_panic_paths_export_only_known_basename_and_bounded_line():
+    raw = (b'\t/private-secret/source/pebble_host_linux_test.go:342 +0x12\n'
+           b'\t/private-secret/source/private-secret.go:12 +0x12\n'
+           b'\t/private-secret/source/pebble_host_linux_test.go:99999 +0x12\n')
+    value = SETUP.project(raw, 1)
+    assert value['locations'] == [{'source': 'pebble_host_linux_test', 'line': 342}]
+    assert 'private-secret' not in SETUP.emit(value)
+
+
 def test_hardlinked_log_refused(tmp_path):
     import os
     path = tmp_path / 'private.log'

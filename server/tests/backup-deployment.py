@@ -171,11 +171,28 @@ class Acceptance:
         require(self.archive_root.is_absolute() and self.archive_root.resolve(strict=True) == self.archive_root, 'local archive mountpoint')
 
     def restore(self, path):
+        sys.path.insert(0, str(Path(__file__).parent / 'recovery'))
+        from database import capture, differing_categories, snapshot_fingerprint
+        original = capture(lambda query: self.sql(self.database, query).stdout.decode().strip())
         self.create_database(self.restored)
         self.command(['cp', str(path), self.postgres + ':' + self.copy_path])
         self.copy_created = True
         self.command(['exec', '--user', '0', self.postgres, 'chown', '70:70', self.copy_path])
-        self.command(['exec', '--user', 'postgres', self.postgres, 'pg_restore', '--exit-on-error', '--username', 'postgres', '--dbname', self.restored, self.copy_path])
+        self.command(['exec', '--user', 'postgres', self.postgres, 'pg_restore', '--exit-on-error', '--single-transaction', '--username', 'postgres', '--dbname', self.restored, self.copy_path])
+        # Only this fixture's database name changes; all remaining database
+        # metadata and every other category must survive the actual restore.
+        expected = []
+        for value in original:
+            if value[0] == 'database':
+                prefix = '[' + json.dumps(self.database) + ','
+                require(value[1].startswith(prefix), 'source recovery database identity')
+                value = ('database', '[' + json.dumps(self.restored) + ',' + value[1][len(prefix):])
+            expected.append(value)
+        actual = capture(lambda query: self.sql(self.restored, query).stdout.decode().strip())
+        differences = differing_categories(expected, actual)
+        require(snapshot_fingerprint(expected) == snapshot_fingerprint(actual),
+                'restored full database comparison differs in categories: ' + ','.join(differences))
+        print('Actual PostgreSQL custom archive restore preserved the full recovery fingerprint with only the fixture database name changed')
         require(self.sql(self.restored, self.digest_query).stdout.decode().strip() == self.source_digest, 'restored actual device content')
         allowed = self.sql(self.restored, "SET SESSION AUTHORIZATION nethub_web; SELECT set_config('app.tenant_id','" + self.tenant + "',false); SELECT count(id) FROM devices;\n")
         require(allowed.stdout.decode().strip().splitlines()[-1] == '1', 'restored Web safe-column visibility')
