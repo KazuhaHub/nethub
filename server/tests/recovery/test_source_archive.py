@@ -94,6 +94,16 @@ class SourceArchiveAdmission(unittest.TestCase):
 
 
 class SourceHostAdmission(unittest.TestCase):
+    def test_proof_reads_refuse_mutations_and_unprepared_endpoints_before_ssh(self):
+        source = object.__new__(SourceHost)
+        source.stack_started, source.host_prepared = True, False
+        for query in (None, 'DROP TABLE devices', 'SELECT 1; DELETE FROM devices',
+                      'BEGIN; SELECT 1', 'UPDATE devices SET revoked=true'):
+            with self.subTest(query=query), self.assertRaises(RecoveryError):
+                source.query(query)
+        with self.assertRaises(RecoveryError):
+            source.entry_address()
+
     def test_unowned_or_missing_guest_refused_before_any_command(self):
         with self.assertRaises(RecoveryError):
             SourceHost(None, Path(__file__).parent)

@@ -5,6 +5,7 @@ an issuer, start its timers, enroll a client or establish recovery acceptance.
 """
 import copy
 import hashlib
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -125,6 +126,42 @@ class DeploymentHost:
         actual = self.remote(['sha256sum', destination], 'Owned recovery profile exact readback').split()[0].decode()
         if actual != hashlib.sha256(data).hexdigest():
             raise RecoveryError('Owned recovery profile readback differs')
+
+    def entry_address(self):
+        if not self.host_prepared:
+            raise RecoveryError('Owned prepared guest required before endpoint discovery')
+        routes = json.loads(self.remote(['ip', '-4', '-j', 'route', 'show', 'default'],
+                                        'Owned guest default interface'))
+        if (len(routes) != 1 or routes[0].get('gateway') != '10.0.2.2'
+                or re.fullmatch('[a-zA-Z0-9_.-]{1,32}', routes[0].get('dev', '')) is None):
+            raise RecoveryError('Owned QEMU user-network default route differs')
+        interfaces = json.loads(self.remote(['ip', '-4', '-j', 'address', 'show', 'dev', routes[0]['dev'], 'scope', 'global'],
+                                            'Owned guest primary private endpoint'))
+        addresses = [item for interface in interfaces for item in interface['addr_info'] if item['family'] == 'inet']
+        if (len(addresses) != 1 or addresses[0]['prefixlen'] != 24
+                or ipaddress.IPv4Address(addresses[0]['local']) not in ipaddress.IPv4Network('10.0.2.0/24')
+                or addresses[0]['local'] in ('10.0.2.0', '10.0.2.2', '10.0.2.255')):
+            raise RecoveryError('Owned guest primary address is ambiguous')
+        return addresses[0]['local']
+
+    def query(self, query):
+        if (not self.stack_started and not getattr(self, 'restored', False)
+                or not isinstance(query, str) or not query.startswith('SELECT ') or ';' in query):
+            raise RecoveryError('Owned running host and one read-only proof query required')
+        identifier = self.remote(['docker', 'compose', '--project-name', 'nethub',
+            '--file', DEPLOYMENT + '/docker-compose.yml', '--file', DEPLOYMENT + '/docker-compose.override.yml',
+            'ps', '-q', 'postgres'], 'Owned proof database identity').decode().strip()
+        if re.fullmatch('[a-f0-9]{64}', identifier) is None:
+            raise RecoveryError('Owned proof database container differs')
+        values = json.loads(self.remote(['docker', 'inspect', identifier], 'Owned proof database binding'))
+        if (len(values) != 1 or values[0]['Config']['Labels'].get('com.docker.compose.project') != 'nethub'
+                or values[0]['Config']['Labels'].get('com.docker.compose.service') != 'postgres'
+                or values[0]['Config']['Image'] != self.tags['postgres'] or values[0]['State']['Running'] is not True):
+            raise RecoveryError('Owned proof database ownership differs')
+        statement = "BEGIN READ ONLY; SET LOCAL statement_timeout='5s'; " + query + '; COMMIT;'
+        return self.remote(['docker', 'exec', '-i', identifier, 'psql', '-X', '-qAt', '-v', 'ON_ERROR_STOP=1',
+                            '-U', 'postgres', '-d', 'nethub', '-c', statement],
+                           'Owned read-only recovery database proof').decode().strip()
 
     def receive(self, name):
         if name not in RECEIVE_LIMITS:
