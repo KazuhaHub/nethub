@@ -10,6 +10,7 @@ import urllib.request
 import uuid
 
 from relay_heartbeat import NoRedirect
+from traffic_failure import project as project_browser_failure
 
 
 def exercise_traffic(stage, port, assignments, gateway, curl, check_tunnels, sql):
@@ -88,6 +89,12 @@ def exercise_traffic(stage, port, assignments, gateway, curl, check_tunnels, sql
         reply = subprocess.run([os.environ.get('NETHUB_NODE_BINARY', 'node'), str(Path(__file__).resolve().parents[1] / 'web/tests/traffic-deployment.mjs'),
                                 str(port), str(stage / 'admin-password'), browser_evidence], capture_output=True, timeout=150)
         (work / 'browser-private.log').write_bytes(reply.stdout + reply.stderr)
+        if reply.returncode:
+            try:
+                raw = (Path(browser_evidence) / 'traffic-browser-failure.json').read_bytes()
+            except OSError:
+                raw = b''
+            print('NETHUB_TRAFFIC_BROWSER_FAILURE=' + json.dumps(project_browser_failure(raw, reply.returncode)))
         assert reply.returncode == 0, 'deployed traffic console verification failed; private log retained'
         if os.environ.get('NETHUB_BROWSER_EVIDENCE'):
             # The harness runs under sudo; only these reviewed public artifacts
