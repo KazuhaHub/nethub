@@ -22,11 +22,14 @@ retained verification keys support planned signing-key rotation.
 past the previous value, including same-second rotations and clock rollback. The
 device handler must call it while holding the device row lock, save that exact
 timestamp, and issue the response within the transaction. This package alone
-does not supply the lock or prove transactional rotation; that remains W4-3/W7.
+does not supply the lock or prove transactional rotation. The device store owns
+that transaction and timestamp/credential/claim commit boundary.
 `Issue` rejects a timestamp with finer precision instead of signing a value the
 database would round differently.
 
 Tests cover independent encoding, tampering of every field/signature, malformed
 and correctly signed noncanonical inputs, key rotation/copy isolation, timestamp
-precision/overflow, concurrent use, and fuzz seeds. Full tenant/revocation/hook
-checks and live device acceptance belong to the subsequent integration work.
+precision/overflow, concurrent use, and fuzz seeds. Tenant/revocation/hook checks
+belong to the device and relay integrations. See the [device rotation scope](../../../deploy/device-rotation.md)
+for installed acceptance and remaining gates; package tests alone do not prove
+live admission or credential cutover.
