@@ -89,12 +89,35 @@ func TestNativeRelayAuthorityTransition(t *testing.T) {
 		t.Fatal("private database fixture identity")
 	}
 	publisher := &relaytrust.Publisher{Run: relaytrust.SQLRunner(run), ServerName: manifest.Config.ConsoleHost}
-	if current, err := publisher.Current(ctx); err != nil || current != nil {
-		t.Fatal("fixture expected fresh public trust history", err)
-	}
-	first, err := publisher.Publish(ctx, "", string(before["secrets/issuer/ca.pem"]))
+	first, err := publisher.Current(ctx)
 	if err != nil {
-		t.Fatal("fixture initial public trust publication", err)
+		t.Fatal("fixture public trust history unavailable", err)
+	}
+	if first == nil {
+		first, err = publisher.Publish(ctx, "", string(before["secrets/issuer/ca.pem"]))
+		if err != nil {
+			t.Fatal("fixture initial public trust publication", err)
+		}
+	} else {
+		// The installed publication drill precedes this tail and must have
+		// restored the original authority through the real retirement barrier.
+		// Ordinary Compose acceptance still requires fresh publication history.
+		var native struct {
+			Passed    bool `json:"passed"`
+			Retired   bool `json:"all_active_devices_confirmed_before_root_retirement"`
+			Restored  bool `json:"original_authority_republished_and_native_confirmed"`
+			Reference bool `json:"reference_models_used_authenticated_application_API"`
+			Witness   bool `json:"witness_trust_reload_verified_new_control_and_original_TLS"`
+		}
+		initial, parseErr := relaytrust.Parse(string(before["secrets/issuer/ca.pem"]), time.Now())
+		evidence := os.Getenv("NETHUB_NATIVE_EVIDENCE")
+		if os.Getenv("NETHUB_NATIVE_TEST") != "1" || evidence == "" || first.Number < 3 || parseErr != nil ||
+			first.Bundle().Fingerprint() != initial.Fingerprint() ||
+			json.Unmarshal(read(filepath.Join(evidence, "installed-trust-publication.json")), &native) != nil ||
+			!native.Passed || !native.Retired || !native.Restored || !native.Reference || !native.Witness {
+			t.Fatal("preceding installed trust publication was not genuinely restored")
+		}
+		t.Log("Authority tail retained the genuinely restored native publication history and original authority")
 	}
 	// The active successor backup must survive this test until the outer owned
 	// deployment cleanup; t.TempDir would remove it while later checks still run.

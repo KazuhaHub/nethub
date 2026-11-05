@@ -422,9 +422,37 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     if fixture('inspect', host=host) != checked:
         raise GuestError('Unknown commit recovery changed native GUI identity or checks')
 
+    def check_publication_witness():
+        if (survivor.poll() is not None or not survivor_route()
+                or not original_survivor.issubset(survivor_sockets())):
+            raise GuestError('Native publication actions interrupted the original witness control')
+
+    def install_witness_trust(public):
+        nonlocal survivor
+        started = time.monotonic()
+        stop_survivor()
+        path = work / 'relay-ca.pem'
+        path.write_bytes(public)
+        path.chmod(0o600)
+        survivor = subprocess.Popen([str(stage / 'official/frpc'), '-c', str(other_config)],
+                                    stdout=other_log, stderr=other_log)
+        for _ in range(30):
+            if survivor.poll() is not None:
+                raise GuestError('Witness did not reload the authenticated trust generation')
+            if survivor_sockets() and survivor_route() and route():
+                return max(1, round((time.monotonic() - started) * 1000))
+            time.sleep(.5)
+        raise GuestError('Planned witness trust application did not recover verified TLS')
+
     publication_conflict, publication_credentials = exercise_publication_conflict(
         guest, stage, project, compose, page_action, native_read, sql, route, request,
-        device, stable_query, grants_query, check_rotation_unavailable)
+        device, stable_query, grants_query, check_rotation_unavailable,
+        evidence, other['device_id'], check_publication_witness, install_witness_trust)
+    # Trust retirement requires genuine reference application. The preceding
+    # original-control assertion is separate from these planned client reloads.
+    original_survivor = survivor_sockets()
+    if not original_survivor:
+        raise GuestError('Trust-applied witness control was not observed')
     if (survivor.poll() is not None or not survivor_route()
             or not original_survivor.issubset(survivor_sockets())
             or fixture('inspect', host=host) != checked):

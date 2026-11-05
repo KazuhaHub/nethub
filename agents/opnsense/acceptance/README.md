@@ -47,10 +47,26 @@ request must receive the exact trust-conflict 409; the native page must discard
 only that uncommitted operation. Normal trust synchronization and a fresh page
 rotation must then produce one distinct committed operation and audit, retain
 identity/grants/GUI policy and recover the original verified route. A second
-protected publication restores the original authority before the remaining
-fixture tail. The independent witness, normal Remove and full Compose cleanup
+protected publication restores the original authority only after every active
+fixture device has confirmed the overlap through the real API. The native router
+uses its actual scheduled action; the stopped reference model persists and
+independently verifies its roots, while the live witness deliberately reloads its
+trust pool and proves new control plus its original TLS route before reporting.
+Original witness control is checked before those planned trust reloads and a new
+baseline is retained afterward. The original trust is then synchronized again.
+Failures retain a fixed phase and go to owned stack teardown; an invalid cleanup
+retirement must not mask the first error. The later authority tail accepts this
+history only with the genuine native restoration receipt and original authority;
+ordinary Compose still requires fresh history. Normal Remove and full cleanup
 remain required. This does not establish an authority switch, durable off-host
 custody, later-publication committed replay or public-network acceptance.
+
+The first complete attempt at `fd7aa24` failed with a generic protected-publication
+error before completing this case. Its exact logs, page outcomes and owned
+cleanup are retained. The fixture's unconditional retirement could mask an
+earlier failure and did not arrange the required reference confirmations. The
+corrected flow preserves the first failure and records a fixed phase; its actual
+installed result is still pending.
 
 `native-enrolled.yml` waits for a successful six-job CI run for its exact PR source
 before allocating a fresh guest. A separate image-gate job bounds that wait;
