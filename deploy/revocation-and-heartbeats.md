@@ -23,13 +23,19 @@ reviewed Compose and frps configuration migration together; the external HTTPS
 origin ports and proxy trust remain separate. This does not impose a total
 transport deadline on upstream frp or make a suspended process responsive.
 
-Authz loads a revocation snapshot before serving callbacks and refreshes it every
-five seconds. Ping checks only this memory set after signature/peer validation.
-Login, NewProxy and NewUserConn continue to check current SQL state. Revoked IDs
-remain denied even if a subsequent snapshot omits them. Ordinary database errors
-retain the previous set, so a newly revoked ID may wait for database recovery;
-new connection admissions already fail closed. Snapshot reads cap at 1,024 tenants
-and 100,000 revoked IDs, with a partial index added by migration 19.
+Authz loads revocations and rotated-claim issuance floors before serving callbacks
+and refreshes them every five seconds. Ping checks this memory state after
+signature and peer validation; a claim issued before its device's retained floor
+is denied. Login, NewProxy and NewUserConn continue to check current SQL state.
+Known revocations remain denied and known issuance floors never decrease when
+later reads omit them or return older values. Ordinary database errors retain
+the previous state, so new revocations or floors may wait for database recovery;
+new connection admissions already fail closed.
+
+Revocations and floors use separate read-only repeatable-read scans within one
+shared two-second refresh budget; they are not one atomic database snapshot.
+Each scan caps at 1,024 tenants, with independent limits of 100,000 revoked IDs
+and 100,000 rotated-device floors. Migration 19 adds the revoked-device index.
 
 An unresponsive refresh dependency or failed self-check stops both authz APIs and
 exits unsuccessfully for container restart. Database requests have a two-second
@@ -47,5 +53,8 @@ restart recovery and revocation, rather than inferring control loss from failed
 TLS alone. It also checks Ping rejection, fresh Login rejection and an unaffected
 device's verified TLS. SQL integration tests cover two tenants and real lock-wait
 failure; memory tests cover last-good retention and refresh/self-check liveness.
-These tests do not complete console revoke/cutoff actions or installed-appliance,
-public/mobile W5 acceptance. See [callback details](../server/internal/relayhook/README.md).
+[Console Revoke](console-revocation.md), [disconnect requests](disconnect-requests.md)
+and the [installed heartbeat measurement](validation-native-w5-heartbeat.md)
+have separate evidence. The installed record retains its unresolved W0 timing
+comparison; these fixtures do not complete public/mobile W5 acceptance.
+See [callback details](../server/internal/relayhook/README.md).
