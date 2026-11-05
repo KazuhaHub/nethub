@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import { connect } from "node:net";
 import { join } from "node:path";
 import { chromium } from "playwright";
+import { trafficFailure } from "./traffic-failure.mjs";
 
 const [portText, passwordFile, evidence] = process.argv.slice(2);
 const port = Number(portText),
@@ -21,7 +22,11 @@ const sockets = new Set();
 let refused = 0,
   violations = 0,
   errors = 0,
-  browser;
+  browser,
+  phase = "proxy_listen",
+  lastHTTPStatus = 0,
+  visibleRows = null,
+  cspChecked = false;
 const proxy = createServer((_request, response) => {
   refused++;
   response.writeHead(403).end();
@@ -46,11 +51,12 @@ proxy.on("connect", (request, client, head) => {
     upstream.pipe(client);
   });
 });
-await new Promise((resolve, reject) => {
-  proxy.once("error", reject);
-  proxy.listen(0, "127.0.0.1", resolve);
-});
 try {
+  await new Promise((resolve, reject) => {
+    proxy.once("error", reject);
+    proxy.listen(0, "127.0.0.1", resolve);
+  });
+  phase = "browser_launch";
   browser = await chromium.launch({
     headless: true,
     channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
@@ -67,12 +73,16 @@ try {
       window.__trafficCSP = (window.__trafficCSP || 0) + 1;
     });
   });
+  phase = "page_create";
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
   page.on("pageerror", () => errors++);
+  phase = "navigate";
   await page.goto(origin + "/traffic");
+  phase = "fill_email";
   await page.getByLabel("Email address").fill("compose-admin@example.com");
   for (let attempt = 0; attempt < 2; attempt++) {
+    phase = "login_response";
     await page.getByLabel("Password", { exact: true }).fill(password);
     const reply = page.waitForResponse(
       (response) =>
@@ -81,7 +91,9 @@ try {
     );
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     const response = await reply;
+    lastHTTPStatus = response.status();
     if (response.status() === 429 && attempt === 0) {
+      phase = "login_retry";
       const delay = Number(response.headers()["retry-after"]);
       assert.ok(Number.isInteger(delay) && delay >= 1 && delay <= 60);
       await page.waitForTimeout(delay * 1000 + 100);
@@ -94,30 +106,43 @@ try {
     );
     break;
   }
+  phase = "traffic_heading";
   await page.getByRole("heading", { name: "Traffic", exact: true }).waitFor();
+  phase = "warning";
   await page.getByText(/Monthly warning exceeded/).waitFor();
-  assert.ok((await page.locator("tbody tr").count()) >= 2);
+  phase = "rows";
+  visibleRows = await page.locator("tbody tr").count();
+  assert.ok(visibleRows >= 2);
+  phase = "background_poll";
   const next = page.waitForResponse(
     (response) =>
       new URL(response.url()).pathname === "/api/v1/console/traffic" &&
       response.request().headers()["x-nethub-background"] === "1",
   );
   const response = await next;
+  lastHTTPStatus = response.status();
   assert.equal(response.status(), 200);
+  phase = "report_shape";
   const report = await response.json();
   assert.ok(
     BigInt(report.total_bytes) >= 131072n &&
       report.warning &&
       report.warning_bytes === "1",
   );
+  phase = "report_sum";
   assert.equal(
     report.items.reduce((sum, item) => sum + BigInt(item.total_bytes), 0n),
     BigInt(report.total_bytes),
   );
+  phase = "csp";
   violations = await page.evaluate(() => window.__trafficCSP || 0);
+  cspChecked = true;
   assert.equal(violations, 0);
+  phase = "browser_errors";
   assert.equal(errors, 0);
+  phase = "proxy_connections";
   assert.equal(refused, 0);
+  phase = "screenshot";
   const name = "deployed-traffic.png";
   await page.screenshot({
     path: join(evidence, name),
@@ -149,13 +174,31 @@ try {
       2,
     ),
   );
+  phase = "logout";
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  phase = "logout_confirmation";
   await page
     .getByRole("heading", { name: "Sign in to NetHub", exact: true })
     .waitFor();
+  phase = "complete";
   console.log(
     "Deployed traffic console rendered actual persisted relay totals and warning under strict CSP; isolated private-CA browser scope only.",
   );
+} catch (error) {
+  console.error(error);
+  writeFileSync(
+    join(evidence, "traffic-browser-failure.json"),
+    JSON.stringify(
+      trafficFailure(error, phase, {
+        lastHTTPStatus,
+        browserErrors: errors,
+        refused,
+        cspViolations: cspChecked ? violations : null,
+        visibleRows,
+      }),
+    ),
+  );
+  throw new Error("Deployed traffic browser verification failed");
 } finally {
   await browser?.close();
   for (const socket of sockets) socket.destroy();

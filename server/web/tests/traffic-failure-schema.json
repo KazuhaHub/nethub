@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "phases": [
+    "proxy_listen", "browser_launch", "page_create", "navigate", "fill_email",
+    "login_response", "login_retry", "traffic_heading", "warning", "rows",
+    "background_poll", "report_shape", "report_sum", "csp", "browser_errors",
+    "proxy_connections", "screenshot", "logout", "logout_confirmation", "complete",
+    "unclassified"
+  ]
+}

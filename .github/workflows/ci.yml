@@ -246,6 +246,10 @@ jobs:
           npm ci --ignore-scripts
           npx playwright install --with-deps chromium
           sudo timeout --signal=TERM --kill-after=5 120 apt-get install -y --no-install-recommends libnss3-tools
+      - name: Check closed traffic-browser failure projection
+        run: |
+          python3 server/tests/test_traffic_failure.py
+          node server/web/tests/traffic-failure-test.mjs
       - name: Verify clean Compose startup and migration failure
         env:
           PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/nethub-deployment-browsers
