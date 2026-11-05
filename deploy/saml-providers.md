@@ -49,7 +49,8 @@ the entire mutation.
 
 Local tests cover HTTP permissions/CSRF/schema/body boundaries, private bundle
 refusal and an independently verified actual authcore RSA request signature.
-The added PostgreSQL cases require the genuine database suite; a local unit run
-does not establish those boundaries. Full browser-bound SAML login, ACS and
-invitation/session admission, management pages, signed deployed IdP acceptance
-and complete W6 acceptance remain unfinished.
+The accepted backend run above includes the genuine PostgreSQL cases; a local
+unit run alone does not establish those boundaries. [Browser admission](saml-login.md),
+[management pages](saml-console.md) and isolated signed
+[Keycloak deployment](validation-keycloak-saml.md) have separate evidence.
+Public IdP and complete W6 acceptance remain open.
