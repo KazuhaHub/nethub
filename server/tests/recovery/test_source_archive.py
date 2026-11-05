@@ -41,7 +41,7 @@ class SourceArchiveAdmission(unittest.TestCase):
             archive = root / 'source.tar'
             with archive.open('xb') as stream:
                 subprocess.run(['git', '-c', 'core.autocrlf=false', '-c', 'tar.umask=0022',
-                                'archive', '--format=tar', head, 'deploy/systemd'],
+                                'archive', '--format=tar', head],
                                cwd=repository, stdout=stream, check=True)
             result = self.extract(archive, root / 'source', head=head)
             self.assertTrue(result['source_archive_verified'])
@@ -55,7 +55,8 @@ class SourceArchiveAdmission(unittest.TestCase):
                  ('name', 'deploy/../elsewhere'), ('name', 'deploy\\elsewhere'),
                  ('name', 'deploy/line\nend'), ('mode', 0o666), ('mode', 0o4755),
                  ('type', tarfile.SYMTYPE), ('type', tarfile.LNKTYPE),
-                 ('type', tarfile.FIFOTYPE), ('pax_headers', {'linkpath': '/etc/elsewhere'})]
+                 ('type', tarfile.FIFOTYPE), ('type', tarfile.CONTTYPE),
+                 ('pax_headers', {'linkpath': '/etc/elsewhere'})]
         for field, value in cases:
             with self.subTest(field=field, value=value), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary).resolve()
@@ -68,7 +69,8 @@ class SourceArchiveAdmission(unittest.TestCase):
                 self.assertFalse(destination.exists())
 
     def test_duplicates_conflicting_parents_and_identity_refused_before_writes(self):
-        for entries in ([self.file(), self.file()], [self.file('deploy'), self.file('deploy/helper')]):
+        for entries in ([self.file(), self.file()], [self.file('deploy'), self.file('deploy/helper')],
+                        [self.file(), self.file('deploy/helper/')]):
             with self.subTest(entries=[e.name for e in entries]), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary).resolve();archive = self.archive(root, entries)
                 with self.assertRaises(ValueError):

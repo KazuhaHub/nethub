@@ -19,7 +19,7 @@ def members_for_source(bundle, head):
         if (not name.parts or name.is_absolute() or canonical != member.name.rstrip('/')
                 or '..' in name.parts or '\\' in member.name
                 or any(ord(char) < 32 for char in member.name) or canonical in kinds
-                or not (member.isdir() or member.isfile()) or member.mode & ~0o755
+                or member.type not in (tarfile.REGTYPE, tarfile.DIRTYPE) or member.mode & ~0o755
                 or member.size < 0 or member.size > MAX_BYTES
                 or member.isdir() and member.size != 0
                 or set(member.pax_headers) - {'comment', 'path', 'size'}
