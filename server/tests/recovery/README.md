@@ -214,3 +214,12 @@ CA and can require the same administrator UUID after restoration. Cookie jars,
 password payloads, CSRF headers and replies remain private. A failed or uncertain
 token creation cannot be replayed by this session. This helper does not create
 database rows or source grants directly and has not yet run against either guest.
+
+The disposable appliance probe `agents/opnsense/acceptance/cold_native_probe.py`
+reads the original cached CSR under the common mutation lock and verifies its
+signature against the existing enrolled key. It creates neither key nor request.
+Its private output distinguishes the enrollment key from the active GUI
+certificate's public key, and records the original process, assignment, checks
+and alias for later comparison. A factory GUI key must not be described as the
+enrollment key. Native execution and a deliberate same-key baseline setup remain
+unfinished; input-admission tests alone do not establish either condition.
