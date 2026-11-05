@@ -172,3 +172,30 @@ and rejection text are never exported. Missing entries remain explicitly
 unavailable; malformed or excessive observations are refused. This adds no
 request logging to the product, does not restart a service or create a grant,
 and cannot turn a failed route into recovery acceptance.
+
+### Cold protected-host fixture under development
+
+`source_host.py` prepares a distinct hosted guest with the shipped deployment
+paths, helper and four unmodified persistent issuer/cleanup units. Its registered
+ACME account comes from an independent private CA witness on the runner, outside
+both recovery guests. Source timers retain enabled intent but stay quiesced.
+`host_checkpoint.py` captures the matching private files, full restricted dump,
+database fingerprint, original account and genuine pending native request while
+holding the existing operation lease and stopping writers.
+
+`target_host.py` refuses restoration unless the original QEMU process has been
+reaped before the target process starts. The target must have distinct machine
+and boot identities. It restores the complete bounded file inventory, imports
+the dump into a new PostgreSQL cluster and compares the full database fingerprint
+before starting application writers. It verifies the original registered account
+with creation disabled. A separate resumption step runs independent cleanup on
+the target and starts the stock timers with their original enabled intent.
+Private exports use exact names, bounded sizes, single-link root-owned files
+and readback hashes; operational state is not a public artifact.
+
+These helpers have local admission tests only. The combined driver, independent
+cleanup guard, real source shutdown, native confirmation and hosted execution
+are not complete. Their results explicitly refuse complete recovery acceptance.
+Resuming an original queued initial request would establish initial issuance
+after restoration, not a renewal-clock test. Public operator acceptance and
+durable encrypted off-host custody remain separate requirements.
