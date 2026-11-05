@@ -446,7 +446,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         from restore import exercise as exercise_host_restore
         try:
             host_restore = exercise_host_restore(stage, port, project, evidence, native_read,
-                lambda: fixture('inspect', host=host), route, survivor_route, survivor)
+                lambda: fixture('inspect', host=host), route, survivor_route, survivor, other['device_id'])
         except RecoveryError as error:
             raise GuestError('Owned full-host recovery failed: ' + str(error)) from None
         # Planned host shutdown necessarily replaces both control connections.

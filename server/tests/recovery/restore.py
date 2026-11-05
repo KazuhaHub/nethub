@@ -127,7 +127,7 @@ class Restore:
         self.payload = self.work / 'current-files.tar'
         self.payload_receipt = pack(paths, self.payload)
 
-    def original_login(self):
+    def original_login(self, required_devices):
         base = ['curl', '--silent', '--show-error', '--fail', '--noproxy', '*', '--max-time', '10',
                 '--cacert', str(self.stage / 'console-ca.pem'), '--connect-to',
                 f'console.example.com:443:127.0.0.1:{self.port}']
@@ -143,15 +143,28 @@ class Restore:
         inventory = json.loads(self.command(base + ['-b', str(cookies),
             'https://console.example.com/api/v1/console/devices'], 'Restored administrator inventory'))
         self.restored_device_ids = {item['id'] for item in inventory['items']}
+        if (len(required_devices) != 2 or len(set(required_devices)) != 2
+                or not set(required_devices) <= self.restored_device_ids):
+            raise RecoveryError('Original native or witness device missing after recovery')
+        selected = {item['id']: item for item in inventory['items'] if item['id'] in required_devices}
+        if any(item.get('revoked') is not False for item in selected.values()):
+            raise RecoveryError('Original native or witness device was revoked after recovery')
         # An explicit Open is normal operator behavior when the private fixture's
         # forwarding topology changes the source IP. It must not renew on access.
-        for device in sorted(self.restored_device_ids):
+        for device in sorted(required_devices):
             if re.fullmatch('[a-f0-9-]{36}', device) is None:
                 raise RecoveryError('Restored inventory identity differs')
-            self.command(base + ['-b', str(cookies), '-H', '@' + str(header), '-H', 'Content-Type: application/json',
+            # Keep the response private and project only a bounded HTTP status.
+            response = self.work / 'restored-open-response.json'
+            status = self.command([arg for arg in base if arg != '--fail'] +
+                ['-b', str(cookies), '-H', '@' + str(header), '-H', 'Content-Type: application/json',
                 '-H', 'Origin: https://console.example.com', '--data', '{}',
+                '--output', str(response), '--write-out', '%{http_code}',
                 'https://console.example.com/api/v1/console/devices/' + device + '/open'],
-                'Explicit source grant on recovered host')
+                'Explicit source grant on recovered host').decode().strip()
+            if status != '200':
+                code = status if re.fullmatch('[1-5][0-9]{2}', status) else 'unavailable'
+                raise RecoveryError('Explicit source grant on recovered host returned HTTP ' + code)
 
     def payload_diagnostic(self, error):
         scope = 'unclassified'
@@ -167,7 +180,8 @@ class Restore:
                 'observed_mode': format(error.mode, '04o') if type(error.mode) is int and 0 <= error.mode <= 0o7777 else 'unknown'}
 
 
-def exercise(stage, port, project, evidence, native_read, inspect_gui, route, witness_route, witness_process):
+def exercise(stage, port, project, evidence, native_read, inspect_gui, route, witness_route, witness_process,
+             witness_device_id):
     fixture = Restore(stage, port, project)
     result = {'passed': False, 'phase': 'source_preflight', 'full_goal_complete': False,
               'public_network_or_formal_release_acceptance': False, 'off_host_durable_custody': False}
@@ -287,7 +301,7 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
                 result['phase'] = 'automatic_native_reconnection'
                 with target.forward([('127.0.0.1', port, '127.0.0.1', port),
                                      ('127.0.0.1', 7000, '127.0.0.1', 7000)]):
-                    fixture.original_login()
+                    fixture.original_login([before['device_id'], witness_device_id])
                     if before['device_id'] not in fixture.restored_device_ids:
                         raise RecoveryError('Original device missing after full host recovery')
                     granted = sql("SELECT host(source_ip) FROM device_access_grants WHERE device_id='" +
