@@ -5,10 +5,16 @@ deadline. An authenticated device report means the device accepted a certificate
 it does not establish that a later browser connection reached that certificate.
 The browser still checks the public chain and hostname normally.
 
-Open is available for recently observed, unrevoked devices with a current,
-host-matching installation report. Pending, unsupported, failed and expired
-certificates do not enable it. The console reads only a tenant/owner-scoped
-metadata projection; its runtime cannot read certificate chains, CSRs or reports.
+The inventory enables Open for recently observed, unrevoked devices with a current,
+host-matching installation report. Initial pending, unsupported or failed
+installations do not enable it. A pending or failed renewal keeps Open available
+while a confirmed host-matching certificate remains unexpired.
+The console reads only a tenant/owner-scoped metadata projection; its runtime
+cannot read certificate chains, CSRs or reports.
+These certificate and online checks control the inventory button. The Open API
+separately authorizes the enabled owner or tenant administrator and unrevoked
+enrollment; issuing a source grant does not verify certificate installation or
+a usable route.
 
 An explicit click requests a 30-minute source-IP grant, then opens the assigned
 HTTPS hostname on port 8443 in a detached tab. Repeating the click renews the
