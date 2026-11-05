@@ -78,7 +78,7 @@ class ClosedPayloadFailure(unittest.TestCase):
                 'witness_proxy': 'unavailable'})
             self.assertNotIn('private', str(value))
 
-    def test_original_login_opens_only_retained_native_and_witness_identities(self):
+    def test_original_login_and_bound_open_retain_only_native_and_witness_identities(self):
         self.check_open('200')
 
     def test_original_login_refusal_exports_only_http_status(self):
@@ -91,23 +91,47 @@ class ClosedPayloadFailure(unittest.TestCase):
             fixture = object.__new__(Restore)
             fixture.stage = fixture.work = Path(temporary)
             fixture.port = 443
-            (fixture.stage / 'login-response.json').write_text(json.dumps({'user': {'id': 'original'}}))
             identifiers = ['00000000-0000-4000-8000-00000000000' + str(i) for i in range(3)]
+            actor = '00000000-0000-4000-8000-000000000009'
+            (fixture.stage / 'login-response.json').write_text(json.dumps({'user': {'id': actor}}))
+            (fixture.stage / 'console-ca.pem').write_text('private-ca')
+            fixture.edge_network = '172.30.87.0/24'
+            fixture.caddy_address = '172.30.87.2'
             opened = []
             def command(args, label):
                 if label.startswith('Original administrator login'):
-                    return json.dumps({'user': {'id': 'original', 'role': 'admin'},
+                    self.assertIn('console.example.com:443:127.0.0.1:443', args)
+                    (fixture.work / 'restored-cookies').write_text('private-cookie')
+                    return json.dumps({'user': {'id': actor, 'role': 'admin'},
                                        'csrf_token': 'private-token'}).encode()
                 if label == 'Restored administrator inventory':
                     return json.dumps({'items': [{'id': value, 'revoked': i == 2}
                                                 for i, value in enumerate(identifiers)]}).encode()
-                self.assertEqual(label, 'Explicit source grant on recovered host')
+                self.fail('Open must use the owned target source')
+            expiry = '2026-11-04T12:00:00Z'
+            def remote(target, args, label):
+                if args[:4] == ['ip', '-j', 'route', 'get']:
+                    return b'[{"dev":"ens3","prefsrc":"10.0.2.15"}]'
+                if args == ['ip', '-j', 'addr']:
+                    return b'[{"ifname":"ens3","addr_info":[{"family":"inet","local":"10.0.2.15","scope":"global"}]}]'
                 self.assertNotIn('--fail', args)
-                self.assertIn('--output', args)
+                self.assertEqual(args[args.index('--interface') + 1], '10.0.2.15')
+                self.assertIn('console.example.com:443:172.30.87.2:443', args)
+                self.assertNotIn('X-Forwarded-For', str(args))
                 opened.append(args[-1].split('/')[-2])
-                return status.encode()
+                return (json.dumps({'gate_expires_at': expiry}) + '\n' + status).encode()
+            class Target:
+                def send(inner, source, name):
+                    self.assertIn(name, ('restored-console-ca.pem', 'restored-cookies', 'restored-csrf'))
+                    self.assertEqual(source.stat().st_mode & 0o777, 0o600)
+                    return '/root/nethub-recovery/' + name
             fixture.command = command
+            fixture.remote = remote
+            fixture.remote_sql = lambda target, postgres, query: json.dumps([
+                {'source': '10.0.2.15', 'actor': actor, 'expiry': expiry}])
             fixture.original_login(identifiers[:2])
+            self.assertEqual(opened, [])
+            self.assertEqual(fixture.open_from_target(Target(), 'private-postgres', identifiers[:2]), '10.0.2.15')
             self.assertEqual(opened, identifiers[:2])
             self.assertEqual(fixture.restored_device_ids, set(identifiers))
 

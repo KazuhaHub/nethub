@@ -57,8 +57,15 @@ general production restore CLI.
    before application startup. Start the normal services and run database role,
    audit-chain, current-file and service separation checks.
 5. Forward the unchanged logical endpoints to the recovered host. Log in with
-   the original administrator credentials and use normal Open to admit the
-   private forwarding source. Both original assigned routes must recover with
+   the original administrator credentials from the source host and inspect its
+   original inventory over verified HTTPS. Select an owned primary-interface
+   address outside the Docker edge subnet using read-only route metadata. Send
+   normal Open requests from that bound address to the existing private Caddy
+   endpoint, with the same session, CSRF token, canonical origin and verified
+   HTTPS hostname. Match each response's expiry to the exact persisted
+   actor/source grant; a newer unrelated grant cannot select the forwarding
+   path. The browser forward uses that same owned address. No grant is inserted,
+   forwarding header forged or service binding changed. Both original assigned routes must recover with
    verified TLS. Native model and GUI identity/security checks must be unchanged;
    no native restart, Rotate or new enrollment is performed by this driver.
 6. Remove the owned target stack and stop its guest. Recover the original fixture

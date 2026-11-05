@@ -18,6 +18,7 @@ from hook_probe import project_rejected_sources
 from linux_guest import LinuxGuest, RecoveryError, sha256
 from payload import PayloadError, SOURCE_REASONS, pack
 from route_probe import OUTCOMES, validate as validate_routes
+from source_path import matching_grant, select_source
 
 
 SERVICES = {'postgres', 'backup', 'nethub-web', 'nethub-authz', 'frps', 'caddy'}
@@ -103,6 +104,10 @@ class Restore:
         if len(networks) != 1:
             raise RecoveryError('Recovery source edge is ambiguous')
         self.gateway = str(ipaddress.IPv4Address(next(iter(networks.values()))['Gateway']))
+        edge = next(iter(networks.values()))
+        self.caddy_address = str(ipaddress.IPv4Address(edge['IPAddress']))
+        self.edge_network = str(ipaddress.IPv4Interface(
+            self.caddy_address + '/' + str(edge['IPPrefixLen'])).network)
         self.volumes = {}
         for name in VOLUMES:
             mounts = [item for service in found.values() for item in service['Mounts']
@@ -164,8 +169,11 @@ class Restore:
         original = json.loads((self.stage / 'login-response.json').read_text())
         if value['user']['id'] != original['user']['id'] or value['user']['role'] != 'admin':
             raise RecoveryError('Restored administrator identity differs')
+        cookies.chmod(0o600)
+        self.restored_actor = value['user']['id']
         header = self.work / 'restored-csrf'
         header.write_text('X-CSRF-Token: ' + value['csrf_token'] + '\n')
+        header.chmod(0o600)
         inventory = json.loads(self.command(base + ['-b', str(cookies),
             'https://console.example.com/api/v1/console/devices'], 'Restored administrator inventory'))
         self.restored_device_ids = {item['id'] for item in inventory['items']}
@@ -175,22 +183,54 @@ class Restore:
         selected = {item['id']: item for item in inventory['items'] if item['id'] in required_devices}
         if any(item.get('revoked') is not False for item in selected.values()):
             raise RecoveryError('Original native or witness device was revoked after recovery')
-        # An explicit Open is normal operator behavior when the private fixture's
-        # forwarding topology changes the source IP. It must not renew on access.
+
+    def open_from_target(self, target, postgres, required_devices):
+        routes = json.loads(self.remote(target, ['ip', '-j', 'route', 'get', '192.0.2.1'],
+                                        'Read-only recovered host route selection'))
+        interfaces = json.loads(self.remote(target, ['ip', '-j', 'addr'],
+                                            'Recovered host source ownership'))
+        try:
+            source = select_source(routes, interfaces, self.edge_network)
+        except (KeyError, TypeError, ValueError):
+            raise RecoveryError('Owned non-container recovery source unavailable') from None
+        # Retain the original source-host HTTPS login and inventory. Only Open
+        # uses the target's owned source, also used by the browser forward.
+        ca = self.work / 'restored-console-ca.pem'
+        ca.write_bytes((self.stage / 'console-ca.pem').read_bytes())
+        ca.chmod(0o600)
+        remote_ca = target.send(ca, 'restored-console-ca.pem')
+        cookies = target.send(self.work / 'restored-cookies', 'restored-cookies')
+        header = target.send(self.work / 'restored-csrf', 'restored-csrf')
+        base = ['curl', '--silent', '--show-error', '--noproxy', '*', '--max-time', '10',
+                '--cacert', remote_ca, '--interface', source, '--connect-to',
+                'console.example.com:443:' + self.caddy_address + ':443']
+        if (len(required_devices) != 2 or len(set(required_devices)) != 2
+                or not set(required_devices) <= self.restored_device_ids
+                or re.fullmatch('[a-f0-9-]{36}', self.restored_actor) is None):
+            raise RecoveryError('Restored Open identities differ')
         for device in sorted(required_devices):
             if re.fullmatch('[a-f0-9-]{36}', device) is None:
                 raise RecoveryError('Restored inventory identity differs')
-            # Keep the response private and project only a bounded HTTP status.
-            response = self.work / 'restored-open-response.json'
-            status = self.command([arg for arg in base if arg != '--fail'] +
-                ['-b', str(cookies), '-H', '@' + str(header), '-H', 'Content-Type: application/json',
+            raw = self.remote(target, base +
+                ['-b', cookies, '-H', '@' + header, '-H', 'Content-Type: application/json',
                 '-H', 'Origin: https://console.example.com', '--data', '{}',
-                '--output', str(response), '--write-out', '%{http_code}',
+                '--write-out', '\n%{http_code}',
                 'https://console.example.com/api/v1/console/devices/' + device + '/open'],
-                'Explicit source grant on recovered host').decode().strip()
+                'Explicit source grant on recovered host').decode()
+            body, _, status = raw.rpartition('\n')
+            status = status.strip()
             if status != '200':
                 code = status if re.fullmatch('[1-5][0-9]{2}', status) else 'unavailable'
                 raise RecoveryError('Explicit source grant on recovered host returned HTTP ' + code)
+            query = ("SELECT coalesce(json_agg(json_build_object('source',host(source_ip),"
+                     "'actor',user_id,'expiry',expires_at)), '[]'::json) FROM device_access_grants "
+                     "WHERE device_id='" + device + "';")
+            try:
+                matching_grant(json.loads(self.remote_sql(target, postgres, query)), source,
+                               self.restored_actor, json.loads(body)['gate_expires_at'])
+            except (KeyError, TypeError, ValueError):
+                raise RecoveryError('Fresh Open did not grant the selected recovery source') from None
+        return source
 
     def payload_diagnostic(self, error):
         scope = 'unclassified'
@@ -400,14 +440,8 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
                     fixture.original_login([before['device_id'], witness_device_id])
                     if before['device_id'] not in fixture.restored_device_ids:
                         raise RecoveryError('Original device missing after full host recovery')
-                    granted = sql("SELECT host(source_ip) FROM device_access_grants WHERE device_id='" +
-                                  before['device_id'] + "' ORDER BY expires_at DESC,source_ip DESC LIMIT 1;")
-                    addresses = json.loads(fixture.remote(target, ['ip', '-j', 'addr'], 'Recovered host source ownership'))
-                    owned = {item['local'] for interface in addresses for item in interface['addr_info']}
-                    # Forward to the actual source admitted by normal Open, without
-                    # inserting fixture-only SQL grants into the recovered database.
-                    if str(ipaddress.IPv4Address(granted)) not in owned:
-                        raise RecoveryError('Recovered Open source is not owned by the target host')
+                    granted = fixture.open_from_target(target, target_postgres,
+                                                       [before['device_id'], witness_device_id])
                     with target.forward([(fixture.gateway, 8443, granted, 8443)]):
                         deadline = time.monotonic() + 90
                         while True:
