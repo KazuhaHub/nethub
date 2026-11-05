@@ -171,16 +171,59 @@ class Acceptance:
         require(self.archive_root.is_absolute() and self.archive_root.resolve(strict=True) == self.archive_root, 'local archive mountpoint')
 
     def restore(self, path):
+        sys.path.insert(0, str(Path(__file__).parent / 'recovery'))
+        from database import bootstrap_extensions, capture, difference_details, differing_categories, snapshot_fingerprint
+        original = capture(lambda query: self.sql(self.database, query).stdout.decode().strip())
         self.create_database(self.restored)
+        bootstrap_extensions(lambda query: self.sql(self.restored, query).stdout.decode().strip(), original)
         self.command(['cp', str(path), self.postgres + ':' + self.copy_path])
         self.copy_created = True
         self.command(['exec', '--user', '0', self.postgres, 'chown', '70:70', self.copy_path])
-        self.command(['exec', '--user', 'postgres', self.postgres, 'pg_restore', '--exit-on-error', '--username', 'postgres', '--dbname', self.restored, self.copy_path])
+        self.command(['exec', '--user', 'postgres', self.postgres, 'pg_restore', '--exit-on-error', '--single-transaction', '--username', 'postgres', '--dbname', self.restored, self.copy_path])
+        # Only this fixture's database name changes; all remaining database
+        # metadata and every other category must survive the actual restore.
+        expected = []
+        for value in original:
+            if value[0] == 'database':
+                prefix = '[' + json.dumps(self.database) + ','
+                require(value[1].startswith(prefix), 'source recovery database identity')
+                value = ('database', '[' + json.dumps(self.restored) + ',' + value[1][len(prefix):])
+            expected.append(value)
+        actual = capture(lambda query: self.sql(self.restored, query).stdout.decode().strip())
+        differences = differing_categories(expected, actual)
+        if differences:
+            print('Recovery database comparison: ' + json.dumps(difference_details(expected, actual), sort_keys=True))
+        require(snapshot_fingerprint(expected) == snapshot_fingerprint(actual),
+                'restored full database comparison differs in categories: ' + ','.join(differences))
+        print('Actual PostgreSQL custom archive restore preserved the full recovery fingerprint with only the fixture database name changed')
         require(self.sql(self.restored, self.digest_query).stdout.decode().strip() == self.source_digest, 'restored actual device content')
         allowed = self.sql(self.restored, "SET SESSION AUTHORIZATION nethub_web; SELECT set_config('app.tenant_id','" + self.tenant + "',false); SELECT count(id) FROM devices;\n")
         require(allowed.stdout.decode().strip().splitlines()[-1] == '1', 'restored Web safe-column visibility')
         denied = self.sql(self.restored, "\\set VERBOSITY sqlstate\nSET SESSION AUTHORIZATION nethub_web; SELECT device_secret_hash FROM devices;\n", check=False)
         require(denied.returncode != 0 and b'42501' in denied.stderr, 'restored Web credential-column refusal')
+
+    def recovery_fingerprint(self):
+        sys.path.insert(0, str(Path(__file__).parent / 'recovery'))
+        from database import fingerprint
+        from database_controls import check
+        # PostgreSQL aclitem has equality but no ordering operator. Exercise the
+        # original failure before checking the actual full fingerprint queries.
+        refused = self.sql(self.database,
+            "SELECT acl FROM unnest(ARRAY['postgres=UC/postgres'::aclitem]) acl ORDER BY acl;", check=False)
+        require(refused.returncode != 0 and b'ordering operator for type aclitem' in refused.stderr,
+                'actual PostgreSQL aclitem ordering refusal')
+        read = lambda query: self.sql(self.database, query).stdout.decode().strip()
+        original = fingerprint(read)
+        require(fingerprint(read) == original, 'stable complete recovery database fingerprint')
+        self.sql(self.database, 'GRANT CREATE ON SCHEMA public TO nethub_backup;')
+        try:
+            require(fingerprint(read) != original, 'recovery fingerprint detects changed schema grant')
+        finally:
+            self.sql(self.database, 'REVOKE CREATE ON SCHEMA public FROM nethub_backup;')
+        require(fingerprint(read) == original, 'recovery fingerprint returns to original after grant removal')
+        require(all(check(read).values()), 'complete recovery authority negative controls')
+        print('Actual PostgreSQL recovery comparison detected changed grants, grant options, owner privileges and constraint bounds, prefixes and operators')
+        print('Actual PostgreSQL recovery fingerprint passed all table/sequence/role/ACL queries, refused aclitem ordering and detected a changed schema grant')
 
     def failure_and_retention(self):
         before, _ = self.receipt()
@@ -352,6 +395,7 @@ def main():
     passed = False
     try:
         suite.prepare()
+        suite.recovery_fingerprint()
         suite.backup_command()
         state, path = suite.receipt()
         require(state['outcome'] == 'succeeded', 'actual archive publication')

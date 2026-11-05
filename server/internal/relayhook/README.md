@@ -121,3 +121,9 @@ adds the measured local source through the same narrow web-role grant/audit
 transaction. This compensation is confined to the isolated fixture. Each denial
 requires an actual NewUserConn decision; public/native source preservation and
 the complete console-to-router flow remain separate acceptance.
+
+Authorization denial keeps the same generic callback response and
+`device_denied` log decision. A fixed `cause` distinguishes device-state rejection
+from source-access rejection; logs contain no identity, source address or private
+dependency message. The source-specific error retains the existing denied-error
+contract for callers. These codes explain a refusal without granting access.

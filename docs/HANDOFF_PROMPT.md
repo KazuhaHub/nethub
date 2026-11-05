@@ -26,18 +26,21 @@ review and D13 release approval remain separate.
 The accepted [backup service](../deploy/validation-database-backups.md),
 [device rotation](../deploy/device-rotation.md) and
 [shared-token operation](../deploy/validation-shared-token.md) retain their
-recorded evidence. Subsequent integration and documentation work is merged
-through PR #203. Historical checkpoints below describe their original source,
+recorded evidence. Accepted integration and documentation changes include
+PRs #203, #204, #206, #207 and #208. Historical checkpoints below describe their original source,
 not missing functionality in today's tree.
 
-The clean-host recovery drill in [PR #194](https://github.com/KazuhaHub/nethub/pull/194)
-is unfinished: the previous installed run restored online clients/proxies but
-refused both new TLS routes at NewUserConn admission. The current diagnostic
-source separates fixed identity-state and source-access denial causes; its
-installed result is still pending. Do not claim automatic recovery from image
-preparation, a database comparison, an online proxy or a target-local probe.
-Full recovery also needs protected-host certificate issuance state and durable
-off-host custody, beyond the six-service fixture.
+The [source23 clean-host checkpoint](../deploy/validation-clean-host-restore.md)
+in [PR #194](https://github.com/KazuhaHub/nethub/pull/194) passed current-key,
+database and six-service restoration on a distinct empty hosted guest. Both
+original source-host TLS routes recovered without manual client restart, Rotate or reenrollment
+in 56.425 seconds from source stop; original native identity/GUI checks, genuine
+Remove, full tail and owned cleanup passed. Exact archive/logs, eight image
+hashes/views and 26 human DCOs were checked. The earlier source-access failure is
+retained; the corrected fixture binds normal Open and forwarding to the same
+owned source and checks its fresh grant. Later integration source remains under
+review. Full W7-5 still needs the public operator drill, protected-host certificate
+issuance state and durable off-host custody beyond these six services.
 
 Other remaining gates include W5 public/mobile and operator behavior, the
 installed outage/revocation timing discrepancy, W6 public-provider/operator

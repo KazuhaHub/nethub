@@ -11,6 +11,7 @@ import re
 import socket
 import ssl
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -232,12 +233,22 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             "FROM (SELECT open_device('" + actor + "','" + before['device_id'] + "','" + local_source +
             "'::inet) AS expires_at) opened; COMMIT;", role='nethub_web')
 
+    route_observations = {}
+
+    def record_route(name, response, status, verified):
+        code = response.returncode
+        route_observations[name] = {
+            'curl_exit': code if type(code) is int and 0 <= code <= 255 else 'unavailable',
+            'http_status': int(status) if re.fullmatch(b'[1-5][0-9]{2}', status) else 'unavailable',
+            'verified': verified is True}
+        return verified
+
     def route():
         r = subprocess.run(['curl', '--silent', '--show-error', '--fail', '--noproxy', '*', '--max-time', '3',
                             '--interface', gateway, '--cacert', str(authority), '--connect-to', host + ':8443:' + gateway + ':8443',
                             '--write-out', '\n%{http_code}', 'https://' + host + ':8443/'], capture_output=True, timeout=5)
         raw, _, status = r.stdout.rpartition(b'\n')
-        return r.returncode == 0 and status == b'200' and b'usernamefld' in raw
+        return record_route('native', r, status, r.returncode == 0 and status == b'200' and b'usernamefld' in raw)
 
     for _ in range(30):
         if route():
@@ -270,7 +281,8 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     cleanup.callback(backend.shutdown)
     other_config = work / 'native-other-device.json'
     private_json(other_config, {'serverAddr': '127.0.0.1', 'serverPort': other['server_port'],
-        'loginFailExit': True, 'auth': {'method': 'token', 'token': other['frp_token']},
+        # This retained witness must retry during the planned full-host outage.
+        'loginFailExit': False, 'auth': {'method': 'token', 'token': other['frp_token']},
         'log': {'to': 'console', 'level': 'warn'},
         'metadatas': {'device_id': other['device_id'], 'domain_claim': other['domain_claim']},
         'transport': {'heartbeatInterval': 10, 'heartbeatTimeout': 30,
@@ -295,9 +307,12 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         assigned = other['subdomain'] + '.router.example.com'
         response = subprocess.run(['curl', '--silent', '--fail', '--noproxy', '*', '--max-time', '3',
             '--interface', gateway, '--cacert', str(work / 'backend-cert.pem'),
-            '--connect-to', assigned + ':443:' + gateway + ':8443', 'https://' + assigned + '/'],
+            '--connect-to', assigned + ':443:' + gateway + ':8443', '--write-out', '\n%{http_code}',
+            'https://' + assigned + '/'],
             capture_output=True, timeout=5)
-        return response.returncode == 0 and response.stdout.decode() == assigned
+        raw, _, status = response.stdout.rpartition(b'\n')
+        return record_route('witness', response, status,
+            response.returncode == 0 and status == b'200' and raw == assigned.encode('ascii'))
 
     def survivor_sockets():
         raw = invoke(['ss', '-tnpH'], 'independent original control socket evidence').decode()
@@ -437,6 +452,38 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     original_survivor = survivor_sockets()
     if not original_survivor:
         raise GuestError('Recovered incident witness control was not observed')
+    host_restore = None
+    if os.environ.get('NETHUB_RECOVERY_TEST') == '1':
+        sys.path.insert(0, str(ROOT / 'server/tests/recovery'))
+        from linux_guest import RecoveryError
+        from restore import exercise as exercise_host_restore
+        def native_running():
+            try:
+                raw = guest.ssh("/usr/local/bin/python3.13 - <<'PY'\n"
+                    "import json,subprocess\n"
+                    "r=subprocess.run(['/usr/sbin/service','nethub_agent_frpc','onestatus'],capture_output=True,timeout=5)\n"
+                    "print(json.dumps(r.returncode==0))\nPY\n",
+                    'Read-only retained native process status', timeout=8)
+            except GuestError:
+                raise RecoveryError('Retained native process status unavailable') from None
+            value = json.loads(raw)
+            if type(value) is not bool:
+                raise RecoveryError('Retained native process status unavailable')
+            return value
+        try:
+            host_restore = exercise_host_restore(stage, port, project, evidence, native_read,
+                lambda: fixture('inspect', host=host), route, survivor_route, survivor, other['device_id'], native_running,
+                lambda: dict(route_observations),
+                {'native': {'hostname': host, 'ca_pem': authority.read_text(encoding='ascii')},
+                 'witness': {'hostname': other['subdomain'] + '.router.example.com',
+                             'ca_pem': (work / 'backend-cert.pem').read_text(encoding='ascii')}})
+        except RecoveryError as error:
+            raise GuestError('Owned full-host recovery failed: ' + str(error)) from None
+        # Planned host shutdown necessarily replaces both control connections.
+        # Use the recovered source connection as the subsequent Remove baseline.
+        original_survivor = survivor_sockets()
+        if not original_survivor:
+            raise GuestError('Returned witness control was not observed after recovery')
     native_logs = guest.ssh("/usr/local/bin/python3.13 - <<'PY'\n"
         "import os,pathlib,stat,sys\n"
         "for name in ('frpc.log','scheduler.log'):\n"
@@ -489,6 +536,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
               'received_assignment_save_recovery': received,
               'interrupted_native_recovery_acceptance': True,
               'shared_token_incident_native_recovery': shared_token,
+              'clean_host_restoration': host_restore,
               'fixture_removed_through_native_page': True,
               'removed_fixture_revoked_model_cleared_service_stopped_route_closed': True,
               'independent_device_preserved_after_fixture_removal': True,

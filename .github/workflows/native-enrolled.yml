@@ -13,6 +13,7 @@ on:
       - server/internal/store/migrations/00029*
       - proto/**
       - server/tests/compose.sh
+      - server/tests/recovery/**
   workflow_dispatch:
     inputs:
       accepted_ci_run:
@@ -54,7 +55,7 @@ jobs:
     needs: accepted-images
     if: always() && (github.event_name == 'workflow_dispatch' || needs.accepted-images.result == 'success')
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 45
     permissions:
       actions: read
       contents: read
@@ -74,7 +75,7 @@ jobs:
           test "$(awk '/MemAvailable/ {print int($2 / 1024)}' /proc/meminfo)" -ge 4500
           sudo chmod a+rw /dev/kvm
           sudo apt-get update -qq
-          sudo apt-get install --no-install-recommends -y qemu-system-x86 qemu-utils openssh-client netcat-openbsd
+          sudo apt-get install --no-install-recommends -y qemu-system-x86 qemu-utils openssh-client netcat-openbsd cloud-image-utils gnupg
       - name: Set up browser runtime
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
@@ -96,7 +97,7 @@ jobs:
         run: |
           export NETHUB_NODE_BINARY
           NETHUB_NODE_BINARY="$(command -v node)"
-          sudo --preserve-env=GH_TOKEN,ACCEPTED_CI_RUN,GITHUB_ACTIONS,RUNNER_ENVIRONMENT,NETHUB_SOURCE_HEAD,NETHUB_NODE_BINARY,PLAYWRIGHT_BROWSERS_PATH,PYTHONDONTWRITEBYTECODE \
+          sudo --preserve-env=GH_TOKEN,ACCEPTED_CI_RUN,GITHUB_ACTIONS,RUNNER_ENVIRONMENT,RUNNER_TEMP,NETHUB_SOURCE_HEAD,NETHUB_NODE_BINARY,PLAYWRIGHT_BROWSERS_PATH,PYTHONDONTWRITEBYTECODE \
             python3 agents/opnsense/acceptance/with_images.py --run "$ACCEPTED_CI_RUN" \
             --directory "$RUNNER_TEMP/native-enrolled-private" --evidence "$RUNNER_TEMP/native-enrolled-evidence"
       - name: Retain only closed outcomes and native page images
@@ -109,6 +110,7 @@ jobs:
             ${{ runner.temp }}/native-enrolled-evidence/native/result.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotation.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-shared-token.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-host-restore.json
             ${{ runner.temp }}/native-enrolled-evidence/native/compose-tail.json
             ${{ runner.temp }}/native-enrolled-evidence/native/native-fixture-host.json
             ${{ runner.temp }}/native-enrolled-evidence/native/guest-console-probe.json
