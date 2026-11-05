@@ -24,6 +24,9 @@ disconnection can take time, and established browser streams are not promised to
 close immediately. Database outage can delay publication to Ping's last-good
 cache; see [the availability limits](revocation-and-heartbeats.md).
 
-This implements console revocation. The explicit cutoff request/processing action,
-anomaly detection and combined native/public W5 acceptance remain separate work.
-Browser and SQL fixtures establish only their tested UI/authorization scope.
+The [disconnect request](disconnect-requests.md) and
+[anomaly confirmation](relay-anomalies.md) have separate implementations and
+fixture evidence. The [installed Revoke measurement](validation-native-w5-heartbeat.md)
+records actual cutoff and recovery scope, including the unresolved W0 timing
+comparison. Combined public/mobile W5 acceptance remains open; browser and
+SQL fixtures establish only their tested UI and authorization scope.

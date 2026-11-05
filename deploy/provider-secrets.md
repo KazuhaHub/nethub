@@ -6,8 +6,10 @@ implemented and tested. PR #172 accepted the foundation after all six hosted
 checks in run `40194445864`, actual logs, DCO and container key/refusal checks.
 The [OIDC provider API](oidc-providers.md) passed scoped SQL/HTTP/transport acceptance
 in PR #173, merged as `e7da452` after run `40246502651` and actual-log inspection.
-[Browser-flow admission](oidc-login.md) adds a separate encrypted state purpose;
-its hosted acceptance, provider pages and deployed OIDC/SAML login remain W6 work.
+[OIDC](oidc-login.md) and [SAML](saml-login.md) browser admission use separate
+encrypted state purposes. Provider pages and isolated deployed login have
+[two-Dex](validation-two-dex.md) and [Keycloak](validation-keycloak-saml.md)
+acceptance records; public-provider and complete W6 acceptance remain open.
 
 ## Key ownership and startup
 
@@ -40,10 +42,11 @@ The same key must encrypt fewer than 2^32 messages across all its uses.
 
 Authenticated data includes a fixed versioned domain and separately
 length-prefixed tenant ID, provider ID and purpose. Use identifiers read from the
-authoritative storage row. OIDC client secrets, SAML signing keys and OIDC flow
-state have distinct purposes. Flow state uses its authoritative flow UUID in the
-binding's identifier field. Moving ciphertext between tenants, rows or purposes fails even
-when the deployment key is the same. Identifiers are opaque, nonempty values up
+authoritative storage row. OIDC client secrets, SAML signing keys, OIDC flow
+state and SAML flow state have four distinct purposes. Flow state uses its
+authoritative flow UUID in the binding's identifier field. Moving ciphertext
+between tenants, rows or purposes fails even when the deployment key is the same.
+Identifiers are opaque, nonempty values up
 to 64 bytes; account/provider policy remains outside the cipher package.
 
 Plaintext is bounded to 1–16384 bytes. Absence or explicit removal of an optional

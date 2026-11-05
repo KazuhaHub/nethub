@@ -3,8 +3,9 @@
 PR #180 was accepted at final source `1904080a2545` and merged as `2503ab23ea2e`.
 All six jobs in run `40397477218`, actual logs, inherited gates, one DCO and both
 final two-Dex regression images/hashes passed review. The tested and merged trees
-match. This accepts the backend boundaries below; deployed signed SAML and
-combined W6 acceptance remain separate requirements.
+match. This accepts the backend boundaries below. Subsequent isolated
+[Keycloak acceptance](validation-keycloak-saml.md) covers deployed signed
+SAML; public-provider and complete W6 acceptance remain separate requirements.
 
 NetHub delegates SAML protocol processing to the shared module. The imported
 `authcore/saml` package signs login requests, verifies and decrypts assertions,
@@ -48,7 +49,9 @@ boundaries; they do not establish signature or database acceptance. Genuine
 PostgreSQL cases separately cover durable encrypted requests, tenant/browser
 binding, concurrent consumption/admission, protocol/mail-purpose separation,
 disabled accounts, RLS/role boundaries and capacity cleanup. Their hosted
-execution is still required.
+execution is recorded in the accepted backend run above.
 
-Sign-in/invitation page wiring, provider management pages, a deployed signed IdP,
-normal-TLS browser acceptance and complete W6 acceptance remain unfinished.
+Sign-in and invitation controls, provider management and normal-TLS browser
+flows passed the separate [Keycloak deployment check](validation-keycloak-saml.md).
+That isolated run does not establish public-provider, assertion-encryption,
+real appliance/tunnel, mobile or complete W6 acceptance.
