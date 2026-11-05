@@ -151,3 +151,5 @@ function under the authz role for the already granted address, returning only
 two booleans or explicit unavailable states. It never inserts or renews a grant.
 These observations distinguish admission from transport symptoms without
 treating a zero log count, an unavailable query or a local probe as acceptance.
+The closed log projection separately counts fixed device-state and source-access
+denial causes. Older decisions without a cause remain explicitly unavailable.

@@ -11,6 +11,7 @@ def project(raw):
     if not isinstance(raw, bytes) or len(raw) > 256 * 1024 or len(raw.splitlines()) > 1024:
         raise ValueError(message)
     counts = dict.fromkeys(DECISIONS, 0)
+    causes = dict.fromkeys(('device_state', 'source_access', 'unavailable'), 0)
     def unique(pairs):
         value = {}
         for key, item in pairs:
@@ -31,4 +32,9 @@ def project(raw):
         if not isinstance(decision, str) or decision not in counts:
             raise ValueError(message)
         counts[decision] += 1
-    return {'version': 1, 'connection_decisions': counts}
+        if decision == 'device_denied':
+            cause = value.get('cause', 'unavailable')
+            if not isinstance(cause, str) or cause not in causes:
+                raise ValueError(message)
+            causes[cause] += 1
+    return {'version': 2, 'connection_decisions': counts, 'denial_causes': causes}
