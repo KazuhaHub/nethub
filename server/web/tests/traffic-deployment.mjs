@@ -26,7 +26,26 @@ let refused = 0,
   phase = "proxy_listen",
   lastHTTPStatus = 0,
   visibleRows = null,
-  cspChecked = false;
+  cspChecked = false,
+  failureRecorded = false;
+const recordFailure = (error) => {
+  if (failureRecorded) return;
+  console.error(error);
+  writeFileSync(
+    join(evidence, "traffic-browser-failure.json"),
+    JSON.stringify(
+      trafficFailure(error, phase, {
+        lastHTTPStatus,
+        browserErrors: errors,
+        refused,
+        cspViolations: cspChecked ? violations : null,
+        visibleRows,
+      }),
+    ),
+    { flag: "wx", mode: 0o600 },
+  );
+  failureRecorded = true;
+};
 const proxy = createServer((_request, response) => {
   refused++;
   response.writeHead(403).end();
@@ -185,22 +204,17 @@ try {
     "Deployed traffic console rendered actual persisted relay totals and warning under strict CSP; isolated private-CA browser scope only.",
   );
 } catch (error) {
-  console.error(error);
-  writeFileSync(
-    join(evidence, "traffic-browser-failure.json"),
-    JSON.stringify(
-      trafficFailure(error, phase, {
-        lastHTTPStatus,
-        browserErrors: errors,
-        refused,
-        cspViolations: cspChecked ? violations : null,
-        visibleRows,
-      }),
-    ),
-  );
+  recordFailure(error);
   throw new Error("Deployed traffic browser verification failed");
 } finally {
-  await browser?.close();
-  for (const socket of sockets) socket.destroy();
-  await new Promise((resolve) => proxy.close(resolve));
+  try {
+    phase = "browser_cleanup";
+    await browser?.close();
+    phase = "proxy_cleanup";
+    for (const socket of sockets) socket.destroy();
+    await new Promise((resolve) => proxy.close(resolve));
+  } catch (error) {
+    recordFailure(error);
+    throw error;
+  }
 }
