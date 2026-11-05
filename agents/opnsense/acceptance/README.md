@@ -1,5 +1,13 @@
 # Fresh installed appliance preparation
 
+The preparation and failure history below describe their original sources.
+Subsequent complete installed runs passed [device rotation](../../../deploy/device-rotation.md),
+[shared-token recovery](../../../deploy/validation-shared-token.md) and
+[merged clean-host integration](../../../deploy/validation-clean-host-restore.md),
+including genuine native Remove and the complete Compose tail. These are isolated
+unsigned checks, not public/operator or formal-release acceptance. Later source
+changes still require exact-source execution.
+
 `native-appliance.yml` owns a new hosted Linux/KVM guest. It verifies the pinned
 official Nano image checksum, independently published release key and raw-image
 signature, updates the guest's signed OPNsense packages, and builds the current
@@ -24,7 +32,7 @@ and logged-in, unenrolled page images are uploaded. Scrolled mobile images also
 check that the enrollment field and rotation control are unobscured in the native
 shell's scroll container. No package is signed or published.
 
-Source `340b73c` passed the [current preparation run](https://github.com/KazuhaHub/nethub/actions/runs/40801553084):
+Source `340b73c` passed the [earlier preparation checkpoint](https://github.com/KazuhaHub/nethub/actions/runs/40801553084):
 the unsigned package, rebuilt frpc 0.71.1 with Go 1.26.10, agent stopped status reported through configd
 and unenrolled native page were checked on fresh OPNsense 26.7.7. The exact source
 archive, official log and four image hashes/visuals were independently verified;
@@ -206,7 +214,7 @@ empty native credentials, disabled/stopped service, absent journal, closed assig
 route and the independent device still alive. Fixed post-native phase names are
 recorded in a bounded `compose-tail.json`; child output stays private. Overall
 success requires a completed tail as well as the native result. These new cleanup
-and phase checks still require actual execution.
+and phase checks subsequently passed the complete installed records linked above.
 
 The shared-token incident extension invokes the actual host CLI after native
 enrollment. Its host fixture interrupts the process at a durable reload decision,
@@ -216,8 +224,8 @@ stored device bearer, retain all other model policy and GUI key/checks/alias,
 and recover the same assigned route over verified TLS. An independent official
 client also rotates and recovers; retained reference assignments are refreshed
 for the later authority tests. A separate page image and bounded incident result
-are retained. These added cases still require actual hosted execution; source
-and negative evidence-validator tests do not establish native incident recovery.
+are retained. These cases passed the shared-token installed record linked above;
+source and negative evidence-validator tests alone do not establish native recovery.
 
 Serial bootstrap sends short encoded heredoc lines within FreeBSD's canonical
 terminal input bound. Failure results retain only the waiting stage, selected
