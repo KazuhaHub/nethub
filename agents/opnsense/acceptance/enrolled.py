@@ -18,6 +18,7 @@ import uuid
 
 from guest import GuestError, invoke
 from rotation_recovery import exercise_response_loss, exercise_save_interruption
+from trust_publication_recovery import exercise_publication_conflict
 from shared_token import exercise_shared_token
 
 
@@ -436,6 +437,43 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     if fixture('inspect', host=host) != checked:
         raise GuestError('Unknown commit recovery changed native GUI identity or checks')
 
+    def check_publication_witness():
+        if (survivor.poll() is not None or not survivor_route()
+                or not original_survivor.issubset(survivor_sockets())):
+            raise GuestError('Native publication actions interrupted the original witness control')
+
+    def install_witness_trust(public):
+        nonlocal survivor
+        started = time.monotonic()
+        stop_survivor()
+        path = work / 'relay-ca.pem'
+        path.write_bytes(public)
+        path.chmod(0o600)
+        survivor = subprocess.Popen([str(stage / 'official/frpc'), '-c', str(other_config)],
+                                    stdout=other_log, stderr=other_log)
+        for _ in range(30):
+            if survivor.poll() is not None:
+                raise GuestError('Witness did not reload the authenticated trust generation')
+            if survivor_sockets() and survivor_route() and route():
+                return max(1, round((time.monotonic() - started) * 1000))
+            time.sleep(.5)
+        raise GuestError('Planned witness trust application did not recover verified TLS')
+
+    publication_conflict, publication_credentials = exercise_publication_conflict(
+        guest, stage, project, compose, page_action, native_read, sql, route, request,
+        device, stable_query, grants_query, check_rotation_unavailable,
+        evidence, other['device_id'], check_publication_witness, install_witness_trust)
+    # Trust retirement requires genuine reference application. The preceding
+    # original-control assertion is separate from these planned client reloads.
+    original_survivor = survivor_sockets()
+    if not original_survivor:
+        raise GuestError('Trust-applied witness control was not observed')
+    if (survivor.poll() is not None or not survivor_route()
+            or not original_survivor.issubset(survivor_sockets())
+            or fixture('inspect', host=host) != checked):
+        raise GuestError('Trust publication recovery changed the GUI or independent control')
+    private_json(evidence / 'installed-trust-publication.json', publication_conflict)
+
     def refresh_incident_witness(replacement):
         nonlocal survivor
         stop_survivor()
@@ -498,7 +536,8 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     native_log_path.write_bytes(native_logs)
     native_log_path.chmod(0o600)
     for value in (token, before['device_secret'], after['device_secret'], before['frp_token'],
-                  before['domain_claim'], after['domain_claim'], *recovery_credentials, *received_credentials, *incident_credentials):
+                  before['domain_claim'], after['domain_claim'], *recovery_credentials, *received_credentials,
+                  *publication_credentials, *incident_credentials):
         if value.encode('ascii') in native_logs:
             raise GuestError('Native runtime log disclosed a credential')
     # Later authority tests own the two original device assignments. Remove the
@@ -535,6 +574,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
               'unknown_committed_response_recovery': recovered,
               'received_assignment_save_recovery': received,
               'interrupted_native_recovery_acceptance': True,
+              'installed_trust_publication_conflict_recovery': publication_conflict,
               'shared_token_incident_native_recovery': shared_token,
               'clean_host_restoration': host_restore,
               'fixture_removed_through_native_page': True,
