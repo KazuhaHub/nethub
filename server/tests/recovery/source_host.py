@@ -267,6 +267,25 @@ class SourceHost(DeploymentHost):
                 'actual_runtime_separation_checked': True, 'first_administrator_created': True,
                 'issuer_or_complete_cold_recovery_accepted': False}
 
+    def console_ca(self):
+        if not self.stack_started:
+            raise RecoveryError('Original running console required before trust export')
+        identifier = self.remote(self.compose + ['ps', '-q', 'caddy'],
+                                 'Original private console identity').decode().strip()
+        if re.fullmatch('[a-f0-9]{64}', identifier) is None:
+            raise RecoveryError('Original private console container differs')
+        values = json.loads(self.remote(['docker', 'inspect', identifier], 'Original private console binding'))
+        if (len(values) != 1 or values[0]['Config']['Labels'].get('com.docker.compose.project') != 'nethub'
+                or values[0]['Config']['Labels'].get('com.docker.compose.service') != 'caddy'
+                or values[0]['Config']['Image'] != self.tags['caddy'] or values[0]['State']['Running'] is not True):
+            raise RecoveryError('Original private console ownership differs')
+        pem = self.remote(['docker', 'exec', identifier, 'cat', '/data/caddy/pki/authorities/local/root.crt'],
+                          'Original private console public trust export')
+        if (not 256 <= len(pem) <= 16384 or not pem.startswith(b'-----BEGIN CERTIFICATE-----\n')
+                or not pem.endswith(b'-----END CERTIFICATE-----\n') or b'PRIVATE KEY' in pem):
+            raise RecoveryError('Original private console public trust differs')
+        return pem
+
     def configure_issuer(self, witness, assigned_host, *, witness_control=None):
         if (not self.stack_started or self.issuer_configured
                 or not valid_ready(witness, assigned_host, witness_control)):

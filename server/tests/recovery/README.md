@@ -207,3 +207,10 @@ results explicitly refuse complete recovery acceptance.
 Resuming an original queued initial request would establish initial issuance
 after restoration, not a renewal-clock test. Public operator acceptance and
 durable encrypted off-host custody remain separate requirements.
+
+`cold_console.py` supplies the driver's normal HTTPS login, enrollment-token
+creation and explicit Open calls. It uses the original source console's public
+CA and can require the same administrator UUID after restoration. Cookie jars,
+password payloads, CSRF headers and replies remain private. A failed or uncertain
+token creation cannot be replayed by this session. This helper does not create
+database rows or source grants directly and has not yet run against either guest.
