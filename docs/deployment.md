@@ -277,6 +277,14 @@ verify an already enrolled device reconnects. No complete restoration command is
 documented as accepted here because that operator drill has not passed. Existing
 local-copy, transaction or process-recovery tests do not replace it.
 
+With GUI certificate automation enabled, recovery must also preserve the
+protected host's ACME account, issuer/HTTP-01 policies and namespaces, installed
+helper and reviewed systemd configuration. These live outside the six-container
+database restore. The [custody inventory](../deploy/database-backups.md#custody-and-restoration)
+and [account namespace procedure](../server/internal/guiacme/PROVISIONING.md)
+describe that boundary; full cold-host restoration with resumed issuance remains
+unaccepted independently of control-plane/device reconnection.
+
 ## Troubleshooting
 
 | Symptom                                      | Check and action                                                                                                                                                                                                  |

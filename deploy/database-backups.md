@@ -69,6 +69,17 @@ Archive identity is based on the retained single-tenant UUID, so credential or
 certificate renewal does not invalidate it. Replacing keys or creating a new
 tenant is not a restore procedure.
 
+An installation using the protected GUI issuer has additional recovery state
+outside those six containers: its registered ACME account and verified account
+snapshots, issuer and HTTP-01 policies, publisher/cleanup namespaces, installed
+helper binary, and reviewed systemd services/timers and path overrides. The
+database archive and initialization backup do not preserve all of that state.
+Retain it under separate protected custody and account for its active writers
+when planning a consistent recovery point. The account's explicit
+[snapshot and restore commands](../server/internal/guiacme/PROVISIONING.md)
+cover its own namespace; they do not restore the entire issuer installation or
+verify resumed certificate automation after a cold-host loss.
+
 The isolated acceptance fixture restores an actual archive into a nonce-owned
 database, compares device contents and checks Web column restrictions. It also
 exercises failure/recovery, retention, corruption, daemon restart and controlled
@@ -76,6 +87,10 @@ cancellation. Its inserted device is a database fixture, not an enrolled applian
 A complete clean-host control-plane restore with matching current keys and an
 already enrolled device reconnecting remains unaccepted. Do not overwrite an
 existing database or advertise a complete recovery command from these checks.
+The [hosted drill under review](https://github.com/KazuhaHub/nethub/pull/194) also excludes
+protected-host issuer restoration and independently durable encrypted custody.
+Neither a successful archive hash nor an isolated six-service recovery would
+complete those requirements.
 
 See [deployment boundaries](../docs/deployment.md#backup-and-restore-boundary),
 [archive internals](../server/internal/dbbackup/README.md) and
