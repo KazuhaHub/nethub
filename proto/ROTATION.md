@@ -67,4 +67,7 @@ ambiguous network/body failure retains recovery state. Received assignments do
 not contact the server again. Periodic trust synchronization waits while any
 validated journal remains; malformed state blocks it. After a definitive
 precommit conflict, ordinary verified trust synchronization can complete before
-a fresh candidate is created. These paths still require combined acceptance.
+a fresh candidate is created. This precommit sequence passed
+[isolated installed acceptance](../deploy/validation-native-trust-conflict.md).
+Committed-candidate replay across a later publication and public/operator cases
+remain separate from that test.

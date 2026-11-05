@@ -13,7 +13,7 @@
 
 - 一个能自己管理 DNS 的域名；
 - 一条**泛解析记录**（`*.router.example.com` → 中继服务器的公网 IP）；
-- 一台能从公网访问的中继服务器，开放 **443**、**7000**、**8443** 三个端口。
+- 一台能从公网访问的中继服务器，开放 **80/443**、**7000**、**8443**；80 端口用于设备 GUI 证书的 HTTP-01 验证。
 
 没有托管版，也没有绕过这些前提的捷径。完整清单见[部署前提](#部署前提)。
 
@@ -86,7 +86,7 @@ NetHub 适合一个更窄的场景，同时满足下面三点：
 |           | ───────► |      (vhostHTTPSPort)      | ───────► |    -> 127.0.0.1:443    |
 |           | ◄─────── |      只做 SNI 透传         | ◄─────── | （OPNsense Web 界面）  |
 +-----------+          +----------------------------+          +------------------------+
-                                      │  Login / NewProxy 校验
+                                      │  Login / NewProxy / NewUserConn / Ping 校验
                                       ▼  （httpPlugins，内部网络）
                   +--------------------------------------+
                   |           Go control plane           |
@@ -128,12 +128,13 @@ NetHub 的全部源码都在这个仓库里，包括 `agents/opnsense/plugin/` �
 
 1. **一个域名**，你能管理它的 DNS。
 2. **一条泛解析记录**：`*.router.example.com` → 中继服务器的公网 IP（例如 `203.0.113.10`）。
-3. **一台能从公网访问的中继服务器**，开放三个端口：
+3. **一台能从公网访问的中继服务器**，开放以下端口：
+   - **80**：设备 GUI 证书的 HTTP-01 验证，以及 Caddy 的 HTTP 监听；
    - **443**：Caddy，提供 Web 控制台和设备 enroll 接口；
    - **7000**：`frps` 的 `bindPort`，设备的控制通道（TLS）；
    - **8443**：`frps` 的 `vhostHTTPSPort`，浏览器到设备，SNI 透传。
 
-   其他组件（`frps` 的 admin API、`nethub authz` 的插件接口、Postgres）都只在内部 Docker 网络里，不对外发布。
+   `frps` 的 admin API 绑定部署的私有 edge 网关；authz 钩子和 Postgres 使用私有 Docker 网络，都不是公网监听。
 4. 这台服务器上装好 **Docker 和 Docker Compose**。
 
 没有托管版。如果你不想自己运行服务器，请看上面的[为什么不用 Tailscale、Cloudflare Tunnel，或者直接暴露 Web 界面](#为什么不用-tailscalecloudflare-tunnel或者直接暴露-web-界面)。
@@ -195,7 +196,7 @@ SNI 透传保留设备自己的登录。正常运行时，新连接还需要匹�
 
 两家 Dex 已有 [OIDC 部署验收](../deploy/validation-two-dex.md)。SAML 后端、页面及独立 [Keycloak 部署](../deploy/validation-keycloak-saml.md)已有范围明确的验收；公开 IdP 和 W6 整体验收尚未完成。
 
-[定时数据库备份服务](../deploy/database-backups.md)已通过[范围明确的容器和恢复检查](../deploy/validation-database-backups.md)。[单设备凭证轮换](../deploy/device-rotation.md)已通过隔离环境的原生安装验收，包括两种真实中断后的恢复。[部署级共享 token 更换](../deploy/validation-shared-token.md)也已通过隔离环境的主机中断续跑和在线原生／参考客户端恢复；公网／手机、离线设备群和完整恢复另行验收。完整的全新主机／当前密钥／已入网设备恢复、文档全面核对、朋友从零部署和正式签名／故障版本发布仍是 W7 待办。没有正式发布包，也不宣称已适合生产。
+[定时数据库备份服务](../deploy/database-backups.md)已通过[范围明确的容器和恢复检查](../deploy/validation-database-backups.md)。[单设备凭证轮换](../deploy/device-rotation.md)已通过隔离环境的原生安装验收，包括两种真实中断后的恢复。[部署级共享 token 更换](../deploy/validation-shared-token.md)也已通过隔离环境的主机中断续跑和在线原生／参考客户端恢复；公网／手机、离线设备群和完整恢复另行验收。[隔离环境的全新主机恢复集成](../deploy/validation-clean-host-restore.md)已通过当前密钥、完整数据库及六个服务的恢复，两条保留的客户端路由均自动恢复。公网运维恢复、受保护主机上的证书签发状态、持久的异机备份保管、文档全面核对、朋友从零部署和正式签名／故障版本发布仍是 W7 待办。没有正式发布包，也不宣称已适合生产。
 
 ## 路线图
 

@@ -26,8 +26,12 @@ running state alone do not establish that application succeeded.
 
 No files, jobs or services are changed by this package. The
 [host maintenance engine](../relaymaint/README.md) implements protected generation
-persistence and durable apply/retry/rollback; deployment acceptance of that new
-command is pending. Authenticated trust-generation acknowledgements remain
-separate work. This is not router GUI ACME issuance or installation. Those are
+persistence and durable apply/retry/rollback, with
+[scoped deployment acceptance](../../../deploy/validation-relay-maintenance.md).
+Authenticated trust-generation acknowledgements have separate
+[native evidence](../../../deploy/validation-relay-trust-native.md) and
+[authority-transition evidence](../../../deploy/validation-relay-authority-native.md).
+Certificate-material unit tests alone do not prove those paths. This is not
+router GUI ACME issuance or installation. Those are
 also required in v1 by [the certificate design](../../../docs/certificate-automation.md).
 Console HTTPS remains owned by the selected reverse proxy.

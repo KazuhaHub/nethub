@@ -25,7 +25,7 @@ creates another order or loops waiting for progress. The shared bounded verified
 HTTPS transport, approved origins, disabled redirects/proxy and fixed errors also
 apply here; each operation has a 45-second deadline including account lookup.
 
-The future issuer must authorize the current tenant/device/assignment before
+The issuer caller must authorize the current tenant/device/assignment before
 creation and delivery. A valid CSR alone is not permission to issue. It must
 durably save the returned order URI and request fingerprint before challenge
 publication/acceptance/finalization. Losing the new-order response can leave an
@@ -33,16 +33,18 @@ unvalidated orphan order; creation is not exactly once and must have a bounded
 durable attempt policy. Recover a known order with `InspectOrder`, never by blindly
 creating a replacement on each scheduler poll.
 
-No challenge acceptance, finalization, certificate download, job database,
-production issuer command/mount/timer, application endpoint or public CA account
-is introduced here. Real CA validation and native GUI issuance/application remain
-unaccepted. TLS fixtures verify real SDK ES256 KID signatures and single-use
+These order functions do not accept challenges, finalize/download certificates,
+schedule jobs or apply device material. Those operations have separate contracts
+and [host integration](../guiissuer/HOST.md); the
+[native/public checkpoint](../../../deploy/validation-native-public-certificate.md)
+records its own later lab scope. The order-only TLS fixtures verify real SDK
+ES256 KID signatures and single-use
 nonces, exact request identifiers, response-origin/identity/status rejection,
 unchanged account state, lost response behavior, terminal states and shared lease.
 
 The full local Go test/vet run and the complete account package on actual Linux
 passed. Linux additionally repeated order creation/observation and lost-response
 recovery twenty times, removed all temporary keys and verified that original
-public services remained running. Current-head race/CI and genuine CA order
-validation remain required; these loopback protocol fixtures do not issue a GUI
+public services remained running. Keep current-head race/CI checks and the
+separate [genuine CA fixture](PEBBLE.md); these loopback protocol fixtures do not issue a GUI
 certificate or change an operator account.

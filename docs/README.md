@@ -10,7 +10,7 @@ acceptance records and the [execution plan](PLAN.md) for remaining requirements.
 | ------------------------------------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`DESIGN.md`](DESIGN.md)             | Design and recorded decisions                  | Architecture, trust boundaries, enrollment, tunnel routing, accounts and the v1 product boundary. Use implementation and validation records to distinguish decisions from completed behavior.                                                                                                                                |
 | [`threat-model.md`](threat-model.md) | Source/evidence review; release gates open     | Current trust boundaries, attacker authority and residual risks linked to implementation and accepted measurements. Keeps runtime, public-network, restore, disclosure and release gaps explicit.                                                                                                                            |
-| [`deployment.md`](deployment.md)     | Operator guide; complete restore drill pending | Current initialization, proxy/certificate ownership, readiness checks and troubleshooting. Scheduled backups passed scoped container validation; off-host durability and clean-host restoration remain open.                                                                                                   |
+| [`deployment.md`](deployment.md)     | Operator guide; complete restore drill pending | Current initialization, proxy/certificate ownership, readiness checks and troubleshooting. Scheduled backups and isolated six-service/retained-client restoration passed; public operator recovery, protected-host issuer state and durable off-host custody remain open.                                                                                                   |
 | [`protocol.md`](protocol.md)         | Current protocol walkthrough                   | Major-1 enrollment, lifecycle, certificate/trust extensions and future platform adapters. Distinguishes implemented lifecycle routes from reserved schemas.                                                                                                                                                                     |
 | [`console-api.md`](console-api.md)   | Source-reconciled API reference                | Current sessions, CSRF, OIDC/SAML, roles, errors and pagination, with all 33 implemented method/path pairs distinguished from reserved endpoints. Based on [`server/internal/web`](../server/internal/web); source conformance does not complete runtime/operator acceptance. Device contracts are in [`proto/`](../proto/). |
 | [`README.zh-CN.md`](README.zh-CN.md) | Translation; synchronization pending           | Simplified Chinese translation of the top-level README. The English README is authoritative; both still need the W7 implementation and acceptance review.                                                                                                                                                                    |
@@ -33,10 +33,19 @@ per-device recovery and the controlled deployment-wide window. The
 host interruption, native Rotate, superseded-operation refusal and exported
 image review; public/operator, offline fleet and complete restoration remain separate.
 
+The later [installed trust-conflict combination](../deploy/validation-native-trust-conflict.md)
+passed actual precommit refusal, native trust synchronization, all-device reporting,
+shared-token recovery, isolated restoration and the complete removal tail. It does
+not close public/operator, protected-host issuer or durable off-host custody gates.
+
 [Database backup operations](../deploy/database-backups.md) describes the daily
 worker, health versus full-hash checks, retention and private custody. The
-[container checkpoint](../deploy/validation-database-backups.md) passed; complete
-clean-host/key/device restoration remains open.
+[container checkpoint](../deploy/validation-database-backups.md) and
+[isolated clean-host integration](../deploy/validation-clean-host-restore.md)
+passed. The latter restores current keys, the full database and six services,
+then verifies both retained client routes without manual client recovery.
+Public operator recovery, protected-host issuer state and durable off-host
+custody remain open.
 
 [Read-only audit verification](../deploy/audit-chain.md) describes the explicit
 post-start database mode, versioned encoding and legacy-timezone limits. It does

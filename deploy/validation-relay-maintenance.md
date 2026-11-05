@@ -31,4 +31,8 @@ and device recovery have their [own evidence](validation-relay-authority-native.
 Router GUI certificates have separate [native lifecycle](validation-native-gui-lifecycle.md),
 [offline renewal](validation-native-offline-renewal.md), [rollback](validation-native-certificate-rollback.md)
 and [identity-boundary](validation-native-certificate-identity.md) records.
-Public CA, combined W4 and W5-W7 acceptance remain open.
+Those separate native records do not follow from this maintenance fixture.
+Subsequent [combined W4 lab acceptance](validation-native-public-certificate.md)
+includes genuine public GUI certificate issuance and application, while its
+renewal/fault checks retain their private-CA scope. W5-W7 and formal release
+remain separate gates.

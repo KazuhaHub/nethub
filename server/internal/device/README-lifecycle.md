@@ -27,6 +27,9 @@ Previously issued access grants cannot authorize a revoked identity. Existing
 connections close through heartbeat denial rather than this HTTP response.
 
 The native PHP clearing workflow and periodic agent reports passed actual public
-acceptance in PR #60; see the plugin W4 report. Authenticated CA generation
-acknowledgements and GUI certificates remain open. Full W4 acceptance still
-requires those separate components.
+acceptance in PR #60; see the plugin W4 report. Subsequent authenticated trust
+acknowledgements and GUI certificate automation have their own validation;
+[combined W4 lab acceptance](../../../deploy/validation-native-public-certificate.md)
+includes public issuance and native application. Those records retain their
+environment and renewal/fault limitations; these lifecycle checks alone do not
+prove certificate application or complete W5-W7 acceptance.

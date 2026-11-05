@@ -25,7 +25,7 @@ test. A precompiled invocation must additionally supply
 protocol fixtures are copied into the isolated test container; no host ports
 are published.
 
-The Compose development file publishes PostgreSQL only on workstation loopback.
+The Compose development file does not publish PostgreSQL on a host port.
 It expects pre-generated service-specific files under the ignored
 `deploy/secrets/postgres` directory, owned by the image's postgres UID with mode
 0600. The init wizard prepares service-separated deployment secrets.
@@ -41,10 +41,14 @@ are the reference for the actual-role negative tests. A compromised web process
 can still exercise its granted console authority; member isolation is application
 store policy, not a claim that tenant RLS protects against compromised web SQL.
 
-SAML/OIDC HTTP flows and persistent SAML replay storage remain W6 work. W3 console,
-initialization, first-admin and scoped doctor deployment evidence is recorded in
-deploy/validation-w3.md. Enrollment runtime coverage does not prove complete relay
-authorization, production authz Compose wiring or appliance enrollment acceptance.
+SAML/OIDC HTTP flows and persistent SAML replay storage are implemented; the
+[two-Dex](../../../deploy/validation-two-dex.md) and
+[Keycloak](../../../deploy/validation-keycloak-saml.md) records cover their scoped
+deployed acceptance. Public-provider/operator and complete W6 gates remain open.
+W3 console, initialization, first-admin and scoped doctor evidence is recorded in
+[deployment validation](../../../deploy/validation-w3.md). These database tests
+alone do not prove relay authorization, Compose wiring or appliance enrollment;
+subsequent scopes are linked from the [handoff](../../../docs/HANDOFF_PROMPT.md).
 
 The tenant-bound AuthStore now supplies the local password/session service.
 Login rechecks the verified password and active user under a user-row lock.

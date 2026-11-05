@@ -115,7 +115,12 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 - 控制台支持多个用户（`admin` / `member` 两种角色，邀请制），可以用本地密码、OIDC 或 SAML 单点登录（可以配多个身份提供方）；
 - 可以撤销设备、本地有熔断开关。
 
-**v1 明确不做：** 读取或修改路由器配置（`config.xml`）、批量升级、监控指标、OpenWrt/VyOS 支持。
+**v1 scope boundary:** no general device configuration/command API, fleet
+upgrades, general device monitoring, or OpenWrt/VyOS agent. The plugin manages
+its own tunnel/settings and bounded GUI certificate application, which can
+update native configuration and reload the GUI. Per-device public certificates,
+automatic installation and renewal are confirmed v1 scope. Approximate monthly
+tunnel totals and usage warnings are implemented; they are not billing metrics.
 
 ### 1.3 架构
 
@@ -138,16 +143,22 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 | Caddy | 公网 443 的反向代理，自动申请证书 | 只写配置 |
 | Postgres 16 | 数据库 | 写表结构和权限 |
 
-公网端口一共三个：**443**（控制台和设备 enroll 接口）、**7000**（设备到 frps 的控制通道）、**8443**（浏览器到设备）。
+The bundled public listeners are TCP **80/443** for Caddy and HTTP-01 validation,
+**7000** for the device control channel and **8443** for browser passthrough.
+Device GUI HTTP-01 issuance requires its reviewed port-80 publication route;
+initialization does not provision the GUI issuer automatically.
 
 ### 1.4 Initial state (2026-10-17; historical)
 
-Current update (2026-10-21): Kazuha explicitly requested public visibility.
+Current update (2026-11-05): Kazuha requested public visibility on 2026-10-21.
 The repository is public; authenticated and anonymous GitHub API checks agree.
 Main protection now requires a PR and all six current CI jobs, including for
-administrators. W4 certificate automation and W5-W7 acceptance remain incomplete;
+administrators. The [combined W4 lab checkpoint](../deploy/validation-native-public-certificate.md)
+passed within its recorded public/native and private-CA fault scope. Public
+renewal was not waited out; the accepted 1 GiB deviation and unsigned development
+package remain. W5-W7, disclosure and formal release acceptance are incomplete;
 public visibility does not establish release readiness. See HANDOFF_PROMPT.md
-and the stage validation records for implementation evidence.
+and the stage validation records for current implementation evidence.
 
 - 只有文档和一套验证工具，**一行产品代码都没有**；
 - GitHub 仓库 <https://github.com/KazuhaHub/nethub> 已于 2026-10-17 建好，**私有**。第一次提交 `f529e1d`（包含全部现有文档）和之后的状态更新都已推送到 `main`；`main` 还没有分支保护和 CI；
@@ -160,8 +171,8 @@ and the stage validation records for implementation evidence.
 | `README.md` | 项目对外介绍 | 第一天 |
 | `docs/DESIGN.md` | 完整设计（中文），21+2 条架构决策、数据模型、安全设计、MVP 计划、待定问题 | 第一天读 §0–§2，之后每个阶段开始前读对应章节 |
 | `docs/PLAN.md` | 本文件 | 一直 |
-| `docs/threat-model.md` | 威胁模型初稿（英文） | W3 前、W7 |
-| `docs/console-api.md` | 控制台 API 草稿（英文） | W3 前、W6 前 |
+| `docs/threat-model.md` | Source/evidence-reviewed threat model; runtime/operator/release limits remain | W3 前、W7 |
+| `docs/console-api.md` | Current console API reference (English) | W3 前、W6 前 |
 | `docs/README.zh-CN.md` | README 的中文版 | 第一天 |
 | `weekend0/RUNBOOK.md` | W0 的操作手册，非常详细 | W0 开始前通读两遍 |
 | `weekend0/results-template.md` | W0 结果记录模板 | W0 期间 |
@@ -202,7 +213,7 @@ and the stage validation records for implementation evidence.
 | D19 | 路由器上的插件怎么知道控制台地址：enroll 页面多一个"控制台地址"输入框，还是把地址编进 enroll token 里 | W4-1 之前（协议里要写清楚） | W4 | 无，Kazuha 定 | Confirmed 2026-10-18: separate HTTPS console address input; keep the opaque enrollment token. See w4-decisions.md. |
 | D20 | 打包仓库里的现有插件文件能不能直接复制进 NetHub。打包仓库的根许可证是 MIT，而且有其他版权人；NetHub 要保持单一版权的 Apache-2.0（DESIGN §2） | W1 开始前 | W1、W2 | 只当结构参考、自己重写；确实要复制某个文件前，先问 Kazuha 那个文件是谁写的（本计划建议） | Confirmed 2026-10-18: independently write NetHub files; reference structure only, no third-party copying. Omit kazuha.sh mirror. |
 | D21 | 要不要注册 `newwanip` 钩子：DESIGN 决策 #17 要求注册（带防抖），但打包仓库的 `os-frp` 故意不注册，理由是 frpc 自己会重连，WAN 地址变化时重启反而会断掉正常的隧道 | W2-6 之前 | W2 | 无，Kazuha 定（看 `os-frp` 的 `frp.inc` 里那段注释） | Confirmed 2026-10-18: do not register newwanip; use frpc reconnect and periodic reconcile. W2 must measure recovery after a real WAN address change; if automatic recovery fails, switch to the debounced hook in DESIGN #17. |
-| D22 | 设备到中继 7000 端口的控制通道怎么做服务端认证（DESIGN §14 Q10）：frpc 不配 CA 时根本不校验 frps 的证书，路径上的中间人能截下 domain claim | W2-3 写模板之前定方向，W4 enroll 之前定细节 | W2、W4 | `nethub init` 生成部署 CA、给 frps 签长期证书 + enroll 响应下发 CA 证书（PEM）+ 模板写 `transport.tls.trustedCaFile`（DESIGN Q10） | Confirmed direction 2026-10-18: deployment CA, relay server certificate, device trustedCaFile and serverName; keep the CA private key outside runtime containers. On 2026-10-18 Kazuha required automatic renewal/distribution/configuration, referenced PSP, selected option 2, including router GUI certificate issuance, installation and renewal in v1 (scope record corrected 2026-10-19). Console TLS belongs to the reverse proxy. Implementation details: certificate-automation.md; not yet implemented. |
+| D22 | 设备到中继 7000 端口的控制通道怎么做服务端认证（DESIGN §14 Q10）：frpc 不配 CA 时根本不校验 frps 的证书，路径上的中间人能截下 domain claim | W2-3 写模板之前定方向，W4 enroll 之前定细节 | W2、W4 | `nethub init` 生成部署 CA、给 frps 签长期证书 + enroll 响应下发 CA 证书（PEM）+ 模板写 `transport.tls.trustedCaFile`（DESIGN Q10） | Confirmed direction 2026-10-18: deployment CA, relay server certificate, device trustedCaFile and serverName; keep the CA private key outside runtime containers. On 2026-10-18 Kazuha required automatic renewal/distribution/configuration, referenced PSP, selected option 2, including router GUI certificate issuance, installation and renewal in v1 (scope record corrected 2026-10-19). Console TLS belongs to the reverse proxy. Implemented with scoped W4 lab acceptance; see [certificate design](certificate-automation.md) and [native/public evidence](../deploy/validation-native-public-certificate.md). Production recovery, sizing and release gates remain open. |
 
 ---
 
@@ -1827,6 +1838,8 @@ W7-3 partial validation (2026-10-27): PR #189 merged as `775e46a` after all six 
 
 W7-4 controlled-window checkpoint (2026-10-29): source `e3dfef5` passed all six CI jobs `40845857458`, 92 exact protected-root identities `40845857293`, 214 actual FreeBSD cases/all 242 blobs `40845857289`, fresh unsigned OPNsense preparation `40845857269` and complete installed/six-service run `40845857496`. Complete logs, exact source, standalone incident result, all eight installed image hashes/corresponding visuals, guest exit and cleanup were checked. Actual empty-identity refusal, SIGTERM/same-candidate resume, no-reload completed retry, superseded-operation refusal and genuine native Rotate recovered the original verified HTTPS route with identity/grants/GUI policy retained. The incident procedure explicitly covers independent management and manual offline revocation/removal/re-enrollment. Earlier artifact omissions remain retained and have an upload-contract regression. This accepts the recorded host/online operation and written procedure; installed conflict-path coverage, public/operator/offline-fleet, full restoration and release gates remain separate. [Validation and limits](../deploy/validation-shared-token.md).
 
+W7-4 installed conflict checkpoint (2026-11-05): PR #205 source `cb7ae89` passed CI `42001855929`, FreeBSD 214 cases/all 244 blobs, fresh unsigned preparation and complete installed run `42001855424`. Actual precommit trust-conflict HTTP 409, pending-journal protection, native synchronization/fresh candidate, all-active-device trust reporting/retirement, shared-token cutover, complete isolated restoration and Remove/full tail passed. Conflict retry recovered TLS in 3.080 seconds; planned witness trust reconnection measured at most 165 ms; the later clean-host phase recovered both retained routes in 58.942 seconds. Eleven image hashes/eight unique views, complete logs/archives, cleanup and 12 human DCOs were checked. PR #205 merged as `1008358` with the tested tree unchanged. Earlier failures and the private checker import correction remain recorded. Public/operator/offline-fleet, later-publication committed replay, protected-host issuer restoration, durable off-host custody and release remain separate; W7 is incomplete. [Evidence and limits](../deploy/validation-native-trust-conflict.md).
+
 **W7-5 备份和恢复演练。**
 
 - `backup` 服务每天用 `nethub_backup` 角色跑 `pg_dump`，并按保留策略清理旧备份。
@@ -1837,7 +1850,7 @@ W7-5 groundwork validation (2026-10-28): PR #190 merged as `1b82289` after six s
 
 W7 backup service checkpoint (2026-10-28): PR #191 source `a64a8e9` passed all six checks in run `40653818009`, complete actual/inherited evidence, nine human DCOs and seventeen reviewed images/hashes. Actual worker/image, restricted restore/content comparison, retention, health/deep doctor, corruption refusal, restart and active-dump cancellation/cleanup passed. This supersedes the implementation gaps above for daily service, retention and recent-dump checking. Final source `ec24225` subsequently passed all six checks in run `40657579668`, complete actual/inherited logs, ten human DCOs and seventeen reviewed images/hashes. PR #191 merged as `b03e238` with a tree identical to the tested source. Full clean-host/current-key/enrolled-device recovery, off-host durability, independent external port checks and published-package agreement remain open; W7-3/W7-5 are incomplete. [Scope and native dependency-proof distinction](../deploy/validation-database-backups.md).
 
-W7-5 isolated recovery checkpoint (2026-11-05): source `dcbb83d` passed installed run `41984680901`, all six CI jobs `41984680910`, 44 actual Linux recovery methods, seven genuine authority negative controls and 214 FreeBSD cases/all 243 blobs. A distinct empty hosted guest restored current matching keys, the complete database and six services; both retained source-host TLS routes recovered automatically in 56.425 seconds without a requested client restart, Rotate or enrollment. Exact archive/logs, eight image hashes/views, 26 human DCOs, genuine Remove, the full tail and owned cleanup were checked. This does not accept a later integration revision, fresh public-VPS/operator drill, protected-host issuer restoration, durable off-host encrypted custody or release. W7-5 remains incomplete. [Sequence, evidence and limits](../deploy/validation-clean-host-restore.md).
+W7-5 isolated recovery checkpoint (2026-11-05): source `dcbb83d` passed installed run `41984680901`, all six CI jobs `41984680910`, 44 actual Linux recovery methods, seven genuine authority negative controls and 214 FreeBSD cases/all 243 blobs. A distinct empty hosted guest restored current matching keys, the complete database and six services; both retained source-host TLS routes recovered automatically in 56.425 seconds without a requested client restart, Rotate or enrollment. Exact archive/logs, eight image hashes/views, 26 human DCOs, genuine Remove, the full tail and owned cleanup were checked. Integration source `38fda4b` subsequently passed installed run `41990501547` (58.785 seconds), all six CI jobs `41990501528`, the same independent prerequisites, 28 human DCOs and all eight image hashes/views. PR #194 merged as `c4102ab` with the tested tree unchanged. This accepts the isolated integration, not a fresh public-VPS/operator drill, protected-host issuer restoration, durable off-host encrypted custody or release. W7-5 remains incomplete. [Sequence, evidence and limits](../deploy/validation-clean-host-restore.md).
 
 **W7-6 文档。**
 
@@ -1880,7 +1893,7 @@ W7-5 isolated recovery checkpoint (2026-11-05): source `dcbb83d` passed installe
 
 **v1 之后**（DESIGN §11，现在不做，先知道就行）：
 
-- v1 includes per-device public certificates through DNS-01, automatic installation and renewal. v1.1 retains arm64 packaging and mTLS evaluation; certificate acceptance expands the original v1 estimate.
+- v1 includes per-device public certificates through the implemented HTTP-01 flow, automatic installation and renewal. Protected-host issuer provisioning remains separate from ordinary init; DNS-01 is only an optional future fallback. v1.1 retains arm64 packaging and mTLS evaluation; certificate acceptance expands the original v1 estimate.
 - v1.2：遥测；
 - v2：加密的配置备份；
 - v2.5：配置下发；
@@ -1941,18 +1954,26 @@ npm run build
 
 **Docker Compose**
 
+Run these commands from the acknowledged generated deployment directory, using
+its reviewed Compose files and project. The Web image is distroless; use its
+explicit private loopback health command below for readiness inspection.
+
 ```bash
 docker compose up -d
 docker compose ps
 docker compose logs -f nethub-authz
-docker compose exec nethub-web sh
+docker compose exec -T nethub-web /nethub doctor --health-url http://127.0.0.1:8080/healthz
 docker compose down                 # 加 -v 会删数据卷，慎用
 ```
 
 **Postgres**
 
+For trusted host-administrator inspection, use the container's local socket.
+The generated deployment does not publish host TCP 5432. This is separate from
+the restricted application roles used by Web and the backup worker.
+
 ```bash
-psql "postgres://nethub_web@127.0.0.1:5432/nethub"   # 密码从本地密钥文件读，不要写进命令历史
+docker compose exec postgres psql -U postgres -d nethub
 \dp devices                          # 看这张表的权限
 \d devices                           # 看表结构
 ```
