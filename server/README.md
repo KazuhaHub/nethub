@@ -156,7 +156,15 @@ isolated deployment/IdP/recovery harnesses. The adapter lives in
 
 ## Development and validation
 
-Run Go tests with GOWORK=off, go vet and go mod verify from this directory.
+Run these commands from this directory:
+
+```sh
+export GOWORK=off
+go test ./...
+go vet ./...
+go mod verify
+```
+
 Genuine PostgreSQL tests require the isolated Docker harness in the
 [store guide](internal/store/README.md); local Go success can include skipped
 integration cases. CI also runs compiled processes, deployment, browsers and
