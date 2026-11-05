@@ -66,7 +66,7 @@ func (s *RelayStore) authorize(ctx context.Context, identity protocol.ClaimPaylo
 			return relayhook.ErrUnavailable
 		}
 		if !live {
-			return relayhook.ErrDenied
+			return relayhook.ErrSourceDenied
 		}
 	}
 	if tx.Commit() != nil {

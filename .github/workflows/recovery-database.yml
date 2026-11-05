@@ -1,0 +1,40 @@
+name: Recovery database diagnosis
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/recovery-database.yml
+      - server/tests/recovery/**
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  database:
+    name: Actual PostgreSQL restore comparison
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      NETHUB_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Check closed database diagnostics
+        run: python3 -m unittest discover -s server/tests/recovery -p test_database.py
+      - name: Compare real restore modes and remove owned resources
+        run: |
+          sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT,NETHUB_SOURCE_HEAD,PYTHONDONTWRITEBYTECODE \
+            python3 server/tests/recovery/database_probe.py "$RUNNER_TEMP/database-result.json"
+      - name: Retain closed diagnosis only
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: recovery-database-diagnosis
+          path: ${{ runner.temp }}/database-result.json
+          if-no-files-found: error
+          retention-days: 7

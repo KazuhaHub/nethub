@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"mime"
 	"net"
@@ -24,6 +25,7 @@ const Path = "/api/v1/frp/hooks"
 const Budget = 500 * time.Millisecond
 
 var ErrDenied = errors.New("relay identity denied")
+var ErrSourceDenied = fmt.Errorf("relay source access denied: %w", ErrDenied)
 var ErrUnavailable = errors.New("relay authorization unavailable")
 
 type Repository interface {
@@ -72,7 +74,7 @@ type response struct {
 	Unchange     bool   `json:"unchange,omitempty"`
 }
 
-func (s *Server) respond(w http.ResponseWriter, status int, operation, decision string) {
+func (s *Server) respond(w http.ResponseWriter, status int, operation, decision string, cause ...string) {
 	result := response{Reject: decision != "allowed", Unchange: decision == "allowed"}
 	if result.Reject {
 		result.RejectReason = "not_authorized"
@@ -80,11 +82,15 @@ func (s *Server) respond(w http.ResponseWriter, status int, operation, decision 
 			result.RejectReason = "unavailable"
 		}
 	}
-	// Both fields are selected from fixed codes, never request or dependency text.
+	// Log fields are selected from fixed codes, never request or dependency text.
+	fields := []any{"operation", operation, "decision", decision}
+	if len(cause) == 1 && (cause[0] == "device_state" || cause[0] == "source_access") {
+		fields = append(fields, "cause", cause[0])
+	}
 	if operation == "Ping" && decision == "allowed" {
-		s.logger.Debug("Relay hook decision", "operation", operation, "decision", decision)
+		s.logger.Debug("Relay hook decision", fields...)
 	} else {
-		s.logger.Info("Relay hook decision", "operation", operation, "decision", decision)
+		s.logger.Info("Relay hook decision", fields...)
 	}
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(result)
@@ -201,10 +207,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil || ctx.Err() != nil {
 		decision := "unavailable"
+		cause := ""
 		if errors.Is(err, ErrDenied) && ctx.Err() == nil {
 			decision = "device_denied"
+			cause = "device_state"
+			if errors.Is(err, ErrSourceDenied) {
+				cause = "source_access"
+			}
 		}
-		s.respond(w, 200, operation, decision)
+		s.respond(w, 200, operation, decision, cause)
 		return
 	}
 	s.respond(w, 200, operation, "allowed")

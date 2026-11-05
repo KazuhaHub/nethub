@@ -3,13 +3,55 @@ package relayhook
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
+	"net/http/httptest"
 	"net/netip"
 	"testing"
 
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
 )
+
+func TestConnectionDenialCausePreservesGenericResponseAndPrivacy(t *testing.T) {
+	var original []byte
+	for _, test := range []struct {
+		err   error
+		cause string
+	}{{ErrDenied, "device_state"}, {errors.Join(errors.New("private dependency detail"), ErrSourceDenied), "source_access"}} {
+		var logs bytes.Buffer
+		repository := &sourceRepository{check: func(context.Context, protocol.ClaimPayload, netip.Addr) error { return test.err }}
+		server, encoded := fixture(t, repository, &logs)
+		recorder := httptest.NewRecorder()
+		server.ServeHTTP(recorder, request(t, envelope("NewUserConn", encoded)))
+		var reply response
+		if recorder.Code != 200 || json.Unmarshal(recorder.Body.Bytes(), &reply) != nil || !reply.Reject || reply.RejectReason != "not_authorized" || reply.Unchange {
+			t.Fatal("denial changed the generic callback response")
+		}
+		if original == nil {
+			original = append([]byte(nil), recorder.Body.Bytes()...)
+		} else if !bytes.Equal(original, recorder.Body.Bytes()) {
+			t.Fatal("denial cause escaped in the callback response")
+		}
+		var event map[string]any
+		if json.Unmarshal(logs.Bytes(), &event) != nil || event["decision"] != "device_denied" || event["cause"] != test.cause {
+			t.Fatal("fixed denial cause was not recorded")
+		}
+		for _, private := range []string{"private dependency detail", encoded, "private-run-id-fixture", "192.0.2.100"} {
+			if bytes.Contains(logs.Bytes(), []byte(private)) {
+				t.Fatal("denial diagnostics exposed protected input")
+			}
+		}
+		logs.Reset()
+		server.respond(httptest.NewRecorder(), 200, "NewUserConn", "device_denied", "private-cause")
+		if bytes.Contains(logs.Bytes(), []byte("private-cause")) {
+			t.Fatal("unknown cause reached diagnostics")
+		}
+	}
+	if !errors.Is(ErrSourceDenied, ErrDenied) {
+		t.Fatal("source denial lost the existing fail-closed error contract")
+	}
+}
 
 type sourceRepository struct {
 	calls int
