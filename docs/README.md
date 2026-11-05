@@ -37,6 +37,9 @@ The later [installed trust-conflict combination](../deploy/validation-native-tru
 passed actual precommit refusal, native trust synchronization, all-device reporting,
 shared-token recovery, isolated restoration and the complete removal tail. It does
 not close public/operator, protected-host issuer or durable off-host custody gates.
+The subsequent [committed-replay run](../deploy/validation-native-trust-conflict.md#committed-replay-after-a-later-publication)
+also passed same-candidate native completion after a later trust publication,
+with the original combined flow retained. These are separate recorded sources.
 
 [Database backup operations](../deploy/database-backups.md) describes the daily
 worker, health versus full-hash checks, retention and private custody. The

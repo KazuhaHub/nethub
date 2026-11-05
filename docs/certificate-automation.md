@@ -103,14 +103,17 @@ Renewing a relay leaf under the existing CA needs no device trust replacement.
 CA rotation is a separate staged operation. The server-authentication design
 does not introduce device client certificates or put trustedCaFile on frps.
 
-## Proposed execution boundary
+<a id="proposed-execution-boundary"></a>
+
+## Execution boundary
 
 Keep signing authority out of the application services. An operator-installed
 host timer runs a one-shot certificate maintenance command against private
-issuance state. A Docker-only installation may use a short-lived, isolated issuer
-invocation; it is not a web/authz/frps mount or an always-running application
-service. The host applies validated output and controls the frps process. No
-application container receives the Docker socket or CA signing key.
+issuance state. GUI issuance also requires explicit account/policy, HTTP-01
+namespace and independent cleanup provisioning on that protected host; ordinary
+init does not install or enable them. The host applies validated relay output
+and controls the frps process. No application container receives the Docker
+socket or CA signing key.
 
 The issuance job accepts only the deployment's protected relay identity and
 configured policy. A console retry button may request the existing authorized
@@ -118,13 +121,15 @@ operation; it must not submit arbitrary subjects, SANs, shell commands or paths
 to a privileged signer. Public status may expose expiry, fingerprint, generation,
 next attempt, last result and per-device acknowledgement, never private material.
 
-Implement durable issue/apply states and a single-operation lease. Persist newly
-issued material before applying it. A failed apply retries that same generation,
-not a fresh issuance. Bound transient retries, distinguish invalid configuration,
-and retain a useful expiry/failure alert after the attempt budget is exhausted.
-Do not mark a scheduled or delivered generation as applied without verification.
+Relay maintenance and GUI issuance use separate durable engines and leases.
+Issued material is persisted before application. A failed apply retries that same
+generation rather than creating another issuance. Retry budgets and terminal
+states distinguish transient failure from configuration or policy rejection.
+Scheduling or delivery alone cannot mark a generation as applied.
 
-## Proposed renewal and application
+<a id="proposed-renewal-and-application"></a>
+
+## Renewal and application
 
 Router GUI renewal admission is now implemented separately from relay renewal.
 The protected host issuer processes existing work first. An idle invocation
@@ -135,11 +140,13 @@ under the parent device lock. The original request is reused; device polling
 and applied-generation retries cannot start a new order. Existing active or
 terminal newer work suppresses another issuance. Expired material can be renewed
 without an application report, so an offline router does not block renewal.
-The queue and its audit commit together. Genuine renewed issuance and combined
-native/public installation remain separate acceptance work; administratively
-aged scheduling fixtures do not establish those outcomes.
+The queue and its audit commit together. Genuine private-CA renewed issuance and
+native application have their own records linked above; administratively aged
+scheduling fixtures alone do not establish those outcomes. The later combined W4
+record includes real public initial issuance and native installation. It did not
+wait for public renewal or complete production/operator W5-W7 acceptance.
 
-Suggested initial policy remains a ten-year root and one-year relay leaf, with
+The deployment CA defaults to ten years and the relay leaf to one year, with
 renewal before expiry and a lifetime-relative bound for shorter certificates.
 Use the actual certificate dates; renewal must not repeatedly issue because a
 fixed lead time exceeds the whole lifetime. Expiry checking is mandatory even
@@ -164,20 +171,26 @@ previous valid generation and retry the bounded recovery action; surface a
 terminal failure if recovery fails. This is automatic application with measured
 interruption, not a claim of seamless renewal.
 
-## Proposed trust distribution
+<a id="proposed-trust-distribution"></a>
+
+## Relay trust distribution
 
 The device obtains authenticated desired trust over its configured, verified
 console HTTPS origin. Validate PEM, CA constraints, dates and bounded generation
 metadata before atomically installing it through the plugin's approved local
-writer. Reconcile should apply changed content and report the applied generation;
-it must not repeatedly restart an already-correct tunnel.
+writer. The separate native trust action applies and reports a generation;
+ordinary reconciliation validates retained managed trust and renders its runtime
+configuration. An already-correct tunnel is not repeatedly restarted.
 
 For planned CA rotation: publish old-plus-new trust, collect authenticated applied
 generation acknowledgements, then switch the relay issuer. Keep the old trust
-until all nonrevoked devices acknowledge, or an administrator explicitly chooses
-quarantine/manual recovery for remaining offline devices. Delivery alone is not
-an acknowledgement. A compromised CA requires an emergency replacement procedure;
-ordinary overlap would retain trust in the compromised key.
+until all nonrevoked devices acknowledge. Unconfirmed active devices block
+retirement; the [authority commands](../deploy/relay-authority-operations.md) do
+not waive that barrier. Recovering an offline identity or explicitly revoking
+and re-enrolling it remains a separate operation. There is no automatic
+quarantine bypass. Delivery alone is not an acknowledgement.
+A compromised CA needs a separate emergency procedure; ordinary overlap retains
+trust in that compromised key.
 
 ## Acceptance before claiming automation
 
@@ -207,8 +220,9 @@ ordinary overlap would retain trust in the compromised key.
 
 This corrects the earlier scope record, which read option 2 as console/relay-only.
 The owner's answer includes router GUI certificates in v1. Implementation and
-native acceptance remain pending; the existing self-signed test certificate is
-not evidence of this feature.
+the scoped public/native W4 acceptance are recorded above. Earlier self-signed
+test certificates do not establish public issuance; the public record verifies
+the actual issued leaf, system trust, hostname and authenticated GUI access.
 
 Prefer central HTTP-01 when the assigned device DNS reaches the relay and its
 public port 80 can serve validation requests. The router can remain behind NAT:
@@ -245,12 +259,14 @@ that device. The CSR validator checks proof of key possession, exact DNS identit
 and a restricted request profile; it does not establish tenant/device
 authorization. The API must authorize the current assignment before submitting a
 job and bind the accepted public key to that enrolled device. Ordinary web/authz
-writes cannot replace this binding; rotations need proof from the previous key.
+writes cannot replace this binding. Future GUI-key rotation needs proof from the
+previous key; current device-credential rotation retains the GUI key.
 CSR validation alone does not establish that binding. The chain validator now
 checks the returned leaf against the exact signed CSR and independently supplied
 roots, including identity, server usage, ordered chain and current validity.
-Authenticated CSR/chain transport and device key persistence are implemented;
-native GUI installation remains pending. Never send keys through command
+Authenticated CSR/chain transport, device key persistence and native GUI
+installation are implemented, with separate protocol, private-CA and public
+acceptance records. Their limits remain distinct. Never send keys through command
 arguments, logs, ordinary console status or audit payloads.
 
 Persist issued material separately from deployment state, retry deployment
@@ -258,5 +274,9 @@ without reissuing, and require a verified applied generation. Validate SAN,
 chain, validity and key agreement before changing GUI configuration. Retain
 last-good state and use a bounded service-specific apply/rollback operation.
 Spread renewal schedules and retain actionable expiry/failure status for offline
-devices. Provider support and key custody details are still design work, not
-implemented or owner-approved defaults.
+devices. HTTP-01 and protected account provisioning are implemented; see the
+[account procedure](../server/internal/guiacme/PROVISIONING.md) and
+[host worker boundary](../server/internal/guiissuer/HOST.md). DNS-provider
+integration remains an optional future fallback. Full protected-host restoration
+with resumed automation and durable off-host custody are still unaccepted; an
+account-namespace restore alone does not close those requirements.

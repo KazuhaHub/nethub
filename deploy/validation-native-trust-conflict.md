@@ -74,7 +74,55 @@ artifacts. An earlier reference-root validation failure retains its unknown
 original X.509 error; the separate actual OpenSSL regression establishes the
 correct leaf-chain behavior.
 
-Public/mobile/operator, offline fleet, committed-candidate replay across a later
-publication, protected-host issuer restoration, durable off-host custody, signed
-package agreement and release remain separate gates. W7 and the full goal are
-incomplete.
+## Committed replay after a later publication
+
+Source `54699bd02e227e7bcdc3d1b4c98a0e7bf2e012cc` passed
+[installed run 42014254020](https://github.com/KazuhaHub/nethub/actions/runs/42014254020).
+[PR #212](https://github.com/KazuhaHub/nethub/pull/212) merged as `29691f7` with
+the tested tree unchanged: `3fd4e33f3639f186ae2a27bb33d2334ff254e236`.
+All three source commits had human DCO sign-offs. This adds the already-committed
+case to the earlier precommit refusal, without a product-runtime change.
+
+After all three devices reported the genuine overlap, the native page committed
+one candidate while the owned edge discarded the backend response. Its prepared
+journal and original native model remained. Normal guarded publication retired
+the unused successor root, changing the public bundle and generation while the
+original relay authority stayed active. This is a publication transition, not an
+issuer activation or emergency bypass.
+
+Scheduled trust left the ambiguous operation untouched. Candidate-authenticated
+settings returned the new head; the previous credential received HTTP 401.
+Candidate replay returned the exact original assignment and older trust bundle,
+without changing the credential hash, claim time, operation/audit counts, journal
+or application history. The genuine native page then finished that same candidate,
+removed the completed journal, synchronized and confirmed current trust, and
+recovered the original verified TLS route. Identity, source grants and GUI policy
+were retained. The separate closed replay outcome matched its nested export.
+
+| Measurement | Observed fixture result |
+| --- | --- |
+| Committed native retry to verified route | 5.392 seconds |
+| Original precommit conflict retry | 3.736 seconds |
+| Maximum planned witness trust reconnection | 216 ms |
+| Source stop to both restored verified routes | 64.183 seconds |
+
+These are individual fixture observations, not latency guarantees. Both earlier
+native interruption cases, shared-token recovery, complete isolated six-service
+restoration, genuine Remove and the full Compose tail passed in this same run.
+
+All six jobs in [CI 42014254316](https://github.com/KazuhaHub/nethub/actions/runs/42014254316)
+passed. Complete actual logs, required Linux OpenSSL verification and protected-host
+execution/storage/cleanup were checked. FreeBSD passed 214 cases/all 245 source
+blobs. Fresh unsigned OPNsense 26.7.8_2 preparation passed installation/configd,
+frpc 0.71.1 built with Go 1.26.10, and four image hash/view checks. The combined
+run's exact archive, both job logs, thirteen image hashes and eleven unique actual
+views were reviewed; two duplicates matched reviewed images byte for byte.
+Guest exit zero and owned cleanup passed. Status is intentionally masked and token
+fields are blank. Remove controls extend into the native footer; independent
+DOM/database/XML/service/route checks prove cleanup. Thirty-one focused source
+tests and 21 private-validator refusal controls supplement this actual execution;
+they do not replace it.
+
+Public/mobile/operator, offline fleet, protected-host issuer restoration, durable
+off-host custody, signed-package agreement and release remain separate gates.
+W7 and the full goal are incomplete.
