@@ -27,8 +27,11 @@ keep browser port 8443 and both device hostname security checks enabled.
 
 ## D11: database and process permissions
 
-Use the process split and table model in DESIGN section 6, with these concrete
-boundaries and additions. These grants are approved; migrations remain unimplemented.
+Use the process split and table model in DESIGN section 6, with these approved
+initial boundaries and additions. The migrations are implemented; the current
+[store contracts](../server/internal/store/README.md) and migration sources record
+the subsequent narrow functions and actual-role validation. This original role
+summary is not a complete inventory of today's SQL privileges.
 
 | Role | Authority |
 |---|---|
@@ -115,7 +118,11 @@ wildcard under router.example.com. Console host-only cookies use the __Host-
 prefix. Reserve any console label if an owner instead chooses a hostname below
 the device wildcard. Actual deployment names remain outside repository records.
 
-## Acceptance work
+## Original W3 acceptance checklist
+
+This records the W3 checklist, not a new set of unfinished setup prerequisites.
+The accepted W3 close and subsequent W4 work are recorded in
+[the progress history](w4-progress.md); current remaining gates are in PLAN.
 
 1. Pin the approved toolchain/dependencies and create the module/front-end shell.
 2. Test fresh and repeated database initialization and migrations, including secret
@@ -128,9 +135,11 @@ the device wildcard. Actual deployment names remain outside repository records.
    secret mounts, initial administrator creation, backup acknowledgement, and
    actionable init/doctor errors. Never represent placeholders as working features.
 
-W4 still needs D19 enrollment address discovery, D22 CA enrollment/rotation details,
-and protocol version decisions. Formal signing/publication remains D13; the private
-repository protection-plan limitation and public disclosure decisions remain W7 work.
+D19 address discovery and protocol-version decisions were subsequently confirmed
+in [the W4 decision record](w4-decisions.md). Certificate ownership, implementation
+and scoped acceptance are recorded in [the lifecycle design](certificate-automation.md).
+The repository is public by Kazuha's instruction; the remaining D12 disclosure
+review and D13 formal signing/publication gates are separate from W3 acceptance.
 
 ## Development readiness observed on 2026-10-18
 

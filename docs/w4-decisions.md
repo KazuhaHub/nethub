@@ -2,7 +2,12 @@
 
 Status: D16, D19, and W4-7 confirmed by Kazuha on 2026-10-18. W3 evidence is
 complete, and Kazuha accepted the fresh Debian VM/public-ingress environment
-on 2026-10-18. W3 PR #39 merged as 45b79ac. W4-1 adds the initial shared schemas and request adapters; device handlers remain unfinished. D22 lifecycle details below remain specification work.
+on 2026-10-18. W3 PR #39 merged as 45b79ac. Protocol and enrollment handlers are
+implemented. Their chronological development is recorded in
+[the W4 progress history](w4-progress.md); the
+[combined certificate acceptance](../deploy/validation-native-public-certificate.md)
+records the later W4 lab result. This decision record does not replace current
+W5-W7 acceptance gates.
 
 ## D16: protocol versions
 
@@ -55,7 +60,7 @@ links, reads once, and unlinks the file. Do not put the token or returned
 credentials into configd arguments, browser URLs, or diagnostic logs. Remove or
 lock the W2 debugging controls when enrollment owns these settings.
 
-## Remaining specification work
+## D22: certificate ownership and acceptance
 
 D22 selects a deployment CA, a relay leaf certificate, and explicit
 trustedCaFile/serverName, with no CA private key in runtime containers. On
@@ -64,9 +69,10 @@ referenced PSP, and confirmed the scope includes router GUI certificates in v1.
 Console HTTPS belongs
 to the selected reverse proxy; NetHub must not duplicate its certificate manager.
 See [the source review and
-automation design](certificate-automation.md). Its execution/validity details are
-a proposed implementation, not completed automation. Formal package signing
-and publication remain D13.
+automation design](certificate-automation.md) for confirmed scope, implemented
+operations and their bounded acceptance records. Remaining proposals and
+production/release gates stay explicit; a decision does not prove execution.
+Formal package signing and publication remain D13.
 
 ## Platform extension boundary
 
