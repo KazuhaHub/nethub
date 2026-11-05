@@ -14,18 +14,8 @@ import stat
 import subprocess
 
 from image_archive import inspect_archive
+from host_layout import DEPLOYMENT, HELPER, ROLES, SERVICE_ROLES, SOURCE, UNITS, valid_tags
 from linux_guest import LinuxGuest, RecoveryError, sha256
-
-
-ROLES = {'runtime', 'postgres', 'caddy', 'frps', 'backup'}
-UNITS = ('nethub-gui-issuer.service', 'nethub-gui-issuer.timer',
-         'nethub-http01-cleanup.service', 'nethub-http01-cleanup.timer')
-SOURCE = '/srv/nethub-source'
-HELPER = '/usr/local/libexec/nethub'
-DEPLOYMENT = '/srv/nethub-deployment'
-SERVICE_ROLES = {'postgres': 'postgres', 'migrate': 'runtime', 'nethub-web': 'runtime',
-                 'nethub-authz': 'runtime', 'admin-bootstrap': 'runtime', 'backup': 'backup',
-                 'caddy': 'caddy', 'frps': 'frps'}
 
 
 def configure_profile(override, tags, caddy):
@@ -47,26 +37,25 @@ def configure_profile(override, tags, caddy):
 
 
 def validate_selection(tags, inspected):
-    if (not isinstance(tags, dict) or set(tags) != ROLES
-            or any(not isinstance(value, str)
-                   or re.fullmatch('[a-zA-Z0-9][a-zA-Z0-9_./:-]{0,255}', value) is None
-                   for value in tags.values())
-            or len(set(tags.values())) != len(ROLES) or set(inspected) != set(tags.values())):
+    if not valid_tags(tags) or set(inspected) != set(tags.values()):
         raise RecoveryError('Exactly five previously tested recovery image roles required')
 
 
-class SourceHost:
-    def __init__(self, guest, repository):
+class DeploymentHost:
+    def __init__(self, guest, repository, *, role='source'):
         if (type(guest) is not LinuxGuest or guest.process is None
                 or guest.process.poll() is not None):
             raise RecoveryError('Live owned hosted Linux guest required')
+        if role not in ('source', 'target'):
+            raise RecoveryError('Owned source or target guest role required')
         self.guest, self.repository = guest, Path(repository).resolve(strict=True)
         self.head = os.environ.get('NETHUB_SOURCE_HEAD', '')
         if re.fullmatch('[a-f0-9]{40}', self.head) is None:
             raise RecoveryError('Exact recovery source head required')
-        self.work = guest.directory / 'source-bootstrap'
+        self.work = guest.directory / (role + '-bootstrap')
         self.work.mkdir(mode=0o700)
         self.counter = 0
+        self.host_prepared = False
         self.bootstrap_completed = False
         self.stack_started = False
         self.issuer_configured = False
@@ -99,9 +88,9 @@ class SourceHost:
         destination.chmod(0o600)
         return self.guest.send(destination, name)
 
-    def bootstrap(self, images, tags):
-        if self.bootstrap_completed:
-            raise RecoveryError('Source host bootstrap cannot be repeated')
+    def prepare_images(self, images, tags):
+        if self.host_prepared:
+            raise RecoveryError('Owned host preparation cannot be repeated')
         # The caller's producer gate must already bind the archive to this exact
         # successful CI source. Content verification here is a separate check.
         if self.command(['git', 'rev-parse', 'HEAD'], 'Recovery source identity').decode().strip() != self.head:
@@ -120,6 +109,28 @@ class SourceHost:
                                        'Original guest complete image verification', timeout=180))
         if actual != inspected:
             raise RecoveryError('Original guest image configuration or layers differ')
+        self.tags = dict(tags)
+        self.host_prepared = True
+        return prepared
+
+    def install_file(self, data, transfer_name, destination, mode):
+        source = self.work / transfer_name
+        with source.open('xb') as output:
+            output.write(data)
+        source.chmod(0o600)
+        remote = self.guest.send(source, transfer_name)
+        self.remote(['install', '-o', 'root', '-g', 'root', '-m', mode, remote, destination],
+                    'Owned recovery profile installation')
+        actual = self.remote(['sha256sum', destination], 'Owned recovery profile exact readback').split()[0].decode()
+        if actual != hashlib.sha256(data).hexdigest():
+            raise RecoveryError('Owned recovery profile readback differs')
+
+
+class SourceHost(DeploymentHost):
+    def bootstrap(self, images, tags):
+        if self.bootstrap_completed:
+            raise RecoveryError('Source host bootstrap cannot be repeated')
+        prepared = self.prepare_images(images, tags)
 
         source = self.work / 'source.tar'
         with source.open('xb') as output:
@@ -173,18 +184,6 @@ class SourceHost:
         return {'host': prepared, 'same_tested_image_content': True,
                 'exact_tracked_source': True, 'exact_stock_persistent_units_loaded_inactive': True,
                 'issuer_restored_or_recovery_accepted': False}
-
-    def install_file(self, data, transfer_name, destination, mode):
-        source = self.work / transfer_name
-        with source.open('xb') as output:
-            output.write(data)
-        source.chmod(0o600)
-        remote = self.guest.send(source, transfer_name)
-        self.remote(['install', '-o', 'root', '-g', 'root', '-m', mode, remote, destination],
-                    'Original source reviewed profile installation')
-        actual = self.remote(['sha256sum', destination], 'Original source profile exact readback').split()[0].decode()
-        if actual != hashlib.sha256(data).hexdigest():
-            raise RecoveryError('Original source profile readback differs')
 
     def initialize_stack(self):
         if not self.bootstrap_completed or self.stack_started:
