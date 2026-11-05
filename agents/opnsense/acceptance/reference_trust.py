@@ -3,9 +3,38 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import stat
+import subprocess
 import uuid
 
 from guest import GuestError, invoke
+
+
+def verify_reference_chains(stage, generation, bundle, server_name):
+    leaves = (stage / 'deployment/runtime/relay/relay-cert.pem',
+              stage / 'native-publication/candidate/relay-cert.pem')
+    for index, certificate in enumerate(leaves):
+        try:
+            info = certificate.lstat()
+            if (certificate.resolve(strict=True) != certificate or not stat.S_ISREG(info.st_mode)
+                    or info.st_nlink != 1 or not 64 <= info.st_size <= 32768):
+                raise GuestError('Reference relay certificate input is unsafe')
+            checked = subprocess.run(['openssl', 'verify', '-no-CApath', '-no-CAstore',
+                '-check_ss_sig', '-purpose', 'sslserver', '-verify_hostname', server_name,
+                '-CAfile', str(bundle), str(certificate)], capture_output=True, timeout=15)
+        except (OSError, subprocess.TimeoutExpired):
+            raise GuestError('Independent reference relay-chain verification unavailable') from None
+        errors = re.findall(rb'error ([0-9]{1,3}) at [0-9]{1,2} depth lookup', checked.stderr)
+        code = int(errors[-1]) if errors else None
+        expected = index == 0 or len(generation['root_fingerprints']) == 2
+        if expected and checked.returncode == 0:
+            continue
+        if not expected and checked.returncode == 2 and code in (7, 18, 19, 20, 21):
+            continue
+        exit_code = str(checked.returncode) if 0 <= checked.returncode <= 255 else 'unavailable'
+        verification_code = str(code) if code is not None else 'unavailable'
+        raise GuestError('Reference relay-chain verification failed: leaf=' + str(index)
+            + ',exit=' + exit_code + ',verify=' + verification_code)
 
 
 def synchronize_references(stage, generation, request, sql, native_id, witness_id, install_witness):
@@ -55,10 +84,11 @@ def synchronize_references(stage, generation, request, sql, native_id, witness_i
             certificate.chmod(0o600)
             fingerprints.add(hashlib.sha256(invoke(['openssl', 'x509', '-in', str(certificate),
                 '-outform', 'DER'], 'independent reference root fingerprint')).hexdigest())
-            invoke(['openssl', 'verify', '-CAfile', str(target), str(certificate)],
-                   'independent reference root validation')
         if fingerprints != set(generation['root_fingerprints']) or len(fingerprints) != len(blocks):
             raise GuestError('Reference trust roots differ from the prepared authorities')
+        # Validate roots as issuers of their actual relay leaves, not as end
+        # entities competing with an overlapping root that has the same subject.
+        verify_reference_chains(stage, generation, target, assignment['server_name'])
         if assignment['device_id'] == witness_id:
             # A running official client must actually reload the new trust pool.
             # Do not report its application from an edited file alone.
