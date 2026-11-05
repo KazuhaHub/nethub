@@ -242,4 +242,19 @@ Remove uses the existing native page and independently checks cleared model and
 stopped service; server revocation and route closure remain outer-driver checks.
 Package preparation shares `bootstrap.install_current_package` with the existing
 unsigned preparation flow, preserving its signed update, build and configd steps.
-These connected helpers still need their guarded hosted driver and execution.
+`cold_flow.py` connects these helpers into the full source-to-target sequence.
+It requires an already active independent cleanup timer before creating a guest.
+It checks the original normal Open actor/source grant and verified login route,
+captures the genuine queued request, reaps the source before target creation,
+restores the full checkpoint and original account, then starts the stock timers.
+It requires the actual issued generation, native application acknowledgement,
+exact served leaf and unchanged original grant before normal Remove and owned
+cleanup. The CA witness records its namespace for the outer cleanup guard before
+creating any resource. Fixed phase labels retain diagnostic scope without raw
+responses or credentials.
+
+Recovery timings distinguish source-process reap from the earlier checkpoint
+start; both stop at confirmed issuance/application and route verification before
+Remove or cleanup. The outer guarded launcher, exact accepted-image gate and
+hosted workflow still need wiring. No execution or recovery acceptance is claimed
+by the connected source or its local admission tests.

@@ -166,9 +166,10 @@ def cleanup(control):
 
 
 class ColdWitness:
-    def __init__(self, binary, assigned_host, forward_port):
+    def __init__(self, binary, assigned_host, forward_port, *, ownership_record=None):
         # The full driver's exact-source build/image producer gate is separate.
         self.binary, self.host, self.forward_port = Path(binary), assigned_host, forward_port
+        self.ownership_record = None if ownership_record is None else Path(ownership_record)
         self.control = None
 
     def __enter__(self):
@@ -187,6 +188,17 @@ class ColdWitness:
         self.control.mkdir(mode=0o700)
         owned_control(self.control)
         try:
+            if self.ownership_record is not None:
+                owner = self.ownership_record.parent
+                info = owner.lstat()
+                if (owner != owner.resolve(strict=True) or owner.parent != self.control.parent
+                        or re.fullmatch('nethub-cold-recovery-[a-f0-9]{16}', owner.name) is None
+                        or self.ownership_record.name != 'witness.json' or info.st_uid != 0
+                        or not stat.S_ISDIR(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o700):
+                    raise WitnessError('Independent parent cleanup ownership record refused')
+                # The outer guard learns this namespace BEFORE any CA resource
+                # or service is created, including a failed witness startup.
+                write_json(self.ownership_record, {'version': 1, 'control': str(self.control)})
             for unit in (self.service + '.service', self.guard + '.service', self.guard + '.timer'):
                 if property_value(self.control, unit, 'LoadState') != 'not-found':
                     raise WitnessError('New witness unit identity already exists')
