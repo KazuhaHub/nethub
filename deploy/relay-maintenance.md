@@ -50,16 +50,22 @@ sudo journalctl -u nethub-relay-maintenance.service
 Renewal uses at most 30 days of lead, bounded by one third of the actual leaf
 lifetime. A near-expiry authority is reported separately. The timer cannot
 extend a CA-clamped leaf indefinitely: authority rotation requires a separate
-trust transition and remains unfinished.
+trust transition through the
+[protected authority operation](relay-authority-operations.md).
+Controlled native switch and retirement have
+[their own measurements](validation-relay-authority-native.md); the renewal
+timer does not initiate an authority transition.
 
 Private state and complete generation snapshots live under
 `secrets/issuer/maintenance` with root ownership. The journal is machine-written;
 manual JSON edits, duplicate fields, corrupt material and linked paths are
-rejected. It records separate issued/applying/rollback/waiting/exhausted phases,
+rejected. It records idle, issued, applying, rollback, waiting, exhausted,
+recovery-failed and replacing phases,
 fixed diagnostics, public fingerprints, expiry and attempt timing. It contains
 no PEM or private key. The PEM snapshots beside it remain private.
 
-Three automatic attempts reuse the same issued generation, with durable backoff.
+Three automatic application attempts reuse the same valid issued generation,
+with durable backoff.
 After investigating a failed deployment, an explicit root retry can bypass the
 pending wait or reset an exhausted budget:
 
@@ -68,11 +74,16 @@ sudo /usr/local/libexec/nethub certificates maintain-relay \
   --directory /srv/nethub-deployment --project-name nethub --retry
 ```
 
-This reuses valid issued material and can restart that explicitly requested
-pending generation. It does not silently reissue an expired candidate or replace
-an expired CA. Preserve the private journal/generations for investigation before
-operator recovery. Automated CA rotation/recovery and a first-class expired-job
-replacement operation remain pending; do not claim those from same-root renewal.
+A retry reuses a valid candidate and can restart the explicitly requested
+pending generation. If that candidate has expired while the authority can
+still issue an extended leaf, maintenance durably replaces it and retains the
+superseded generation. An ordinary scan does not bypass an exhausted or
+recovery-failed budget or restart an intentionally stopped service; those
+cases require the explicit retry. An expired authority remains a refusal.
+Preserve the private journal and generations before operator recovery.
+[Acceptance and limits](validation-relay-maintenance.md) cover expired-candidate
+replacement; they do not establish automatic CA rotation or recovery from an
+expired authority.
 
 On success the recorded fingerprint was seen in a fresh verified connection.
 `recovery_milliseconds` measures the command's recreation/verification interval
@@ -81,6 +92,10 @@ application cannot reconstruct the earlier outage. Genuine deployment acceptance
 also measures both real frpc tunnels becoming usable again; neither measure is a
 guarantee for another network or a claim of seamless renewal.
 
-Authenticated trust distribution/ACK and OPNsense GUI ACME installation/renewal
-remain separate required work. Console certificates stay with the selected
-reverse proxy.
+Authenticated trust distribution and confirmation have separate
+[native recovery evidence](validation-relay-authority-native.md). OPNsense GUI
+issuance, installation and renewal are covered by the
+[combined W4 certificate record](validation-native-public-certificate.md),
+which preserves the private-CA scope of renewal and fault tests. Console
+certificates stay with the selected reverse proxy. Public/mobile and release
+acceptance remain separate.
