@@ -30,8 +30,8 @@ before the planned reload. No application/grant row was inserted to bypass these
 checks, and no device was revoked to satisfy retirement. Original authority was
 then republished and synchronized through the same barriers.
 
-The same complete run continued through shared-token cutover, both existing
-interruption cases, current-key/full-database/six-service recovery on a distinct
+The complete run also covered both existing interruption cases and shared-token
+cutover, followed by current-key/full-database/six-service recovery on a distinct
 empty Ubuntu 24.04 guest, genuine native Remove and the complete Compose tail.
 Original services stayed stopped through target verification. The retained native
 and witness routes recovered without requested client restart, Rotate or enrollment
@@ -60,7 +60,7 @@ OPNsense 26.7.8_2, frpc 0.71.1 built by Go 1.26.10. The combined run's exact arc
 both logs, eleven image hashes/eight unique actual views, guest exit zero and owned
 cleanup were checked. Recovered positive views match their reviewed counterparts.
 The Remove footer clips lower controls; DOM/database/XML/service/route checks
-independently prove removal. This hosted guest uses 3 GiB; earlier 1 GiB lab
+independently prove removal. The hosted OPNsense guest uses 3 GiB; earlier 1 GiB lab
 measurements retain their own recorded resource deviation.
 
 Earlier failures remain failed. Source7 stopped at `pending_trust` with
