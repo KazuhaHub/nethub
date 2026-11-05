@@ -14,8 +14,8 @@ W5–W7 remain incomplete; there is no production release. See
 
 **Before you self-host, you will need:** a domain name you control DNS for, a
 **wildcard DNS record** (`*.router.example.com` → your relay server's public
-IP), and a relay server reachable from the public internet on ports **443**,
-**7000** and **8443**. There is no hosted option and no shortcut around this —
+IP), and a relay server reachable from the public internet on **80/443**,
+**7000** and **8443**. Port 80 serves HTTP-01 validation for device GUI certificates. There is no hosted option and no shortcut around this —
 see [Requirements](#requirements) for the full list.
 
 - [What v1 is designed to do](#what-v1-is-designed-to-do)
@@ -117,7 +117,7 @@ Accepted workflows and remaining validation are listed under [Project status](#p
 |           | ───────► |      (vhostHTTPSPort)      | ───────► |    -> 127.0.0.1:443    |
 |           | ◄─────── |    SNI passthrough only    | ◄─────── |   (OPNsense webGUI)    |
 +-----------+          +----------------------------+          +------------------------+
-                                      │  Login / NewProxy checks
+                                      │  Login / NewProxy / NewUserConn / Ping checks
                                       ▼  (httpPlugins, internal network)
                   +--------------------------------------+
                   |           Go control plane           |
@@ -182,14 +182,15 @@ Self-hosting NetHub means having, before you start:
 1. **A domain name** you control DNS for.
 2. **A wildcard DNS record**: `*.router.example.com` → your relay server's
    public IP (e.g. `203.0.113.10`).
-3. **A relay server reachable from the public internet** with three ports
+3. **A relay server reachable from the public internet** with these ports
    open:
+   - **80** — HTTP-01 validation for device GUI certificates, plus Caddy's HTTP listener;
    - **443** — Caddy: the web console and the device enroll API;
    - **7000** — `frps` `bindPort`: the device control channel (TLS);
    - **8443** — `frps` `vhostHTTPSPort`: browser to device, SNI passthrough.
 
-   Everything else (the `frps` admin API, the `nethub authz` plugin endpoint,
-   Postgres) stays on the internal Docker network and is not published.
+   The `frps` admin API binds the deployment's private edge gateway. The
+   authz hook and Postgres use private Docker networks; none is a public listener.
 4. **Docker and Docker Compose** on that server.
 
 There is no hosted option. If you don't want to run a server, see
