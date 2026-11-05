@@ -15,10 +15,12 @@ assert.equal(typeof expectedSuccess, 'boolean');
 assert.ok(config.action === 'rotate' || expectedSuccess);
 const label = config.label ?? config.action;
 assert.ok(['enroll', 'rotate', 'rotate-lost', 'rotate-recovered',
-  'rotate-save-failed', 'rotate-save-recovered', 'rotate-shared', 'remove'].includes(label));
+  'rotate-save-failed', 'rotate-save-recovered', 'rotate-shared',
+  'rotate-publication-unavailable', 'rotate-publication-conflict', 'rotate-publication-recovered', 'remove'].includes(label));
 assert.equal(label === 'enroll', config.action === 'enroll');
 assert.equal(label === 'remove', config.action === 'remove');
-assert.equal(expectedSuccess, !['rotate-lost', 'rotate-save-failed'].includes(label));
+assert.equal(expectedSuccess, !['rotate-lost', 'rotate-save-failed',
+  'rotate-publication-unavailable', 'rotate-publication-conflict'].includes(label));
 let browser;
 let phase = 'private_gui_login';
 try {
@@ -63,6 +65,9 @@ try {
   } else if (expectedSuccess) {
     assert.equal(result.phase, 'applied');
     await page.locator('#nethubRotationResult').filter({ hasText: 'Credentials rotated' }).waitFor();
+  } else if (label === 'rotate-publication-conflict') {
+    assert.equal(result.phase, 'trust_changed');
+    await page.locator('#nethubRotationResult').filter({ hasText: 'Relay trust changed' }).waitFor();
   } else {
     assert.equal(result.phase, 'error');
     await page.locator('#nethubRotationResult').filter({ hasText: 'Rotation response unavailable' }).waitFor();
