@@ -115,7 +115,12 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 - 控制台支持多个用户（`admin` / `member` 两种角色，邀请制），可以用本地密码、OIDC 或 SAML 单点登录（可以配多个身份提供方）；
 - 可以撤销设备、本地有熔断开关。
 
-**v1 明确不做：** 读取或修改路由器配置（`config.xml`）、批量升级、监控指标、OpenWrt/VyOS 支持。
+**v1 scope boundary:** no general device configuration/command API, fleet
+upgrades, general device monitoring, or OpenWrt/VyOS agent. The plugin manages
+its own tunnel/settings and bounded GUI certificate application, which can
+update native configuration and reload the GUI. Per-device public certificates,
+automatic installation and renewal are confirmed v1 scope. Approximate monthly
+tunnel totals and usage warnings are implemented; they are not billing metrics.
 
 ### 1.3 架构
 
@@ -138,16 +143,22 @@ NetHub 的做法是：在路由器上装一个插件，让路由器主动连到�
 | Caddy | 公网 443 的反向代理，自动申请证书 | 只写配置 |
 | Postgres 16 | 数据库 | 写表结构和权限 |
 
-公网端口一共三个：**443**（控制台和设备 enroll 接口）、**7000**（设备到 frps 的控制通道）、**8443**（浏览器到设备）。
+The bundled public listeners are TCP **80/443** for Caddy and HTTP-01 validation,
+**7000** for the device control channel and **8443** for browser passthrough.
+Device GUI HTTP-01 issuance requires its reviewed port-80 publication route;
+initialization does not provision the GUI issuer automatically.
 
 ### 1.4 Initial state (2026-10-17; historical)
 
-Current update (2026-10-21): Kazuha explicitly requested public visibility.
+Current update (2026-11-05): Kazuha requested public visibility on 2026-10-21.
 The repository is public; authenticated and anonymous GitHub API checks agree.
 Main protection now requires a PR and all six current CI jobs, including for
-administrators. W4 certificate automation and W5-W7 acceptance remain incomplete;
+administrators. The [combined W4 lab checkpoint](../deploy/validation-native-public-certificate.md)
+passed within its recorded public/native and private-CA fault scope. Public
+renewal was not waited out; the accepted 1 GiB deviation and unsigned development
+package remain. W5-W7, disclosure and formal release acceptance are incomplete;
 public visibility does not establish release readiness. See HANDOFF_PROMPT.md
-and the stage validation records for implementation evidence.
+and the stage validation records for current implementation evidence.
 
 - 只有文档和一套验证工具，**一行产品代码都没有**；
 - GitHub 仓库 <https://github.com/KazuhaHub/nethub> 已于 2026-10-17 建好，**私有**。第一次提交 `f529e1d`（包含全部现有文档）和之后的状态更新都已推送到 `main`；`main` 还没有分支保护和 CI；
@@ -160,8 +171,8 @@ and the stage validation records for implementation evidence.
 | `README.md` | 项目对外介绍 | 第一天 |
 | `docs/DESIGN.md` | 完整设计（中文），21+2 条架构决策、数据模型、安全设计、MVP 计划、待定问题 | 第一天读 §0–§2，之后每个阶段开始前读对应章节 |
 | `docs/PLAN.md` | 本文件 | 一直 |
-| `docs/threat-model.md` | 威胁模型初稿（英文） | W3 前、W7 |
-| `docs/console-api.md` | 控制台 API 草稿（英文） | W3 前、W6 前 |
+| `docs/threat-model.md` | Source/evidence-reviewed threat model; runtime/operator/release limits remain | W3 前、W7 |
+| `docs/console-api.md` | Current console API reference (English) | W3 前、W6 前 |
 | `docs/README.zh-CN.md` | README 的中文版 | 第一天 |
 | `weekend0/RUNBOOK.md` | W0 的操作手册，非常详细 | W0 开始前通读两遍 |
 | `weekend0/results-template.md` | W0 结果记录模板 | W0 期间 |
@@ -202,7 +213,7 @@ and the stage validation records for implementation evidence.
 | D19 | 路由器上的插件怎么知道控制台地址：enroll 页面多一个"控制台地址"输入框，还是把地址编进 enroll token 里 | W4-1 之前（协议里要写清楚） | W4 | 无，Kazuha 定 | Confirmed 2026-10-18: separate HTTPS console address input; keep the opaque enrollment token. See w4-decisions.md. |
 | D20 | 打包仓库里的现有插件文件能不能直接复制进 NetHub。打包仓库的根许可证是 MIT，而且有其他版权人；NetHub 要保持单一版权的 Apache-2.0（DESIGN §2） | W1 开始前 | W1、W2 | 只当结构参考、自己重写；确实要复制某个文件前，先问 Kazuha 那个文件是谁写的（本计划建议） | Confirmed 2026-10-18: independently write NetHub files; reference structure only, no third-party copying. Omit kazuha.sh mirror. |
 | D21 | 要不要注册 `newwanip` 钩子：DESIGN 决策 #17 要求注册（带防抖），但打包仓库的 `os-frp` 故意不注册，理由是 frpc 自己会重连，WAN 地址变化时重启反而会断掉正常的隧道 | W2-6 之前 | W2 | 无，Kazuha 定（看 `os-frp` 的 `frp.inc` 里那段注释） | Confirmed 2026-10-18: do not register newwanip; use frpc reconnect and periodic reconcile. W2 must measure recovery after a real WAN address change; if automatic recovery fails, switch to the debounced hook in DESIGN #17. |
-| D22 | 设备到中继 7000 端口的控制通道怎么做服务端认证（DESIGN §14 Q10）：frpc 不配 CA 时根本不校验 frps 的证书，路径上的中间人能截下 domain claim | W2-3 写模板之前定方向，W4 enroll 之前定细节 | W2、W4 | `nethub init` 生成部署 CA、给 frps 签长期证书 + enroll 响应下发 CA 证书（PEM）+ 模板写 `transport.tls.trustedCaFile`（DESIGN Q10） | Confirmed direction 2026-10-18: deployment CA, relay server certificate, device trustedCaFile and serverName; keep the CA private key outside runtime containers. On 2026-10-18 Kazuha required automatic renewal/distribution/configuration, referenced PSP, selected option 2, including router GUI certificate issuance, installation and renewal in v1 (scope record corrected 2026-10-19). Console TLS belongs to the reverse proxy. Implementation details: certificate-automation.md; not yet implemented. |
+| D22 | 设备到中继 7000 端口的控制通道怎么做服务端认证（DESIGN §14 Q10）：frpc 不配 CA 时根本不校验 frps 的证书，路径上的中间人能截下 domain claim | W2-3 写模板之前定方向，W4 enroll 之前定细节 | W2、W4 | `nethub init` 生成部署 CA、给 frps 签长期证书 + enroll 响应下发 CA 证书（PEM）+ 模板写 `transport.tls.trustedCaFile`（DESIGN Q10） | Confirmed direction 2026-10-18: deployment CA, relay server certificate, device trustedCaFile and serverName; keep the CA private key outside runtime containers. On 2026-10-18 Kazuha required automatic renewal/distribution/configuration, referenced PSP, selected option 2, including router GUI certificate issuance, installation and renewal in v1 (scope record corrected 2026-10-19). Console TLS belongs to the reverse proxy. Implemented with scoped W4 lab acceptance; see [certificate design](certificate-automation.md) and [native/public evidence](../deploy/validation-native-public-certificate.md). Production recovery, sizing and release gates remain open. |
 
 ---
 
@@ -1941,18 +1952,26 @@ npm run build
 
 **Docker Compose**
 
+Run these commands from the acknowledged generated deployment directory, using
+its reviewed Compose files and project. The Web image is distroless; use its
+explicit private loopback health command below for readiness inspection.
+
 ```bash
 docker compose up -d
 docker compose ps
 docker compose logs -f nethub-authz
-docker compose exec nethub-web sh
+docker compose exec -T nethub-web /nethub doctor --health-url http://127.0.0.1:8080/healthz
 docker compose down                 # 加 -v 会删数据卷，慎用
 ```
 
 **Postgres**
 
+For trusted host-administrator inspection, use the container's local socket.
+The generated deployment does not publish host TCP 5432. This is separate from
+the restricted application roles used by Web and the backup worker.
+
 ```bash
-psql "postgres://nethub_web@127.0.0.1:5432/nethub"   # 密码从本地密钥文件读，不要写进命令历史
+docker compose exec postgres psql -U postgres -d nethub
 \dp devices                          # 看这张表的权限
 \d devices                           # 看表结构
 ```
