@@ -17,6 +17,7 @@ import uuid
 
 from guest import GuestError, invoke
 from rotation_recovery import exercise_response_loss, exercise_save_interruption
+from trust_publication_recovery import exercise_publication_conflict
 from shared_token import exercise_shared_token
 
 
@@ -421,6 +422,15 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     if fixture('inspect', host=host) != checked:
         raise GuestError('Unknown commit recovery changed native GUI identity or checks')
 
+    publication_conflict, publication_credentials = exercise_publication_conflict(
+        guest, stage, project, compose, page_action, native_read, sql, route, request,
+        device, stable_query, grants_query, check_rotation_unavailable)
+    if (survivor.poll() is not None or not survivor_route()
+            or not original_survivor.issubset(survivor_sockets())
+            or fixture('inspect', host=host) != checked):
+        raise GuestError('Trust publication recovery changed the GUI or independent control')
+    private_json(evidence / 'installed-trust-publication.json', publication_conflict)
+
     def refresh_incident_witness(replacement):
         nonlocal survivor
         stop_survivor()
@@ -451,7 +461,8 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     native_log_path.write_bytes(native_logs)
     native_log_path.chmod(0o600)
     for value in (token, before['device_secret'], after['device_secret'], before['frp_token'],
-                  before['domain_claim'], after['domain_claim'], *recovery_credentials, *received_credentials, *incident_credentials):
+                  before['domain_claim'], after['domain_claim'], *recovery_credentials, *received_credentials,
+                  *publication_credentials, *incident_credentials):
         if value.encode('ascii') in native_logs:
             raise GuestError('Native runtime log disclosed a credential')
     # Later authority tests own the two original device assignments. Remove the
@@ -488,6 +499,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
               'unknown_committed_response_recovery': recovered,
               'received_assignment_save_recovery': received,
               'interrupted_native_recovery_acceptance': True,
+              'installed_trust_publication_conflict_recovery': publication_conflict,
               'shared_token_incident_native_recovery': shared_token,
               'fixture_removed_through_native_page': True,
               'removed_fixture_revoked_model_cleared_service_stopped_route_closed': True,

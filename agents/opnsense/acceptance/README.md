@@ -36,6 +36,22 @@ relay recovery remain separate acceptance work.
 
 ## Combined installed-device acceptance
 
+The installed publication-conflict case is implemented but has no accepted run
+yet. It prepares and verifies an independent authority backup through the
+protected CLI, then publishes an old/new overlap with the normal compare-and-swap
+operation while the original relay leaf remains active. A real native page
+action against a scoped unavailable rotation endpoint must retain a prepared
+journal without a server commit. The scheduled trust action must leave that
+journal, model and application receipt unchanged. A verified old-credential
+request must receive the exact trust-conflict 409; the native page must discard
+only that uncommitted operation. Normal trust synchronization and a fresh page
+rotation must then produce one distinct committed operation and audit, retain
+identity/grants/GUI policy and recover the original verified route. A second
+protected publication restores the original authority before the remaining
+fixture tail. The independent witness, normal Remove and full Compose cleanup
+remain required. This does not establish an authority switch, durable off-host
+custody, later-publication committed replay or public-network acceptance.
+
 `native-enrolled.yml` waits for a successful six-job CI run for its exact PR source
 before allocating a fresh guest. A separate image-gate job bounds that wait;
 the existing CI deadline remains unchanged. Manual dispatch can also name the
