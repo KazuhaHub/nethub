@@ -193,9 +193,17 @@ the target and starts the stock timers with their original enabled intent.
 Private exports use exact names, bounded sizes, single-link root-owned files
 and readback hashes; operational state is not a public artifact.
 
-These helpers have local admission tests only. The combined driver, independent
-cleanup guard, real source shutdown, native confirmation and hosted execution
-are not complete. Their results explicitly refuse complete recovery acceptance.
+`cold_witness.py` owns the independent CA process in a nonce-specific systemd
+service and arms a separate cleanup timer before launch. Cleanup verifies the
+resource label, image and private binding before deleting a CA container/network;
+foreign state is preserved. Failed cleanup keeps the guard armed. The test
+process remains loaded after successful exit until its result is checked, so
+systemd's transient-unit collection cannot erase its exit evidence.
+
+These helpers and the guard have local admission tests only. The combined driver,
+real source shutdown, native confirmation and hosted execution are not complete.
+Actual guard expiry and resource cleanup still need hosted execution. Their
+results explicitly refuse complete recovery acceptance.
 Resuming an original queued initial request would establish initial issuance
 after restoration, not a renewal-clock test. Public operator acceptance and
 durable encrypted off-host custody remain separate requirements.
