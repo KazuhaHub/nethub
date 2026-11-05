@@ -8,7 +8,7 @@ one bounded HTTP-01 challenge on an approved HTTPS origin. The key authorization
 is derived from the persisted account key; no arbitrary response body is accepted.
 It publishes nothing and accepts no challenge by itself.
 
-Before `AcceptHTTP01`, the future durable worker must reauthorize the live
+Before `AcceptHTTP01`, the durable worker must reauthorize the live
 tenant/device/assignment and publish the exact response through the isolated
 publisher. This package does not establish those preconditions or replace the job
 journal. Acceptance reloads the order and authorization, compares the saved
@@ -21,15 +21,17 @@ untrusted CA diagnostics never leave this boundary.
 Each operation shares one 45-second account lease/SDK lifetime. It cannot create
 or repair an account, replace the order, wait indefinitely or accept an arbitrary
 URL. A lost acceptance reply can recover the existing processing challenge without
-reposting. If the CA still reports pending, a future durable retry policy must
+reposting. If the CA still reports pending, the caller's durable retry policy must
 bound another acceptance of that same challenge; exactly-once POST is not claimed.
 Keep publication until validation has completed, then remove its owned generation.
 
 TLS/JWS fixtures exercise preparation without acceptance, exact-publication
 correlation, changed order/authorization/challenge rejection, duplicate or missing
 HTTP challenges, invalid tokens/origins/errors, already valid authorization and
-lost/changed acceptance responses. Finalization, certificate fetching, queue/API
-wiring and native installation remain separate work.
+lost/changed acceptance responses. [Finalization](FINALIZATION.md),
+[queue/host integration](../guiissuer/HOST.md) and
+[native application](../../../deploy/validation-native-public-certificate.md)
+have separate contracts and evidence; these challenge fixtures do not establish them.
 
 The focused genuine Pebble/Caddy fixture passed in 4.71 seconds: an unpublished
 response returned 404, the exact durable response was served only for its host,

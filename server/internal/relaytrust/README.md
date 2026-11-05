@@ -23,9 +23,10 @@ Application roles cannot inspect the switch history or resolve the fence.
 
 This is a database coordination primitive. It does not perform host file changes,
 restart frps, independently observe TLS, migrate the authority manifest/backup,
-quarantine offline devices, or expose an activation command. A future protected
-coordinator must durably journal its writes, verify the actual served leaf and
-recover/roll back host state before submitting a terminal report. Database fixture
+quarantine offline devices, or expose an activation command. The separate
+[protected authority coordinator](../../../deploy/relay-authority-operations.md)
+journals its writes, verifies the actual served leaf and recovers/rolls back host
+state before submitting a terminal report. Database fixture
 reports are not evidence that a real appliance installed overlap trust.
 
 ## Protected host commands
@@ -146,14 +147,19 @@ transaction, then checks the token with `FOR UPDATE NOWAIT`. Its unused value
 and immediately available row lock prove admission has not consumed or locked
 the token while waiting; an MVCC read of the value alone would not establish it.
 
-The configured bootstrap CA must still be valid for service construction/health
-and the existing signing checks. Startup authority migration and expiry recovery
-remain separate work; current enrollment delivery alone does not complete root
-rotation. Protocol1.5 now exposes authenticated current settings and application
-reports; see proto/RELAY_TRUST.md. There is no automatic startup publication or
-native reconciliation yet. Repository tests simulate authenticated
-application reports; they do not establish an appliance applied trust. The
+With a published head, service startup/health independently validate that current
+generation rather than requiring an expired bootstrap root to remain valid.
+Only an uninitialized head may use currently valid bootstrap trust; an unavailable
+or invalid initialized head cannot fall back. See the
+[device runtime](../device/README.md). Current enrollment delivery alone does not
+complete root rotation. Protocol 1.5 exposes authenticated current settings and
+application reports; see the [wire and native contract](../../../proto/RELAY_TRUST.md).
+Publication remains an explicit host operation. Native journaled application and
+scheduled reporting have separate [runtime evidence](../../../deploy/validation-relay-authority-native.md).
+Repository tests simulate authenticated application reports; they do not establish
+that an appliance applied trust. The
 all-reported retirement test advances database public metadata, not relay
-certificates or the protected deployment authority. Public delivery/protocol,
-applied-file verification, offline quarantine/recovery and authority-switch
-integration still require separate implementation and acceptance.
+certificates or the protected deployment authority. Keep public delivery,
+applied-file verification and authority-switch evidence separate from these
+database assertions. There is no automatic offline-device quarantine bypass;
+public/operator, complete restoration and release gates remain open.

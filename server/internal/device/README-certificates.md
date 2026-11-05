@@ -32,12 +32,14 @@ settings, signed CSR admission, exact retry/recovery, changed signatures, wrong
 SANs and rejection after revocation. Public Go/Python message examples are shared
 with the protocol schema suite; their throwaway signing key is not retained.
 
-This boundary enables request admission only. Default Compose settings do not yet
-enable it. The installed native package is unchanged; agent wire helpers are not
-connected to reconcile or a configd action. Durable issuer jobs, account policy,
-HTTP-01 publication, certificate delivery, protected local-cache recovery and
-native GUI installation/rollback remain separate integration work. No CA is
-contacted and no private device key is uploaded by these routes.
+These routes provide request admission; they do not themselves contact a CA or
+upload a private device key. The current deployment enables this boundary and
+connects it to durable jobs, authenticated delivery and the native agent.
+Account/policy provisioning and HTTP-01 publication run on a separately configured
+protected host. The [combined W4 record](../../../deploy/validation-native-public-certificate.md)
+covers genuine public issuance and native application; renewal/fault cases retain
+their private-CA scope. Ordinary init does not provision that issuer, and these
+admission tests alone do not prove installation, renewal or complete restoration.
 
 
 Protocol 1.4 adds authenticated `POST /api/v1/devices/gui-certificate/applied`.

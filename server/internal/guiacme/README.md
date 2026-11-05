@@ -5,8 +5,10 @@ for account lookup and registration. It does not implement its own JWS protocol.
 It is an issuer component, not an application service or a public API endpoint.
 
 The caller must durably store its P-256 account key in protected issuer state
-before constructing a client. This package never creates, replaces or writes that
-key. Each operation discovers the directory and looks up the same key first.
+before constructing the low-level `Client`. That client never creates, replaces
+or writes the key; the separate `AccountStore` has explicit initialization and
+persistence operations. Each client operation discovers the directory and looks
+up the same key first.
 After a lost registration response, another operation can recover the existing
 account. A known account URI must match exactly; a missing, deactivated, revoked
 or changed account cannot trigger silent replacement. Successful account metadata
@@ -42,7 +44,7 @@ there is no insecure mode. Account keys and custom root pools are snapshotted.
 Each operation has a 45-second deadline, including waiting for the per-client
 account gate. Requests have bounded dial/handshake/header/body timeouts, a 64 KiB
 response-header limit and a 128 KiB fully consumed response-body limit. Compressed
-responses are rejected. SDK retries are disabled: a future durable scheduler owns
+responses are rejected. SDK retries are disabled: the durable issuer caller owns
 retry timing and budgets. Errors expose fixed categories, not CA response content,
 request URLs, account identities or submitted tokens.
 
@@ -59,7 +61,9 @@ verified backup and current-terms consent; see [the workflow](PROVISIONING.md).
 `CurrentTerms` performs fresh bounded directory discovery without lookup,
 registration, key initialization or fetching/rendering the agreement itself.
 Issuance authorization, durable jobs, HTTP-01 execution and authenticated delivery
-have separate integration evidence; combined native/public application acceptance
-remains outstanding.
+have separate integration evidence in the [host worker](../guiissuer/HOST.md).
+Subsequent [native/public lab acceptance](../../../deploy/validation-native-public-certificate.md)
+records the integrated W4 scope; it does not make these TLS protocol fixtures
+native installation evidence or complete cold-host recovery and release gates.
 The existing `guicert` and `http01` packages provide separate request,
 chain and publication checks; none of those checks alone authorize issuance.

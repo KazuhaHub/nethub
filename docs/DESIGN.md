@@ -760,9 +760,14 @@ v0.3 的"只追加"授权让误操作更难，但不改变这个结论。
 
 1. 一个域名，且能配 DNS 记录；
 2. 一条**通配符 A/AAAA 记录** `*.router.example.com` → 中继服务器 IP（subdomain-per-device 的硬前提）；
-3. 服务器的 **443**（控制台 + 设备 enroll API）、**7000**（frps `bindPort`，设备控制通道，TLS）与
-   **8443**（vhost-https，浏览器 → 设备）可从公网访问；
-4. v1: protected DNS-provider API credentials for per-device DNS-01 issuance; keep these outside device agents and ordinary application responses.
+3. Public TCP **80/443** for the bundled reverse proxy and device GUI HTTP-01
+   validation, **7000** for the frps TLS control channel and **8443** for relayed
+   GUI TLS. An external proxy must preserve the reviewed port-80 challenge route;
+4. A separately provisioned protected-host issuer, durable account/policy and
+   publication state, and its scoped helper/service installation. Ordinary init
+   does not provision this automation. The implemented flow uses HTTP-01;
+   DNS-provider credentials are not a prerequisite for that flow. Keep issuer
+   private state outside device agents and ordinary application responses.
 
 ### `nethub init` 交互式向导（`nethub` 二进制的子命令，Weekend 3 就要有雏形）
 
@@ -1193,7 +1198,7 @@ CA 私钥只进部署者的密钥备份、不挂进任何容器（决策 #21 新
 - **调研过程中网络检索配额中途耗尽**，以下结论可信度较低、使用前请自行复核：
   爱快云的内部协议细节（唯一来源是一篇 2022 年的第三方抓包博客，非官方规范）、
   部分竞品的定价数字、部分中间件的性能基准数字、以及许可与商业模式那一路调研（这一路调研没有产出）。
-- W0 verified the observed hook inputs and fail-closed outcomes; see the accepted report and observed-field notes. Product authorization remains unimplemented.
+- W0 verified the observed hook inputs and fail-closed outcomes; see the accepted report and observed-field notes. Product authorization and source-IP admission are now implemented; current evidence and remaining public/operator limits are tracked in the [threat model](threat-model.md).
 - W0 coverage is limited to owner-attested A/B mobile networks; locations and carrier names were not recorded. No region-wide or company/campus reachability claim follows from those samples.
 
 ### v0.3 补充说明

@@ -1,9 +1,9 @@
 # Clean-host recovery drill
 
 The combined hosted flow passed its
-[source23 checkpoint](../../../deploy/validation-clean-host-restore.md), including
+[merged PR #194 integration](../../../deploy/validation-clean-host-restore.md), including
 current-key/database recovery and both retained source-host TLS routes. Later
-integration revisions still need their own required checks. This isolated
+changes still need their own required checks. This isolated
 fixture does not complete W7-5, a public operator drill, protected-host issuer
 restoration or durable off-host backup custody.
 

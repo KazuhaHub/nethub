@@ -10,7 +10,7 @@ Pending/processing orders return a fixed not-ready result without submitting a
 CSR. A ready order submits the original DER through the SDK under the shared
 45-second account lease. An already valid order fetches its existing certificate
 without submitting again. Lost finalize/download replies can therefore recover
-the same known order. If an ambiguous operation is still ready, a future durable
+the same known order. If an ambiguous operation is still ready, the caller's durable
 attempt policy must bound another submission; exactly-once HTTP is not claimed.
 
 After download, the client rechecks the original order, hostname, CSR fingerprint,
@@ -47,7 +47,10 @@ no system trust store changes. This test CA and its roots are never production
 trust. Independent cleanup removed both containers, network and all temporary
 keys before cancelling the guard. Original public services remained running.
 
-No native GUI certificate was installed. Durable jobs, live assignment/API wiring,
-authenticated delivery, renewal scheduling and native application/rollback remain
-open. Local proof does not replace the six required exact-head hosted checks
-and inspection of their actual logs.
+This fixture installed no native GUI certificate. Durable jobs, live
+assignment/API wiring and delivery belong to the [host worker](../guiissuer/HOST.md);
+renewal has a [separate fixture](RENEWAL.md). Later
+[native/public lab acceptance](../../../deploy/validation-native-public-certificate.md)
+does not turn this finalization test into appliance evidence or complete
+cold-host recovery and release requirements. Keep the six required exact-head
+hosted checks and inspection of their actual logs.

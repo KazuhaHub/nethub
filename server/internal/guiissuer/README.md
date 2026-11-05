@@ -148,10 +148,14 @@ in this test; it does not measure production recovery latency or replace device
 enrollment acceptance. Its separate tenant is created after ordinary deployment
 bootstrap/browser/relay checks, and all fixture state is destroyed at teardown.
 
-These components do not configure an account, start a scheduler/host command,
-deliver a chain or change a device. Protected host configuration/scheduling,
-independent proof expiry cleanup, verified native application and retrying
-deployment of the same issued generation remain separate integration work.
+These queue/coordinator functions do not provision an account, install a host
+scheduler or change a device. The [host worker](HOST.md) and
+[account commands](../guiacme/PROVISIONING.md) implement their own operational
+boundaries; host issuance requires separate independent proof cleanup. Subsequent
+[native/public lab acceptance](../../../deploy/validation-native-public-certificate.md)
+records verified application separately. Neither this coordinator's recovery
+fixture nor that checkpoint establishes complete cold-host issuer restoration,
+durable off-host custody or a signed production release.
 
 Fresh bootstrap creates the reserved no-login role. Migration remains compatible
 with a disabled legacy deployment where that role is absent; enabling an issuer

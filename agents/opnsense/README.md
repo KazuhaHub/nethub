@@ -11,23 +11,22 @@ agents/opnsense/
   tests/           contract tests against ../../proto/
 ```
 
-> **Status: pre-alpha, native W2 tunnel integration validated.** The plugin includes
-> the model, menu, ACL, service/recovery scheduler and unsigned package tooling.
-> W4 adds verified HTTPS enrollment, private token handoff, model persistence and
-> the enrollment UI; current CI/native end-to-end acceptance remains required.
-> See [W2 evidence](plugin/tests/w2-progress.md) and
-> [W4 progress and limits](plugin/tests/w4-progress.md). Wire contract tests run in
-> both languages. W0 was accepted with recorded limits; no release is published.
+> **Status: pre-alpha with scoped installed acceptance.** The plugin includes
+> verified enrollment, native settings, tunnel/recovery scheduling, GUI certificate
+> automation, relay trust and recoverable credential rotation. See the
+> [plugin guide](plugin/README.md) and [current acceptance records](../../docs/HANDOFF_PROMPT.md).
+> Each record binds its source and environment; changed builds require their own
+> checks. Public/operator W5-W7 and formal release remain incomplete.
 
 ## Why the source lives here and not in the packaging repository
 
-NetHub packages for OPNsense are built, signed, and published by a separate
+The intended formal NetHub packaging flow uses a separate
 repository — `KKazuhaK/OPNsense-repo` — which has a working FreeBSD build,
 signing, and pkg-repository pipeline that would be expensive and pointless to
 reproduce. It is the owner's own fork, developed independently, so there is no
 co-maintainer to coordinate with.
 
-But that repository only carries a **packaging recipe**, not the source:
+The planned integration carries a **packaging recipe**, not duplicate source:
 
 ```
 KKazuhaK/OPNsense-repo/
@@ -35,6 +34,10 @@ KKazuhaK/OPNsense-repo/
   src/os-nethub-agent/build.sh    fetches a tagged NetHub release tarball,
                                   verifies its sha256, stages it into the pkg
 ```
+
+This is the intended release contract, not a completed signed distribution.
+Current development packages use this repository's `plugin/build.sh`; W7 still
+requires the external recipe, signed publication and canary acceptance.
 
 This mirrors what that repository already does for `os-sing-box`, `os-frp`
 and `os-easytier`: it packages upstream software it does not own. From its
@@ -63,24 +66,30 @@ only the release flow is genuinely cross-repository.
 
 The device runs **no NetHub daemon**. The only persistent process is a
 independently packaged, unmodified `frpc` binary. Everything else is a one-shot script
-invoked through OPNsense's `configd`, which is what keeps the agent's
-privileges narrow: the control plane cannot execute arbitrary commands, only
-the actions explicitly registered in `actions_nethub-agent.conf`.
+invoked through OPNsense's local `configd` actions and scheduler. The control plane
+does not receive an arbitrary command endpoint; the adapter validates versioned
+protocol data before its fixed local workflows can change managed state.
 
 The device side stays **Python 3.13 (`agentctl.py`) plus PHP/Phalcon MVC**,
 because OPNsense dictates both. This is separate from the control plane, which
 is Go (see [`server/README.md`](../../server/README.md)); across the project,
-Python is used only for `agentctl.py` and the Weekend 0 `probe.py`.
+Python also implements the agent's bounded protocol, recovery and certificate/trust
+helpers and isolated acceptance tooling; it is not the control-plane runtime.
 
-`agentctl.py` has five subcommands, all idempotent:
+`agentctl.py` exposes these bounded operations. PHP owns native model writes;
+Python requests and validates assignments. Retried mutations retain their durable
+operation state rather than creating another enrollment or candidate:
 
 | Subcommand  | What it does |
 |-------------|--------------|
-| `enroll`    | Exchanges a one-time token for device credentials and a signed domain claim, and writes them to the plugin's settings model. It posts to `/api/v1/devices/enroll` on port 443 (served by `nethub authz`) and validates every returned field against a whitelist before writing it. The relay it then connects to is on port 7000. |
+| `enroll`    | Exchanges a token from a private request file over verified console HTTPS, validates the assignment and returns it to PHP for native persistence. The relay control channel is separately on port 7000. |
 | `reconcile` | Checks the local kill switch first, then renders `frpc.toml` from settings to a temporary file, validates it with `frpc verify` **before** replacing the live file, and restarts the tunnel only if validation passed. If it fails, the old file is kept and nothing restarts. WAN changes rely on frpc reconnect and periodic reconcile. W2 measures recovery; a debounced hook is required only if automatic recovery fails (D21). |
 | `status`    | Reports service state, the tail of the plugin's own `frpc` log, and the last reconcile result — without enabling `frpc`'s `[webServer]` (see below). Whether the device is online is tracked by the control plane separately, as `last_seen_at`. |
-| `unenroll`  | Stops the tunnel, clears credentials, and notifies the control plane so the subdomain is released. |
-| `rotate`    | Pulls fresh credentials or a new relay address in place, without a full re-enrollment. |
+| `unenroll`, `forget` | Revoke/remove the assignment or explicitly forget terminal local state through the guarded native workflow. |
+| `rotate` | Journal one replacement candidate, recover the same operation across interruption and let PHP save the verified assignment. Identity and local policy remain unchanged. |
+| `report` | Send bounded health and learn revocation; reports do not establish relay-observed online state. |
+| `certificate`, `trust` | Independently synchronize and verify GUI certificate or relay trust state under the common mutation lock. |
+| `start`, `stop`, `restart`, `disable`, `enable` | Operate the owned tunnel or local circuit breaker while respecting disabled/revoked/recovery state. |
 
 ## Coexisting with `os-frp`
 
