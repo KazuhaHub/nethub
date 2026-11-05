@@ -4,8 +4,10 @@ The W6 backend implements invitation administration, inspection and local-passwo
 acceptance. Administrators use `/invitations` to page through pending grants,
 create a link and withdraw an invitation. Recipients use `/invite` to inspect a
 grant and set a local password. Provider-bound invitations offer no password
-fallback; their SSO launch controls remain separate W6 work. Combined deployed
-W6 and SSO acceptance remain open.
+fallback. Their [OIDC](oidc-login.md) and [SAML](saml-login.md) launch controls
+use the shared protocol modules. Isolated deployed claims passed with
+[two Dex issuers](validation-two-dex.md) and [Keycloak SAML](validation-keycloak-saml.md).
+Public-provider and complete W6 acceptance remain open.
 
 ## Administration and privacy
 
@@ -37,8 +39,9 @@ appends invitation/login audits. Failure at any step rolls everything back.
 An existing email never attaches an identity or changes an account. Concurrent
 claims of one token or different tokens for one mailbox can create only one new
 account. A provider-bound invitation cannot be claimed with a local password.
-Inspection exposes only enabled provider names, slugs and kinds; SSO remains W6
-work through the approved shared-module boundary.
+Inspection exposes only enabled provider names, slugs and kinds. SSO starts
+through the selected protocol's browser-bound flow; starting it does not
+consume the invitation or bind an account.
 
 Successful acceptance uses the ordinary session/CSRF construction and cookie
 policy. Unknown, used, expired, withdrawn and locally forbidden claims return the

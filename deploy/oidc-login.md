@@ -4,9 +4,11 @@ The backend implements the enabled-provider catalog, Origin-checked start and
 GET callback routes described in the [console API](../docs/console-api.md).
 Protocol processing directly uses `authcore/oidc`; NetHub owns browser binding,
 durable one-use state and account/invitation admission. The sign-in page displays
-enabled OIDC choices alongside local password access. Two-Dex deployment, a
-public provider and SAML admission remain unfinished W6
-work. These backend tests are not combined deployed SSO acceptance.
+enabled OIDC choices alongside local password access.
+[Two-Dex deployment](validation-two-dex.md) provides separate browser and SQL
+acceptance. [SAML admission](saml-login.md) also has an isolated
+[Keycloak deployment record](validation-keycloak-saml.md). These fixtures do
+not establish public-provider or complete W6 acceptance.
 
 The public catalog loads independently of the password form; a catalog failure
 does not prevent local emergency login. Starting SSO requires an explicit click.

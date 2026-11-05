@@ -1,8 +1,10 @@
 # Console user administration
 
 W6 adds administrator-only user listing and role/disable mutations, with a
-management page at `/users`. Invitations and provider login remain unfinished.
-W6 acceptance is not complete.
+management page at `/users`. [Invitations](invitations.md) and provider login
+have separate implementations and isolated [OIDC](validation-two-dex.md) and
+[SAML](validation-keycloak-saml.md) deployment evidence. Public-provider and
+complete W6 acceptance remain open.
 
 `GET /api/v1/console/users` returns a tenant-scoped cursor page without password
 hashes, provider secrets or identity subjects. The projection includes only
