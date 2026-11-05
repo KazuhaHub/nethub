@@ -2,6 +2,13 @@
 set -eu
 umask 077
 
+native_setup_phase() {
+    if [ "${NETHUB_NATIVE_TEST:-0}" = 1 ]; then
+        printf 'NETHUB_NATIVE_PHASE=%s\n' "$1"
+    fi
+}
+native_setup_phase preflight
+
 if [ "$(id -u)" != 0 ]; then
     echo 'Run this isolated Compose acceptance test as root for secret UID checks' >&2
     exit 2
@@ -124,7 +131,6 @@ NETHUB_HTTP01_CADDY_IMAGE="$caddy_image" NETHUB_HTTP01_TEST_BINARY="$stage/http0
 python3 "$root/server/tests/http01-cleanup.py" "$root" "$stage/http01-nethub" \
     "$stage/http01.test" "$stage/http01-cleanup"
 docker pull --platform linux/amd64 "$pebble_image" > "$stage/pebble-pull.log" 2>&1
-native_setup_phase gui_issuer
 native_setup_phase gui_acme_build
 docker build --target guiacme-acceptance -f "$root/deploy/Dockerfile" -t "$guiacme_test_image" "$root" > "$stage/guiacme-build.log" 2>&1
 docker create --name "$guiacme_binary_holder" --network none "$guiacme_test_image" /guiacme.test >/dev/null
@@ -313,8 +319,8 @@ done
 chmod 600 "$stage/provider-key-fixture"
 echo 'Actual web container loaded its generated provider key and refused missing, malformed and unsafe keys without database or network access'
 echo 'Isolated Compose startup completed; creating the initial administrator (90-second deadline)'
-native_setup_phase administrator
 openssl rand -hex 24 > "$stage/admin-password"
+native_setup_phase administrator
 compose_for 90 run --rm -T admin-bootstrap --email compose-admin@example.com --password-stdin < "$stage/admin-password" > "$stage/admin.log" 2>&1
 echo 'Initial administrator created; verifying that repeat initialization is closed'
 repeat_status=0

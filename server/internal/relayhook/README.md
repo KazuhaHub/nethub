@@ -60,12 +60,16 @@ web binary alone does not enable it. The Open UI is implemented; real native sou
 acceptance remains separate W5 work. Missing/expired grants and storage errors
 deny within the existing hook budget.
 
-`Ping` uses only an initialized in-memory revocation set, keyed by tenant and
-device. It still verifies the signed login metadata and trusted socket peer.
-Authz loads the initial set before serving hooks and refreshes it every five
-seconds using a read-only, repeatable-read transaction with tenant-local RLS.
-The existing database grants suffice. Database failures retain the last good set;
-known one-way revocations never disappear after an incomplete read. Login and
+`Ping` uses an initialized in-memory snapshot of revocations and rotated-claim
+issuance floors, keyed by tenant and device. It still verifies the signed login
+metadata and trusted socket peer. Claims older than a known rotation floor are
+denied; rotation alone does not mark a device revoked or complete a revocation
+disconnect request. Authz loads the initial snapshot before serving hooks and
+refreshes it every five seconds through bounded read-only, repeatable-read scans
+with tenant-local RLS. Revocations and rotation floors are read separately within
+the shared refresh budget, not as one cross-query database snapshot.
+Database failures retain the last good snapshot; known one-way revocations never
+disappear and out-of-order reads cannot lower a known issuance floor. Login and
 proxy admission continue to query current database state. Successful Ping decisions
 log at debug level; denials keep the fixed operation/decision log.
 
@@ -76,8 +80,9 @@ is at most one refresh request in flight. Normal database errors do not trigger
 this exit. HTTP draining retains its ten-second bound; observation cleanup and
 database cleanup each wait at most one additional second so an unresponsive
 dependency cannot trap process exit.
-Snapshot reads are limited to 1,024 tenants and 100,000 revoked device
-IDs; exceeding a limit refuses the refresh instead of discarding existing denials.
+Snapshot reads are limited to 1,024 tenants, 100,000 revoked device IDs and
+100,000 rotated-device floors. Exceeding a limit refuses the refresh instead of
+discarding existing denials.
 
 Clients retain the explicit 10-second heartbeat interval and 30-second timeout.
 frp's [Ping handler](https://github.com/fatedier/frp/blob/v0.71.1/server/control.go)
@@ -100,12 +105,14 @@ input, saturation, database deadlines and a real slow-body TCP connection. The
 native PostgreSQL harness adds valid signed-but-stale/wrong assignments,
 revocation/claim changes during observed row-lock waits, and compiled-process
 callbacks, a real 500 ms database lock timeout, recovery, listener separation and
-shutdown. These native cases passed in run 39219581415 on 3c24e5e. Real frps registration and
-tunnel traffic still require W4 deployment acceptance; these tests send callback
-HTTP directly. The additional W5 suite exercises current source grants, role
+shutdown. These native cases passed in run 39219581415 on 3c24e5e; that historical
+suite sends callback HTTP directly. The additional W5 suite exercises current source grants, role
 isolation, expiry during an unchanged row-lock wait, and two actual official
-clients through generated frps. Ping-based interruption and the remaining native
-W5 acceptance are still pending.
+clients through generated frps. Later [installed heartbeat measurements](../../../deploy/validation-native-w5-heartbeat.md)
+record actual outage/recovery and console revocation, including the unresolved
+W0 timing comparison. [Device rotation](../../../deploy/device-rotation.md) records
+the installed credential-cutover scope. These later records do not complete
+the remaining combined public/operator W5 acceptance.
 
 The host-local Compose fixture measures a nonce-bound TCP peer independently of
 its socket bind address. When Docker applies different source translations to

@@ -1,9 +1,11 @@
 """Check cleanup admission without starting Docker or changing host resources."""
 import importlib.util
+import errno
 import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import types
 import unittest
 from unittest.mock import patch
@@ -18,6 +20,32 @@ with patch.dict(sys.modules, modules):
 
 
 class HostFixtureAdmission(unittest.TestCase):
+    def test_launch_permission_failure_retains_phase_without_private_error_text(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            control = Path(temporary)
+            (control / "guiacme.test").write_bytes(b"private fixture executable")
+            error = PermissionError(errno.EACCES, "private host diagnostic", "/private/credential")
+            with patch.object(fixture.subprocess, "Popen", side_effect=error):
+                code, failure, detail = fixture.run_host_process(control, control / "test.log", {})
+            self.assertIsNone(code)
+            self.assertEqual(failure, "PermissionError")
+            self.assertEqual(detail["phase"], "process_launch")
+            self.assertEqual(detail["error_number"], errno.EACCES)
+            self.assertTrue(detail["executable_regular"])
+            self.assertNotIn("private", str(detail))
+            self.assertNotIn(temporary, str(detail))
+            self.assertFalse((control / "process.json").exists())
+
+    def test_unavailable_execution_metadata_does_not_invent_a_filesystem_cause(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            detail = fixture.process_metadata(Path(temporary) / "private-missing", "private-phase",
+                                              RuntimeError("private response"))
+            self.assertEqual(detail["phase"], "unclassified")
+            self.assertEqual(detail["error_number"], "unavailable")
+            self.assertEqual(detail["executable_regular"], "unavailable")
+            self.assertEqual(detail["filesystem_noexec"], "unavailable")
+            self.assertNotIn("private", str(detail))
+
     def test_all_protected_flows_and_their_order_counts_are_required(self):
         lines = [
             "--- PASS: TestPebbleProtectedHostIssuer (12.34s)",

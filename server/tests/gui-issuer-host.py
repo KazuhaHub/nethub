@@ -167,6 +167,51 @@ def acceptance_evidence(code, failure, log, *, diagnostic=False):
     return {"passed": passed, **{key: passed and value for key, value in proofs.items()}}
 
 
+def process_metadata(control, phase, error):
+    phases = {"log_open", "process_launch", "process_identity", "process_record", "process_wait", "process_complete"}
+    result = {"version": 1, "phase": phase if phase in phases else "unclassified",
+              "error_number": "unavailable", "executable_regular": "unavailable",
+              "executable_root_owned": "unavailable", "executable_mode_valid": "unavailable",
+              "executable_single_link": "unavailable", "filesystem_noexec": "unavailable"}
+    number = error.errno if isinstance(error, OSError) else None
+    if type(number) is int and 0 <= number <= 255:
+        result["error_number"] = number
+    try:
+        info = (control / "guiacme.test").lstat()
+        result.update(executable_regular=stat.S_ISREG(info.st_mode), executable_root_owned=info.st_uid == 0,
+                      executable_mode_valid=stat.S_IMODE(info.st_mode) == 0o555,
+                      executable_single_link=info.st_nlink == 1)
+    except OSError:
+        pass
+    try:
+        if hasattr(os, "ST_NOEXEC"):
+            result["filesystem_noexec"] = bool(os.statvfs(control).f_flag & os.ST_NOEXEC)
+    except OSError:
+        pass
+    return result
+
+
+def run_host_process(control, log_path, env):
+    code, failure, error = None, None, None
+    phase = "log_open"
+    try:
+        with log_path.open("wb") as output:
+            phase = "process_launch"
+            process = subprocess.Popen([str(control / "guiacme.test"), "-test.v",
+                "-test.run=^TestPebbleProtectedHost(Issuer(Renewal)?|AccountProvisioning)$", "-test.timeout=180s"],
+                env=env, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
+            phase = "process_identity"
+            start = (Path("/proc") / str(process.pid) / "stat").read_text().split()[21]
+            phase = "process_record"
+            (control / "process.json").write_text(json.dumps({"pid": process.pid, "start": start}))
+            phase = "process_wait"
+            code = process.wait(timeout=210)
+            phase = "process_complete"
+    except Exception as caught:
+        error, failure = caught, type(caught).__name__
+    return code, failure, process_metadata(control, phase, error)
+
+
 def run(args):
     assert os.geteuid() == 0 and Path("/run/systemd/system").is_dir()
     args.evidence.mkdir(mode=0o700, parents=True, exist_ok=False)
@@ -206,17 +251,8 @@ def run(args):
            "NETHUB_GUIACME_TEST_NONCE": nonce, "NETHUB_HOST_ISSUER_BINARY": str(control / "nethub"),
            "NETHUB_HOST_POSTGRES_IMAGE": args.postgres, "NETHUB_HOST_ISSUER_UNIT": str(control / "issuer.service"),
            "NETHUB_GUIACME_PEBBLE_IMAGE": args.pebble, "NETHUB_GUIACME_CADDY_IMAGE": args.caddy}
-    code, failure = None, None
     try:
-        with (args.evidence / "test.log").open("wb") as output:
-            process = subprocess.Popen([str(control / "guiacme.test"), "-test.v",
-                                        "-test.run=^TestPebbleProtectedHost(Issuer(Renewal)?|AccountProvisioning)$", "-test.timeout=180s"],
-                                       env=env, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
-            start = (Path("/proc") / str(process.pid) / "stat").read_text().split()[21]
-            (control / "process.json").write_text(json.dumps({"pid": process.pid, "start": start}))
-            code = process.wait(timeout=210)
-    except Exception as error:
-        failure = type(error).__name__
+        code, failure, process_diagnostic = run_host_process(control, args.evidence / "test.log", env)
     finally:
         restore(control)
         command(["systemctl", "stop", guard + ".timer", guard + ".service"], check=False)
@@ -224,7 +260,8 @@ def run(args):
             assert command(["systemctl", "show", guard + suffix, "--property=ActiveState", "--value"]).stdout.strip() in (b"inactive", b"failed")
     log = (args.evidence / "test.log").read_text()
     evidence = acceptance_evidence(code, failure, log)
-    result = {**evidence, "failure_type": failure, "tested_files_sha256": hashes,
+    result = {**evidence, "failure_type": failure, "host_process_diagnostic": process_diagnostic,
+              "tested_files_sha256": hashes,
               **json.loads((control / "cleanup.json").read_text()), "guard_stopped_after_cleanup": True}
     (args.evidence / "result.json").write_text(json.dumps(result, indent=2))
     assert control.resolve() == control and control.parent == Path("/run")
