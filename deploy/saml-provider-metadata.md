@@ -37,7 +37,8 @@ supported compiler, vulnerability and API checks. Shared AuthnRequest signing
 handles RSA/ECDSA, the trusted IdP signing requirement and exact Redirect binding
 octets. NetHub does not implement assertion signature verification itself.
 
-Local SSO tests and vet cover the parser and existing protocol adapters. Provider
-CRUD, signing-key storage, browser-bound requests, ACS and invitation/session
-transactions, pages and signed deployed SAML acceptance remain unfinished. These
-preparation components are not complete W6 acceptance.
+Local SSO tests and vet cover the parser and existing protocol adapters.
+[Provider administration](saml-providers.md), [browser admission](saml-login.md),
+[console pages](saml-console.md) and isolated
+[Keycloak acceptance](validation-keycloak-saml.md) have subsequent records.
+The parser checkpoint alone does not establish those results or complete W6.

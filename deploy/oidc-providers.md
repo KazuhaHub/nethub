@@ -27,9 +27,9 @@ Bound providers must be disabled instead of deleted or moved to another issuer.
 
 ## Shared protocol and network policy
 
-NetHub directly imports `authcore/oidc`, pinned to the verified upstream merge
-`211d823f478ccdbf6bde8e5b85487e56bbdfe671` through its Go pseudo-version. This is
-a development pin, not a new authcore release. Authcore owns discovery and the
+NetHub directly imports `authcore/oidc` at
+`v0.6.3-0.20261026125641-ee68d852d973`, recorded in [the module manifest](../server/go.mod).
+This is a development pin, not a new authcore release. Authcore owns discovery and the
 authorization-code protocol, including PKCE and token verification. NetHub owns
 deployment egress policy, accounts, permissions, storage and admission.
 
@@ -105,4 +105,6 @@ and actual logs are required for hosted acceptance. Browser fixtures additionall
 check pagination, changed-field writes, secret handling, callback copy, authority
 loss, pending dialogs and a committed write with a lost result. Their synthetic
 SSO target only records navigation and cannot create an account or session.
-Two-Dex, public IdP and combined deployed SSO admission remain pending.
+The separate [two-Dex deployment](validation-two-dex.md) covers actual browser
+and database admission. Public IdP and complete W6 acceptance remain open;
+the synthetic navigation fixture does not establish those results.

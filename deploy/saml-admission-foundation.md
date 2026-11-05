@@ -1,19 +1,21 @@
 # SAML admission foundation
 
-SAML is part of v1. These components prepare account admission and persistent
-replay protection; they do not expose a working SAML sign-in endpoint yet.
-Provider configuration, trusted metadata management, browser-bound requests,
-ACS handling, invitation/session transactions, console pages and signed IdP
-deployment acceptance remain required W6 work.
+SAML is part of v1. This record covers the account-admission and persistent
+replay groundwork accepted in PR #177. Subsequent
+[provider administration](saml-providers.md), [browser admission](saml-login.md),
+[console pages](saml-console.md) and isolated
+[Keycloak deployment](validation-keycloak-saml.md) have separate records.
+Public IdP and complete W6 acceptance remain open.
 
 PR #177 was accepted at final main-based source `3b92f89854ad` and merged as
 `fe20f71eb947`. Run `40340926136` passed all six required jobs. Actual logs
 confirmed the genuine SQL cases below, together with inherited deployment and
 two-Dex gates. Two DCOs and both final hosted screenshots/hashes were reviewed;
-the merge tree equals the tested tree. This remains foundation acceptance rather
-than a working SAML login endpoint.
+the merge tree equals the tested tree. This establishes the recorded foundation
+boundaries; later browser and deployment evidence is separate.
 
-NetHub imports authcore at the verified upstream merge `48a74a506790`.
+That foundation used authcore at the verified upstream merge `48a74a506790`.
+The current development pin is recorded in [the module manifest](../server/go.mod).
 Upstream PR #33 preserves signed NameID qualifiers and passed the full Linux
 suite on both supported compiler versions, race checks, vulnerability scanning
 and API compatibility. NetHub continues to delegate SAML protocol validation to
