@@ -14,9 +14,21 @@ from reference_trust import synchronize_references
 
 
 def native_trust(guest):
-    value = json.loads(guest.ssh('/usr/local/sbin/configctl nethub-agent trust\n',
-                                 'installed scheduled trust action', timeout=100))
-    if value.get('success') is not True or value.get('action') != 'trust':
+    # The real action shares cron's nonblocking lock. A skipped invocation can
+    # succeed without output; it is not evidence that synchronization ran.
+    for attempt in range(4):
+        raw = guest.ssh('/usr/local/sbin/configctl nethub-agent trust\n',
+                        'installed scheduled trust action', timeout=100)
+        if raw.strip():
+            break
+        if attempt == 3:
+            raise GuestError('Installed trust action returned no result after bounded retries')
+        time.sleep(2)
+    try:
+        value = json.loads(raw)
+    except (ValueError, TypeError):
+        raise GuestError('Installed trust action returned nonempty invalid JSON') from None
+    if not isinstance(value, dict) or value.get('success') is not True or value.get('action') != 'trust':
         raise GuestError('Installed trust action was not confirmed')
     return value
 
