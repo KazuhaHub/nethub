@@ -84,10 +84,11 @@ The isolated acceptance fixture restores an actual archive into a nonce-owned
 database, compares device contents and checks Web column restrictions. It also
 exercises failure/recovery, retention, corruption, daemon restart and controlled
 cancellation. Its inserted device is a database fixture, not an enrolled appliance.
-A complete clean-host control-plane restore with matching current keys and an
-already enrolled device reconnecting remains unaccepted. Do not overwrite an
-existing database or advertise a complete recovery command from these checks.
-The [hosted drill under review](https://github.com/KazuhaHub/nethub/pull/194) also excludes
+The separate [hosted checkpoint](validation-clean-host-restore.md) passed
+current-key/database/six-service recovery and both retained native/witness TLS
+routes. It is not a complete production restore command. Do not overwrite an
+existing database on the strength of these isolated checks.
+The hosted drill also excludes
 protected-host issuer restoration and independently durable encrypted custody.
 Neither a successful archive hash nor an isolated six-service recovery would
 complete those requirements.

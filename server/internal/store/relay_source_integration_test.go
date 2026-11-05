@@ -28,7 +28,7 @@ func testRelaySourceAccess(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 	if err = relay.Authorize(f.ctx, identity); err != nil {
 		t.Fatal("valid identity failed before access grant", err)
 	}
-	if err = relay.AuthorizeConnection(f.ctx, identity, ip); !errors.Is(err, relayhook.ErrDenied) {
+	if err = relay.AuthorizeConnection(f.ctx, identity, ip); !errors.Is(err, relayhook.ErrSourceDenied) || !errors.Is(err, relayhook.ErrDenied) {
 		t.Fatal("missing source grant allowed a connection", err)
 	}
 	grant, err := console.OpenDevice(f.ctx, actor, assigned.ID, ip)
@@ -40,7 +40,7 @@ func testRelaySourceAccess(t *testing.T, f *enrollmentFixture, web *sql.DB, tena
 			t.Fatal("current exact source grant refused", err)
 		}
 	}
-	if err = relay.AuthorizeConnection(f.ctx, identity, netip.MustParseAddr("192.0.2.151")); !errors.Is(err, relayhook.ErrDenied) {
+	if err = relay.AuthorizeConnection(f.ctx, identity, netip.MustParseAddr("192.0.2.151")); !errors.Is(err, relayhook.ErrSourceDenied) {
 		t.Fatal("another source used the grant", err)
 	}
 	ipv6 := netip.MustParseAddr("2001:db8::150")

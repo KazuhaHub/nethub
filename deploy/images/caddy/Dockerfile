@@ -15,6 +15,8 @@ RUN go run prepare-jose.go /out/caddy-source \
 COPY deploy/images/caddy/README.md /out/licenses/compatibility-notice.md
 
 FROM caddy:2.11.7@sha256:685ae3d7c34d9b5f8caeddc5d14051db7bbd88ff1f5a2fa0c16bd8ca328fb7af
-RUN apk add --no-cache --upgrade brotli-libs=1.2.1-r0 curl=8.23.0-r0 libcurl=8.23.0-r0
+RUN apk add --no-cache --upgrade brotli-libs=1.2.1-r0 curl=8.23.0-r0 libcurl=8.23.0-r0 \
+    && chown 0:0 /config /config/caddy /data /data/caddy \
+    && chmod 0700 /config /config/caddy /data /data/caddy
 COPY --from=build /out/caddy /usr/bin/caddy
 COPY --from=build /out/licenses /usr/share/licenses/nethub-caddy
