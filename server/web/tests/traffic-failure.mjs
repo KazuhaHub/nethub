@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 
 export const schema = JSON.parse(
-  readFileSync(new URL("./traffic-failure-schema.json", import.meta.url), "utf8"),
+  readFileSync(
+    new URL("./traffic-failure-schema.json", import.meta.url),
+    "utf8",
+  ),
 );
 const count = (value) =>
   Number.isInteger(value) && value >= 0 && value <= 1_000_000 ? value : -1;

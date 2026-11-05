@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { schema, trafficFailure } from "./traffic-failure.mjs";
 
-const privateText = "private-host.invalid credential-fixture request-and-session";
+const privateText =
+  "private-host.invalid credential-fixture request-and-session";
 const error = Object.assign(new Error(privateText), {
   name: "TimeoutError",
   actual: { secret: privateText },
@@ -39,5 +40,10 @@ assert.deepEqual(
     visible_rows: null,
   },
 );
-assert.equal(trafficFailure({ code: "ERR_ASSERTION" }, "rows").failure_kind, "assertion");
-console.log("Traffic failure projection retains bounded phases/counters and excludes private error data");
+assert.equal(
+  trafficFailure({ code: "ERR_ASSERTION" }, "rows").failure_kind,
+  "assertion",
+);
+console.log(
+  "Traffic failure projection retains bounded phases/counters and excludes private error data",
+);
