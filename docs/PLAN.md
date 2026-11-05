@@ -1891,7 +1891,7 @@ W7-5 isolated recovery checkpoint (2026-11-05): source `dcbb83d` passed installe
 
 **v1 之后**（DESIGN §11，现在不做，先知道就行）：
 
-- v1 includes per-device public certificates through DNS-01, automatic installation and renewal. v1.1 retains arm64 packaging and mTLS evaluation; certificate acceptance expands the original v1 estimate.
+- v1 includes per-device public certificates through the implemented HTTP-01 flow, automatic installation and renewal. Protected-host issuer provisioning remains separate from ordinary init; DNS-01 is only an optional future fallback. v1.1 retains arm64 packaging and mTLS evaluation; certificate acceptance expands the original v1 estimate.
 - v1.2：遥测；
 - v2：加密的配置备份；
 - v2.5：配置下发；
