@@ -1,8 +1,14 @@
 """Refuse ambiguous identities before reading any device state."""
 import json
+import importlib.util
+from pathlib import Path
 import unittest
 
-from cold_native_probe import decode_request
+SOURCE = Path(__file__).resolve().parents[1] / 'acceptance/cold_native_probe.py'
+SPEC = importlib.util.spec_from_file_location('cold_native_probe_test', SOURCE)
+PROBE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(PROBE)
+decode_request = PROBE.decode_request
 
 
 class ColdNativeProbeAdmission(unittest.TestCase):
