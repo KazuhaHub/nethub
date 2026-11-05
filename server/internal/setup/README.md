@@ -1,8 +1,9 @@
 # Deployment initializer
 
-The Linux/root CLI creates a new private directory, independent cryptographic
-random values for ten logical secrets, seventeen service-bound file copies,
-reviewed templates, nonsecret Compose overrides, and a checksum/UID manifest.
+The Linux/root CLI creates a new private directory, ten independent logical
+secret values and their service-bound copies, relay certificate material,
+reviewed templates and nonsecret Compose overrides. Its version-3 checksum/UID
+manifest tracks 22 files, including issuer material and the frps configuration.
 It refuses overwrite. Every generated secret has a verified separate backup
 before an exact acknowledgement and service UID assignment can confirm setup.
 Resume requires an intact unconfirmed manifest and reuses the existing values.
@@ -21,7 +22,7 @@ explicit. Doctor now has scoped database-role, container, public TLS, relay-hook
 recent-archive and audit modes; see [readiness boundaries](../../../docs/deployment.md#verify-readiness).
 Independent external port witnesses and published-package agreement remain open.
 
-The internal Linux authority snapshot helper stages all 22 secrets, runtime
+The internal Linux authority snapshot helper stages all 22 manifest files, runtime
 leaf/key/trust, exact before/after manifests and retained maintenance bytes under
 the shared relay lease. It verifies the acknowledged candidate and creates a new
 independent full successor backup while retaining the original backup. Exact
