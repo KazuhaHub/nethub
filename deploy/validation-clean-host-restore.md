@@ -1,12 +1,13 @@
 # Isolated clean-host control-plane recovery
 
-Source `dcbb83d71f3da77b733a4ba6afcf551ef77043bd` passed the complete installed
-[run 41984680901](https://github.com/KazuhaHub/nethub/actions/runs/41984680901).
+Integration source `38fda4b0ed84364f283253b8215e368f468f5864` passed the complete installed
+[run 41990501547](https://github.com/KazuhaHub/nethub/actions/runs/41990501547).
 The exact archive, both full job logs, eight image hashes/actual views, guest
 exit zero, owned-image cleanup and complete original Compose tail were checked.
-All 26 commits carry human DCO sign-offs. This is a tested checkpoint in
-[PR #194](https://github.com/KazuhaHub/nethub/pull/194), not a merged release or
-acceptance of later source changes.
+All 28 commits carry human DCO sign-offs.
+[PR #194](https://github.com/KazuhaHub/nethub/pull/194) merged as `c4102ab`;
+the tested and merged trees both equal `eb9b60a529ae2876d66bd85bcc101259800c7503`.
+This accepts the isolated integration drill, not a formal release or later changes.
 
 ## Restored state and retained clients
 
@@ -33,7 +34,7 @@ native assignment and independent witness. The driver issued no client restart,
 Rotate or new enrollment command during host recovery. The native GUI key, checks and
 exact alias were unchanged.
 
-Source stop to verified recovery of both routes measured **56.425 seconds**.
+Source stop to verified recovery of both routes measured **58.785 seconds**.
 This includes restoring and starting the new control plane; it is not a general
 reconnect-time guarantee or an Internet/mobile measurement. The existing
 90-second route-check deadline was unchanged.
@@ -47,7 +48,7 @@ views retain the fixture's status mask and blank enrollment token field.
 
 ## Independent prerequisites and retained failures
 
-All six jobs in [CI 41984680910](https://github.com/KazuhaHub/nethub/actions/runs/41984680910)
+All six jobs in [CI 41990501528](https://github.com/KazuhaHub/nethub/actions/runs/41990501528)
 passed with complete official logs and actual SQL/storage/custom-restore/authority
 regression markers checked. Separate Linux execution passed all 44 recovery
 methods without skips and seven genuine database-authority negative controls.
@@ -55,6 +56,11 @@ FreeBSD passed 214 actual cases and all 243 source blobs with its exact receipt
 validator. Fresh unsigned preparation passed installation/configd/page checks on
 OPNsense 26.7.8_2 with frpc 0.71.1 built by Go 1.26.10; all four preparation
 image hashes/views were checked. The accepted 1 GiB appliance deviation remains.
+
+The earlier source23 checkpoint `dcbb83d` also passed installed run
+`41984680901` and CI `41984680910`, with automatic recovery in 56.425 seconds,
+26 human DCOs and the same scoped evidence requirements. Its receipts remain
+retained; the integration result above was independently checked.
 
 Earlier failed runs remain failed. Source22's two clients/proxies were online,
 but all 163 actual NewUserConn refusals were source-access denials; all 163

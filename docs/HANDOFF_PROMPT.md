@@ -30,16 +30,16 @@ recorded evidence. Accepted integration and documentation changes include
 PRs #203, #204, #206, #207 and #208. Historical checkpoints below describe their original source,
 not missing functionality in today's tree.
 
-The [source23 clean-host checkpoint](../deploy/validation-clean-host-restore.md)
-in [PR #194](https://github.com/KazuhaHub/nethub/pull/194) passed current-key,
+The [clean-host integration](../deploy/validation-clean-host-restore.md)
+in [PR #194](https://github.com/KazuhaHub/nethub/pull/194), merged as `c4102ab`, passed current-key,
 database and six-service restoration on a distinct empty hosted guest. Both
 original source-host TLS routes recovered without manual client restart, Rotate or reenrollment
-in 56.425 seconds from source stop; original native identity/GUI checks, genuine
+in 58.785 seconds from source stop; original native identity/GUI checks, genuine
 Remove, full tail and owned cleanup passed. Exact archive/logs, eight image
-hashes/views and 26 human DCOs were checked. The earlier source-access failure is
+hashes/views and 28 human DCOs were checked. Tested source `38fda4b` and the merge
+have identical trees. The earlier source23 checkpoint and source-access failure are
 retained; the corrected fixture binds normal Open and forwarding to the same
-owned source and checks its fresh grant. Later integration source remains under
-review. Full W7-5 still needs the public operator drill, protected-host certificate
+owned source and checks its fresh grant. Full W7-5 still needs the public operator drill, protected-host certificate
 issuance state and durable off-host custody beyond these six services.
 
 Other remaining gates include W5 public/mobile and operator behavior, the
