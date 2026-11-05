@@ -39,8 +39,9 @@ last_seen_at without extending absolute expiry or any device access grant.
 Session creation rechecks the verified password under a user lock, closing the
 password-change/disable race during Argon2 verification. Logout deletes the row.
 
-Only GET device/user inventories and GET session confirmation may opt into
-passive lookup with exactly one `X-NetHub-Background: 1` header. This includes
+Only GET device/user/OIDC-provider/SAML-provider inventories and GET session
+confirmation may opt into passive lookup with exactly one
+`X-NetHub-Background: 1` header. This includes
 automatic authority confirmation after a user-page refresh discovers a role
 change. Explicit reads and all mutations remain active. Passive lookup enforces
 the same idle/absolute expiry and role/disable checks without touching activity;

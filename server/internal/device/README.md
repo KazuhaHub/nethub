@@ -44,7 +44,8 @@ snapshot to the signing callback. An initialized callback refuses an empty
 snapshot; post-commit fetching cannot repair or replace it. These are public
 trust/startup rules, not evidence that frps or a native device applied a generation.
 
-`NewHTTP` serves `POST /api/v1/devices/{enroll,status,unenroll}`. It checks the configured host,
+`NewHTTP` serves `POST /api/v1/devices/{enroll,status,unenroll,rotate}` and the
+configured certificate/trust extensions. It checks the configured host,
 optional exact Origin, JSON media/encoding, canonical path and a 64 KiB body
 limit before admission. Query parameters are rejected; cookies do not establish
 device authority. Client addresses come from the socket or an explicitly trusted
@@ -55,8 +56,8 @@ return the same 401, capacity limits return 429 with Retry-After, and internal
 failures return 503 without a partial credential response.
 
 Status and removal authenticate the device bearer secret and recheck its hash
-under the mutation lock. See [lifecycle boundaries](README-lifecycle.md). Rotation
-is not exposed by this increment.
+under the mutation lock. See [lifecycle boundaries](README-lifecycle.md).
+Operation-bound rotation has its own [contract and installed scope](README-rotation.md).
 
 The service validates the shared request and protocol major before hashing or
 calling storage. It validates a bounded relay configuration/public root bundle,
@@ -105,5 +106,6 @@ The runtime follow-up additionally launches the compiled CLI in the isolated
 PostgreSQL container, checks readiness, enrolls through that process, verifies
 the loaded signing key, checks output for credentials and requests graceful
 termination. These runtime cases passed in run 39216642231. The callback
-follow-up adds native dual-listener and locked-row tests; those results remain
-pending its own CI.
+follow-up added native dual-listener and locked-row tests. These are historical
+admission checkpoints; the [current protocol guide](../../../docs/protocol.md)
+links subsequent lifecycle, certificate/trust and installed validation scopes.
