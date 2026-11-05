@@ -79,6 +79,22 @@ corrected flow preserves the first failure and records a fixed phase. Source
 shared-token/recovery/Remove/full-tail combination and eleven reviewed hashes.
 Later failures and checker corrections remain documented in that record.
 
+The committed-replay extension is implemented but awaits its own installed run.
+After every active device has genuinely confirmed overlap, a native page request
+commits one candidate while the edge discards its response. The prepared journal
+and original native model must remain. Normal guarded publication then retires
+the unused successor root. Authenticated settings must expose that changed head,
+while candidate replay returns the exact original assignment and older bundle.
+The previous credential must receive HTTP 401; history, audit, credential hash,
+claim timestamp and the retained journal must not change during the API probes.
+The genuine native page must recover the same candidate, remove its journal and
+then confirm current trust and verified TLS. A post-completion cron update is
+allowed only when it exactly matches the independently delivered current head.
+No cron/package edits or synthetic application rows bypass the scenario. Its
+separate closed outcome and two page images are required along with the existing
+publication/shared-token/restoration/Remove/full-tail evidence; source controls
+alone do not accept this extension.
+
 `native-enrolled.yml` waits for a successful six-job CI run for its exact PR source
 before allocating a fresh guest. A separate image-gate job bounds that wait;
 the existing CI deadline remains unchanged. Manual dispatch can also name the

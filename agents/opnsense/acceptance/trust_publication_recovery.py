@@ -11,6 +11,7 @@ import uuid
 from guest import GuestError, invoke
 from rotation_recovery import owned_edge_fault
 from reference_trust import synchronize_references
+from committed_trust_replay import prepare as prepare_committed, recover as recover_committed
 
 
 def native_trust(guest):
@@ -66,7 +67,8 @@ class Publication:
                 'overlap_publication', 'initial_native_trust', 'prepared_journal', 'pending_trust',
                 'old_credential_conflict', 'native_conflict', 'new_native_trust', 'fresh_rotation',
                 'reference_overlap_application', 'original_publication', 'original_native_trust',
-                'reference_original_application', 'final_route'):
+                'reference_original_application', 'final_route', 'committed_response_loss',
+                'committed_native_replay'):
             raise GuestError('Unknown installed publication phase')
         self.report.write_text(json.dumps({'passed': False, 'phase': phase,
             'public_network_or_formal_release_acceptance': False, 'full_goal_complete': False}), encoding='ascii')
@@ -222,6 +224,14 @@ def exercise_publication_conflict(guest, stage, project, compose, page_action,
         check_witness()
         publication.phase('reference_overlap_application')
         overlap_witness_ms = synchronize_references(stage, overlap, request, sql, device, witness_id, install_witness)
+        publication.phase('committed_response_loss')
+        committed = prepare_committed(guest, stage, compose, page_action, native_read, pending_rotation,
+                                      sql, device, stable_query, grants_query)
+    publication.phase('committed_native_replay')
+    committed_result, committed_credentials = recover_committed(
+        committed, guest, native_read, pending_rotation, native_trust, page_action,
+        request, sql, route, publication.restored, device, stable_query, grants_query)
+    credentials += committed_credentials
     publication.phase('original_native_trust')
     if native_trust(guest).get('confirmed') is not True:
         raise GuestError('Native trust did not confirm the restored original authority')
@@ -249,4 +259,4 @@ def exercise_publication_conflict(guest, stage, project, compose, page_action,
         'retry_to_verified_route_ms': elapsed,
         'planned_witness_trust_reconnection_max_ms': max(overlap_witness_ms, original_witness_ms),
         'public_network_or_formal_release_acceptance': False,
-        'full_goal_complete': False}, credentials)
+        'full_goal_complete': False}, credentials, committed_result)

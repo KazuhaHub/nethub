@@ -111,6 +111,7 @@ jobs:
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotation.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-shared-token.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-trust-publication.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-committed-trust-replay.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-host-restore.json
             ${{ runner.temp }}/native-enrolled-evidence/native/compose-tail.json
             ${{ runner.temp }}/native-enrolled-evidence/native/native-fixture-host.json
@@ -129,6 +130,8 @@ jobs:
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate-publication-unavailable.png
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate-publication-conflict.png
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate-publication-recovered.png
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate-publication-committed-lost.png
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotate-publication-committed-recovered.png
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-remove.png
           if-no-files-found: warn
           retention-days: 7
