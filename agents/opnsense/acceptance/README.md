@@ -44,8 +44,9 @@ relay recovery remain separate acceptance work.
 
 ## Combined installed-device acceptance
 
-The installed publication-conflict case is implemented but has no accepted run
-yet. It prepares and verifies an independent authority backup through the
+The installed publication-conflict case passed the
+[PR #205 combination](../../../deploy/validation-native-trust-conflict.md).
+It prepares and verifies an independent authority backup through the
 protected CLI, then publishes an old/new overlap with the normal compare-and-swap
 operation while the original relay leaf remains active. A real native page
 action against a scoped unavailable rotation endpoint must retain a prepared
@@ -73,8 +74,10 @@ The first complete attempt at `fd7aa24` failed with a generic protected-publicat
 error before completing this case. Its exact logs, page outcomes and owned
 cleanup are retained. The fixture's unconditional retirement could mask an
 earlier failure and did not arrange the required reference confirmations. The
-corrected flow preserves the first failure and records a fixed phase; its actual
-installed result is still pending.
+corrected flow preserves the first failure and records a fixed phase. Source
+`cb7ae89` subsequently passed installed run `42001855424`, including the
+shared-token/recovery/Remove/full-tail combination and eleven reviewed hashes.
+Later failures and checker corrections remain documented in that record.
 
 `native-enrolled.yml` waits for a successful six-job CI run for its exact PR source
 before allocating a fresh guest. A separate image-gate job bounds that wait;

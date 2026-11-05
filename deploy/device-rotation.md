@@ -64,8 +64,11 @@ run. Ambiguous failures and candidate-attempt errors retain the journal.
 Committed operations retain their public bundle for identical replay across
 later publication. Publication fencing and synchronization retain separate SQL
 and source-contract checks. The installed workflow above covers response loss
-and native save-lock recovery; an installed trust-publication conflict and
-synchronization scenario remains untested.
+and native save-lock recovery. The subsequent
+[installed publication-conflict combination](validation-native-trust-conflict.md)
+passed definitive precommit refusal, native synchronization and one fresh
+candidate. Committed-candidate replay across a later publication still needs
+its own installed acceptance.
 
 This per-device workflow is only part of W7-4. Coordinated deployment-wide frps
 shared-token replacement, current-key backup/manifest transitions and online

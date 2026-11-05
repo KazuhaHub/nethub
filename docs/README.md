@@ -33,6 +33,11 @@ per-device recovery and the controlled deployment-wide window. The
 host interruption, native Rotate, superseded-operation refusal and exported
 image review; public/operator, offline fleet and complete restoration remain separate.
 
+The later [installed trust-conflict combination](../deploy/validation-native-trust-conflict.md)
+passed actual precommit refusal, native trust synchronization, all-device reporting,
+shared-token recovery, isolated restoration and the complete removal tail. It does
+not close public/operator, protected-host issuer or durable off-host custody gates.
+
 [Database backup operations](../deploy/database-backups.md) describes the daily
 worker, health versus full-hash checks, retention and private custody. The
 [container checkpoint](../deploy/validation-database-backups.md) and

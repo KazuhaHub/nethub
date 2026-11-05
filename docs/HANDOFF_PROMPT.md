@@ -42,9 +42,18 @@ retained; the corrected fixture binds normal Open and forwarding to the same
 owned source and checks its fresh grant. Full W7-5 still needs the public operator drill, protected-host certificate
 issuance state and durable off-host custody beyond these six services.
 
+The [installed trust-conflict combination](../deploy/validation-native-trust-conflict.md)
+passed source `cb7ae89`, CI `42001855929` and native run `42001855424`; PR #205
+merged as `1008358` with its tested tree unchanged. Genuine precommit HTTP 409,
+native trust synchronization/fresh candidate, all-active-device retirement,
+shared-token recovery, complete isolated restoration and native Remove/full tail
+passed. Conflict retry recovered TLS in 3.080 seconds; host recovery took 58.942
+seconds. Eleven image hashes/eight unique views and 12 human DCOs were checked.
+Earlier failures and the private checker import correction remain recorded.
+
 Other remaining gates include W5 public/mobile and operator behavior, the
 installed outage/revocation timing discrepancy, W6 public-provider/operator
-acceptance, installed publication-conflict recovery, independent external port
+acceptance, committed replay across later publication, independent external port
 checks, published-package agreement, full documentation/translation review and
 formal release. Continue the plan against actual evidence; none of these gates
 is closed by a successful isolated fixture.
