@@ -6,6 +6,13 @@ store, with an independent HTTP-01 cleanup service. It does not initialize an
 account, accept CA terms, generate device keys or apply certificates to a router.
 Console HTTPS remains the reverse proxy's responsibility.
 
+The host-only checks below describe one part of certificate automation. Combined
+W4 acceptance subsequently passed within its recorded lab scope, including
+[native public-certificate application](../../../deploy/validation-native-public-certificate.md).
+That checkpoint does not prove cold-host issuer/account/publisher restoration;
+the remaining [W7 recovery boundary](../../../deploy/database-backups.md#custody-and-restoration)
+includes state outside the six runtime containers.
+
 ## Deployment prerequisites
 
 - An initialized deployment with its independently verified authority backup.
@@ -123,9 +130,11 @@ acceptance. The separate interrupted-coordinator recovery fixture still seeds
 public CSR metadata explicitly. Retry time is advanced only in owned fixtures.
 The separate compiled HTTP/database fixture checks actual enrolled
 device CSR admission and atomic queueing, failure rollback, duplicate audit/job
-refusal and cancellation after revocation. Production recovery timing, renewal
-authorization, native GUI installation/rollback and staged trust transitions
-remain required before W4 certificate automation is complete.
+refusal and cancellation after revocation. These original host-only checks do
+not establish production recovery timing, renewal authorization, native GUI
+installation/rollback or staged trust transitions. Subsequent native checkpoints
+record their own scope; they do not turn this host fixture into a full W7
+cold-host recovery test.
 
 ## Hosted acceptance
 
