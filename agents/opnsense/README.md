@@ -35,6 +35,10 @@ KKazuhaK/OPNsense-repo/
                                   verifies its sha256, stages it into the pkg
 ```
 
+This is the intended release contract, not a completed signed distribution.
+Current development packages use this repository's `plugin/build.sh`; W7 still
+requires the external recipe, signed publication and canary acceptance.
+
 This mirrors what that repository already does for `os-sing-box`, `os-frp`
 and `os-easytier`: it packages upstream software it does not own. From its
 point of view, NetHub is simply another upstream.
@@ -62,9 +66,9 @@ only the release flow is genuinely cross-repository.
 
 The device runs **no NetHub daemon**. The only persistent process is a
 independently packaged, unmodified `frpc` binary. Everything else is a one-shot script
-invoked through OPNsense's `configd`, which is what keeps the agent's
-privileges narrow: the control plane cannot execute arbitrary commands, only
-the actions explicitly registered in `actions_nethub-agent.conf`.
+invoked through OPNsense's local `configd` actions and scheduler. The control plane
+does not receive an arbitrary command endpoint; the adapter validates versioned
+protocol data before its fixed local workflows can change managed state.
 
 The device side stays **Python 3.13 (`agentctl.py`) plus PHP/Phalcon MVC**,
 because OPNsense dictates both. This is separate from the control plane, which
