@@ -124,6 +124,14 @@ def inspect(request):
         if not started or len(started) > 128:
             raise ValueError('Original frpc process start unavailable')
         native_fingerprint = hashlib.sha256(native_public).hexdigest()
+        transaction = agent.gui_transaction()
+        journal = transaction._read()
+        applied = None
+        confirmed = False
+        if journal is not None:
+            applied = {key: journal[key] for key in ('phase', 'device_id', 'generation_id', 'generation', 'refid')}
+            if journal['phase'] == 'applied':
+                confirmed = transaction.backend.check(journal) is True and transaction.backend.probe(journal) is True
         return {'version': 1, 'device_id': request['device_id'], 'host': request['host'],
                 'enrollment_gui_key_fingerprint': key['fingerprint'],
                 'native_active_gui_key_fingerprint': native_fingerprint,
@@ -134,6 +142,7 @@ def inspect(request):
                 'native_security_checks_enabled': True,
                 'native_alternate_present': request['host'] in gui.findtext('althostnames', '').split(),
                 'frpc_pid': int(pid), 'frpc_started': started,
+                'native_apply': applied, 'native_applied_selection_and_verified_loopback_TLS_confirmed': confirmed,
                 'private_assignment_fingerprint': hashlib.sha256(json.dumps(native, sort_keys=True).encode()).hexdigest(),
                 'certificate_application_or_full_recovery_accepted': False}
 
@@ -143,5 +152,7 @@ if __name__ == '__main__':
         if sys.argv[1:]:
             raise ValueError('Private probe takes only stdin')
         print(json.dumps(inspect(decode_request(sys.stdin.buffer.read(4097)))))
+    except BlockingIOError:
+        print(json.dumps({'available': False, 'reason': 'mutation_busy'}))
     except Exception:
         raise SystemExit('Private cold native probe refused') from None

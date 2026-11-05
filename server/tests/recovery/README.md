@@ -231,3 +231,15 @@ a server request, issued generation or application report. These operations have
 not executed on a native guest; input-admission tests do not establish a same-key
 baseline or certificate recovery. The driver must run this preparation before
 recording its baseline, then compare it after genuine restored-host issuance.
+
+`cold_native.py` connects the normal enrolled page, explicit initial certificate
+submission, private CSR inspection and same-key baseline. After restoration it
+only observes the stock agent scheduler: it does not force certificate polling,
+restart the client or fabricate an application report. Confirmation requires
+the exact issued generation/leaf, original key/CSR/assignment/process, retained
+checks/alias and the native backend's actual verified loopback TLS probe. Normal
+Remove uses the existing native page and independently checks cleared model and
+stopped service; server revocation and route closure remain outer-driver checks.
+Package preparation shares `bootstrap.install_current_package` with the existing
+unsigned preparation flow, preserving its signed update, build and configd steps.
+These connected helpers still need their guarded hosted driver and execution.
