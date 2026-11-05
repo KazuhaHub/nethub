@@ -2,7 +2,11 @@
 
 W3 closed with PR #39, merge 45b79ac, after all six checks passed on final head
 c41614b (run 39206137367). Kazuha accepted the fresh Debian VM/public-ingress
-environment on 2026-10-18. Enrollment remains under implementation.
+environment on 2026-10-18. This is a chronological implementation record:
+statements that a component was pending describe that checkpoint. The later
+[combined public/native certificate acceptance](../deploy/validation-native-public-certificate.md)
+records the accepted W4 lab scope, including implemented enrollment. It does not
+complete production sizing, public renewal, W5-W7 or release acceptance.
 
 ## W4-1: protocol foundation
 
