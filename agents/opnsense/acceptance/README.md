@@ -79,7 +79,10 @@ corrected flow preserves the first failure and records a fixed phase. Source
 shared-token/recovery/Remove/full-tail combination and eleven reviewed hashes.
 Later failures and checker corrections remain documented in that record.
 
-The committed-replay extension is implemented but awaits its own installed run.
+The committed-replay extension passed the separate
+[PR #212 installed run](../../../deploy/validation-native-trust-conflict.md#committed-replay-after-a-later-publication),
+including thirteen reviewed image hashes, both earlier interruption cases,
+shared-token recovery, isolated restoration, Remove and the complete tail.
 After every active device has genuinely confirmed overlap, a native page request
 commits one candidate while the edge discards its response. The prepared journal
 and original native model must remain. Normal guarded publication then retires
