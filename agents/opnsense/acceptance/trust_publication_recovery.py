@@ -161,7 +161,11 @@ def exercise_publication_conflict(guest, stage, project, compose, page_action,
                 'expected_relay_ca_sha256': hashlib.sha256(base64.b64decode(before['relay_ca'], validate=True)).hexdigest()}
         publication.phase('old_credential_conflict')
         rejected = request('/api/v1/devices/rotate', body, secret=before['device_secret'], expected=409)
-        if rejected.get('code') != 'rotation_trust_changed':
+        if (not isinstance(rejected, dict) or set(rejected) != {'error'}
+                or not isinstance(rejected['error'], dict)
+                or set(rejected['error']) != {'code', 'message'}
+                or rejected['error']['code'] != 'rotation_trust_changed'
+                or not isinstance(rejected['error']['message'], str)):
             raise GuestError('Previous-credential attempt did not prove the exact publication conflict')
         publication.phase('native_conflict')
         page_action('rotate', expected=False, label='rotate-publication-conflict')
