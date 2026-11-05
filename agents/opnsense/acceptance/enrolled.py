@@ -459,7 +459,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             time.sleep(.5)
         raise GuestError('Planned witness trust application did not recover verified TLS')
 
-    publication_conflict, publication_credentials = exercise_publication_conflict(
+    publication_conflict, publication_credentials, committed_replay = exercise_publication_conflict(
         guest, stage, project, compose, page_action, native_read, sql, route, request,
         device, stable_query, grants_query, check_rotation_unavailable,
         evidence, other['device_id'], check_publication_witness, install_witness_trust)
@@ -473,6 +473,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             or fixture('inspect', host=host) != checked):
         raise GuestError('Trust publication recovery changed the GUI or independent control')
     private_json(evidence / 'installed-trust-publication.json', publication_conflict)
+    private_json(evidence / 'installed-committed-trust-replay.json', committed_replay)
 
     def refresh_incident_witness(replacement):
         nonlocal survivor
@@ -575,6 +576,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
               'received_assignment_save_recovery': received,
               'interrupted_native_recovery_acceptance': True,
               'installed_trust_publication_conflict_recovery': publication_conflict,
+              'installed_committed_trust_replay': committed_replay,
               'shared_token_incident_native_recovery': shared_token,
               'clean_host_restoration': host_restore,
               'fixture_removed_through_native_page': True,

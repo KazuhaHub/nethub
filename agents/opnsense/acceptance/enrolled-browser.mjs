@@ -16,11 +16,12 @@ assert.ok(config.action === 'rotate' || expectedSuccess);
 const label = config.label ?? config.action;
 assert.ok(['enroll', 'rotate', 'rotate-lost', 'rotate-recovered',
   'rotate-save-failed', 'rotate-save-recovered', 'rotate-shared',
-  'rotate-publication-unavailable', 'rotate-publication-conflict', 'rotate-publication-recovered', 'remove'].includes(label));
+  'rotate-publication-unavailable', 'rotate-publication-conflict', 'rotate-publication-recovered',
+  'rotate-publication-committed-lost', 'rotate-publication-committed-recovered', 'remove'].includes(label));
 assert.equal(label === 'enroll', config.action === 'enroll');
 assert.equal(label === 'remove', config.action === 'remove');
 assert.equal(expectedSuccess, !['rotate-lost', 'rotate-save-failed',
-  'rotate-publication-unavailable', 'rotate-publication-conflict'].includes(label));
+  'rotate-publication-unavailable', 'rotate-publication-conflict', 'rotate-publication-committed-lost'].includes(label));
 let browser;
 let phase = 'private_gui_login';
 try {
