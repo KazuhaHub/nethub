@@ -1,9 +1,11 @@
-# Patched deployment helpers
+# Deployment image builds
 
 The initial container scan found vulnerabilities in the official Caddy binary
-and in the gosu binary bundled with PostgreSQL. These small derived builds keep
-the upstream service sources and runtime layouts, and rebuild the affected Go
-binaries with the compiler pinned in `server/.go-version`.
+and in the gosu binary bundled with PostgreSQL. The derived builds pin their
+upstream inputs and rebuild affected Go binaries with the compiler pinned in
+`server/.go-version`. Caddy also uses the bounded source adaptations described
+in its [JOSE migration note](caddy/README.md); its upstream sources are not
+claimed to be unchanged.
 
 - Caddy 2.11.7 uses the standard module set and embedded time zones, with
   `golang.org/x/net` upgraded to 0.60.0. Its version identifies the NetHub build.
@@ -14,6 +16,8 @@ binaries with the compiler pinned in `server/.go-version`.
   Its inherited curl and libcurl packages are upgraded to 8.23.0-r0 for
   [CVE-2026-92392](https://curl.se/docs/CVE-2026-92392.html), matching the Alpine
   3.23 security database. The assembled-image HIGH/CRITICAL scan remains required.
+  Its crypto dependency uses a pre-release pin and prepared JOSE v4 adaptations;
+  the migration note records the exact changes and upstream test limitation.
 - PostgreSQL uses the pinned official 16 Alpine image. Only gosu is replaced,
   rebuilt from the upstream 1.19 commit (`6456aaa0f3c8`); Go records that tag as
   a pseudo-version because the upstream tag does not use a `v` prefix. The
@@ -36,29 +40,41 @@ Build from the repository root:
 docker build -f deploy/images/postgres/Dockerfile -t nethub-postgres-local:dev .
 docker build -f deploy/images/caddy/Dockerfile -t nethub-caddy-local:dev .
 docker build -f deploy/images/frps/Dockerfile -t nethub-frps-local:dev .
+docker build -f deploy/Dockerfile -t nethub-local:dev .
+docker build --target backup -f deploy/Dockerfile -t nethub-backup-local:dev .
 ```
 
+The runtime image serves Web/authz and the migration/bootstrap commands. The
+separate nonroot backup target includes PostgreSQL client tools, private storage
+and system TLS roots; it has no shell, database server or Docker socket. See
+[backup operation and custody](../database-backups.md). These are local development
+builds, not formally published or signed release images.
+
 `server/tests/postgres.sh` builds the same PostgreSQL image before testing actual
-database-role boundaries. `server/tests/compose.sh` builds the three deployed
-images plus the frps candidate and tests a fresh project, successful login/token issuance, and failed
-migration gating. With `NETHUB_SCAN_IMAGES=1`, it saves each assembled image to a
+database-role boundaries. `server/tests/compose.sh` builds all five images:
+runtime, PostgreSQL, Caddy, frps and backup. It tests a fresh six-service project,
+successful login/token issuance, failed migration gating and the subsequent
+relay, certificate and backup boundaries. With `NETHUB_SCAN_IMAGES=1`, it saves each assembled image to a
 tar and scans that tar with pinned Trivy, rejecting every HIGH/CRITICAL finding.
 It mounts only the scan directory, never the Docker socket or host credentials.
 No ignore rules or unfixed-vulnerability exclusions apply. Native orchestration
-may supply four owned prebuilt images through `NETHUB_*_TEST_IMAGE`; those
+may supply all five owned prebuilt images through `NETHUB_*_TEST_IMAGE`; those
 images remain the caller's cleanup responsibility.
 
 The frps smoke test checks its actual version, nonroot startup and authenticated
-empty-route admin response on a temporary loopback-only published port. This image
-is not yet wired into the generated production Compose bundle. Actual multi-device
-registration, TLS passthrough, public source-address preservation and automated
-certificate application remain W4 deployment acceptance.
+empty-route admin response on a temporary loopback-only published port. The
+generated Compose deployment also runs this frps image with host networking for
+the relay's source-IP gate. That smoke test alone does not prove device admission
+or TLS routes. The [relay integration](../validation-w4.md) and subsequent
+[native public-certificate checkpoint](../validation-native-public-certificate.md)
+record their distinct runtime scope. Public/operator W5-W7 checks, external port
+witnesses and agreement with a formally published appliance remain open.
 
 ## Existing development data
 
 This is a base-distribution and UID change, not an in-place volume upgrade.
-Fresh setup manifests use version 2 and PostgreSQL secret UID 70. Version 1
-manifests with UID 999 are rejected; the initializer does not silently chown or
+Fresh setup manifests use version 3 and PostgreSQL secret UID 70. Earlier
+manifest versions are rejected; the initializer does not silently chown or
 rewrite an existing deployment. Keep the original checkout/image and verified
 logical database/secret backups when inspecting an earlier development bundle.
 Use a separate new bundle and fresh database volume for the new stack. Data
