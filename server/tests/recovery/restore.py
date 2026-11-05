@@ -15,6 +15,7 @@ from database import bootstrap_extensions, capture, difference_details, differin
 from image_archive import inspect_archive
 from linux_guest import LinuxGuest, RecoveryError, sha256
 from payload import PayloadError, SOURCE_REASONS, pack
+from route_probe import OUTCOMES, validate as validate_routes
 
 
 SERVICES = {'postgres', 'backup', 'nethub-web', 'nethub-authz', 'frps', 'caddy'}
@@ -180,7 +181,8 @@ class Restore:
                 'observed_mode': format(error.mode, '04o') if type(error.mode) is int and 0 <= error.mode <= 0o7777 else 'unknown'}
 
     def reconnect_diagnostic(self, target, native_id, witness_id, native_running,
-                             witness_running, native_route, witness_route):
+                             witness_running, native_route, witness_route,
+                             source_routes=None, target_routes=None, granted=None):
         value = {'version': 1, 'native_route_verified': native_route,
                  'witness_route_verified': witness_route, 'witness_process_running': witness_running,
                  'native_process_running': 'unavailable',
@@ -204,11 +206,42 @@ class Restore:
                 value.update(observed)
         except (OSError, RuntimeError, ValueError, RecoveryError, subprocess.SubprocessError):
             pass
+        if source_routes is not None:
+            try:
+                observed = source_routes()
+                if (set(observed) == {'native', 'witness'} and all(
+                        set(item) == {'curl_exit', 'http_status', 'verified'}
+                        and (item['curl_exit'] == 'unavailable' or type(item['curl_exit']) is int and 0 <= item['curl_exit'] <= 255)
+                        and (item['http_status'] == 'unavailable' or type(item['http_status']) is int and 100 <= item['http_status'] <= 599)
+                        and type(item['verified']) is bool for item in observed.values())):
+                    value['source_route_probes'] = observed
+            except (OSError, RuntimeError, ValueError, TypeError, KeyError):
+                pass
+        if target_routes is not None:
+            value['target_route_probes'] = {'native': 'unavailable', 'witness': 'unavailable'}
+            try:
+                request = {'address': granted, 'routes': target_routes}
+                validate_routes(request)
+                config = self.work / 'route-probe-input.json'
+                config.write_text(json.dumps(request))
+                config.chmod(0o600)
+                helper = self.work / 'route_probe.py'
+                helper.write_bytes(Path(__file__).with_name('route_probe.py').read_bytes())
+                helper.chmod(0o600)
+                remote_helper = target.send(helper, 'route_probe.py')
+                remote_config = target.send(config, 'route-probe-input.json')
+                observed = json.loads(self.remote(target, ['python3', remote_helper, remote_config],
+                    'Read-only target route verification', timeout=15))
+                if (isinstance(observed, dict) and set(observed) == {'native', 'witness'}
+                        and all(item in OUTCOMES for item in observed.values())):
+                    value['target_route_probes'] = observed
+            except (OSError, RuntimeError, ValueError, TypeError, KeyError, RecoveryError, subprocess.SubprocessError):
+                pass
         return value
 
 
 def exercise(stage, port, project, evidence, native_read, inspect_gui, route, witness_route, witness_process,
-             witness_device_id, native_running):
+             witness_device_id, native_running, source_routes, target_routes):
     fixture = Restore(stage, port, project)
     result = {'passed': False, 'phase': 'source_preflight', 'full_goal_complete': False,
               'public_network_or_formal_release_acceptance': False, 'off_host_durable_custody': False}
@@ -348,7 +381,8 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
                             if time.monotonic() >= deadline or witness_process.poll() is not None:
                                 result['reconnect_diagnostic'] = fixture.reconnect_diagnostic(
                                     target, before['device_id'], witness_device_id, native_running,
-                                    witness_process.poll() is None, native_route, other_route)
+                                    witness_process.poll() is None, native_route, other_route,
+                                    source_routes, target_routes, granted)
                                 raise RecoveryError('Retained native and witness routes did not reconnect')
                             time.sleep(1)
                         if native_read('native-after-host-restore.json') != before or inspect_gui() != gui:

@@ -233,12 +233,22 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             "FROM (SELECT open_device('" + actor + "','" + before['device_id'] + "','" + local_source +
             "'::inet) AS expires_at) opened; COMMIT;", role='nethub_web')
 
+    route_observations = {}
+
+    def record_route(name, response, status, verified):
+        code = response.returncode
+        route_observations[name] = {
+            'curl_exit': code if type(code) is int and 0 <= code <= 255 else 'unavailable',
+            'http_status': int(status) if re.fullmatch(b'[1-5][0-9]{2}', status) else 'unavailable',
+            'verified': verified is True}
+        return verified
+
     def route():
         r = subprocess.run(['curl', '--silent', '--show-error', '--fail', '--noproxy', '*', '--max-time', '3',
                             '--interface', gateway, '--cacert', str(authority), '--connect-to', host + ':8443:' + gateway + ':8443',
                             '--write-out', '\n%{http_code}', 'https://' + host + ':8443/'], capture_output=True, timeout=5)
         raw, _, status = r.stdout.rpartition(b'\n')
-        return r.returncode == 0 and status == b'200' and b'usernamefld' in raw
+        return record_route('native', r, status, r.returncode == 0 and status == b'200' and b'usernamefld' in raw)
 
     for _ in range(30):
         if route():
@@ -297,9 +307,12 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         assigned = other['subdomain'] + '.router.example.com'
         response = subprocess.run(['curl', '--silent', '--fail', '--noproxy', '*', '--max-time', '3',
             '--interface', gateway, '--cacert', str(work / 'backend-cert.pem'),
-            '--connect-to', assigned + ':443:' + gateway + ':8443', 'https://' + assigned + '/'],
+            '--connect-to', assigned + ':443:' + gateway + ':8443', '--write-out', '\n%{http_code}',
+            'https://' + assigned + '/'],
             capture_output=True, timeout=5)
-        return response.returncode == 0 and response.stdout.decode() == assigned
+        raw, _, status = response.stdout.rpartition(b'\n')
+        return record_route('witness', response, status,
+            response.returncode == 0 and status == b'200' and raw == assigned.encode('ascii'))
 
     def survivor_sockets():
         raw = invoke(['ss', '-tnpH'], 'independent original control socket evidence').decode()
@@ -459,7 +472,11 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             return value
         try:
             host_restore = exercise_host_restore(stage, port, project, evidence, native_read,
-                lambda: fixture('inspect', host=host), route, survivor_route, survivor, other['device_id'], native_running)
+                lambda: fixture('inspect', host=host), route, survivor_route, survivor, other['device_id'], native_running,
+                lambda: dict(route_observations),
+                {'native': {'hostname': host, 'ca_pem': authority.read_text(encoding='ascii')},
+                 'witness': {'hostname': other['subdomain'] + '.router.example.com',
+                             'ca_pem': (work / 'backend-cert.pem').read_text(encoding='ascii')}})
         except RecoveryError as error:
             raise GuestError('Owned full-host recovery failed: ' + str(error)) from None
         # Planned host shutdown necessarily replaces both control connections.

@@ -132,3 +132,13 @@ and addresses remain private. Unavailable observations stay explicitly unknown;
 they do not count as an offline proxy or explain a failed TLS route. This does
 not restart either client, change its saved assignment, create a source grant or
 extend the recovery success deadline.
+
+The source probes also retain only numeric curl exit/HTTP status and route
+verification booleans. After a failed reconnect, separate read-only probes on
+the target bind the already admitted Open source, use each original SNI and CA,
+and require the original GUI/witness response. Their output is limited to fixed
+transport, TLS, HTTP and payload outcome labels. This distinguishes source-side
+forwarding failures from target-local route failures without exporting addresses,
+certificates, response bodies or exception text. A target-local success is only
+diagnostic; it cannot substitute for either original source route or extend the
+90-second reconnect success window.
