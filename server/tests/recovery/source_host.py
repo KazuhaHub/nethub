@@ -16,6 +16,7 @@ import subprocess
 from image_archive import inspect_archive
 from host_layout import DEPLOYMENT, HELPER, RECEIVE_LIMITS, ROLES, SERVICE_ROLES, SOURCE, TRANSFER, UNITS, valid_tags
 from linux_guest import LinuxGuest, RecoveryError, sha256
+from witness_contract import valid_ready
 
 
 def configure_profile(override, tags, caddy):
@@ -266,10 +267,9 @@ class SourceHost(DeploymentHost):
                 'actual_runtime_separation_checked': True, 'first_administrator_created': True,
                 'issuer_or_complete_cold_recovery_accepted': False}
 
-    def configure_issuer(self, witness, assigned_host):
-        if (not self.stack_started or self.issuer_configured or witness.get('version') != 1
-                or witness.get('host') != assigned_host
-                or re.fullmatch('[a-z0-9]{8}\\.devices\\.example\\.test', assigned_host) is None):
+    def configure_issuer(self, witness, assigned_host, *, witness_control=None):
+        if (not self.stack_started or self.issuer_configured
+                or not valid_ready(witness, assigned_host, witness_control)):
             raise RecoveryError('Original stack and matching owned witness required')
         snapshot = Path(witness['account_backup_directory'])
         info = snapshot.lstat()
