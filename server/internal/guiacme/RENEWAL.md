@@ -26,7 +26,8 @@ denies subsequent delivery and reporting. The CA log independently requires
 exactly two original orders and two finalize POSTs. Existing single-order recovery
 fixtures retain their separate exactly-one assertions.
 
-Deployment CI selects both protected host tests under the independent guard.
+Deployment CI selects initial issuance and renewal alongside explicit account
+provisioning under the independent guard.
 Its receipt requires each exact test to pass, the single-order and two-order
 CA proofs, and authenticated delivery/reporting evidence. Missing, skipped or
 partial logs fail acceptance; the receipt exposes `renewal_verified` explicitly.

@@ -48,7 +48,9 @@ mounts, and include it in the eventual verified private backup/recovery procedur
 Explicit root-host commands now compose account provisioning and recovery; see
 [their contract](PROVISIONING.md). Issuance authorization and durable jobs have
 separate integration evidence. Combined native/public application acceptance
-remains outstanding.
+is recorded in the [subsequent lab checkpoint](../../../deploy/validation-native-public-certificate.md).
+That checkpoint does not extend the account namespace's backup/restore proof to
+complete host issuer recovery or durable off-host custody.
 
 ## Explicit private backup and recovery
 
