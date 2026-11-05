@@ -319,8 +319,10 @@ native interruption recoveries, has scoped installed acceptance. Deployment-wide
 [shared-token incident recovery](deploy/validation-shared-token.md) also passed
 isolated host interruption and online native/reference recovery. Public/mobile,
 offline fleet and complete restoration gates remain separate.
-Complete clean-host/current-key/device recovery, full document
-review, friend-from-zero deployment and signed/faulty-version release gates remain
+The [isolated clean-host integration](deploy/validation-clean-host-restore.md)
+passed current-key/full-database/six-service restoration and automatic recovery of
+both retained client routes. Public operator recovery, protected-host issuer state,
+durable off-host custody, full document review, friend-from-zero deployment and signed/faulty-version release gates remain
 W7 work. There is no released package or production-readiness claim.
 
 ## Roadmap

@@ -1198,7 +1198,7 @@ CA 私钥只进部署者的密钥备份、不挂进任何容器（决策 #21 新
 - **调研过程中网络检索配额中途耗尽**，以下结论可信度较低、使用前请自行复核：
   爱快云的内部协议细节（唯一来源是一篇 2022 年的第三方抓包博客，非官方规范）、
   部分竞品的定价数字、部分中间件的性能基准数字、以及许可与商业模式那一路调研（这一路调研没有产出）。
-- W0 verified the observed hook inputs and fail-closed outcomes; see the accepted report and observed-field notes. Product authorization remains unimplemented.
+- W0 verified the observed hook inputs and fail-closed outcomes; see the accepted report and observed-field notes. Product authorization and source-IP admission are now implemented; current evidence and remaining public/operator limits are tracked in the [threat model](threat-model.md).
 - W0 coverage is limited to owner-attested A/B mobile networks; locations and carrier names were not recorded. No region-wide or company/campus reachability claim follows from those samples.
 
 ### v0.3 补充说明

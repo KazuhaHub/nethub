@@ -35,8 +35,12 @@ image review; public/operator, offline fleet and complete restoration remain sep
 
 [Database backup operations](../deploy/database-backups.md) describes the daily
 worker, health versus full-hash checks, retention and private custody. The
-[container checkpoint](../deploy/validation-database-backups.md) passed; complete
-clean-host/key/device restoration remains open.
+[container checkpoint](../deploy/validation-database-backups.md) and
+[isolated clean-host integration](../deploy/validation-clean-host-restore.md)
+passed. The latter restores current keys, the full database and six services,
+then verifies both retained client routes without manual client recovery.
+Public operator recovery, protected-host issuer state and durable off-host
+custody remain open.
 
 [Read-only audit verification](../deploy/audit-chain.md) describes the explicit
 post-start database mode, versioned encoding and legacy-timezone limits. It does
