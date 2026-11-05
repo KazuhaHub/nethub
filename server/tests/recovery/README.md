@@ -153,3 +153,13 @@ These observations distinguish admission from transport symptoms without
 treating a zero log count, an unavailable query or a local probe as acceptance.
 The closed log projection separately counts fixed device-state and source-access
 denial causes. Older decisions without a cause remain explicitly unavailable.
+
+The pinned frps 0.71.1 rejection log also records the actual user connection
+peer before its work connection is acquired. The failure-only projection reads
+that existing private log and emits only bounded counts comparing rejected peers
+with the address admitted by normal Open, plus fixed loopback/private/other
+categories. IPv4-mapped peers are normalized. Addresses, ports, proxy identities
+and rejection text are never exported. Missing entries remain explicitly
+unavailable; malformed or excessive observations are refused. This adds no
+request logging to the product, does not restart a service or create a grant,
+and cannot turn a failed route into recovery acceptance.

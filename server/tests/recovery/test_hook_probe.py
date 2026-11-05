@@ -2,7 +2,7 @@
 import json
 import unittest
 
-from hook_probe import DECISIONS, project
+from hook_probe import DECISIONS, project, project_rejected_sources
 
 
 class ClosedHookDecisions(unittest.TestCase):
@@ -42,3 +42,36 @@ class ClosedHookDecisions(unittest.TestCase):
             with self.assertRaises(ValueError) as caught:
                 project(raw)
             self.assertEqual(str(caught.exception), 'Restored connection-hook observation unavailable')
+
+    def test_actual_rejection_source_is_compared_without_exporting_addresses(self):
+        lines = [b'prefix the user conn [192.0.2.10:1234] was rejected, err:not_authorized',
+                 b'prefix the user conn [[::ffff:192.0.2.10]:2345] was rejected, err:not_authorized',
+                 b'prefix the user conn [127.0.0.1:3456] was rejected, err:private-detail',
+                 b'prefix the user conn [[2001:4860:4860::8888]:4567] was rejected, err:not_authorized']
+        raw = b'\n'.join(lines)
+        result = project_rejected_sources(raw, '192.0.2.10')
+        self.assertEqual(result, {'version': 1, 'available': True, 'rejected_entries': 4,
+            'source_matches_open': 2, 'source_differs_from_open': 2,
+            'loopback': 1, 'private': 2, 'other': 1})
+        for private in ('192.0.2.10', '127.0.0.1', '2001:4860', 'private-detail', '1234'):
+            self.assertNotIn(private, str(result))
+
+    def test_missing_or_json_reflected_source_is_explicitly_unavailable(self):
+        raw = json.dumps({'private': 'the user conn [192.0.2.10:1234] was rejected, err:value'}).encode()
+        result = project_rejected_sources(raw, '192.0.2.10')
+        self.assertIs(result['available'], False)
+        self.assertEqual(result['rejected_entries'], 0)
+        self.assertEqual(result['source_matches_open'], 0)
+
+    def test_malformed_or_unbounded_source_observations_are_refused_without_echo(self):
+        for address in ('private.example:1234', '192.0.2.10:0', '192.0.2.10:65536',
+                        '[fe80::1%private]:1234', '0.0.0.0:1234', '224.0.0.1:1234'):
+            raw = ('the user conn [' + address + '] was rejected, err:private-detail').encode()
+            with self.assertRaises(ValueError) as caught:
+                project_rejected_sources(raw, '192.0.2.10')
+            self.assertEqual(str(caught.exception), 'Restored rejected-source observation unavailable')
+        for raw, expected in ((b'x' * (256 * 1024 + 1), '192.0.2.10'),
+                              (b'x\n' * 1025, '192.0.2.10'), (b'', True), (b'', 'private.example')):
+            with self.assertRaises(ValueError) as caught:
+                project_rejected_sources(raw, expected)
+            self.assertEqual(str(caught.exception), 'Restored rejected-source observation unavailable')

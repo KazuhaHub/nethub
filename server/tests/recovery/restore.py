@@ -14,6 +14,7 @@ import time
 from database import bootstrap_extensions, capture, difference_details, differing_categories, snapshot_fingerprint
 from image_archive import inspect_archive
 from hook_probe import project as project_hook_decisions
+from hook_probe import project_rejected_sources
 from linux_guest import LinuxGuest, RecoveryError, sha256
 from payload import PayloadError, SOURCE_REASONS, pack
 from route_probe import OUTCOMES, validate as validate_routes
@@ -262,12 +263,14 @@ class Restore:
             except (OSError, RuntimeError, ValueError, TypeError, KeyError, RecoveryError, subprocess.SubprocessError):
                 pass
             value['target_connection_hooks'] = 'unavailable'
+            value['target_rejected_sources'] = 'unavailable'
             try:
                 command = shlex.join(self.compose + ['logs', '--no-color', '--no-log-prefix',
-                    '--tail', '512', 'nethub-authz']) + ' 2>&1'
+                    '--tail', '512', 'nethub-authz', 'frps']) + ' 2>&1'
                 raw = self.remote(target, ['sh', '-c', command],
                     'Read-only restored connection-hook observation', timeout=5)
                 value['target_connection_hooks'] = project_hook_decisions(raw)
+                value['target_rejected_sources'] = project_rejected_sources(raw, granted)
             except (OSError, RuntimeError, ValueError, TypeError, AttributeError, RecoveryError, subprocess.SubprocessError):
                 pass
         return value
