@@ -123,3 +123,12 @@ diagnoses restore semantics; it does not run the application migration CLI,
 recover a separate host, preserve production state or accept a successful mode
 as complete application restoration. The strict installed-device drill remains
 required. No restore-mode change is selected automatically from this report.
+
+On reconnect failure, both original routes are checked independently. A read-only
+diagnostic records only native/witness process availability, route verification
+booleans and each exact proxy's online/offline/absent/unavailable state from the
+restored private admin API. Raw responses, configuration, identities, credentials
+and addresses remain private. Unavailable observations stay explicitly unknown;
+they do not count as an offline proxy or explain a failed TLS route. This does
+not restart either client, change its saved assignment, create a source grant or
+extend the recovery success deadline.

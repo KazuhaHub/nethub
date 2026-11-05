@@ -179,9 +179,36 @@ class Restore:
                 'source_scope': scope,
                 'observed_mode': format(error.mode, '04o') if type(error.mode) is int and 0 <= error.mode <= 0o7777 else 'unknown'}
 
+    def reconnect_diagnostic(self, target, native_id, witness_id, native_running,
+                             witness_running, native_route, witness_route):
+        value = {'version': 1, 'native_route_verified': native_route,
+                 'witness_route_verified': witness_route, 'witness_process_running': witness_running,
+                 'native_process_running': 'unavailable',
+                 'native_proxy': 'unavailable', 'witness_proxy': 'unavailable'}
+        try:
+            running = native_running()
+            if type(running) is bool:
+                value['native_process_running'] = running
+        except (OSError, RuntimeError, ValueError, RecoveryError, subprocess.SubprocessError):
+            pass
+        try:
+            helper = self.work / 'reconnect_probe.py'
+            helper.write_bytes(Path(__file__).with_name('reconnect_probe.py').read_bytes())
+            helper.chmod(0o600)
+            remote = target.send(helper, 'reconnect_probe.py')
+            observed = json.loads(self.remote(target, ['python3', remote,
+                str(self.stage / 'deployment'), native_id, witness_id],
+                'Read-only restored proxy observation', timeout=10))
+            if (isinstance(observed, dict) and set(observed) == {'native_proxy', 'witness_proxy'}
+                    and all(item in ('online', 'offline', 'absent', 'unavailable') for item in observed.values())):
+                value.update(observed)
+        except (OSError, RuntimeError, ValueError, RecoveryError, subprocess.SubprocessError):
+            pass
+        return value
+
 
 def exercise(stage, port, project, evidence, native_read, inspect_gui, route, witness_route, witness_process,
-             witness_device_id):
+             witness_device_id, native_running):
     fixture = Restore(stage, port, project)
     result = {'passed': False, 'phase': 'source_preflight', 'full_goal_complete': False,
               'public_network_or_formal_release_acceptance': False, 'off_host_durable_custody': False}
@@ -314,8 +341,14 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
                         raise RecoveryError('Recovered Open source is not owned by the target host')
                     with target.forward([(fixture.gateway, 8443, granted, 8443)]):
                         deadline = time.monotonic() + 90
-                        while not (route() and witness_route()):
+                        while True:
+                            native_route, other_route = route(), witness_route()
+                            if native_route and other_route:
+                                break
                             if time.monotonic() >= deadline or witness_process.poll() is not None:
+                                result['reconnect_diagnostic'] = fixture.reconnect_diagnostic(
+                                    target, before['device_id'], witness_device_id, native_running,
+                                    witness_process.poll() is None, native_route, other_route)
                                 raise RecoveryError('Retained native and witness routes did not reconnect')
                             time.sleep(1)
                         if native_read('native-after-host-restore.json') != before or inspect_gui() != gui:

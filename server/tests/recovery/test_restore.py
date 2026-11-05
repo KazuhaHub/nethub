@@ -14,6 +14,23 @@ if os.name == 'posix':
 
 @unittest.skipUnless(os.name == 'posix', 'the restoration driver requires Linux flock')
 class ClosedPayloadFailure(unittest.TestCase):
+    def test_reconnect_unavailable_observation_does_not_replace_original_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = object.__new__(Restore)
+            fixture.stage = fixture.work = Path(temporary)
+            class Unavailable:
+                def send(self, *args):
+                    raise RecoveryError('private address and response')
+            def running():
+                raise RecoveryError('private credential and status')
+            value = fixture.reconnect_diagnostic(Unavailable(), 'private-native', 'private-witness',
+                running, True, False, True)
+            self.assertEqual(value, {'version': 1, 'native_route_verified': False,
+                'witness_route_verified': True, 'witness_process_running': True,
+                'native_process_running': 'unavailable', 'native_proxy': 'unavailable',
+                'witness_proxy': 'unavailable'})
+            self.assertNotIn('private', str(value))
+
     def test_original_login_opens_only_retained_native_and_witness_identities(self):
         self.check_open('200')
 

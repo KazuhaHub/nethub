@@ -444,9 +444,22 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         sys.path.insert(0, str(ROOT / 'server/tests/recovery'))
         from linux_guest import RecoveryError
         from restore import exercise as exercise_host_restore
+        def native_running():
+            try:
+                raw = guest.ssh("/usr/local/bin/python3.13 - <<'PY'\n"
+                    "import json,subprocess\n"
+                    "r=subprocess.run(['/usr/sbin/service','nethub_agent_frpc','onestatus'],capture_output=True,timeout=5)\n"
+                    "print(json.dumps(r.returncode==0))\nPY\n",
+                    'Read-only retained native process status', timeout=8)
+            except GuestError:
+                raise RecoveryError('Retained native process status unavailable') from None
+            value = json.loads(raw)
+            if type(value) is not bool:
+                raise RecoveryError('Retained native process status unavailable')
+            return value
         try:
             host_restore = exercise_host_restore(stage, port, project, evidence, native_read,
-                lambda: fixture('inspect', host=host), route, survivor_route, survivor, other['device_id'])
+                lambda: fixture('inspect', host=host), route, survivor_route, survivor, other['device_id'], native_running)
         except RecoveryError as error:
             raise GuestError('Owned full-host recovery failed: ' + str(error)) from None
         # Planned host shutdown necessarily replaces both control connections.
