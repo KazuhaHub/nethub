@@ -65,6 +65,9 @@ try {
   } else if (expectedSuccess) {
     assert.equal(result.phase, 'applied');
     await page.locator('#nethubRotationResult').filter({ hasText: 'Credentials rotated' }).waitFor();
+  } else if (label === 'rotate-publication-conflict') {
+    assert.equal(result.phase, 'trust_changed');
+    await page.locator('#nethubRotationResult').filter({ hasText: 'Relay trust changed' }).waitFor();
   } else {
     assert.equal(result.phase, 'error');
     await page.locator('#nethubRotationResult').filter({ hasText: 'Rotation response unavailable' }).waitFor();
