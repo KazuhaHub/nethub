@@ -270,12 +270,11 @@ authority or operation journal.
 The [database backup service](../deploy/database-backups.md) implements scheduled
 restricted-role `pg_dump`, retention, worker health and a full-hash recent-archive
 doctor. The [container checkpoint](../deploy/validation-database-backups.md) passed.
-Protected off-host storage and a full
-clean-host restore drill remain open. That drill must
-restore the matching database and keys, preserve account/device authority and
-verify an already enrolled device reconnects. No complete restoration command is
-documented as accepted here because that operator drill has not passed. Existing
-local-copy, transaction or process-recovery tests do not replace it.
+A separate [hosted recovery checkpoint](../deploy/validation-clean-host-restore.md)
+restored matching current keys, the complete database and six services, then
+verified the retained native and witness routes. It does not complete a fresh
+public-VPS/operator drill, protected off-host custody or the full host restoration
+scope. No general production restore command is accepted here.
 
 With GUI certificate automation enabled, recovery must also preserve the
 protected host's ACME account, issuer/HTTP-01 policies and namespaces, installed

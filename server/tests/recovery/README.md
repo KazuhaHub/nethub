@@ -1,9 +1,11 @@
 # Clean-host recovery drill
 
-This harness is being built for W7-5. Target preparation has passed actual hosted
-boot, empty-state and cleanup checks. The combined restoration flow below is
-under validation; preparation alone does not accept it or establish off-host
-backup custody.
+The combined hosted flow passed its
+[source23 checkpoint](../../../deploy/validation-clean-host-restore.md), including
+current-key/database recovery and both retained source-host TLS routes. Later
+integration revisions still need their own required checks. This isolated
+fixture does not complete W7-5, a public operator drill, protected-host issuer
+restoration or durable off-host backup custody.
 
 The dated Canonical image is pinned by SHA256 and checked against its signed
 checksum list. The signing fingerprint comes from Canonical's
