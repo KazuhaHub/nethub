@@ -132,7 +132,7 @@ def restore(control):
                                                          "temporary_keys_removed": not temporary.exists()}))
 
 
-def acceptance_evidence(code, failure, log):
+def acceptance_evidence(code, failure, log, *, diagnostic=False):
     completed = re.findall(r"^--- PASS: (TestPebbleProtectedHost(?:Issuer(?:Renewal)?|AccountProvisioning)) \([0-9]+(?:\.[0-9]+)?s\)$", log, re.MULTILINE)
     initial = (completed.count("TestPebbleProtectedHostIssuer") == 1 and
                "one original order/finalize POST; native application not claimed" in log)
@@ -151,16 +151,65 @@ def acceptance_evidence(code, failure, log):
     recovery = log.count("Authority file recovery passed real PostgreSQL rollback and lost-commit recovery, exact manifests and backups, retained maintenance, unchanged credentials and independently verified fixture TLS; no authz/frps reload or native application") == 1
     passed = (code == 0 and failure is None and initial and renewal and delivery and provisioning and publication and authority and lease and custody and snapshot and recovery and
               "Protected host command passed genuine Compose database discovery" in log)
-    return {"passed": passed, "initial_issuance_verified": passed and initial,
-            "authenticated_delivery_verified": passed and delivery,
-            "renewal_verified": passed and renewal,
-            "account_provisioning_verified": passed and provisioning,
-            "relay_trust_publication_verified": passed and publication,
-            "relay_authority_preparation_verified": passed and authority,
-            "relay_operation_lease_verified": passed and lease,
-            "relay_authority_custody_verified": passed and custody,
-            "relay_authority_snapshot_verified": passed and snapshot,
-            "relay_authority_file_recovery_verified": passed and recovery}
+    proofs = {"initial_issuance_verified": initial,
+              "authenticated_delivery_verified": delivery,
+              "renewal_verified": renewal,
+              "account_provisioning_verified": provisioning,
+              "relay_trust_publication_verified": publication,
+              "relay_authority_preparation_verified": authority,
+              "relay_operation_lease_verified": lease,
+              "relay_authority_custody_verified": custody,
+              "relay_authority_snapshot_verified": snapshot,
+              "relay_authority_file_recovery_verified": recovery}
+    if diagnostic:
+        return {**proofs, "database_discovery_verified":
+                "Protected host command passed genuine Compose database discovery" in log}
+    return {"passed": passed, **{key: passed and value for key, value in proofs.items()}}
+
+
+def process_metadata(control, phase, error):
+    phases = {"log_open", "process_launch", "process_identity", "process_record", "process_wait", "process_complete"}
+    result = {"version": 1, "phase": phase if phase in phases else "unclassified",
+              "error_number": "unavailable", "executable_regular": "unavailable",
+              "executable_root_owned": "unavailable", "executable_mode_valid": "unavailable",
+              "executable_single_link": "unavailable", "filesystem_noexec": "unavailable"}
+    number = error.errno if isinstance(error, OSError) else None
+    if type(number) is int and 0 <= number <= 255:
+        result["error_number"] = number
+    try:
+        info = (control / "guiacme.test").lstat()
+        result.update(executable_regular=stat.S_ISREG(info.st_mode), executable_root_owned=info.st_uid == 0,
+                      executable_mode_valid=stat.S_IMODE(info.st_mode) == 0o555,
+                      executable_single_link=info.st_nlink == 1)
+    except OSError:
+        pass
+    try:
+        if hasattr(os, "ST_NOEXEC"):
+            result["filesystem_noexec"] = bool(os.statvfs(control).f_flag & os.ST_NOEXEC)
+    except OSError:
+        pass
+    return result
+
+
+def run_host_process(control, log_path, env):
+    code, failure, error = None, None, None
+    phase = "log_open"
+    try:
+        with log_path.open("wb") as output:
+            phase = "process_launch"
+            process = subprocess.Popen([str(control / "guiacme.test"), "-test.v",
+                "-test.run=^TestPebbleProtectedHost(Issuer(Renewal)?|AccountProvisioning)$", "-test.timeout=180s"],
+                env=env, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
+            phase = "process_identity"
+            start = (Path("/proc") / str(process.pid) / "stat").read_text().split()[21]
+            phase = "process_record"
+            (control / "process.json").write_text(json.dumps({"pid": process.pid, "start": start}))
+            phase = "process_wait"
+            code = process.wait(timeout=210)
+            phase = "process_complete"
+    except Exception as caught:
+        error, failure = caught, type(caught).__name__
+    return code, failure, process_metadata(control, phase, error)
 
 
 def run(args):
@@ -202,17 +251,8 @@ def run(args):
            "NETHUB_GUIACME_TEST_NONCE": nonce, "NETHUB_HOST_ISSUER_BINARY": str(control / "nethub"),
            "NETHUB_HOST_POSTGRES_IMAGE": args.postgres, "NETHUB_HOST_ISSUER_UNIT": str(control / "issuer.service"),
            "NETHUB_GUIACME_PEBBLE_IMAGE": args.pebble, "NETHUB_GUIACME_CADDY_IMAGE": args.caddy}
-    code, failure = None, None
     try:
-        with (args.evidence / "test.log").open("wb") as output:
-            process = subprocess.Popen([str(control / "guiacme.test"), "-test.v",
-                                        "-test.run=^TestPebbleProtectedHost(Issuer(Renewal)?|AccountProvisioning)$", "-test.timeout=180s"],
-                                       env=env, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
-            start = (Path("/proc") / str(process.pid) / "stat").read_text().split()[21]
-            (control / "process.json").write_text(json.dumps({"pid": process.pid, "start": start}))
-            code = process.wait(timeout=210)
-    except Exception as error:
-        failure = type(error).__name__
+        code, failure, process_diagnostic = run_host_process(control, args.evidence / "test.log", env)
     finally:
         restore(control)
         command(["systemctl", "stop", guard + ".timer", guard + ".service"], check=False)
@@ -220,13 +260,21 @@ def run(args):
             assert command(["systemctl", "show", guard + suffix, "--property=ActiveState", "--value"]).stdout.strip() in (b"inactive", b"failed")
     log = (args.evidence / "test.log").read_text()
     evidence = acceptance_evidence(code, failure, log)
-    result = {**evidence, "failure_type": failure, "tested_files_sha256": hashes,
+    result = {**evidence, "failure_type": failure, "host_process_diagnostic": process_diagnostic,
+              "tested_files_sha256": hashes,
               **json.loads((control / "cleanup.json").read_text()), "guard_stopped_after_cleanup": True}
     (args.evidence / "result.json").write_text(json.dumps(result, indent=2))
     assert control.resolve() == control and control.parent == Path("/run")
     shutil.rmtree(control)
     print(json.dumps({key: value for key, value in result.items() if key != "tested_files_sha256"}))
     if not evidence["passed"]:
+        # Fixed proof identifiers explain admission failure without exporting
+        # private child output, certificates, paths or server responses.
+        for key, value in acceptance_evidence(code, failure, log, diagnostic=True).items():
+            if value is False:
+                print("NETHUB_HOST_PROOF_MISSING=" + key)
+        if code != 0 or failure is not None:
+            print("NETHUB_HOST_TEST_EXIT=nonzero")
         raise SystemExit("Protected host issuance acceptance failed; private evidence retained")
 
 
