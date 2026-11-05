@@ -14,6 +14,8 @@ SOURCE = '/srv/nethub-source'
 HELPER = '/usr/local/libexec/nethub'
 DEPLOYMENT = '/srv/nethub-deployment'
 TRANSFER = '/root/nethub-recovery'
+RECEIVE_LIMITS = {'checkpoint.json': 4 * 1024**2, 'current-files.tar': 256 * 1024**2,
+                  'admin-password': 1024}
 COMPOSE = ('docker', 'compose', '--project-name', PROJECT,
            '--file', DEPLOYMENT + '/docker-compose.yml',
            '--file', DEPLOYMENT + '/docker-compose.override.yml')

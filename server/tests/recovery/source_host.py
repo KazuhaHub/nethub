@@ -14,7 +14,7 @@ import stat
 import subprocess
 
 from image_archive import inspect_archive
-from host_layout import DEPLOYMENT, HELPER, ROLES, SERVICE_ROLES, SOURCE, UNITS, valid_tags
+from host_layout import DEPLOYMENT, HELPER, RECEIVE_LIMITS, ROLES, SERVICE_ROLES, SOURCE, TRANSFER, UNITS, valid_tags
 from linux_guest import LinuxGuest, RecoveryError, sha256
 
 
@@ -124,6 +124,30 @@ class DeploymentHost:
         actual = self.remote(['sha256sum', destination], 'Owned recovery profile exact readback').split()[0].decode()
         if actual != hashlib.sha256(data).hexdigest():
             raise RecoveryError('Owned recovery profile readback differs')
+
+    def receive(self, name):
+        if name not in RECEIVE_LIMITS:
+            raise RecoveryError('Private checkpoint export name refused')
+        if not getattr(self, 'transfer_module', None):
+            self.send_module('host_layout.py')
+            self.transfer_module = self.send_module('checkpoint_transfer.py')
+        info = json.loads(self.remote(['python3', self.transfer_module, 'info', name],
+                                     'Private guest checkpoint export identity'))
+        if (set(info) != {'bytes', 'sha256'} or type(info['bytes']) is not int
+                or not 0 < info['bytes'] <= RECEIVE_LIMITS[name]
+                or re.fullmatch('[a-f0-9]{64}', info['sha256']) is None):
+            raise RecoveryError('Private guest checkpoint export metadata refused')
+        destination = self.work / name
+        descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, 'wb') as output:
+            self.command(self.guest.ssh_arguments() + ['root@127.0.0.1',
+                shlex.join(['python3', self.transfer_module, 'read', name])],
+                'Private guest checkpoint transfer', output=output, timeout=180)
+            output.flush()
+            os.fsync(output.fileno())
+        if destination.stat().st_size != info['bytes'] or sha256(destination) != info['sha256']:
+            raise RecoveryError('Private guest checkpoint transfer differs')
+        return destination
 
 
 class SourceHost(DeploymentHost):
@@ -343,3 +367,40 @@ class SourceHost(DeploymentHost):
         return {'original_registered_account_and_snapshot_retained': True,
                 'stock_independent_cleanup_succeeded': True, 'public_only_HTTP01_proxy_installed': True,
                 'persistent_timers_enabled_but_quiesced': True, 'full_host_recovery_accepted': False}
+
+    def capture_checkpoint(self, native_device_id, pending_request_id):
+        if not self.stack_started or not self.issuer_configured or getattr(self, 'checkpoint_created', False):
+            raise RecoveryError('New complete source issuer configuration required')
+        expected = {'version': 1, 'machine_id': self.guest.identity['machine_id'],
+                    'boot_id': self.guest.identity['boot_id'], 'source_head': self.head, 'tags': self.tags,
+                    'unit_hashes': {unit: hashlib.sha256(self.command(['git', 'show',
+                        self.head + ':deploy/systemd/' + unit], 'Original stock unit identity')).hexdigest()
+                        for unit in UNITS}, 'account_hash': self.account_hash,
+                    'native_device_id': native_device_id, 'pending_request_id': pending_request_id}
+        from host_checkpoint import valid_capture_input
+        if not valid_capture_input(expected):
+            raise RecoveryError('Original owned source checkpoint input differs')
+        # host_layout may already be present when the original administrator
+        # password was obtained privately before its normal HTTPS login.
+        if not getattr(self, 'transfer_module', None):
+            self.send_module('host_layout.py')
+            self.transfer_module = self.send_module('checkpoint_transfer.py')
+        for name in ('database.py', 'payload.py', 'host_checkpoint.py'):
+            self.send_module(name)
+        self.install_file((json.dumps(expected) + '\n').encode(), 'capture-input.json',
+                          TRANSFER + '/capture-input.json', '0600')
+        result = json.loads(self.remote(['python3', TRANSFER + '/host_checkpoint.py', 'capture'],
+                                       'Original complete protected-host checkpoint', timeout=300))
+        if result != {'consistent_private_checkpoint_created': True, 'original_services_and_issuer_stopped': True,
+                      'same_pending_native_job_retained': True, 'source_guest_poweroff_verified': False,
+                      'full_host_recovery_accepted': False}:
+            raise RecoveryError('Original protected-host checkpoint was not confirmed')
+        metadata = self.receive('checkpoint.json')
+        payload = self.receive('current-files.tar')
+        value = json.loads(metadata.read_text())
+        if (value['source_head'] != self.head or value['source_machine_id'] != self.guest.identity['machine_id']
+                or value['source_boot_id'] != self.guest.identity['boot_id']
+                or value['payload']['sha256'] != sha256(payload)):
+            raise RecoveryError('Original private checkpoint identity differs')
+        self.checkpoint_created = True
+        return metadata, payload

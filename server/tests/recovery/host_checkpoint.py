@@ -1,7 +1,9 @@
-"""Capture one consistent protected-host point inside the owned source guest.
+"""Capture and restore one consistent point inside the owned recovery guests.
 
 Only the fixed guest layout is eligible. Dumps, metadata and payloads remain
 private; stopping and reaping the original guest belongs to the outer driver.
+Target restoration and timer resumption are separate, ordered operations. Neither
+operation accepts native issuance or the complete recovery drill on its own.
 """
 from contextlib import contextmanager
 import hashlib
@@ -12,12 +14,13 @@ import re
 import stat
 import subprocess
 import sys
+import time
 import uuid
 
-from database import capture, snapshot_fingerprint
+from database import CATEGORIES, bootstrap_extensions, capture, snapshot_fingerprint
 from host_layout import (COMPOSE, DEPLOYMENT, HELPER, PROJECT, RUNNING, SERVICE_ROLES,
                          STATE_ROOTS, TRANSFER, UNITS, VOLUMES, WRITERS, valid_tags)
-from payload import pack, private_info
+from payload import pack, private_info, restore as restore_files
 
 
 class CheckpointError(Exception):
@@ -62,20 +65,79 @@ def valid_capture_input(value):
         return False
 
 
+def valid_checkpoint(value):
+    keys = {'version', 'source_head', 'source_machine_id', 'source_boot_id', 'tags',
+            'original_service_ids', 'roots', 'unit_hashes', 'unit_intent', 'account_hash',
+            'native_device_id', 'pending_request_id', 'database', 'database_fingerprint',
+            'original_database_system', 'dump', 'dump_sha256', 'payload',
+            'original_services_and_issuer_stopped'}
+    try:
+        if not isinstance(value, dict) or set(value) != keys:
+            return False
+        original = {k: value[k] for k in ('version', 'source_head', 'tags', 'unit_hashes',
+                                         'account_hash', 'native_device_id', 'pending_request_id')}
+        original.update(machine_id=value['source_machine_id'], boot_id=value['source_boot_id'])
+        if (not valid_capture_input(original) or value['original_services_and_issuer_stopped'] is not True
+                or not isinstance(value['roots'], list) or len(value['roots']) != len(STATE_ROOTS)
+                or set(value['roots']) != set(STATE_ROOTS) or set(value['original_service_ids']) != RUNNING
+                or len(set(value['original_service_ids'].values())) != 6
+                or any(re.fullmatch('[a-f0-9]{64}', v) is None for v in value['original_service_ids'].values())
+                or set(value['unit_intent']) != set(UNITS)
+                or any(value['unit_intent'][u] != ('enabled' if u.endswith('.timer') else 'static') for u in UNITS)):
+            return False
+        if (not isinstance(value['database'], list) or not value['database']
+                or any(not isinstance(row, list) or len(row) != 3 or row[0] not in CATEGORIES
+                       or not all(isinstance(item, str) for item in row) for row in value['database'])
+                or not any(row[0] == 'table' for row in value['database'])
+                or len({(r[0], r[1]) for r in value['database']}) != len(value['database'])
+                or re.fullmatch('[a-f0-9]{64}', value['database_fingerprint']) is None
+                or snapshot_fingerprint(value['database']) != value['database_fingerprint']
+                or re.fullmatch('[1-9][0-9]{0,19}', value['original_database_system']) is None
+                or int(value['original_database_system']) > 2**64 - 1):
+            return False
+        dump = Path(value['dump'])
+        integrity = value['payload']
+        return (dump.parent == Path(VOLUMES['database-backups'])
+                and re.fullmatch(r'nethub-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{16}\.dump', dump.name) is not None
+                and re.fullmatch('[a-f0-9]{64}', value['dump_sha256']) is not None
+                and set(integrity) == {'sha256', 'inventory_sha256', 'entries'}
+                and all(re.fullmatch('[a-f0-9]{64}', integrity[k]) is not None for k in ('sha256', 'inventory_sha256'))
+                and type(integrity['entries']) is int and len(STATE_ROOTS) <= integrity['entries'] <= 4096)
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return False
+
+
+def valid_restore_input(value):
+    keys = {'version', 'machine_id', 'boot_id', 'source_head', 'checkpoint_sha256', 'payload_sha256'}
+    try:
+        return (isinstance(value, dict) and set(value) == keys and type(value['version']) is int
+                and value['version'] == 1 and re.fullmatch('[a-f0-9]{32}', value['machine_id']) is not None
+                and str(uuid.UUID(value['boot_id'])) == value['boot_id']
+                and re.fullmatch('[a-f0-9]{40}', value['source_head']) is not None
+                and all(re.fullmatch('[a-f0-9]{64}', value[k]) is not None for k in ('checkpoint_sha256', 'payload_sha256')))
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return False
+
+
 class SourceCheckpoint:
     def __init__(self, expected):
+        if not valid_capture_input(expected):
+            raise CheckpointError('Exact source checkpoint input required')
+        self.initialize_owned(expected, 'checkpoint-private')
+
+    def initialize_owned(self, expected, work_name):
         root = Path(TRANSFER)
         if (sys.platform != 'linux' or os.geteuid() != 0 or Path(__file__).resolve().parent != root
-                or not valid_capture_input(expected)):
-            raise CheckpointError('Owned source guest checkpoint required')
+                or work_name not in ('checkpoint-private', 'restore-private', 'resume-private')):
+            raise CheckpointError('Owned recovery guest checkpoint required')
         info = root.lstat()
         if (root != root.resolve(strict=True) or not stat.S_ISDIR(info.st_mode)
                 or info.st_uid != 0 or stat.S_IMODE(info.st_mode) != 0o700
                 or Path('/etc/machine-id').read_text().strip() != expected['machine_id']
                 or Path('/proc/sys/kernel/random/boot_id').read_text().strip() != expected['boot_id']):
-            raise CheckpointError('Owned source guest identity differs')
+            raise CheckpointError('Owned recovery guest identity differs')
         self.expected = expected
-        self.work = root / 'checkpoint-private'
+        self.work = root / work_name
         self.work.mkdir(mode=0o700)
         self.counter = 0
 
@@ -92,7 +154,7 @@ class SourceCheckpoint:
 
     def property(self, unit, name):
         return self.command(['systemctl', 'show', unit, '--property=' + name, '--value'],
-                            'Source persistent unit observation').decode().strip()
+                            'Owned persistent unit observation').decode().strip()
 
     def inventory(self):
         ids = self.command([*COMPOSE, 'ps', '-q'], 'Source service inventory').decode().splitlines()
@@ -230,11 +292,161 @@ class SourceCheckpoint:
                     'source_guest_poweroff_verified': False, 'full_host_recovery_accepted': False}
 
 
+class TargetCheckpoint(SourceCheckpoint):
+    def __init__(self, expected, *, resume=False):
+        if not valid_restore_input(expected):
+            raise CheckpointError('Exact target checkpoint input required')
+        self.initialize_owned(expected, 'resume-private' if resume else 'restore-private')
+        metadata = Path(TRANSFER) / 'checkpoint.json'
+        payload = Path(TRANSFER) / 'current-files.tar'
+        if digest(metadata) != expected['checkpoint_sha256'] or digest(payload) != expected['payload_sha256']:
+            raise CheckpointError('Transferred target checkpoint integrity differs')
+        self.metadata = private_json(metadata)
+        if (not valid_checkpoint(self.metadata) or self.metadata['source_head'] != expected['source_head']
+                or self.metadata['payload']['sha256'] != expected['payload_sha256']
+                or self.metadata['source_machine_id'] == expected['machine_id']
+                or self.metadata['source_boot_id'] == expected['boot_id']):
+            raise CheckpointError('Distinct complete source checkpoint required')
+        self.expected = {**expected, 'tags': self.metadata['tags'], 'unit_hashes': self.metadata['unit_hashes']}
+
+    def restore(self):
+        value = self.metadata
+        if (self.command(['docker', 'ps', '-aq'], 'Empty target container inventory').strip()
+                or self.command(['docker', 'volume', 'ls', '-q'], 'Empty target volume inventory').strip()):
+            raise CheckpointError('Target runtime is not empty')
+        for root in STATE_ROOTS:
+            if root not in VOLUMES.values() and Path(root).exists():
+                raise CheckpointError('Target recovery namespace already exists')
+        for name, mountpoint in VOLUMES.items():
+            volume = PROJECT + '_' + name
+            actual = self.command(['docker', 'volume', 'create', '--label', 'com.docker.compose.project=' + PROJECT,
+                                   '--label', 'com.docker.compose.volume=' + name, volume],
+                                  'Empty target persistent volume creation').decode().strip()
+            if actual != volume or self.command(['docker', 'volume', 'inspect', '--format', '{{.Mountpoint}}', volume],
+                                               'Empty target volume path readback').decode().strip() != mountpoint:
+                raise CheckpointError('Target persistent volume path differs')
+        parent = Path(HELPER).parent
+        if not parent.exists():
+            parent.mkdir(mode=0o755)
+        info = parent.lstat()
+        if parent != parent.resolve(strict=True) or info.st_uid != 0 or info.st_mode & 0o022:
+            raise CheckpointError('Target helper parent is unsafe')
+        restored = restore_files(Path(TRANSFER) / 'current-files.tar', [Path(p) for p in STATE_ROOTS],
+                                 value['payload']['sha256'], value['payload']['inventory_sha256'])
+        if restored != {'files_restored': True, 'inventory_verified': True, 'entries': value['payload']['entries']}:
+            raise CheckpointError('Recovered full host inventory differs')
+        if digest('/var/lib/nethub-gui-acme/account.json') != value['account_hash']:
+            raise CheckpointError('Recovered original registered account differs')
+        self.command(['systemctl', 'daemon-reload'], 'Recovered persistent issuer unit loading')
+        for unit in UNITS:
+            if (digest('/etc/systemd/system/' + unit) != value['unit_hashes'][unit]
+                    or self.property(unit, 'FragmentPath') != '/etc/systemd/system/' + unit
+                    or self.property(unit, 'DropInPaths') != '' or self.property(unit, 'ActiveState') != 'inactive'
+                    or self.property(unit, 'UnitFileState') != ('disabled' if unit.endswith('.timer') else 'static')):
+                raise CheckpointError('Recovered stock issuer unit bytes or inactive intent differ')
+        self.command([HELPER, 'doctor', '--directory', DEPLOYMENT], 'Recovered current keys and independent backup')
+        self.command([*COMPOSE, 'up', '-d', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '90', 'postgres'],
+                     'Distinct target PostgreSQL role bootstrap', timeout=120)
+        self.postgres = self.command([*COMPOSE, 'ps', '-q', 'postgres'], 'Distinct target PostgreSQL identity').decode().strip()
+        if (re.fullmatch('[a-f0-9]{64}', self.postgres) is None
+                or self.postgres in value['original_service_ids'].values()
+                or self.sql("SELECT count(*) FROM pg_tables WHERE schemaname='public';") != '0'
+                or self.sql('SELECT system_identifier FROM pg_control_system();') == value['original_database_system']):
+            raise CheckpointError('Distinct empty target PostgreSQL cluster required')
+        bootstrap_extensions(self.sql, value['database'])
+        if digest(value['dump']) != value['dump_sha256']:
+            raise CheckpointError('Recovered private database archive differs')
+        self.command(['docker', 'cp', value['dump'], self.postgres + ':/tmp/recovery.dump'], 'Private full dump staging')
+        self.command(['docker', 'exec', '--user', '0', self.postgres, 'chown', '70:70', '/tmp/recovery.dump'],
+                     'Private target restore input ownership')
+        self.command(['docker', 'exec', '-i', '--user', 'postgres', self.postgres, 'pg_restore', '--exit-on-error',
+                      '--single-transaction', '-U', 'postgres', '-d', 'nethub', '/tmp/recovery.dump'],
+                     'Full target schema data ownership and ACL restore', timeout=120)
+        if snapshot_fingerprint(capture(self.sql)) != value['database_fingerprint']:
+            raise CheckpointError('Complete recovered database fingerprint differs')
+        self.command([*COMPOSE, 'up', '-d', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '120'],
+                     'Recovered six-service startup', timeout=150)
+        self.inventory()
+        if any(v['Id'] in value['original_service_ids'].values() for v in self.services.values()):
+            raise CheckpointError('Recovered service identities are not distinct')
+        self.command([HELPER, 'doctor', '--directory', DEPLOYMENT, '--runtime-containers', '--project', PROJECT],
+                     'Recovered current key and runtime separation')
+        for mode in ('--database-roles', '--audit'):
+            self.command([*COMPOSE, 'exec', '-T', 'nethub-web', '/nethub', 'doctor', mode,
+                          '--password-file', '/run/secrets/pg_nethub_web', '--sslmode', 'disable'],
+                         'Recovered database roles and audit chain')
+        account = [HELPER, 'certificates', 'account']
+        options = ['--directory', DEPLOYMENT, '--config-file', '/etc/nethub/gui-issuer.json']
+        self.command(account + ['lookup', *options], 'Recovered original account creation-disabled lookup')
+        self.command(account + ['verify-backup', *options, '--backup-directory', '/var/backups/nethub/gui-account-registered'],
+                     'Recovered original registered account snapshot verification')
+        if digest('/var/lib/nethub-gui-acme/account.json') != value['account_hash']:
+            raise CheckpointError('Recovered lookup changed the original account identity')
+        marker = {'version': 1, 'checkpoint_sha256': self.expected['checkpoint_sha256'],
+                  'machine_id': self.expected['machine_id'], 'boot_id': self.expected['boot_id'],
+                  'database_system': self.sql('SELECT system_identifier FROM pg_control_system();'),
+                  'account_hash': value['account_hash']}
+        with (Path(TRANSFER) / 'restore-complete.json').open('x', encoding='utf-8') as output:
+            json.dump(marker, output)
+            output.write('\n')
+            output.flush()
+            os.fsync(output.fileno())
+        return {'full_file_inventory_restored': True, 'complete_database_fingerprint_restored': True,
+                'same_tested_six_new_services_running': True, 'stock_issuer_units_restored_inactive': True,
+                'original_registered_account_lookup_verified': True,
+                'resumed_timer_issuance_or_complete_recovery_accepted': False}
+
+    def resume(self):
+        marker = private_json(Path(TRANSFER) / 'restore-complete.json', 65536)
+        keys = {'version', 'checkpoint_sha256', 'machine_id', 'boot_id', 'database_system', 'account_hash'}
+        if (set(marker) != keys or type(marker['version']) is not int or marker['version'] != 1
+                or any(marker[k] != self.expected[k] for k in ('checkpoint_sha256', 'machine_id', 'boot_id'))
+                or marker['account_hash'] != self.metadata['account_hash']):
+            raise CheckpointError('Completed distinct target restore required before timer startup')
+        self.inventory()
+        if (self.sql('SELECT system_identifier FROM pg_control_system();') != marker['database_system']
+                or digest('/var/lib/nethub-gui-acme/account.json') != marker['account_hash']):
+            raise CheckpointError('Recovered account or database changed before resumption')
+        device, request = self.metadata['native_device_id'], self.metadata['pending_request_id']
+        pending = ("SELECT count(*) FROM gui_certificate_jobs WHERE device_id='" + device + "' AND request_id='" + request
+                   + "' AND generation=1 AND state='queued' AND lease_token IS NULL AND deadline>clock_timestamp();")
+        if (self.sql(pending) != '1'
+                or self.sql("SELECT count(*) FROM gui_certificate_generations WHERE request_id='" + request + "';") != '0'):
+            raise CheckpointError('Original initial native issuance job no longer pending')
+        for unit in UNITS:
+            if (digest('/etc/systemd/system/' + unit) != self.metadata['unit_hashes'][unit]
+                    or self.property(unit, 'FragmentPath') != '/etc/systemd/system/' + unit
+                    or self.property(unit, 'DropInPaths') != '' or self.property(unit, 'ActiveState') != 'inactive'):
+                raise CheckpointError('Recovered unit changed or started before coordinated resumption')
+        before = int(time.monotonic() * 1000000)
+        self.command(['systemctl', 'start', 'nethub-http01-cleanup.service'],
+                     'Fresh independent target cleanup execution', timeout=60)
+        start = self.property('nethub-http01-cleanup.service', 'ExecMainStartTimestampMonotonic')
+        if (self.property('nethub-http01-cleanup.service', 'Result') != 'success'
+                or self.property('nethub-http01-cleanup.service', 'ExecMainStatus') != '0'
+                or re.fullmatch('[0-9]+', start) is None or int(start) < before):
+            raise CheckpointError('Fresh successful independent target cleanup not established')
+        for timer in ('nethub-http01-cleanup.timer', 'nethub-gui-issuer.timer'):
+            self.command(['systemctl', 'enable', '--now', timer], 'Recovered protected timer intent and startup')
+            if (self.property(timer, 'UnitFileState') != self.metadata['unit_intent'][timer]
+                    or self.property(timer, 'ActiveState') != 'active'
+                    or self.property(timer, 'Unit') != timer.replace('.timer', '.service')):
+                raise CheckpointError('Recovered protected timer intent differs')
+        return {'fresh_independent_cleanup_executed_on_new_host': True,
+                'stock_timer_enabled_intent_restored_and_active': True,
+                'source_shutdown_native_issuance_or_complete_recovery_accepted': False}
+
+
 if __name__ == '__main__':
     os.umask(0o077)
     try:
-        if sys.argv[1:] != ['capture']:
+        if sys.argv[1:] == ['capture']:
+            print(json.dumps(SourceCheckpoint(private_json(Path(TRANSFER) / 'capture-input.json', 65536)).capture()))
+        elif sys.argv[1:] == ['restore']:
+            print(json.dumps(TargetCheckpoint(private_json(Path(TRANSFER) / 'restore-input.json', 65536)).restore()))
+        elif sys.argv[1:] == ['resume']:
+            print(json.dumps(TargetCheckpoint(private_json(Path(TRANSFER) / 'restore-input.json', 65536), resume=True).resume()))
+        else:
             raise CheckpointError('Owned checkpoint action required')
-        print(json.dumps(SourceCheckpoint(private_json(Path(TRANSFER) / 'capture-input.json', 65536)).capture()))
     except Exception:
-        raise SystemExit('Private source checkpoint failed; inspect owned guest logs') from None
+        raise SystemExit('Private host checkpoint failed; inspect owned guest logs') from None
