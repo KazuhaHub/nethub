@@ -13,9 +13,10 @@ its device-bound audit share one transaction. The URL is read after acquiring th
 assignment lock and constructed from the configured domain; the caller cannot
 choose an IP, destination, actor or expiry. Reads never renew a grant.
 Generated frps bundles enforce these records through `NewUserConn`; existing
-bundles must update that callback operation list. The Open button and real native
-gate acceptance remain separate W5 work. This endpoint alone does not verify a
-successful GUI connection.
+bundles must update that callback operation list. The Open button and
+[native desktop gate](../../../deploy/validation-native-w5-open-circuit.md) have
+scoped acceptance; mobile Open and the remaining W5/operator checks remain open.
+This endpoint alone does not verify a successful GUI connection.
 
 The server binds to one configured origin and a startup-selected tenant. Requests
 cannot choose a tenant or role. It resolves client IP only through explicit
