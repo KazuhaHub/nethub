@@ -59,7 +59,11 @@ now has a cross-file contract regression.
 
 See the [validation record](../../../deploy/validation-shared-token.md) for exact
 runs, measurements and image limitations. Logical coordinator/file fixtures and
-actual host/native execution cover different boundaries. Public/mobile/operator
-checks, offline fleet recovery, the installed trust-publication-conflict scenario,
-complete restoration, off-host custody and formal release remain open. This
-operation's isolated acceptance does not complete the full HANDOFF goal.
+actual host/native execution cover different boundaries. The later
+[installed trust-conflict combination](../../../deploy/validation-native-trust-conflict.md)
+passed genuine precommit refusal, native trust synchronization, this shared-token
+recovery and isolated six-service restoration. Replay of an already committed
+candidate across a later trust publication is a separate acceptance case.
+Public/mobile/operator checks, offline fleet recovery, protected-host issuer
+restoration, durable off-host custody and formal release remain open. Neither
+isolated checkpoint completes the full HANDOFF goal.
