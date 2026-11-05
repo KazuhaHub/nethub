@@ -2,6 +2,13 @@
 set -eu
 umask 077
 
+native_setup_phase() {
+    if [ "${NETHUB_NATIVE_TEST:-0}" = 1 ]; then
+        printf 'NETHUB_NATIVE_PHASE=%s\n' "$1"
+    fi
+}
+native_setup_phase preflight
+
 if [ "$(id -u)" != 0 ]; then
     echo 'Run this isolated Compose acceptance test as root for secret UID checks' >&2
     exit 2
@@ -90,6 +97,7 @@ trap cleanup EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
+native_setup_phase build_inputs
 
 if [ -z "${NETHUB_RUNTIME_TEST_IMAGE:-}" ]; then
     docker build -f "$root/deploy/Dockerfile" -t "$image" "$root" > "$stage/build.log" 2>&1
@@ -106,6 +114,7 @@ fi
 if [ -z "${NETHUB_BACKUP_TEST_IMAGE:-}" ]; then
     docker build --target backup -f "$root/deploy/Dockerfile" -t "$backup_image" "$root" > "$stage/backup-build.log" 2>&1
 fi
+native_setup_phase http01
 docker build --target http01-acceptance -f "$root/deploy/Dockerfile" -t "$http01_test_image" "$root" > "$stage/http01-build.log" 2>&1
 docker create --name "$http01_binary_holder" --network none "$http01_test_image" /http01.test >/dev/null
 docker cp "$http01_binary_holder:/http01.test" "$stage/http01.test"
@@ -117,20 +126,29 @@ NETHUB_HTTP01_CADDY_IMAGE="$caddy_image" NETHUB_HTTP01_TEST_BINARY="$stage/http0
 python3 "$root/server/tests/http01-cleanup.py" "$root" "$stage/http01-nethub" \
     "$stage/http01.test" "$stage/http01-cleanup"
 docker pull --platform linux/amd64 "$pebble_image" > "$stage/pebble-pull.log" 2>&1
+native_setup_phase gui_acme_build
 docker build --target guiacme-acceptance -f "$root/deploy/Dockerfile" -t "$guiacme_test_image" "$root" > "$stage/guiacme-build.log" 2>&1
 docker create --name "$guiacme_binary_holder" --network none "$guiacme_test_image" /guiacme.test >/dev/null
 docker cp "$guiacme_binary_holder:/guiacme.test" "$stage/guiacme.test"
 docker rm "$guiacme_binary_holder" >/dev/null
 chmod 0700 "$stage/guiacme.test"
+native_setup_phase pebble_primitives
 NETHUB_GUIACME_PEBBLE_IMAGE="$pebble_image" NETHUB_GUIACME_CADDY_IMAGE="$caddy_image" "$stage/guiacme.test" -test.v -test.run '^TestPebble(OrderAdmission|HTTP01Validation|CertificateIssuance|CoordinatorRecovery)$' -test.timeout=180s
+native_setup_phase gui_host_source_checks
 python3 "$root/server/tests/test_gui_issuer_host.py"
-python3 "$root/server/tests/gui-issuer-host.py" "$root" "$stage/http01-nethub" \
-    "$stage/guiacme.test" "$stage/gui-issuer-host" "$postgres_image" "$caddy_image" "$pebble_image"
+native_setup_phase gui_host_runtime
+if ! python3 "$root/server/tests/gui-issuer-host.py" "$root" "$stage/http01-nethub" \
+    "$stage/guiacme.test" "$stage/gui-issuer-host" "$postgres_image" "$caddy_image" "$pebble_image"; then
+    python3 "$root/agents/opnsense/acceptance/compose_setup.py" "$stage/gui-issuer-host/test.log"
+    exit 1
+fi
+native_setup_phase gui_host_build
 docker build --target guiissuer-acceptance -f "$root/deploy/Dockerfile" -t "$guiissuer_test_image" "$root" > "$stage/guiissuer-build.log" 2>&1
 docker create --name "$guiissuer_binary_holder" --network none "$guiissuer_test_image" /guiissuer.test >/dev/null
 docker cp "$guiissuer_binary_holder:/guiissuer.test" "$stage/guiissuer.test"
 docker rm "$guiissuer_binary_holder" >/dev/null
 chmod 0700 "$stage/guiissuer.test"
+native_setup_phase setup_build
 docker build --target setup-acceptance -f "$root/deploy/Dockerfile" -t "$setup_test_image" "$root" > "$stage/setup-build.log" 2>&1
 docker create --name "$setup_binary_holder" --network none "$setup_test_image" /setup.test >/dev/null
 docker cp "$setup_binary_holder:/setup.test" "$stage/setup.test"
@@ -164,7 +182,9 @@ PY
     scan_image backup "$backup_image"
     echo 'All five assembled deployment images passed HIGH/CRITICAL vulnerability checks'
 fi
+native_setup_phase frps_smoke
 python3 "$root/server/tests/frps-smoke.py" "$stage" "$frps_image" "$frps_container"
+native_setup_phase initialization
 printf '%s\n' 'I HAVE VERIFIED THE NETHUB SECRET BACKUP' | docker run --rm -i --network none --user 0 \
     -v "$root:$root:ro" -v "$stage:$stage" "$image" init --offline \
     --source-directory "$root" --directory "$stage/deployment" --backup-directory "$stage/backup" \
@@ -256,9 +276,12 @@ docker run --rm --network none --entrypoint /frps-official \
 echo 'Official checksum-verified frps accepted the generated production configuration'
 python3 "$root/server/tests/backup-deployment.py" --image-only "$stage" "$project" "$backup_image"
 echo 'Starting the isolated Compose services (210-second command deadline, 150-second health wait)'
+native_setup_phase stack_start
 compose up -d --wait --wait-timeout 150 > "$stage/start.log" 2>&1
 postgres_id=$(compose ps --all --quiet postgres)
+native_setup_phase backup_fixture
 python3 "$root/server/tests/backup-deployment.py" "$stage" "$project" "$image" "$backup_image" "$postgres_id"
+native_setup_phase provider_key
 for key_case in missing malformed unsafe; do
     printf '%s\n' 'invalid-provider-key-fixture' > "$stage/provider-key-fixture"
     chmod 600 "$stage/provider-key-fixture"
@@ -285,6 +308,7 @@ chmod 600 "$stage/provider-key-fixture"
 echo 'Actual web container loaded its generated provider key and refused missing, malformed and unsafe keys without database or network access'
 echo 'Isolated Compose startup completed; creating the initial administrator (90-second deadline)'
 openssl rand -hex 24 > "$stage/admin-password"
+native_setup_phase administrator
 compose_for 90 run --rm -T admin-bootstrap --email compose-admin@example.com --password-stdin < "$stage/admin-password" > "$stage/admin.log" 2>&1
 echo 'Initial administrator created; verifying that repeat initialization is closed'
 repeat_status=0
@@ -336,8 +360,10 @@ docker cp "$(compose ps -q caddy):/data/caddy/pki/authorities/local/root.crt" "$
 NETHUB_TEST_TOKEN_DEPLOYMENT="$stage/deployment" NETHUB_TEST_TOKEN_PROJECT="$project" \
 NETHUB_TEST_TOKEN_COMPOSE="$stage/test.yml" NETHUB_TEST_TOKEN_CLI="$stage/http01-nethub" \
     "$stage/setup.test" -test.v -test.run '^TestNativeRelayTokenMissingIdentityCLI$' -test.timeout=90s
+native_setup_phase relay
 python3 "$root/server/tests/relay-deployment.py" "$stage" "$port" "$project"
 if [ "${NETHUB_NATIVE_TEST:-0}" = 1 ]; then
+    native_setup_phase native_guest
     python3 "$root/agents/opnsense/acceptance/bootstrap.py" \
         --directory "$NETHUB_NATIVE_DIRECTORY" --evidence "$NETHUB_NATIVE_EVIDENCE" \
         --deployment-stage "$stage" --console-port "$port" --project "$project"
