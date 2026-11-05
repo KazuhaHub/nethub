@@ -63,7 +63,8 @@ actual host/native execution cover different boundaries. The later
 [installed trust-conflict combination](../../../deploy/validation-native-trust-conflict.md)
 passed genuine precommit refusal, native trust synchronization, this shared-token
 recovery and isolated six-service restoration. Replay of an already committed
-candidate across a later trust publication is a separate acceptance case.
+candidate across a later trust publication also passed its
+[separate installed record](../../../deploy/validation-native-trust-conflict.md#committed-replay-after-a-later-publication).
 Public/mobile/operator checks, offline fleet recovery, protected-host issuer
 restoration, durable off-host custody and formal release remain open. Neither
 isolated checkpoint completes the full HANDOFF goal.

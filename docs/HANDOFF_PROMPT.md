@@ -51,12 +51,23 @@ passed. Conflict retry recovered TLS in 3.080 seconds; host recovery took 58.942
 seconds. Eleven image hashes/eight unique views and 12 human DCOs were checked.
 Earlier failures and the private checker import correction remain recorded.
 
+The later [committed-replay case](../deploy/validation-native-trust-conflict.md#committed-replay-after-a-later-publication)
+passed source `54699bd`, CI `42014254316` and complete installed run `42014254020`.
+PR #212 merged as `29691f7` with its tested tree unchanged. One already-committed
+candidate recovered after lost responses and a later publication without another
+operation/audit, then confirmed current trust and original TLS in 5.392 seconds.
+Both original interruption cases, shared-token recovery, isolated restoration,
+Remove/full tail and cleanup passed. Thirteen hashes/eleven unique actual views,
+full logs/archives and three human DCOs were checked. This closes that isolated
+replay gap; it does not establish issuer activation, public/operator behavior or
+complete protected-host recovery.
+
 Other remaining gates include W5 public/mobile and operator behavior, the
 installed outage/revocation timing discrepancy, W6 public-provider/operator
-acceptance, committed replay across later publication, independent external port
-checks, published-package agreement, full documentation/translation review and
-formal release. Continue the plan against actual evidence; none of these gates
-is closed by a successful isolated fixture.
+acceptance, independent external port checks, published-package agreement,
+full documentation/translation review and formal release. Continue the plan
+against actual evidence; none of these gates is closed by a successful isolated
+fixture.
 
 ### Historical checkpoints (through 2026-10-29 UTC)
 
