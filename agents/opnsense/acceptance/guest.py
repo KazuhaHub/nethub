@@ -21,7 +21,7 @@ NATIVE_FIXTURE_PHASES = frozenset(('host_boundary', 'private_nonce', 'native_con
     'host_arguments', 'host_php_cli', 'host_freebsd', 'host_effective_uid',
     'native_security_checks', 'trust_ca_validation', 'trust_native_save', 'trust_legacy_binding',
     'trust_legacy_functions', 'trust_store_regeneration', 'native_gui_identity', 'native_gui_csr',
-    'native_gui_leaf_validation', 'native_gui_save'))
+    'native_gui_leaf_validation', 'native_gui_save', 'native_mutation_lock', 'native_bound_key'))
 ANNOUNCEMENT = ('https://raw.githubusercontent.com/opnsense/changelog/'
                 'fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7')
 

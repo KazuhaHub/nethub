@@ -47,15 +47,33 @@ try {
     }
     $action = $request['action'] ?? '';
     $expected = match ($action) {
-        'trust' => ['action', 'ca_pem', 'nonce'],
+        'trust', 'trust-cold' => ['action', 'ca_pem', 'nonce'],
         'csr', 'inspect' => ['action', 'host', 'nonce'],
-        'install' => ['action', 'ca_pem', 'certificate_pem', 'host', 'nonce'],
+        'install', 'install-bound-key' => ['action', 'ca_pem', 'certificate_pem', 'host', 'nonce'],
         default => throw new RuntimeException('Unknown fixture operation'),
     };
     $fields = array_keys($request);
     sort($fields);
     if ($fields !== $expected) {
         throw new RuntimeException('Unexpected fixture fields');
+    }
+    // Cold-fixture baseline preparation uses the enrollment key locally. Hold
+    // the agent lock before the native configuration lock, as the plugin does.
+    $agentLock = null;
+    if ($action === 'install-bound-key') {
+        $phase = 'native_mutation_lock';
+        $lockPath = '/var/db/nethub-agent/reconcile.lock';
+        $info = lstat($lockPath);
+        if ($info === false || realpath($lockPath) !== $lockPath || $info['uid'] !== 0 ||
+            $info['nlink'] !== 1 || ($info['mode'] & 0177777) !== 0100600 || $info['size'] !== 0) {
+            throw new RuntimeException('Private agent mutation lock required');
+        }
+        $agentLock = fopen($lockPath, 'rb');
+        $opened = fstat($agentLock);
+        if ($opened['dev'] !== $info['dev'] || $opened['ino'] !== $info['ino'] ||
+            !flock($agentLock, LOCK_EX | LOCK_NB)) {
+            throw new RuntimeException('Agent mutation lock unavailable');
+        }
     }
     $phase = 'native_config_load';
     require_once('/usr/local/opnsense/mvc/script/load_phalcon.php');
@@ -68,7 +86,7 @@ try {
         if (isset($gui->nodnsrebindcheck) || isset($gui->nohttpreferercheck)) {
             throw new RuntimeException('Native GUI checks must stay enabled');
         }
-        if ($action === 'trust') {
+        if ($action === 'trust' || $action === 'trust-cold') {
             $phase = 'trust_ca_validation';
             $pem = $request['ca_pem'];
             $ca = is_string($pem) ? openssl_x509_read($pem) : false;
@@ -77,17 +95,32 @@ try {
                 openssl_x509_verify($ca, openssl_pkey_get_public($ca)) !== 1) {
                 throw new RuntimeException('Invalid fixture CA');
             }
-            $entry = $root->addChild('ca');
-            $entry->addChild('refid', 'nhfixture' . substr($request['nonce'], 0, 16));
-            $entry->addChild('descr', 'NetHub isolated console fixture');
-            $entry->addChild('crt', base64_encode($pem));
-            $phase = 'trust_native_save';
-            $configuration->save();
+            $reference = $action === 'trust' ? 'nhfixture' . substr($request['nonce'], 0, 16)
+                : 'nhcold' . substr(openssl_x509_fingerprint($ca, 'sha256'), 0, 16);
+            $matches = [];
+            foreach ($root->ca as $candidate) {
+                if ((string)$candidate->refid === $reference) { $matches[] = $candidate; }
+            }
+            if (count($matches) > 1 || count($matches) === 1 &&
+                (string)$matches[0]->crt !== base64_encode($pem)) {
+                throw new RuntimeException('Fixture CA reference differs');
+            }
+            if (count($matches) === 0) {
+                $entry = $root->addChild('ca');
+                $entry->addChild('refid', $reference);
+                $entry->addChild('descr', 'NetHub isolated console fixture');
+                $entry->addChild('crt', base64_encode($pem));
+                $phase = 'trust_native_save';
+                $configuration->save();
+            }
             $result = ['trusted' => true];
         } else {
             $phase = 'native_gui_identity';
             $host = $request['host'];
-            if (!is_string($host) || !preg_match('/\A[a-z0-9]{8}\.router\.example\.com\z/D', $host) ||
+            $hostPattern = $action === 'install-bound-key'
+                ? '/\A[a-z0-9]{8}\.devices\.example\.test\z/D'
+                : '/\A[a-z0-9]{8}\.router\.example\.com\z/D';
+            if (!is_string($host) || !preg_match($hostPattern, $host) ||
                 (string)$root->OPNsense->NetHubAgent->subdomain !== explode('.', $host)[0]) {
                 throw new RuntimeException('Fixture host differs from native enrollment');
             }
@@ -107,6 +140,38 @@ try {
             if ($key === false || $old === false || !openssl_x509_check_private_key($old, $key)) {
                 throw new RuntimeException('Invalid existing native GUI identity');
             }
+            if ($action === 'install-bound-key') {
+                $phase = 'native_bound_key';
+                $keyDirectory = '/usr/local/etc/nethub-agent/gui-key';
+                $info = lstat($keyDirectory);
+                if ($info === false || realpath($keyDirectory) !== $keyDirectory ||
+                    $info['uid'] !== 0 || ($info['mode'] & 0177777) !== 0040700) {
+                    throw new RuntimeException('Original enrolled key directory required');
+                }
+                foreach (['key.pem', 'state.json'] as $name) {
+                    $path = $keyDirectory . '/' . $name;
+                    $info = lstat($path);
+                    if ($info === false || realpath($path) !== $path || $info['uid'] !== 0 ||
+                        $info['nlink'] !== 1 || ($info['mode'] & 0177777) !== 0100600 ||
+                        $info['size'] < 1 || $info['size'] > 2048) {
+                        throw new RuntimeException('Original enrolled key member required');
+                    }
+                }
+                $boundPem = file_get_contents($keyDirectory . '/key.pem');
+                $key = openssl_pkey_get_private($boundPem);
+                $metadata = json_decode(file_get_contents($keyDirectory . '/state.json'), true, 8, JSON_THROW_ON_ERROR);
+                $metadataFields = is_array($metadata) ? array_keys($metadata) : [];
+                sort($metadataFields);
+                $public = $key === false ? false : openssl_pkey_get_details($key);
+                $der = $public === false ? false : base64_decode(preg_replace(
+                    '/-----BEGIN PUBLIC KEY-----|-----END PUBLIC KEY-----|\s+/', '', $public['key']), true);
+                if ($metadataFields !== ['fingerprint', 'public_key', 'version'] ||
+                    $der === false || ($metadata['version'] ?? null) !== 1 ||
+                    ($metadata['fingerprint'] ?? null) !== hash('sha256', $der) ||
+                    ($metadata['public_key'] ?? null) !== rtrim(strtr(base64_encode($der), '+/', '-_'), '=')) {
+                    throw new RuntimeException('Original enrollment key binding differs');
+                }
+            }
             $result = ['key_sha256' => hash('sha256', openssl_pkey_get_details($key)['key']),
                        'security_checks_enabled' => true];
             if ($action === 'csr') {
@@ -116,7 +181,7 @@ try {
                     throw new RuntimeException('Public native CSR unavailable');
                 }
                 $result['csr_pem'] = $public;
-            } elseif ($action === 'install') {
+            } elseif ($action === 'install' || $action === 'install-bound-key') {
                 $phase = 'native_gui_leaf_validation';
                 $leaf = openssl_x509_read($request['certificate_pem']);
                 $ca = openssl_x509_read($request['ca_pem']);
@@ -129,6 +194,11 @@ try {
                     throw new RuntimeException('Fixture certificate differs from native key/host');
                 }
                 $entry->crt = base64_encode($request['certificate_pem']);
+                if ($action === 'install-bound-key') {
+                    // Explicit disposable baseline only: no private key leaves
+                    // this appliance and no server application is fabricated.
+                    $entry->prv = base64_encode($boundPem);
+                }
                 $alternates = preg_split('/\s+/', trim((string)$gui->althostnames), -1, PREG_SPLIT_NO_EMPTY);
                 if (!in_array($host, $alternates, true)) {
                     $alternates[] = $host;
@@ -144,8 +214,9 @@ try {
         }
     } finally {
         $configuration->unlock();
+        if (is_resource($agentLock)) { fclose($agentLock); }
     }
-    if ($action === 'trust') {
+    if ($action === 'trust' || $action === 'trust-cold') {
         $phase = 'trust_legacy_binding';
         require_once('/usr/local/etc/inc/config.inc');
         require_once('/usr/local/etc/inc/util.inc');

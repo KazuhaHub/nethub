@@ -221,5 +221,13 @@ signature against the existing enrolled key. It creates neither key nor request.
 Its private output distinguishes the enrollment key from the active GUI
 certificate's public key, and records the original process, assignment, checks
 and alias for later comparison. A factory GUI key must not be described as the
-enrollment key. Native execution and a deliberate same-key baseline setup remain
-unfinished; input-admission tests alone do not establish either condition.
+enrollment key. The disposable PHP fixture has a separate `install-bound-key`
+operation for an explicit baseline: it verifies the existing device key metadata,
+uses that key only inside the appliance and installs a public fixture leaf signed
+from the original cached CSR. It preserves both native security checks and adds
+only the assigned alias. `trust-cold` admits the separate public console/issuing
+roots with distinct fingerprint-bound references. Neither operation fabricates
+a server request, issued generation or application report. These operations have
+not executed on a native guest; input-admission tests do not establish a same-key
+baseline or certificate recovery. The driver must run this preparation before
+recording its baseline, then compare it after genuine restored-host issuance.
