@@ -115,8 +115,14 @@ respective directories. Session synchronizer derivation needs no global key.
 The version-3 backup includes the deployment CA/key, initial relay leaf/key and
 private rendered frps config. Runtime leaf/key and public trust live in separate
 read-only mounts. No application runtime mounts the issuer state. Runtime leaf
-renewal can preserve backup coverage under the same authority; durable automatic
-renewal/application, trust rotation and router GUI ACME remain pending.
+renewal has a separate [protected host maintenance procedure](relay-maintenance.md).
+Controlled trust transitions and router GUI issuance/application have
+[scoped W4 acceptance](validation-native-public-certificate.md). Initialization
+does not enable those operations automatically; follow the
+[certificate ownership and lifecycle record](../docs/certificate-automation.md).
+The initial backup alone does not cover separately configured GUI issuer,
+ACME account, HTTP-01/publisher or systemd state. Retain that protected state
+separately; complete cold-host restoration and off-host durability remain open.
 
 Version-1/2 bundles are rejected rather than silently regenerated or migrated.
 Preserve the original checkout, authority/secret backups and database state; use
@@ -136,6 +142,9 @@ checking probes DNS. `doctor --health-url` accepts only an exact loopback HTTP
 /healthz endpoint and is used inside web/authz containers. The command explicitly
 lists checks it has not performed: it does not claim public connectivity, runtime
 mount/grant correctness, relay/authz health, or scheduled database backup.
+The [readiness guide](../docs/deployment.md#verify-readiness) documents the
+additional public-TLS, actual database-role, container, relay-hook and recent-backup
+checks. A successful base invocation does not run those modes implicitly.
 
 Run `sudo sh server/tests/compose.sh` for a new temporary project/image/volumes,
 private loopback test TLS, real first-admin creation/login, empty inventory, token
