@@ -18,6 +18,18 @@ if not __debug__:
     raise SystemExit("Host acceptance requires enabled ownership assertions")
 
 
+CONTROL_BASE = Path("/var/lib")
+
+
+def control_parent(*, require_exec=False):
+    info = CONTROL_BASE.lstat()
+    assert CONTROL_BASE.resolve(strict=True) == CONTROL_BASE
+    assert stat.S_ISDIR(info.st_mode) and info.st_uid == 0 and info.st_mode & 0o022 == 0
+    if require_exec:
+        assert not os.statvfs(CONTROL_BASE).f_flag & os.ST_NOEXEC
+    return CONTROL_BASE
+
+
 def command(args, timeout=25, check=True):
     if args[0] == "docker":
         args = ["/usr/bin/docker", "--host", "unix:///var/run/docker.sock", *args[1:]]
@@ -54,7 +66,7 @@ def units(nonce):
 
 
 def restore(control):
-    assert os.geteuid() == 0 and control.parent == Path("/run")
+    assert os.geteuid() == 0 and control.parent == control_parent()
     assert re.fullmatch(r"nethub-host-issuer-test-[a-f0-9]{16}", control.name)
     assert control.resolve() == control and control.stat().st_uid == 0
     assert stat.S_IMODE(control.stat().st_mode) == 0o700
@@ -216,13 +228,17 @@ def run(args):
     assert os.geteuid() == 0 and Path("/run/systemd/system").is_dir()
     args.evidence.mkdir(mode=0o700, parents=True, exist_ok=False)
     nonce = secrets.token_hex(8)
-    control = Path("/run") / ("nethub-host-issuer-test-" + nonce)
+    # Keep root-owned programs off /run: hardened runners may mount it noexec.
+    # The existing nonce/ownership/independent cleanup admission still applies.
+    control = control_parent(require_exec=True) / ("nethub-host-issuer-test-" + nonce)
     for kind, name, _ in resources(nonce):
         assert inspect(kind, name) is None
     for unit in units(nonce):
         assert command(["systemctl", "show", unit, "--property=LoadState", "--value"]).stdout.strip() == b"not-found"
         assert not (Path("/run/systemd/system") / unit).is_symlink()
     control.mkdir(mode=0o700)
+    assert control.resolve(strict=True) == control and control.stat().st_uid == 0
+    assert stat.S_IMODE(control.stat().st_mode) == 0o700
     images = {}
     for name in ("postgres", "caddy", "pebble"):
         image = json.loads(command(["docker", "image", "inspect", getattr(args, name)]).stdout)
@@ -261,10 +277,13 @@ def run(args):
     log = (args.evidence / "test.log").read_text()
     evidence = acceptance_evidence(code, failure, log)
     result = {**evidence, "failure_type": failure, "host_process_diagnostic": process_diagnostic,
+              "control_storage": {"protected_parent_verified": True, "private_control_verified": True,
+                  "executable_filesystem": not bool(os.statvfs(control).f_flag & os.ST_NOEXEC),
+                  "runtime_filesystem_noexec": bool(os.statvfs("/run").f_flag & os.ST_NOEXEC)},
               "tested_files_sha256": hashes,
               **json.loads((control / "cleanup.json").read_text()), "guard_stopped_after_cleanup": True}
     (args.evidence / "result.json").write_text(json.dumps(result, indent=2))
-    assert control.resolve() == control and control.parent == Path("/run")
+    assert control.resolve() == control and control.parent == control_parent()
     shutil.rmtree(control)
     print(json.dumps({key: value for key, value in result.items() if key != "tested_files_sha256"}))
     if not evidence["passed"]:

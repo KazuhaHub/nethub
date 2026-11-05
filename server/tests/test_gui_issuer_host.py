@@ -20,6 +20,37 @@ with patch.dict(sys.modules, modules):
 
 
 class HostFixtureAdmission(unittest.TestCase):
+    def test_owned_executable_storage_does_not_require_runtime_mount_execution(self):
+        base = Path('/var/lib')
+        owned = types.SimpleNamespace(st_mode=0o40755, st_uid=0)
+        with patch.object(fixture, 'CONTROL_BASE', base), patch.object(Path, 'lstat', return_value=owned), \
+                patch.object(Path, 'resolve', return_value=base), \
+                patch.object(fixture.os, 'ST_NOEXEC', 8, create=True), \
+                patch.object(fixture.os, 'statvfs', return_value=types.SimpleNamespace(f_flag=0), create=True) as mount:
+            self.assertEqual(fixture.control_parent(require_exec=True), base)
+            self.assertEqual(mount.call_args.args, (base,))
+
+    def test_noexec_storage_is_refused_for_launch_but_not_owned_cleanup(self):
+        base = Path('/var/lib')
+        owned = types.SimpleNamespace(st_mode=0o40755, st_uid=0)
+        with patch.object(fixture, 'CONTROL_BASE', base), patch.object(Path, 'lstat', return_value=owned), \
+                patch.object(Path, 'resolve', return_value=base), \
+                patch.object(fixture.os, 'ST_NOEXEC', 8, create=True), \
+                patch.object(fixture.os, 'statvfs', return_value=types.SimpleNamespace(f_flag=8), create=True):
+            with self.assertRaises(AssertionError):
+                fixture.control_parent(require_exec=True)
+            self.assertEqual(fixture.control_parent(), base)
+
+    def test_writable_foreign_or_linked_parent_cannot_admit_host_programs(self):
+        base = Path('/var/lib')
+        for mode, owner, resolved in ((0o40777, 0, base), (0o40755, 1, base),
+                                      (0o120777, 0, base), (0o40755, 0, Path('/private/elsewhere'))):
+            with self.subTest(mode=mode, owner=owner), patch.object(fixture, 'CONTROL_BASE', base), \
+                    patch.object(Path, 'lstat', return_value=types.SimpleNamespace(st_mode=mode, st_uid=owner)), \
+                    patch.object(Path, 'resolve', return_value=resolved):
+                with self.assertRaises(AssertionError):
+                    fixture.control_parent()
+
     def test_launch_permission_failure_retains_phase_without_private_error_text(self):
         with tempfile.TemporaryDirectory() as temporary:
             control = Path(temporary)
