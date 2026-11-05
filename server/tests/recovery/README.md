@@ -142,3 +142,12 @@ forwarding failures from target-local route failures without exporting addresses
 certificates, response bodies or exception text. A target-local success is only
 diagnostic; it cannot substitute for either original source route or extend the
 90-second reconnect success window.
+
+Failure diagnostics further distinguish certificate-identity rejection from a
+closed TLS stream and other handshake errors. Bounded private authz logs yield
+only counts of fixed NewUserConn decisions; raw lines and extra fields are not
+exported. A separate rollback-only transaction calls the real source-access
+function under the authz role for the already granted address, returning only
+two booleans or explicit unavailable states. It never inserts or renews a grant.
+These observations distinguish admission from transport symptoms without
+treating a zero log count, an unavailable query or a local probe as acceptance.

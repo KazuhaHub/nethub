@@ -39,7 +39,9 @@ class TargetRouteProbe(unittest.TestCase):
                 http.return_value.close.assert_called_once()
 
     def test_tls_and_transport_errors_never_export_exception_text(self):
-        for error, expected in ((ssl.SSLCertVerificationError('private hostname'), 'tls_rejected'),
+        for error, expected in ((ssl.SSLCertVerificationError('private hostname'), 'tls_identity_rejected'),
+                                (ssl.SSLEOFError('private peer'), 'tls_closed'),
+                                (ssl.SSLError('private protocol'), 'tls_rejected'),
                                 (TimeoutError('private address'), 'timeout'),
                                 (ConnectionRefusedError('private peer'), 'connect_failed')):
             with patch('route_probe.ssl.create_default_context'), \

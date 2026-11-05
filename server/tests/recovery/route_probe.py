@@ -13,7 +13,7 @@ import sys
 
 
 OUTCOMES = {'verified', 'connect_failed', 'timeout', 'tls_rejected', 'http_rejected',
-            'payload_mismatch', 'unavailable'}
+            'tls_identity_rejected', 'tls_closed', 'payload_mismatch', 'unavailable'}
 
 
 def validate(value):
@@ -56,6 +56,10 @@ def probe(address, route, label):
                 return 'verified' if matches else 'payload_mismatch'
     except (socket.timeout, TimeoutError):
         return 'timeout'
+    except ssl.SSLCertVerificationError:
+        return 'tls_identity_rejected'
+    except (ssl.SSLEOFError, ssl.SSLZeroReturnError):
+        return 'tls_closed'
     except ssl.SSLError:
         return 'tls_rejected'
     except (ConnectionError, OSError):

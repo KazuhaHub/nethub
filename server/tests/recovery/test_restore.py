@@ -14,6 +14,31 @@ if os.name == 'posix':
 
 @unittest.skipUnless(os.name == 'posix', 'the restoration driver requires Linux flock')
 class ClosedPayloadFailure(unittest.TestCase):
+    def test_source_access_probe_uses_authz_and_rolls_back_without_disclosing_rows(self):
+        fixture = object.__new__(Restore)
+        identities = ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002']
+        calls = []
+        def remote(target, args, label, timeout):
+            query = args[-1]
+            self.assertIn('SET LOCAL ROLE nethub_authz;', query)
+            self.assertIn('SELECT device_source_access(', query)
+            self.assertIn("statement_timeout='2s'", query)
+            self.assertTrue(query.endswith('ROLLBACK;'))
+            self.assertNotIn('INSERT', query)
+            self.assertNotIn('UPDATE', query)
+            self.assertEqual(timeout, 5)
+            calls.append(query)
+            return b't\n' if len(calls) == 1 else b'f\n'
+        fixture.remote = remote
+        value = fixture.source_access_diagnostic(None, 'private-container', identities, '172.18.0.1')
+        self.assertEqual(value, {'native': True, 'witness': False})
+        self.assertNotIn('private', str(value))
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(fixture.source_access_diagnostic(None, 'private-container',
+            ['private-unsafe-id', identities[1]], '172.18.0.1'),
+            {'native': 'unavailable', 'witness': 'unavailable'})
+        self.assertEqual(len(calls), 2)
+
     def test_route_diagnostics_refuse_extra_content_and_preserve_unavailable_target(self):
         with tempfile.TemporaryDirectory() as temporary:
             fixture = object.__new__(Restore)

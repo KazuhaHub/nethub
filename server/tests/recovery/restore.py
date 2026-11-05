@@ -13,6 +13,7 @@ import time
 
 from database import bootstrap_extensions, capture, difference_details, differing_categories, snapshot_fingerprint
 from image_archive import inspect_archive
+from hook_probe import project as project_hook_decisions
 from linux_guest import LinuxGuest, RecoveryError, sha256
 from payload import PayloadError, SOURCE_REASONS, pack
 from route_probe import OUTCOMES, validate as validate_routes
@@ -58,6 +59,29 @@ class Restore:
         return self.remote(guest, ['docker', 'exec', '-i', postgres, 'psql', '-X', '-qAt', '-v', 'ON_ERROR_STOP=1',
                                   '-U', 'postgres', '-d', 'nethub', '-c', query],
                            'Fresh recovery database read').decode().strip()
+
+    def source_access_diagnostic(self, target, postgres, identities, granted):
+        result = {'native': 'unavailable', 'witness': 'unavailable'}
+        try:
+            address = str(ipaddress.IPv4Address(granted))
+            if len(identities) != 2 or len(set(identities)) != 2 or any(re.fullmatch(
+                    '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', value) is None
+                    for value in identities):
+                return result
+            for label, identity in zip(('native', 'witness'), identities):
+                # Use the actual authz role and function, with no grant insertion.
+                query = ("BEGIN; SET LOCAL statement_timeout='2s'; SET LOCAL lock_timeout='500ms'; "
+                    "DO $$ BEGIN PERFORM set_config('app.tenant_id',(SELECT tenant_id::text FROM devices WHERE id='" +
+                    identity + "'),true); END $$; SET LOCAL ROLE nethub_authz; "
+                    "SELECT device_source_access('" + identity + "','" + address + "'::inet); ROLLBACK;")
+                observed = self.remote(target, ['docker', 'exec', '-i', postgres, 'psql', '-X', '-qAt',
+                    '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'nethub', '-c', query],
+                    'Read-only restored source-access observation', timeout=5).decode().strip()
+                if observed in ('t', 'f'):
+                    result[label] = observed == 't'
+        except (OSError, RuntimeError, ValueError, TypeError, RecoveryError, subprocess.SubprocessError):
+            pass
+        return result
 
     def source_inventory(self):
         ids = self.command(self.compose + ['ps', '-q'], 'Recovery source service inventory').decode().splitlines()
@@ -237,6 +261,15 @@ class Restore:
                     value['target_route_probes'] = observed
             except (OSError, RuntimeError, ValueError, TypeError, KeyError, RecoveryError, subprocess.SubprocessError):
                 pass
+            value['target_connection_hooks'] = 'unavailable'
+            try:
+                command = shlex.join(self.compose + ['logs', '--no-color', '--no-log-prefix',
+                    '--tail', '512', 'nethub-authz']) + ' 2>&1'
+                raw = self.remote(target, ['sh', '-c', command],
+                    'Read-only restored connection-hook observation', timeout=5)
+                value['target_connection_hooks'] = project_hook_decisions(raw)
+            except (OSError, RuntimeError, ValueError, TypeError, AttributeError, RecoveryError, subprocess.SubprocessError):
+                pass
         return value
 
 
@@ -383,6 +416,8 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
                                     target, before['device_id'], witness_device_id, native_running,
                                     witness_process.poll() is None, native_route, other_route,
                                     source_routes, target_routes, granted)
+                                result['reconnect_diagnostic']['target_open_source_authorized'] = fixture.source_access_diagnostic(
+                                    target, target_postgres, [before['device_id'], witness_device_id], granted)
                                 raise RecoveryError('Retained native and witness routes did not reconnect')
                             time.sleep(1)
                         if native_read('native-after-host-restore.json') != before or inspect_gui() != gui:
