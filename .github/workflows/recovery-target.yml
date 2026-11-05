@@ -31,6 +31,8 @@ jobs:
           persist-credentials: false
       - name: Check source refusal cases
         run: python3 -m unittest discover -s server/tests/recovery -p 'test_*.py'
+      - name: Check actual private root-owned checkpoint exports
+        run: sudo python3 -B -m unittest discover -s server/tests/recovery -p test_checkpoint_transfer.py
       - name: Prepare fresh hosted KVM tools
         run: |
           test "$RUNNER_ENVIRONMENT" = github-hosted
