@@ -13,7 +13,40 @@
 这样你在任何地方都能打开在 NAT 或 CGNAT 后面的路由器的管理页面。
 项目负责人是 **Kazuha**。凡是要拍板的事都归他，你负责按计划执行，并拿出证据。
 
-### Current state (updated 2026-10-29 UTC)
+### Current state (updated 2026-11-05 UTC)
+
+NetHub has implemented OPNsense enrollment, source-IP-gated GUI access,
+certificate automation, local circuit breaking, revocation, account/invitation
+administration, shared authcore OIDC/SAML admission, audit verification, traffic
+reporting, scheduled backups and controlled credential rotation. Each feature
+has its own validation scope; implementation does not complete W5-W7.
+The repository is public by Kazuha's 2026-10-21 instruction. D12 disclosure
+review and D13 release approval remain separate.
+
+The accepted [backup service](../deploy/validation-database-backups.md),
+[device rotation](../deploy/device-rotation.md) and
+[shared-token operation](../deploy/validation-shared-token.md) retain their
+recorded evidence. Subsequent integration and documentation work is merged
+through PR #203. Historical checkpoints below describe their original source,
+not missing functionality in today's tree.
+
+The clean-host recovery drill in [PR #194](https://github.com/KazuhaHub/nethub/pull/194)
+is unfinished: the previous installed run restored online clients/proxies but
+refused both new TLS routes at NewUserConn admission. The current diagnostic
+source separates fixed identity-state and source-access denial causes; its
+installed result is still pending. Do not claim automatic recovery from image
+preparation, a database comparison, an online proxy or a target-local probe.
+Full recovery also needs protected-host certificate issuance state and durable
+off-host custody, beyond the six-service fixture.
+
+Other remaining gates include W5 public/mobile and operator behavior, the
+installed outage/revocation timing discrepancy, W6 public-provider/operator
+acceptance, installed publication-conflict recovery, independent external port
+checks, published-package agreement, full documentation/translation review and
+formal release. Continue the plan against actual evidence; none of these gates
+is closed by a successful isolated fixture.
+
+### Historical checkpoints (through 2026-10-29 UTC)
 
 - **Scheduled backup service accepted:** PR #191 merged as `b03e238` after all six checks in run `40657579668`, complete actual/inherited logs, ten human DCOs and review of thirteen primary plus four supplemental images/hashes. The tested and merged trees match. Actual nonroot image, restricted dump/restore/content comparison, health/deep doctor, retention, corruption refusal, restart and active-dump cancellation/cleanup passed. The six-service inspector rejected extra Web/backup secret files and recovered with services unchanged; all five images passed unsuppressed HIGH/CRITICAL scans. Earlier failures remain retained. The current client dependency locks have FreeBSD-target build/scan proof, while unchanged native filesystem contracts retain their original execution evidence; the new client was not installed or retested on an appliance. Clean-host/current-key/enrolled-device restoration, off-host durability and remaining W7-3 checks remain open. W7-3/W7-5 and the full goal are incomplete. [Validation and limits](../deploy/validation-database-backups.md), [operations](../deploy/database-backups.md).
 
@@ -213,17 +246,22 @@ Experiment ⑤ (2026-10-17): mobile source IPv4 matched NewUserConn remote_addr;
 
 读完后，把看不懂的地方和发现的矛盾列成清单，发给 Kazuha。这是正常的第一步，不是打扰。
 
-### 你第一周要做的事
+### Next work
 
-1. **读文档，列问题**（见上）。
-2. **Check the remaining readiness gates.** D1/D2 are confirmed; the D3 topology is selected, but mobile GUI acceptance has passed and two-mobile-network sampling now passes within the owner-approved scope:
-   - 【D1】2026-10-17 已确认：保持 Apache-2.0，作为组织分层规则的例外，继续 P0；
-   - 【D2】2026-10-17 已确认：仓库先保持私有，到 W7 再决定公开；
-   - D3: use the local Windows OPNsense NAT client and remote LXC relay (PLAN §5.2). Native Hyper-V now passes complete local and public GUI diagnostics at 1 GiB. Kazuha approved continuing W0 at 1 GiB with the resource deviation recorded; preserve memory, swapping, and performance observations. Two mobile carriers and a company or campus network are available; A/B mobile samples now pass; Kazuha explicitly waived the company/campus sample. Keep access details outside the repository.
-3. **按 PLAN §5 装好开发环境**，把每个工具的版本输出记下来。
-4. **做 P0 剩下的部分**（PLAN §6，仓库已经建好）：最小 CI、Dependabot，请 Kazuha 开分支保护。先请 Kazuha 给你仓库的写权限。
-5. **等测试资源的时候，可以先做 W3-0**：给 React 控制台做 2–3 个组件库示例，供 Kazuha 选（决策 D9）。这一步不需要任何测试资源。
-6. **资源到位后做 W0**（PLAN §7，照 RUNBOOK 一步步来）。W0 没做完，不写任何安全相关的代码。
+1. Finish and verify the clean-host current-key/database/enrolled-device drill.
+   Preserve failed runs, generic client rejections, source-IP policy and the
+   original reconnect deadline. Complete protected-host issuer recovery and
+   durable off-host custody separately; do not narrow W7-5 to six containers.
+2. Add the remaining installed publication-conflict/synchronization recovery
+   cases, preserving the accepted per-device and shared-token runtime.
+3. Complete the remaining W5/W6 public-network and operator gates, resolve the
+   installed cutoff timing discrepancy, and retain explicit scope for any waived
+   network sample. Isolated IdPs do not establish public-provider acceptance.
+4. Finish W7 readiness and semantic/translation review. Actual formally published
+   appliance agreement, D12 disclosure review and D13 release decisions stay open
+   until their own requirements and authorization are satisfied.
+5. Use the existing development environment and accepted decisions. Do not repeat
+   P0, W0 resource selection or component-library approval as new prerequisites.
 
 ### 红线：绝对不能做的事
 
@@ -290,26 +328,25 @@ PLAN §2 列了 D1–D22，**全部归 Kazuha 拍板**。你的职责有三件�
 
 | 文件 | 是什么 |
 |---|---|
-| `docs/PLAN.md` | 执行计划：阶段、任务、验收、决策清单、模板（内部） |
+| `docs/PLAN.md` | Execution plan, decisions, validation gates and templates; already public, with D12 review still open |
 | `docs/DESIGN.md` | 设计方案 v0.3，架构上的权威（中文） |
 | `docs/threat-model.md` | 威胁模型初稿（英文），W0 之后和 W7 要更新 |
 | `docs/console-api.md` | Current console API reference: implemented routes, OIDC/SAML boundaries and reserved proposals; update alongside API changes |
 | `docs/README.zh-CN.md` | README 的中文版，英文 README 一改就要同步 |
 | `weekend0/` | W0 的操作手册、结果模板、探针、frp 配置 |
-| `server/`、`deploy/`、`proto/`、`agents/opnsense/` 下的 README | 各组件的规划，还没有代码 |
+| Component README files under `server/`, `deploy/`, `proto/` and `agents/opnsense/` | Implemented interfaces, operating procedures and bounded validation records |
 | `CONTRIBUTING.md` | 提交规范（DCO、Conventional Commits）、开发环境 |
 
-还没写的文档有两份。`docs/protocol.md` 和 `proto/` 下的 JSON Schema 在 W4 写，要用 W0 实测出的字段名。`docs/deployment.md` 在 W7 写，要等部署脚本真正写出来。
+The [protocol](protocol.md), shared schemas under `proto/` and
+[deployment guide](deployment.md) exist. Keep them aligned with current code and
+accepted measurements; their existence does not complete W7-6 review.
 
-### 第一件事
+### First action on resuming
 
-读完上面列的文档后，给 Kazuha 发一条消息，包括三部分：
-
-1. 你的问题清单；
-2. 请他定 D1、D2、D3；
-3. 你打算这一周做什么。
-
-然后开始按 PLAN §5 装环境。
+Read the current state and remaining PLAN gates, inspect the current checkout and
+live PR/test state, then continue the next unfinished requirement. Keep earlier
+failed evidence and incomplete gates explicit. D1/D2/D3 and the later confirmed
+decisions do not need to be requested again.
 
 ### Dedicated test device verification (2026-10-17)
 
