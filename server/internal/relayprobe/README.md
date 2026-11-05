@@ -48,6 +48,9 @@ TLS/mux unit fixtures check success/refusal separation, fresh identities, no raw
 token or extra messages, strict replies, redaction, hostname verification and
 cancellation. The owned Compose relay harness now requires a compiled valid/wrong/
 valid token Login test against official frps/authz, then checks both original
-official-client controls and verified HTTPS routes. That actual test still needs
-execution. No production token-incident caller exists yet; this does not accept
-shared-token replacement, service recovery or fleet recovery.
+official-client controls and verified HTTPS routes. The shared-token host command
+uses this helper for actual candidate/previous/candidate Login verification;
+the [incident validation](../../../deploy/validation-shared-token.md) records its
+accepted host and online native/reference scope. The [operator procedure](../../../deploy/shared-relay-token-rotation.md)
+covers independent management and offline manual enrollment. Probe success alone
+does not establish service, fleet, public-network or full-host recovery.
