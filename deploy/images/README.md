@@ -29,6 +29,14 @@ claimed to be unchanged.
   to an unreviewed version. The new assembled-image scans, PostgreSQL restore
   and backup/deployment checks must pass, including the libraries copied into
   backup. No scanner exclusion is added.
+- PostgreSQL and backup tools also pin musl and musl-utils 1.2.6-r3 from their
+  Alpine 3.24 repositories. The scan at source `1fdfbcf` reported HIGH
+  CVE-2026-107891 against musl-utils 1.2.6-r2 and identified r3 as fixed.
+  The [official Alpine index](https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/)
+  supplies both r3 packages. Digest-verified upstream root layers identify the
+  PostgreSQL base as Alpine 3.24.2 and Caddy as Alpine 3.23.6; package pins follow
+  those existing branches. Fresh scans and database/backup acceptance remain
+  required for the changed libc and utility packages.
 - PostgreSQL uses the pinned official 16 Alpine image. Its gosu binary is replaced,
   rebuilt from the upstream 1.19 commit (`6456aaa0f3c8`); Go records that tag as
   a pseudo-version because the upstream tag does not use a `v` prefix. The
