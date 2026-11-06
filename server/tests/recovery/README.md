@@ -15,7 +15,8 @@ supplies per-run client and host keys; SSH checks the prebound host key and
 accepts no passwords. Only the SSH forward binds to host loopback. No source
 filesystem or Docker socket is shared with the guest.
 
-`Fresh recovery target` is a manual hosted-only workflow. It checks a new
+`Fresh recovery target` runs only on hosted runners, for matching pull requests
+or manual dispatch. It checks a new
 machine/boot identity, empty deployment/database paths, and an empty Docker
 daemon before returning closed decisions and runtime versions. Apt installs
 the distribution's signed Docker packages. The harness stops only its owned
