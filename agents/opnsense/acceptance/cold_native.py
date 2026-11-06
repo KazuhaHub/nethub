@@ -117,8 +117,14 @@ class ColdNative:
 
     def initial_request(self):
         deadline = time.monotonic() + 15
+        # The direct CLI acquires the same mutation lock as the shipped cron job.
+        command = ('/usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/run_bounded.py 45 '
+                   '/usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/agentctl.py certificate')
+        # Agent exit 1 carries a structured refusal, including nonblocking lock
+        # contention. Other exit statuses remain transport failures.
+        script = 'if ' + command + '; then exit 0; else\n    status=$?\n    [ "$status" -eq 1 ]\nfi\n'
         while True:
-            value = json.loads(self.guest.ssh('/usr/local/sbin/configctl nethub-agent certificate\n',
+            value = json.loads(self.guest.ssh(script,
                                              'Original normal native certificate submission'))
             if value.get('action') != 'busy':
                 break

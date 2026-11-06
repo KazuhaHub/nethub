@@ -1,6 +1,10 @@
 """Refuse proof changes and uncertain mutation replay without operating a guest."""
 import importlib.util
+import os
 from pathlib import Path
+import shlex
+import shutil
+import subprocess
 import sys
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -52,6 +56,38 @@ def test_initial_submission_retries_only_an_explicit_busy_result_before_baseline
     with patch.object(native, 'probe', return_value=original), patch.object(NATIVE.time, 'sleep'):
         assert native.initial_request() == original
     assert native.guest.ssh.call_count == 2 and native.original_request == original
+
+
+def initial_submission_script():
+    native = object.__new__(NATIVE.ColdNative)
+    native.guest = SimpleNamespace(ssh=Mock(return_value='{"success":true,"phase":"pending"}'))
+    with patch.object(native, 'probe', return_value={'original_cached_csr_sha256': 'a' * 64}):
+        native.initial_request()
+    return native.guest.ssh.call_args.args[0]
+
+
+def test_initial_submission_uses_the_shipped_bounded_cli_with_its_internal_lock():
+    cron = (DIRECTORY.parent / 'plugin/src/usr/local/etc/cron.d/nethub-agent').read_text()
+    line = next(line for line in cron.splitlines() if 'agentctl.py --locked certificate ' in line)
+    tokens = shlex.split(line.split('&& ', 1)[1].split(' >>', 1)[0])
+    assert tokens[3:8] == ['/usr/bin/lockf', '-sk', '-t', '0', '/var/db/nethub-agent/reconcile.lock']
+    assert tokens[-2:] == ['--locked', 'certificate']
+    # Outside cron's external lock, use the CLI's own normal lock acquisition.
+    expected = tokens[:3] + tokens[8:-2] + ['certificate']
+    script = initial_submission_script()
+    assert shlex.split(script.removeprefix('if ').split('; then', 1)[0]) == expected
+
+
+@pytest.mark.parametrize('status,accepted', [(0, True), (1, True), (125, False)])
+def test_initial_cli_exit_adapter_retains_json_but_refuses_transport_failure(status, accepted):
+    shell = 'C:/Program Files/Git/bin/bash.exe' if os.name == 'nt' else shutil.which('sh')
+    assert shell and Path(shell).is_file()
+    script = initial_submission_script()
+    command = script.removeprefix('if ').split('; then', 1)[0]
+    controlled = script.replace(command, "printf '%s\\n' '{\"success\":false,\"action\":\"busy\"}'; (exit " + str(status) + ')', 1)
+    result = subprocess.run([shell, '-s'], input=controlled, text=True, capture_output=True, timeout=10)
+    assert (result.returncode == 0) is accepted
+    assert result.stdout == '{"success":false,"action":"busy"}\n'
 
 
 def test_initial_submission_failure_is_not_replayed_or_exported():
