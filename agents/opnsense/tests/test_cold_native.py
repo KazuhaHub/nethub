@@ -3,7 +3,7 @@ import importlib.util
 from pathlib import Path
 import sys
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -40,6 +40,40 @@ def test_lost_native_enrollment_reply_is_not_replayed():
         with pytest.raises(GUEST.GuestError):
             native.enroll('private fixture token')
         assert page.call_count == 1
+
+
+def test_initial_submission_retries_only_an_explicit_busy_result_before_baseline():
+    native = object.__new__(NATIVE.ColdNative)
+    native.guest = SimpleNamespace(ssh=Mock(side_effect=[
+        '{"success":false,"action":"busy"}',
+        '{"success":true,"action":"certificate","phase":"pending"}',
+    ]))
+    original = {'original_cached_csr_sha256': 'a' * 64}
+    with patch.object(native, 'probe', return_value=original), patch.object(NATIVE.time, 'sleep'):
+        assert native.initial_request() == original
+    assert native.guest.ssh.call_count == 2 and native.original_request == original
+
+
+def test_initial_submission_failure_is_not_replayed_or_exported():
+    native = object.__new__(NATIVE.ColdNative)
+    native.guest = SimpleNamespace(ssh=Mock(return_value=
+        '{"success":false,"phase":"error","message":"private token and URL"}'))
+    with patch.object(native, 'probe') as probe:
+        with pytest.raises(GUEST.GuestError, match='submission failed') as caught:
+            native.initial_request()
+    native.guest.ssh.assert_called_once()
+    probe.assert_not_called()
+    assert 'private' not in str(caught.value) and not hasattr(native, 'original_request')
+
+
+def test_initial_submission_busy_deadline_cannot_become_acceptance():
+    native = object.__new__(NATIVE.ColdNative)
+    native.guest = SimpleNamespace(ssh=Mock(return_value='{"success":false,"action":"busy"}'))
+    with patch.object(NATIVE.time, 'monotonic', side_effect=[0, 16]), patch.object(native, 'probe') as probe:
+        with pytest.raises(GUEST.GuestError, match='lock remained busy'):
+            native.initial_request()
+    probe.assert_not_called()
+    assert not hasattr(native, 'original_request')
 
 
 def baseline():

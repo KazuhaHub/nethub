@@ -116,10 +116,21 @@ class ColdNative:
         return value
 
     def initial_request(self):
-        value = json.loads(self.guest.ssh('/usr/local/sbin/configctl nethub-agent certificate\n',
-                                         'Original normal native certificate submission'))
-        if value.get('success') is not True or value.get('phase') != 'pending':
-            raise GuestError('Original genuine native certificate request is not pending')
+        deadline = time.monotonic() + 15
+        while True:
+            value = json.loads(self.guest.ssh('/usr/local/sbin/configctl nethub-agent certificate\n',
+                                             'Original normal native certificate submission'))
+            if value.get('action') != 'busy':
+                break
+            if time.monotonic() >= deadline:
+                raise GuestError('Original native certificate submission lock remained busy')
+            time.sleep(.2)
+        if value.get('success') is not True:
+            raise GuestError('Original native certificate submission failed')
+        if value.get('phase') == 'inactive':
+            raise GuestError('Original native certificate submission is inactive')
+        if value.get('phase') != 'pending':
+            raise GuestError('Original native certificate submission returned an unexpected phase')
         deadline = time.monotonic() + 15
         while True:
             result = self.probe()
