@@ -125,6 +125,8 @@ class DeploymentHost:
         return prepared
 
     def install_file(self, data, transfer_name, destination, mode):
+        if destination == TRANSFER + '/' + transfer_name:
+            raise RecoveryError('Distinct private transfer and installation paths required')
         source = self.work / transfer_name
         with source.open('xb') as output:
             output.write(data)
@@ -452,7 +454,7 @@ class SourceHost(DeploymentHost):
             self.transfer_module = self.send_module('checkpoint_transfer.py')
         for name in ('database.py', 'payload.py', 'host_checkpoint.py'):
             self.send_module(name)
-        self.install_file((json.dumps(expected) + '\n').encode(), 'capture-input.json',
+        self.install_file((json.dumps(expected) + '\n').encode(), 'capture-input-stage.json',
                           TRANSFER + '/capture-input.json', '0600')
         result = json.loads(self.remote(['python3', TRANSFER + '/host_checkpoint.py', 'capture'],
                                        'Original complete protected-host checkpoint', timeout=300))
