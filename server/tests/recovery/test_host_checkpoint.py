@@ -1,10 +1,11 @@
 """Reject foreign host, unit, image and request input before guest operations."""
 import copy
+import json
 import os
 import unittest
 from unittest.mock import patch
 
-from database import snapshot_fingerprint
+from database import CATEGORIES, capture, snapshot_fingerprint
 from host_checkpoint import CheckpointError, SourceCheckpoint, valid_capture_input, valid_checkpoint, valid_restore_input
 from host_layout import ROLES, RUNNING, STATE_ROOTS, UNITS, VOLUMES
 from linux_guest import LinuxGuest
@@ -56,7 +57,8 @@ class CaptureInputAdmission(unittest.TestCase):
 
 def checkpoint():
     original = expected_source()
-    database = [['table', 'devices', 'a' * 64], ['extensions', '', 'fixture extension metadata']]
+    database = [['table', 'devices', 'a' * 64],
+                *[[category, 'fixture catalog metadata'] for category in CATEGORIES[2:]]]
     return {'version': 1, 'source_head': original['source_head'], 'source_machine_id': original['machine_id'],
             'source_boot_id': original['boot_id'], 'tags': original['tags'],
             'original_service_ids': {name: format(i + 1, '064x') for i, name in enumerate(sorted(RUNNING))},
@@ -71,6 +73,33 @@ def checkpoint():
 
 
 class RestoreAdmission(unittest.TestCase):
+    def test_actual_capture_shape_survives_JSON_transport_and_checkpoint_admission(self):
+        queries = []
+        def sql(query):
+            queries.append(query)
+            if 'SELECT tablename FROM pg_tables' in query:
+                # SQL's collation order need not match Python's string order.
+                return 'users\ndevices'
+            if 'SELECT sequencename FROM pg_sequences' in query:
+                return 'audit_sequence'
+            return 'fixture private catalog or row value'
+        rows = json.loads(json.dumps(capture(sql)))
+        self.assertEqual({len(row) for row in rows}, {2, 3})
+        original = checkpoint()
+        original.update(database=rows, database_fingerprint=snapshot_fingerprint(rows))
+        self.assertTrue(valid_checkpoint(original))
+        self.assertTrue(all(query.startswith("SET timezone='UTC'; SET extra_float_digits=3; SELECT ") for query in queries))
+        # Recompute each bad snapshot's digest so shape admission, not the
+        # fingerprint mismatch alone, must refuse omissions and ambiguity.
+        for changed in (rows[:-1], rows + rows[-1:], rows[2:],
+                        [rows[0], *rows], [*rows[:3], ['unknown', 'private'], *rows[3:]],
+                        [*rows[:-2], rows[-1], rows[-2]],
+                        [rows[0], ['table', '../private', 'private'], *rows[1:]],
+                        [rows[0], *[[r[0], '', r[1]] for r in rows if len(r) == 2]]):
+            with self.subTest(shape=[row[0] for row in changed]):
+                value = {**original, 'database': changed, 'database_fingerprint': snapshot_fingerprint(changed)}
+                self.assertFalse(valid_checkpoint(value))
+
     def test_checkpoint_cannot_redirect_paths_skip_writers_or_change_database_content(self):
         original = checkpoint()
         self.assertTrue(valid_checkpoint(original))

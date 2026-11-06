@@ -112,11 +112,7 @@ def valid_checkpoint(value):
                 or set(value['unit_intent']) != set(UNITS)
                 or any(value['unit_intent'][u] != ('enabled' if u.endswith('.timer') else 'static') for u in UNITS)):
             return False
-        if (not isinstance(value['database'], list) or not value['database']
-                or any(not isinstance(row, list) or len(row) != 3 or row[0] not in CATEGORIES
-                       or not all(isinstance(item, str) for item in row) for row in value['database'])
-                or not any(row[0] == 'table' for row in value['database'])
-                or len({(r[0], r[1]) for r in value['database']}) != len(value['database'])
+        if (not valid_database_snapshot(value['database'])
                 or re.fullmatch('[a-f0-9]{64}', value['database_fingerprint']) is None
                 or snapshot_fingerprint(value['database']) != value['database_fingerprint']
                 or re.fullmatch('[1-9][0-9]{0,19}', value['original_database_system']) is None
@@ -132,6 +128,31 @@ def valid_checkpoint(value):
                 and type(integrity['entries']) is int and len(STATE_ROOTS) <= integrity['entries'] <= 4096)
     except (KeyError, TypeError, ValueError, AttributeError):
         return False
+
+
+def valid_database_snapshot(rows):
+    """Match capture's named data rows and complete singleton catalog records."""
+    if (not isinstance(rows, list) or not rows
+            or any(not isinstance(row, list) or len(row) not in (2, 3)
+                   or not all(isinstance(item, str) for item in row) for row in rows)):
+        return False
+    names = {'table': [], 'sequence': []}
+    catalogs = []
+    for row in rows:
+        category = row[0]
+        if category in names:
+            if (len(row) != 3 or re.fullmatch('[a-z_][a-z0-9_]*', row[1]) is None
+                    or catalogs):
+                return False
+            if category == 'table' and names['sequence']:
+                return False
+            names[category].append(row[1])
+        elif category in CATEGORIES[2:] and len(row) == 2:
+            catalogs.append(category)
+        else:
+            return False
+    return (bool(names['table']) and catalogs == list(CATEGORIES[2:])
+            and all(len(values) == len(set(values)) for values in names.values()))
 
 
 def valid_restore_input(value):
