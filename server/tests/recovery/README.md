@@ -200,10 +200,14 @@ foreign state is preserved. Failed cleanup keeps the guard armed. The test
 process remains loaded after successful exit until its result is checked, so
 systemd's transient-unit collection cannot erase its exit evidence.
 
-These helpers and the guard have local admission tests only. The combined driver,
-real source shutdown, native confirmation and hosted execution are not complete.
-Actual guard expiry and resource cleanup still need hosted execution. Their
-results explicitly refuse complete recovery acceptance.
+The combined driver has hosted execution evidence, but complete recovery is
+still unaccepted. Source `566da34` reached checkpoint creation after actual source
+preparation, native enrollment, initial CSR submission, baseline installation and
+the original verified TLS route. [Run 42301622918](https://github.com/KazuhaHub/nethub/actions/runs/42301622918)
+then failed inside checkpoint creation. Its closed result confirmed operation
+cgroup reaping, private guest material removal and cleanup of the independently
+started CA. This proves that failure cleanup path; it does not prove unattended
+guard expiry, source-to-target restoration or resumed native issuance.
 Resuming an original queued initial request would establish initial issuance
 after restoration, not a renewal-clock test. Public operator acceptance and
 durable encrypted off-host custody remain separate requirements.
@@ -213,7 +217,9 @@ creation and explicit Open calls. It uses the original source console's public
 CA and can require the same administrator UUID after restoration. Cookie jars,
 password payloads, CSRF headers and replies remain private. A failed or uncertain
 token creation cannot be replayed by this session. This helper does not create
-database rows or source grants directly and has not yet run against either guest.
+database rows or source grants directly. The original-source login and Open ran
+before the recorded checkpoint failure; the restored-target administrator check
+still requires a complete successful drill.
 
 The disposable appliance probe `agents/opnsense/acceptance/cold_native_probe.py`
 reads the original cached CSR under the common mutation lock and verifies its
@@ -228,9 +234,9 @@ from the original cached CSR. It preserves both native security checks and adds
 only the assigned alias. `trust-cold` admits the separate public console/issuing
 roots with distinct fingerprint-bound references. Neither operation fabricates
 a server request, issued generation or application report. These operations have
-not executed on a native guest; input-admission tests do not establish a same-key
-baseline or certificate recovery. The driver must run this preparation before
-recording its baseline, then compare it after genuine restored-host issuance.
+executed on the original native guest before the recorded checkpoint failure.
+That baseline does not establish certificate recovery. The driver must still
+compare it after genuine restored-host issuance and native application.
 
 `cold_native.py` connects the normal enrolled page, explicit initial certificate
 submission, private CSR inspection and same-key baseline. After restoration it

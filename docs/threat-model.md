@@ -1,6 +1,7 @@
 # NetHub threat model
 
-> Implementation review: 2026-10-29 UTC. NetHub is pre-alpha, without a signed
+> Implementation review: 2026-10-29 UTC; recovery evidence updated 2026-11-06 UTC.
+> NetHub is pre-alpha, without a signed
 > production release. This review reconciles the original 2026-10-16 design
 > draft with current sources and accepted records. It is not an independent
 > penetration test or a claim that W5-W7 are complete.
@@ -337,8 +338,13 @@ container, restricted-role archive/restore, retention, corruption refusal,
 restart and cancellation checks. It holds only the backup-role password and
 writes a private archive volume; it does not receive authority keys or Docker
 administration access. Archives contain device credentials and account data.
-Protected off-host durability and a full clean-host/current-key restoration with
-an already enrolled device reconnecting remain unaccepted.
+The [merged clean-host integration](../deploy/validation-clean-host-restore.md)
+restored current matching keys, the complete database and six services on a
+distinct empty hosted guest. Both retained client routes reconnected without a
+requested client restart, Rotate or reenrollment. That isolated acceptance does
+not restore protected-host issuer/account/publisher/systemd state or prove
+resumed GUI issuance. Public operator recovery and durable encrypted off-host
+custody also remain open.
 
 Per-device rotation passed the genuine native page/model/relay workflow at source
 `986ee4c`, including response loss, native save-lock interruption and real Remove
