@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import { actionResponse } from './action_response.mjs';
 
 const require = createRequire(new URL('../../../server/web/package.json', import.meta.url));
 const { chromium } = require('playwright');
@@ -24,6 +25,7 @@ assert.equal(expectedSuccess, !['rotate-lost', 'rotate-save-failed',
   'rotate-publication-unavailable', 'rotate-publication-conflict', 'rotate-publication-committed-lost'].includes(label));
 let browser;
 let phase = 'private_gui_login';
+let observedResponse = actionResponse(0, null);
 try {
   browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
   // Direct fixture management is separate from the verified same-route TLS probe.
@@ -53,8 +55,10 @@ try {
     await page.locator(control).click();
   }
   const response = await pending;
+  observedResponse = actionResponse(response.status(), null);
   assert.equal(response.status(), 200);
   const result = await response.json();
+  observedResponse = actionResponse(response.status(), result);
   assert.equal(result.success, expectedSuccess);
   if (config.action === 'enroll') {
     assert.equal(result.enrolled, true);
@@ -84,7 +88,7 @@ try {
   await context.close();
 } catch {
   writeFileSync(join(config.evidence, 'installed-' + label + '-page.json'),
-    JSON.stringify({ passed: false, phase }, null, 2));
+    JSON.stringify({ passed: false, phase, response: observedResponse }, null, 2));
   throw new Error('Installed device browser check failed at ' + phase);
 } finally {
   if (browser) await browser.close();
