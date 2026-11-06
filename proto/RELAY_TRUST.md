@@ -7,7 +7,10 @@ enrollment/status/certificate behavior; the new operations explicitly refuse old
 minors. A response advertises the server's current version, not an echo of the
 request's minor. Native source version 0.0.12 includes independent validation,
 journaled application and a separate scheduled trust action with receipt retries.
-Live package, reboot and actual frp root-transition acceptance remain required.
+[Native enrollment](../deploy/validation-relay-trust-native.md) and an actual
+[relay authority transition](../deploy/validation-relay-authority-native.md) have
+scoped runtime records. This contract does not prove every current package,
+reboot path or production transition; retain each record's revision and limits.
 
 Settings takes protocol/device identity and returns `desired: null` before host
 publication, or the exact current generation ID/number, expected server name,
@@ -98,8 +101,9 @@ explicit controlled written-phase reload can cross a pending transaction, and it
 still verifies exact binding and current trust. Prepared/corrupt/conflicting state
 is refused even with the override. The independent watchdog stops a pending or
 corrupt transaction and cannot restore an old backup around it. Package removal
-recovers pending trust before deleting its recovery code. These code paths still
-require live appliance/package/reboot and actual frp transition acceptance.
+recovers pending trust before deleting its recovery code. Each boot, removal and
+recovery path needs its own appliance evidence; a successful authority switch
+does not cover every interrupted state.
 
 The shared HTTPS transport permits only the exact lifecycle, GUI certificate and
 relay trust paths. Real TLS tests exercise those paths through the transport,

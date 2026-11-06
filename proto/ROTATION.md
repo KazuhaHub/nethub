@@ -69,5 +69,6 @@ validated journal remains; malformed state blocks it. After a definitive
 precommit conflict, ordinary verified trust synchronization can complete before
 a fresh candidate is created. This precommit sequence passed
 [isolated installed acceptance](../deploy/validation-native-trust-conflict.md).
-Committed-candidate replay across a later publication and public/operator cases
-remain separate from that test.
+A later [committed-candidate replay case](../deploy/validation-native-trust-conflict.md#committed-replay-after-a-later-publication)
+passed across a changed publication with its own retained source and evidence.
+Public/operator cases remain separate from both isolated tests.
