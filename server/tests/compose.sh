@@ -162,11 +162,16 @@ chmod 0700 "$stage/setup.test"
 if [ "${NETHUB_SCAN_IMAGES:-0}" = 1 ]; then
     mkdir "$stage/scans"
     scan_image() {
-        docker image save -o "$stage/scans/image.tar" "$2"
+        rm -f "$stage/scans/image.tar" || return 1
+        if ! docker image save -o "$stage/scans/image.tar" "$2"; then
+            printf 'Image export failed for %s image\n' "$1" >&2
+            return 1
+        fi
         if ! docker run --rm -v "$stage/scans:/scan" \
             aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222 \
             image --input /scan/image.tar --cache-dir /scan/cache --scanners vuln \
             --severity HIGH,CRITICAL --exit-code 1 --format json --output "/scan/$1.json" > "$stage/scans/$1.log" 2>&1; then
+            printf 'Vulnerability check failed for %s image\n' "$1" >&2
             cat "$stage/scans/$1.log" >&2
             python3 - "$stage/scans/$1.json" <<'PY'
 import json,pathlib,sys
@@ -180,11 +185,13 @@ PY
         fi
         rm "$stage/scans/image.tar"
     }
-    scan_image runtime "$image"
-    scan_image postgres "$postgres_image"
-    scan_image caddy "$caddy_image"
-    scan_image frps "$frps_image"
-    scan_image backup "$backup_image"
+    scan_status=0
+    scan_image runtime "$image" || scan_status=1
+    scan_image postgres "$postgres_image" || scan_status=1
+    scan_image caddy "$caddy_image" || scan_status=1
+    scan_image frps "$frps_image" || scan_status=1
+    scan_image backup "$backup_image" || scan_status=1
+    [ "$scan_status" -eq 0 ] || exit 1
     echo 'All five assembled deployment images passed HIGH/CRITICAL vulnerability checks'
 fi
 native_setup_phase frps_smoke
