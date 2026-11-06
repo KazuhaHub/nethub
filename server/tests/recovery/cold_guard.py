@@ -83,11 +83,15 @@ def valid_state(value, nonce):
         return False
 
 
-def command(control, args, *, check=True, timeout=45):
+def command(control, args, *, check=True, timeout=45, hosted_context=False):
+    environment = dict(ENVIRONMENT)
+    if hosted_context:
+        control_identity(control)
+        environment.update(GITHUB_ACTIONS='true', RUNNER_ENVIRONMENT='github-hosted', RUNNER_TEMP=str(control.parent))
     if args[0] == 'docker':
         args = ['/usr/bin/docker', '--host', 'unix:///var/run/docker.sock', *args[1:]]
     try:
-        result = subprocess.run(args, env=ENVIRONMENT, capture_output=True, timeout=timeout)
+        result = subprocess.run(args, env=environment, capture_output=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired):
         raise GuardError('Owned cleanup operation unavailable or timed out') from None
     descriptor = os.open(control / 'guard-private.log', os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW, 0o600)
@@ -203,7 +207,7 @@ def clean_witness(control, state):
         program = witness / 'cleanup.py'
         if hashlib.sha256(protected(program)).hexdigest() != state['witness_sha256']:
             raise GuardError('Witness cleanup program differs; preserved')
-        command(control, ['/usr/bin/python3', '-I', str(program), str(witness)], timeout=150)
+        command(control, ['/usr/bin/python3', '-I', str(program), str(witness)], timeout=150, hosted_context=True)
         expected = {'owned_CA_and_process_group_removed': True, 'temporary_witness_keys_removed': True,
                     'full_host_recovery_accepted': False}
         if read_json(witness / 'cleanup.json') != expected:

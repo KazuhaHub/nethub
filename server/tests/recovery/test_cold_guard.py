@@ -11,6 +11,27 @@ import cold_guard as guard
 
 
 class ColdGuardAdmission(unittest.TestCase):
+    def test_witness_cleanup_inherits_only_verified_hosted_identity(self):
+        control = Path('/owned/nethub-cold-recovery-' + 'a' * 16)
+        with patch.object(guard, 'control_identity', return_value='a' * 16) as identity, \
+                patch.dict(os.environ, {'GH_TOKEN': 'private token', 'GITHUB_TOKEN': 'private token'}), \
+                patch.object(guard.subprocess, 'run', side_effect=OSError('private child failure')) as run:
+            with self.assertRaises(guard.GuardError):
+                guard.command(control, ['/usr/bin/python3', '-I', '/owned/cleanup.py'], hosted_context=True)
+        identity.assert_called_once_with(control)
+        environment = run.call_args.kwargs['env']
+        self.assertEqual(environment, {**guard.ENVIRONMENT, 'GITHUB_ACTIONS': 'true',
+                         'RUNNER_ENVIRONMENT': 'github-hosted', 'RUNNER_TEMP': str(control.parent)})
+        self.assertNotIn('GH_TOKEN', environment)
+        self.assertNotIn('GITHUB_TOKEN', environment)
+
+    def test_foreign_hosted_identity_cannot_launch_witness_cleanup(self):
+        with patch.object(guard, 'control_identity', side_effect=guard.GuardError('fixture foreign owner')), \
+                patch.object(guard.subprocess, 'run') as run:
+            with self.assertRaises(guard.GuardError):
+                guard.command(Path('/foreign'), ['/usr/bin/python3'], hosted_context=True)
+        run.assert_not_called()
+
     def test_state_cannot_select_foreign_source_or_program(self):
         nonce = 'a' * 16
         original = {'version': 1, 'nonce': nonce, 'source_head': 'b' * 40,
