@@ -1,8 +1,15 @@
 # Caddy helper dependencies
 
 The image rebuilds the standard Caddy 2.11.7 bundle with the pinned Go toolchain
-and module checksums. `v2.11.7-nethub.2` identifies the local dependency rebuild;
+and module checksums. `v2.11.7-nethub.3` identifies the local dependency rebuild;
 it is not an upstream Caddy release.
+
+The compression dependency is pinned to `github.com/klauspost/compress v1.20.2`
+for GO-2026-6865. The required scan reached the vulnerable FSE/Huffman code through
+the standard Caddy bundle at v1.20.1. This rebuild changes that dependency without
+changing the upstream Caddy version or introducing a scanner exception. The
+prepared source, helper tests, source/image scans and actual deployment must be
+revalidated for this build; prior image evidence is not acceptance of this pin.
 
 The Smallstep crypto dependency is pinned to upstream maintainer commit
 [`00c45432f48558f92a6e7da6d885d94e90db4d7a`](https://github.com/smallstep/crypto/commit/00c45432f48558f92a6e7da6d885d94e90db4d7a),

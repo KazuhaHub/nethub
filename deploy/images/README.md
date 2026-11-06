@@ -18,7 +18,13 @@ claimed to be unchanged.
   3.23 security database. The assembled-image HIGH/CRITICAL scan remains required.
   Its crypto dependency uses a pre-release pin and prepared JOSE v4 adaptations;
   the migration note records the exact changes and upstream test limitation.
-- PostgreSQL uses the pinned official 16 Alpine image. Only gosu is replaced,
+- Caddy, PostgreSQL and the backup tools stage install zlib 1.3.2-r1 from their
+  existing Alpine repositories. The previous assembled-image scan reported
+  CVE-2026-85091 against 1.3.2-r0 and identified this fixed package version.
+  [Alpine's package index](https://pkgs.alpinelinux.org/package/v3.23/main/x86_64/zlib)
+  records the patch. No scanner exclusion is added; the next assembled-image
+  scan must verify each final image, including the libraries copied into backup.
+- PostgreSQL uses the pinned official 16 Alpine image. Its gosu binary is replaced,
   rebuilt from the upstream 1.19 commit (`6456aaa0f3c8`); Go records that tag as
   a pseudo-version because the upstream tag does not use a `v` prefix. The
   PostgreSQL entrypoint still drops from root to the postgres account (UID 70).

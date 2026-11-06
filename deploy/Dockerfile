@@ -55,7 +55,8 @@ FROM scratch AS oidc-acceptance
 COPY --from=oidc-fixture-build /out/oidcfixture /oidcfixture
 
 FROM postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea AS backup-tools
-RUN test -s /etc/ssl/certs/ca-certificates.crt \
+RUN apk add --no-cache --upgrade zlib=1.3.2-r1 \
+    && test -s /etc/ssl/certs/ca-certificates.crt \
     && mkdir -p /out/storage/var/lib/nethub-backups /out/storage/run/nethub-backup \
     && chmod 0700 /out/storage/var/lib/nethub-backups /out/storage/run/nethub-backup
 
