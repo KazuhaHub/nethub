@@ -25,7 +25,7 @@ PROOFS = ('original_source_reaped_before_distinct_target',
 TIMINGS = ('baseline_route_recovery_ms', 'initial_issuance_recovery_ms', 'checkpoint_start_to_native_issuance_ms')
 FILES = {'cold_flow.py', 'cold_route.py', 'cold_console.py', 'cold_witness.py', 'source_host.py',
          'target_host.py', 'host_checkpoint.py', 'linux_guest.py', 'cold_native.py', 'cold_native_probe.py',
-         'bootstrap.py', 'guest.py'}
+         'bootstrap.py', 'guest.py', 'database.py', 'payload.py'}
 
 
 def success(value, head):
@@ -44,6 +44,12 @@ def failure(error, head, phase):
         name = Path(frame.filename).name
         if name in FILES and 1 <= frame.lineno <= 20000:
             locations.append({'source': name, 'line': frame.lineno})
+    if phase == 'checkpoint' and hasattr(error, 'checkpoint_failure'):
+        try:
+            from host_checkpoint import validate_failure
+            locations.extend(validate_failure(error.checkpoint_failure)['locations'])
+        except (ValueError, TypeError):
+            pass
     return {'version': 1, 'source_head': head, 'passed': False,
             'phase': phase if phase in PHASES else 'unavailable',
             'failure_kind': 'timeout' if isinstance(error, TimeoutError) else 'other',

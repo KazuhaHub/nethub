@@ -15,6 +15,7 @@ import stat
 import subprocess
 import sys
 import time
+import traceback
 import uuid
 
 from database import CATEGORIES, bootstrap_extensions, capture, snapshot_fingerprint
@@ -25,6 +26,32 @@ from payload import pack, private_info, restore as restore_files
 
 class CheckpointError(Exception):
     """Messages identify only fixed operations, not private child diagnostics."""
+
+
+FAILURE_SOURCES = {'host_checkpoint.py', 'database.py', 'payload.py'}
+
+
+def validate_failure(value):
+    if (not isinstance(value, dict) or set(value) != {'version', 'passed', 'locations'}
+            or type(value['version']) is not int or value['version'] != 1
+            or value['passed'] is not False or not isinstance(value['locations'], list)
+            or len(value['locations']) > 8):
+        raise ValueError('Checkpoint failure projection refused')
+    for frame in value['locations']:
+        if (not isinstance(frame, dict) or set(frame) != {'source', 'line'}
+                or not isinstance(frame['source'], str) or frame['source'] not in FAILURE_SOURCES
+                or type(frame['line']) is not int or not 1 <= frame['line'] <= 20000):
+            raise ValueError('Checkpoint failure source refused')
+    return value
+
+
+def failure_projection(error):
+    locations = []
+    for frame in traceback.extract_tb(error.__traceback__):
+        name = Path(frame.filename).name
+        if name in FAILURE_SOURCES and 1 <= frame.lineno <= 20000:
+            locations.append({'source': name, 'line': frame.lineno})
+    return validate_failure({'version': 1, 'passed': False, 'locations': locations[-8:]})
 
 
 def digest(path):
@@ -448,5 +475,7 @@ if __name__ == '__main__':
             print(json.dumps(TargetCheckpoint(private_json(Path(TRANSFER) / 'restore-input.json', 65536), resume=True).resume()))
         else:
             raise CheckpointError('Owned checkpoint action required')
-    except Exception:
+    except Exception as error:
+        # Only fixed source names and line numbers cross the guest boundary.
+        print(json.dumps(failure_projection(error)))
         raise SystemExit('Private host checkpoint failed; inspect owned guest logs') from None

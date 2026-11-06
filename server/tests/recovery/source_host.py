@@ -73,7 +73,16 @@ class DeploymentHost:
         (self.work / f'step-{self.counter}.log').write_bytes(
             (result.stdout if output is None else b'') + result.stderr)
         if result.returncode:
-            raise RecoveryError(label + ' failed')
+            error = RecoveryError(label + ' failed')
+            if label == 'Original complete protected-host checkpoint' and output is None:
+                try:
+                    from host_checkpoint import validate_failure
+                    if len(result.stdout) > 4096:
+                        raise ValueError('Checkpoint diagnostic bound exceeded')
+                    error.checkpoint_failure = validate_failure(json.loads(result.stdout))
+                except (ValueError, TypeError, UnicodeError):
+                    pass
+            raise error
         return result.stdout
 
     def remote(self, args, label, *, timeout=60):
