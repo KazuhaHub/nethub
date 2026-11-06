@@ -226,12 +226,14 @@ class ColdWitness:
                            for key in ('GITHUB_ACTIONS', 'RUNNER_ENVIRONMENT', 'RUNNER_TEMP')}}
             inherited = ['--setenv=' + key + '=' + value for key, value in environment.items()]
             command(self.control, ['/usr/bin/systemd-run', '--unit=' + self.guard, '--on-active=2520s',
+                    '--property=UnsetEnvironment=GH_TOKEN GITHUB_TOKEN',
                     *inherited, '/usr/bin/python3', '-I', str(recovery), str(self.control)])
             if (property_value(self.control, self.guard + '.timer', 'ActiveState') != 'active'
                     or property_value(self.control, self.guard + '.timer', 'Unit') != self.guard + '.service'):
                 raise WitnessError('Independent witness cleanup timer not active')
             command(self.control, ['/usr/bin/systemd-run', '--unit=' + self.service,
                     '--description=NetHub isolated cold witness ' + nonce, '--service-type=exec',
+                    '--property=UnsetEnvironment=GH_TOKEN GITHUB_TOKEN',
                     '--property=RuntimeMaxSec=2400', '--property=TimeoutStopSec=10', '--property=KillMode=control-group',
                     '--property=RemainAfterExit=yes',
                     '--property=StandardOutput=append:' + str(log), '--property=StandardError=append:' + str(log),

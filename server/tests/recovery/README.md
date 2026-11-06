@@ -255,6 +255,19 @@ responses or credentials.
 
 Recovery timings distinguish source-process reap from the earlier checkpoint
 start; both stop at confirmed issuance/application and route verification before
-Remove or cleanup. The outer guarded launcher, exact accepted-image gate and
-hosted workflow still need wiring. No execution or recovery acceptance is claimed
+Remove or cleanup.
+
+`cold_launcher.py` stages private inputs and starts the operation in its own
+systemd cgroup only after arming `cold_guard.py` through an independent timer.
+The standalone guard verifies the exact copied program, stops only the owned
+cgroup, checks the independently recorded CA namespace, and deletes only the
+canonical owned private guest directory. A prepared removal record permits
+interruption recovery only after fresh resource-absence checks. Successful cleanup
+precedes guard disarming; unexpected bindings preserve the resource and guard.
+`cold_operation.py` projects only fixed proof fields, bounded timings and known
+failure locations. Raw exception content and inputs stay private.
+
+The exact accepted-image gate, build entry point and hosted workflow still need
+wiring. Actual cgroup/guard expiry, PHP and native execution remain untested.
+No execution or recovery acceptance is claimed
 by the connected source or its local admission tests.

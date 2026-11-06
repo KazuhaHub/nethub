@@ -33,6 +33,8 @@ jobs:
         run: python3 -m unittest discover -s server/tests/recovery -p 'test_*.py'
       - name: Check actual private root-owned checkpoint exports
         run: sudo python3 -B -m unittest discover -s server/tests/recovery -p test_checkpoint_transfer.py
+      - name: Check actual private cleanup receipts and removal boundaries
+        run: sudo python3 -B -m unittest discover -s server/tests/recovery -p test_cold_guard.py
       - name: Prepare fresh hosted KVM tools
         run: |
           test "$RUNNER_ENVIRONMENT" = github-hosted
