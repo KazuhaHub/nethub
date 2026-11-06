@@ -267,7 +267,15 @@ precedes guard disarming; unexpected bindings preserve the resource and guard.
 `cold_operation.py` projects only fixed proof fields, bounded timings and known
 failure locations. Raw exception content and inputs stay private.
 
-The exact accepted-image gate, build entry point and hosted workflow still need
-wiring. Actual cgroup/guard expiry, PHP and native execution remain untested.
-No execution or recovery acceptance is claimed
-by the connected source or its local admission tests.
+`cold_entry.py` requires the same source's successful six-job CI, checks the exact
+unexpired image artifact, verifies its compressed checksum and bounded expansion,
+then inspects every configuration/layer against the five-role producer manifest.
+The new `Protected host cold recovery` workflow builds the same-source witness
+with the pinned compiler and runs the guarded flow only after that image gate.
+Only closed source/provenance/operation/cleanup results and the two hash-verified
+masked native pages are eligible for upload. Failed operation results are retained
+through an exclusive private ownership pointer, without listing other namespaces.
+
+The entry and workflow are wired but have not executed. Actual cgroup/guard expiry,
+PHP, native behavior and full recovery remain untested. No execution or recovery
+acceptance is claimed by connected source or local admission tests.

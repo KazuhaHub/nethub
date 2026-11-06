@@ -42,7 +42,7 @@ def stage_file(source, destination, mode, maximum):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
-def run(repository, images, tags, sdk, witness_binary):
+def run(repository, images, tags, sdk, witness_binary, *, ownership_record):
     if (sys.platform != 'linux' or os.geteuid() != 0 or os.environ.get('GITHUB_ACTIONS') != 'true'
             or os.environ.get('RUNNER_ENVIRONMENT') != 'github-hosted'):
         raise GuardError('Fresh root hosted recovery launcher required')
@@ -59,6 +59,13 @@ def run(repository, images, tags, sdk, witness_binary):
     control = parent / ('nethub-cold-recovery-' + nonce)
     control.mkdir(mode=0o700)
     control_identity(control)
+    record = Path(ownership_record)
+    owner = record.parent
+    info = owner.lstat()
+    if (owner != owner.resolve(strict=True) or owner.parent != parent or record.name != 'operation-control.json'
+            or info.st_uid != 0 or not stat.S_ISDIR(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o700):
+        raise GuardError('Private caller ownership record refused')
+    save_once(record, {'version': 1, 'control': str(control)})
     guard = 'nethub-cold-recovery-guard-' + nonce
     service = control.name + '.service'
     for unit in (service, guard + '.timer', guard + '.service'):
@@ -71,11 +78,11 @@ def run(repository, images, tags, sdk, witness_binary):
     witness_hash = hashlib.sha256((directory / 'cold_witness.py').read_bytes()).hexdigest()
     save_once(control / 'guard-state.json', {'version': 1, 'nonce': nonce, 'source_head': head,
               'guard_sha256': guard_hash, 'witness_sha256': witness_hash})
-    image_hash = stage_file(images, inputs / 'images.tar.gz', 0o600, 2 * 1024**3)
+    image_hash = stage_file(images, inputs / 'images.tar', 0o600, 2 * 1024**3)
     stage_file(sdk, inputs / 'toolchain.tar.gz', 0o600, 128 * 1024**2)
     binary_hash = stage_file(witness_binary, inputs / 'guiacme.test', 0o555, 128 * 1024**2)
     save_once(control / 'inputs.json', {'version': 1, 'source_head': head, 'tags': tags,
-              'images': str(inputs / 'images.tar.gz'), 'images_sha256': image_hash,
+              'images': str(inputs / 'images.tar'), 'images_sha256': image_hash,
               'sdk': str(inputs / 'toolchain.tar.gz'), 'witness_binary': str(inputs / 'guiacme.test'),
               'witness_binary_sha256': binary_hash})
     log = control / 'operation-private.log'

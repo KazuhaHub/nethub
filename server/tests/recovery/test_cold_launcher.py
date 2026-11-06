@@ -12,7 +12,7 @@ class LauncherAdmission(unittest.TestCase):
         with patch.dict(launcher.os.environ, {'GITHUB_ACTIONS': 'false'}), \
                 patch.object(launcher, 'invoke') as invoke, patch.object(launcher, 'stage_file') as stage:
             with self.assertRaises(GuardError):
-                launcher.run(Path('/unexecuted'), None, {}, None, None)
+                launcher.run(Path('/unexecuted'), None, {}, None, None, ownership_record=Path('/unexecuted-record'))
             invoke.assert_not_called()
             stage.assert_not_called()
 
