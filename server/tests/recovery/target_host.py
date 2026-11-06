@@ -48,7 +48,7 @@ class TargetHost(DeploymentHost):
         expected = {'version': 1, 'machine_id': self.guest.identity['machine_id'],
                     'boot_id': self.guest.identity['boot_id'], 'source_head': self.head,
                     'checkpoint_sha256': sha256(metadata), 'payload_sha256': sha256(payload)}
-        self.install_file((json.dumps(expected) + '\n').encode(), 'restore-input.json',
+        self.install_file((json.dumps(expected) + '\n').encode(), 'restore-input-stage.json',
                           TRANSFER + '/restore-input.json', '0600')
         result = json.loads(self.remote(['python3', TRANSFER + '/host_checkpoint.py', 'restore'],
                                        'Distinct full protected-host recovery', timeout=420))
