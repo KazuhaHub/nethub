@@ -20,11 +20,11 @@ from host_layout import valid_tags
 from linux_guest import invoke
 
 
-def stage_file(source, destination, mode, maximum):
+def stage_file(source, destination, mode, maximum, *, owners=(0,)):
     source = Path(source)
     info = source.lstat()
     if (source != source.resolve(strict=True) or not stat.S_ISREG(info.st_mode) or info.st_nlink != 1
-            or info.st_uid != 0 or info.st_mode & 0o022 or not 0 < info.st_size <= maximum):
+            or info.st_uid not in owners or info.st_mode & 0o022 or not 0 < info.st_size <= maximum):
         raise GuardError('Owned staged recovery source refused')
     descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
     with source.open('rb') as original, os.fdopen(descriptor, 'wb') as output:
@@ -74,7 +74,11 @@ def run(repository, images, tags, sdk, witness_binary, *, ownership_record):
     inputs = control / 'inputs'
     inputs.mkdir(mode=0o700)
     directory = repository / 'server/tests/recovery'
-    guard_hash = stage_file(directory / 'cold_guard.py', control / 'cold_guard.py', 0o600, 128 * 1024)
+    runner_uid = int(os.environ['SUDO_UID'])
+    if runner_uid <= 0:
+        raise GuardError('Original hosted source owner required')
+    guard_hash = stage_file(directory / 'cold_guard.py', control / 'cold_guard.py', 0o600, 128 * 1024,
+                            owners=(0, runner_uid))
     witness_hash = hashlib.sha256((directory / 'cold_witness.py').read_bytes()).hexdigest()
     save_once(control / 'guard-state.json', {'version': 1, 'nonce': nonce, 'source_head': head,
               'guard_sha256': guard_hash, 'witness_sha256': witness_hash})
