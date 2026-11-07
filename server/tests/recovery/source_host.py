@@ -74,7 +74,9 @@ class DeploymentHost:
             (result.stdout if output is None else b'') + result.stderr)
         if result.returncode:
             error = RecoveryError(label + ' failed')
-            if label == 'Original complete protected-host checkpoint' and output is None:
+            if label in ('Original complete protected-host checkpoint',
+                         'Distinct full protected-host recovery',
+                         'Fresh target cleanup and stock timer resumption') and output is None:
                 try:
                     from host_checkpoint import validate_failure
                     if len(result.stdout) > 4096:

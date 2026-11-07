@@ -52,19 +52,24 @@ class ClosedRecoveryOutcomes(unittest.TestCase):
             host = object.__new__(DeploymentHost)
             host.work = host.repository = Path(directory)
             host.counter = 0
-            for raw, expected in ((json.dumps(projected).encode(), projected['locations']),
-                                  (b'private child output', []),
-                                  (json.dumps({**projected, 'secret': 'private'}).encode(), []),
-                                  (b'x' * 4097, [])):
-                result = subprocess.CompletedProcess([], 1, raw, b'private stderr')
-                with patch('source_host.subprocess.run', return_value=result):
-                    with self.assertRaises(RecoveryError) as caught:
-                        host.command(['unexecuted'], 'Original complete protected-host checkpoint')
-                value = operation.failure(caught.exception, 'a' * 40, 'checkpoint')
-                inner = [item for item in value['locations'] if item['source'] == 'payload.py']
-                self.assertEqual(inner, expected)
-                self.assertFalse(value['passed'])
-                self.assertNotIn('private', json.dumps(value))
+            for label, phase in (
+                    ('Original complete protected-host checkpoint', 'checkpoint'),
+                    ('Distinct full protected-host recovery', 'target_restore'),
+                    ('Fresh target cleanup and stock timer resumption', 'timer_resume')):
+                for raw, expected in ((json.dumps(projected).encode(), projected['locations']),
+                                      (b'private child output', []),
+                                      (json.dumps({**projected, 'secret': 'private'}).encode(), []),
+                                      (b'x' * 4097, [])):
+                    with self.subTest(label=label, expected=expected):
+                        result = subprocess.CompletedProcess([], 1, raw, b'private stderr')
+                        with patch('source_host.subprocess.run', return_value=result):
+                            with self.assertRaises(RecoveryError) as caught:
+                                host.command(['unexecuted'], label)
+                        value = operation.failure(caught.exception, 'a' * 40, phase)
+                        inner = [item for item in value['locations'] if item['source'] == 'payload.py']
+                        self.assertEqual(inner, expected)
+                        self.assertFalse(value['passed'])
+                        self.assertNotIn('private', json.dumps(value))
 
     def test_unvalidated_checkpoint_metadata_cannot_enter_public_failure(self):
         error = RecoveryError('private error')

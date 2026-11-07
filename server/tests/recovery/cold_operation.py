@@ -44,7 +44,7 @@ def failure(error, head, phase):
         name = Path(frame.filename).name
         if name in FILES and 1 <= frame.lineno <= 20000:
             locations.append({'source': name, 'line': frame.lineno})
-    if phase == 'checkpoint' and hasattr(error, 'checkpoint_failure'):
+    if phase in ('checkpoint', 'target_restore', 'timer_resume') and hasattr(error, 'checkpoint_failure'):
         try:
             from host_checkpoint import validate_failure
             locations.extend(validate_failure(error.checkpoint_failure)['locations'])
