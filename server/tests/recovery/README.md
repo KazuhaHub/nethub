@@ -15,7 +15,8 @@ supplies per-run client and host keys; SSH checks the prebound host key and
 accepts no passwords. Only the SSH forward binds to host loopback. No source
 filesystem or Docker socket is shared with the guest.
 
-`Fresh recovery target` is a manual hosted-only workflow. It checks a new
+`Fresh recovery target` runs only on hosted runners, for matching pull requests
+or manual dispatch. It checks a new
 machine/boot identity, empty deployment/database paths, and an empty Docker
 daemon before returning closed decisions and runtime versions. Apt installs
 the distribution's signed Docker packages. The harness stops only its owned
@@ -172,3 +173,135 @@ and rejection text are never exported. Missing entries remain explicitly
 unavailable; malformed or excessive observations are refused. This adds no
 request logging to the product, does not restart a service or create a grant,
 and cannot turn a failed route into recovery acceptance.
+
+### Cold protected-host fixture under development
+
+`source_host.py` prepares a distinct hosted guest with the shipped deployment
+paths, helper and four unmodified persistent issuer/cleanup units. Its registered
+ACME account comes from an independent private CA witness on the runner, outside
+both recovery guests. Source timers retain enabled intent but stay quiesced.
+`host_checkpoint.py` captures the matching private files, full restricted dump,
+database fingerprint, original account and genuine pending native request while
+holding the existing operation lease and stopping writers.
+
+`target_host.py` refuses restoration unless the original QEMU process has been
+reaped before the target process starts. The target must have distinct machine
+and boot identities. It restores the complete bounded file inventory, imports
+the dump into a new PostgreSQL cluster and compares the full database fingerprint
+before starting application writers. It verifies the original registered account
+with creation disabled. A separate resumption step runs independent cleanup on
+the target and starts the stock timers with their original enabled intent.
+Private exports use exact names, bounded sizes, single-link root-owned files
+and readback hashes; operational state is not a public artifact.
+
+`cold_witness.py` owns the independent CA process in a nonce-specific systemd
+service and arms a separate cleanup timer before launch. Cleanup verifies the
+resource label, image and private binding before deleting a CA container/network;
+foreign state is preserved. Failed cleanup keeps the guard armed. The test
+process remains loaded after successful exit until its result is checked, so
+systemd's transient-unit collection cannot erase its exit evidence.
+
+The combined driver has hosted execution evidence, but complete recovery is
+still unaccepted. Source `566da34` reached checkpoint creation after actual source
+preparation, native enrollment, initial CSR submission, baseline installation and
+the original verified TLS route. [Run 42301622918](https://github.com/KazuhaHub/nethub/actions/runs/42301622918)
+then failed inside checkpoint creation. Its closed result confirmed operation
+cgroup reaping, private guest material removal and cleanup of the independently
+started CA. This proves that failure cleanup path; it does not prove unattended
+guard expiry, source-to-target restoration or resumed native issuance.
+Resuming an original queued initial request would establish initial issuance
+after restoration, not a renewal-clock test. Public operator acceptance and
+durable encrypted off-host custody remain separate requirements.
+
+`cold_console.py` supplies the driver's normal HTTPS login, enrollment-token
+creation and explicit Open calls. It uses the original source console's public
+CA and can require the same administrator UUID after restoration. Cookie jars,
+password payloads, CSRF headers and replies remain private. A failed or uncertain
+token creation cannot be replayed by this session. This helper does not create
+database rows or source grants directly. The original-source login and Open ran
+before the recorded checkpoint failure; the restored-target administrator check
+still requires a complete successful drill.
+
+The disposable appliance probe `agents/opnsense/acceptance/cold_native_probe.py`
+reads the original cached CSR under the common mutation lock and verifies its
+signature against the existing enrolled key. It creates neither key nor request.
+Its private output distinguishes the enrollment key from the active GUI
+certificate's public key, and records the original process, assignment, checks
+and alias for later comparison. A factory GUI key must not be described as the
+enrollment key. The disposable PHP fixture has a separate `install-bound-key`
+operation for an explicit baseline: it verifies the existing device key metadata,
+uses that key only inside the appliance and installs a public fixture leaf signed
+from the original cached CSR. It preserves both native security checks and adds
+only the assigned alias. `trust-cold` admits the separate public console/issuing
+roots with distinct fingerprint-bound references. Neither operation fabricates
+a server request, issued generation or application report. These operations have
+executed on the original native guest before the recorded checkpoint failure.
+That baseline does not establish certificate recovery. The driver must still
+compare it after genuine restored-host issuance and native application.
+
+`cold_native.py` connects the normal enrolled page, explicit initial certificate
+submission, private CSR inspection and same-key baseline. After restoration it
+only observes the stock agent scheduler: it does not force certificate polling,
+restart the client or fabricate an application report. Confirmation requires
+the exact issued generation/leaf, original key/CSR/assignment/process, retained
+checks/alias and the native backend's actual verified loopback TLS probe. Normal
+Remove uses the existing native page and independently checks cleared model and
+stopped service; server revocation and route closure remain outer-driver checks.
+Package preparation shares `bootstrap.install_current_package` with the existing
+unsigned preparation flow, preserving its signed update, build and configd steps.
+`cold_flow.py` connects these helpers into the full source-to-target sequence.
+It requires an already active independent cleanup timer before creating a guest.
+It checks the original normal Open actor/source grant and verified login route,
+captures the genuine queued request, reaps the source before target creation,
+restores the full checkpoint and original account, then starts the stock timers.
+It requires the actual issued generation, native application acknowledgement,
+exact served leaf and unchanged original grant before normal Remove and owned
+cleanup. The CA witness records its namespace for the outer cleanup guard before
+creating any resource. Fixed phase labels retain diagnostic scope without raw
+responses or credentials.
+
+Recovery timings distinguish source-process reap from the earlier checkpoint
+start; both stop at confirmed issuance/application and route verification before
+Remove or cleanup.
+
+`cold_launcher.py` stages private inputs and starts the operation in its own
+systemd cgroup only after arming `cold_guard.py` through an independent timer.
+The standalone guard verifies the exact copied program, stops only the owned
+cgroup, checks the independently recorded CA namespace, and deletes only the
+canonical owned private guest directory. A prepared removal record permits
+interruption recovery only after fresh resource-absence checks. Successful cleanup
+precedes guard disarming; unexpected bindings preserve the resource and guard.
+`cold_operation.py` projects only fixed proof fields, bounded timings and known
+failure locations. Raw exception content and inputs stay private.
+
+`cold_entry.py` requires the same source's successful six-job CI, checks the exact
+unexpired image artifact, verifies its compressed checksum and bounded expansion,
+then inspects every configuration/layer against the five-role producer manifest.
+The new `Protected host cold recovery` workflow builds the same-source witness
+with the pinned compiler and runs the guarded flow only after that image gate.
+Only closed source/provenance/operation/cleanup results and the two hash-verified
+masked native pages are eligible for upload. Failed operation results are retained
+through an exclusive private ownership pointer, without listing other namespaces.
+
+The workflow has executed. At source `a2ff444`, run `42335289162` captured the
+checkpoint, reaped the source, restored the distinct target and recovered the
+original TLS route, then failed the post-cleanup execution-state check during
+timer resumption. The actual source-bound outcome and full logs were retained;
+operation cgroup, private guests/disks/keys/logs and independent witness cleanup
+all passed. Initial issuance, native application and complete cold recovery were
+not accepted. Earlier failed attempts remain retained.
+
+The stock cleanup service is a nonpersistent oneshot. systemd may
+[collect an unreferenced unit and discard its execution state](https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html#Unit%20Garbage%20Collection).
+The fixture now holds an ordering reference from a private, 120-second-bounded
+observer while it starts cleanup and checks its successful exit and fresh
+monotonic start time. The observer is stopped in `finally`; product units and
+their timer settings are unchanged. This addresses a source-level observation
+race. The failed run did not record which predicate differed, so garbage
+collection is not retrospectively established as its exact cause.
+
+Hosted Linux controls exercise genuine unreferenced state collection, fresh
+success with the bounded reference, and refusal of a failed oneshot. Local
+admission tests cannot execute those controls. The revised harness still needs
+actual hosted success and the complete issuer/native cold-recovery result;
+connected source or a green component test does not establish full acceptance.

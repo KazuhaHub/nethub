@@ -12,19 +12,24 @@ Run the same check locally with a verified Gitleaks 8.30.1 executable:
 python3 tools/check_credentials.py --scanner /path/to/gitleaks
 ```
 
-The configuration has two exceptions for exact public verification values:
+The configuration has four exceptions for exact public digests:
 
 - The SHA256 SPKI digests from the public enrollment and certificate request
   fixtures, restricted to their protocol response fixture paths and complete
   `gui_key_fingerprint` lines.
 - The pinned OPNsense release public-key checksum, restricted to its complete
   `KEY_SHA256` assignment in the image preflight script.
+- The same public-key checksum in the native guest image verifier, restricted to
+  its exact path and complete `KEY_SHA256` assignment.
+- One historical masked screenshot checksum, restricted to the original
+  validation JSON path and complete `02-console-token.png` field.
 
 These are rule-specific conjunctions of path and exact content. The project adds
-no whole-path, commit or detection-rule exclusion. Five executable controls verify accepted
-public values and refusal of a changed fingerprint, an adjacent credential, the
-same public value at another path and a credential appended to the checksum line.
-Control credentials are generated in temporary directories and never committed.
+no whole-path, commit or detection-rule exclusion. Fifteen executable controls
+verify accepted public values and refusal of changed values, wrong paths or
+fields, adjacent credentials and credentials appended to an allowed line.
+Control strings derive from public digests and are written only to temporary
+directories; they are never deployment credentials.
 
 ## Historical review
 

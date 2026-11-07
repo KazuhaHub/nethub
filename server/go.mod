@@ -3,7 +3,7 @@ module github.com/KazuhaHub/nethub/server
 go 1.26.0
 
 require (
-	github.com/KazuhaHub/authcore v0.6.3-0.20261026125641-ee68d852d973
+	github.com/KazuhaHub/authcore v0.6.3-0.20261106113728-c1447857d71b
 	github.com/beevik/etree v1.7.0
 	github.com/crewjam/saml v0.5.1
 	github.com/fatedier/yamux v0.2.0
@@ -31,3 +31,7 @@ require (
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 )
+
+// Match authcore's reviewed interim parser fix; replacements are not inherited.
+// See deploy/saml-dependency-security.md for provenance and removal criteria.
+replace github.com/crewjam/saml => github.com/openctemio/saml v0.5.2-0.20261106014128-2b3cdad337cd

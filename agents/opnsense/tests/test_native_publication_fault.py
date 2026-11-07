@@ -4,6 +4,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -104,3 +105,61 @@ def test_nonempty_invalid_or_failed_action_is_not_retried(reply):
         SUITE.native_trust(guest)
     assert guest.calls == 1
     assert 'private malformed output' not in str(error.value)
+
+
+def load_conditions_probe(monkeypatch):
+    spec = importlib.util.spec_from_file_location('native_model_probe', SOURCE.with_name('native_model_probe.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setitem(sys.modules, 'native_model_probe', module)
+    return module
+
+
+def test_pending_read_failure_retains_only_closed_conditions_and_original_error(tmp_path, monkeypatch):
+    probe = load_conditions_probe(monkeypatch)
+    conditions = dict.fromkeys(probe.ROTATION_FLAGS, False)
+    conditions['phase'] = 'absent'
+    original = SUITE.GuestError('fixture original readback failure')
+    calls = []
+
+    def ssh(script, _label):
+        calls.append(script)
+        if len(calls) == 1:
+            raise original
+        assert script == '/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py rotation\n'
+        return json.dumps(conditions)
+
+    with pytest.raises(SUITE.GuestError) as caught:
+        SUITE.pending_rotation(SimpleNamespace(ssh=ssh), evidence=tmp_path)
+    assert caught.value is original and len(calls) == 2
+    assert json.loads((tmp_path / 'rotation-recovery-probe.json').read_text()) == conditions
+
+
+@pytest.mark.parametrize('diagnostic', [b'{"private":"credential and URL"}', RuntimeError('private diagnostic failure')])
+def test_private_diagnostic_output_never_replaces_original_read_failure(tmp_path, monkeypatch, diagnostic):
+    load_conditions_probe(monkeypatch)
+    original = SUITE.GuestError('fixture original failure')
+    replies = iter([original, diagnostic])
+
+    def ssh(_script, _label):
+        reply = next(replies)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    with pytest.raises(SUITE.GuestError) as caught:
+        SUITE.pending_rotation(SimpleNamespace(ssh=ssh), evidence=tmp_path)
+    assert caught.value is original
+    assert not (tmp_path / 'rotation-recovery-probe.json').exists()
+
+
+def test_successful_private_pending_read_does_not_run_extra_diagnostics(tmp_path):
+    pending = {'phase': 'prepared', 'operation_id': '11111111-1111-4111-8111-111111111111', 'candidate': 'a' * 43}
+    calls = []
+
+    def ssh(script, _label):
+        calls.append(script)
+        return json.dumps(pending)
+
+    assert SUITE.pending_rotation(SimpleNamespace(ssh=ssh), evidence=tmp_path) == pending
+    assert len(calls) == 1 and not (tmp_path / 'rotation-recovery-probe.json').exists()

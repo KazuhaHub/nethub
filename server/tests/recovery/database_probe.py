@@ -13,6 +13,16 @@ from database import bootstrap_extensions, capture, difference_details, differin
 from database_controls import check
 
 
+class ProbeCommandFailure(ValueError):
+    def __init__(self, action, kind, package_resolution_failed=False):
+        super().__init__('Owned database probe command failed')
+        self.report = {
+            'action': action if action in ('build', 'create', 'cp', 'start', 'exec', 'inspect', 'rm', 'image') else 'unknown',
+            'kind': kind if kind in ('nonzero_exit', 'timeout') else 'unknown',
+            'package_resolution_failed': package_resolution_failed is True,
+        }
+
+
 class Probe:
     def __init__(self, root, directory):
         self.root, self.directory = root, directory
@@ -26,10 +36,15 @@ class Probe:
 
     def command(self, arguments, data=None, check=True, timeout=90):
         self.steps += 1
-        result = subprocess.run(['docker', *arguments], input=data, capture_output=True, timeout=timeout)
+        try:
+            result = subprocess.run(['docker', *arguments], input=data, capture_output=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            raise ProbeCommandFailure(arguments[0], 'timeout') from None
         (self.directory / ('step-' + str(self.steps) + '.log')).write_bytes(result.stdout + result.stderr)
         if check and result.returncode:
-            raise ValueError('Owned database probe command failed')
+            package_failure = (arguments[0] == 'build'
+                               and b'unable to select packages' in result.stdout + result.stderr)
+            raise ProbeCommandFailure(arguments[0], 'nonzero_exit', package_failure)
         return result
 
     def sql(self, database, query):
@@ -170,5 +185,8 @@ def main():
 if __name__ == '__main__':
     try:
         main()
+    except ProbeCommandFailure as failure:
+        print(json.dumps({'database_probe_failure': failure.report}, sort_keys=True), file=sys.stderr)
+        raise SystemExit('Owned database diagnosis failed; no private child output exported') from None
     except (OSError, ValueError, KeyError, subprocess.SubprocessError):
         raise SystemExit('Owned database diagnosis failed; no private child output exported') from None

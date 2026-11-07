@@ -26,9 +26,11 @@ completed; disconnect processing still requires membership in the revoked set.
 The existing five-second refresh, bounded reads and last-good failure behavior
 mean this is not an instantaneous control-channel cutoff guarantee.
 
-This backend is under genuine PostgreSQL and deployed relay validation. Shared
-schema and local fake-repository tests do not prove those runtime boundaries.
-The native durable journal/model transaction and command/page action are under
-combined validation. The coordinated shared-token incident operation remains
-W7-4 work. See the [wire contract](../../../proto/ROTATION.md) and
-[device operation](../../../deploy/device-rotation.md).
+Genuine PostgreSQL, deployed relay and installed native rotation have
+[scoped acceptance](../../../deploy/device-rotation.md), including the durable
+journal/model transaction and command/page action. Shared schema and local
+fake-repository tests alone do not prove those runtime boundaries.
+The coordinated shared-token operation has separate
+[isolated host and online native evidence](../../../deploy/validation-shared-token.md).
+Public/mobile, complete incident-fleet recovery and remaining W7/release gates
+are not established by those records. See the [wire contract](../../../proto/ROTATION.md).

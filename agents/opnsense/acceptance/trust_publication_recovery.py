@@ -34,12 +34,33 @@ def native_trust(guest):
     return value
 
 
-def pending_rotation(guest):
-    raw = guest.ssh("cd /usr/local/opnsense/scripts/nethub-agent\n"
-        "/usr/local/bin/python3.13 - <<'PY'\n"
-        "import json\nfrom rotation import RotationJournal\n"
-        "print(json.dumps(RotationJournal('/var/db/nethub-agent')._read()))\nPY\n",
-        'private publication-conflict rotation readback')
+def retain_rotation_conditions(guest, evidence):
+    """Retain fixed read-only conditions without masking the original failure."""
+    try:
+        from native_model_probe import validate_rotation_conditions
+        value = json.loads(guest.ssh(
+            '/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py rotation\n',
+            'read-only prepared rotation conditions'))
+        validate_rotation_conditions(value)
+        path = Path(evidence) / 'rotation-recovery-probe.json'
+        path.write_text(json.dumps(value), encoding='ascii')
+        path.chmod(0o600)
+    except Exception:
+        # The original failed read remains the cause even if diagnostics fail.
+        pass
+
+
+def pending_rotation(guest, *, evidence=None):
+    try:
+        raw = guest.ssh("cd /usr/local/opnsense/scripts/nethub-agent\n"
+            "/usr/local/bin/python3.13 - <<'PY'\n"
+            "import json\nfrom rotation import RotationJournal\n"
+            "print(json.dumps(RotationJournal('/var/db/nethub-agent')._read()))\nPY\n",
+            'private publication-conflict rotation readback')
+    except GuestError:
+        if evidence is not None:
+            retain_rotation_conditions(guest, evidence)
+        raise
     value = json.loads(raw)
     operation = str(uuid.UUID(value['operation_id']))
     if (value['phase'] != 'prepared' or operation != value['operation_id']
@@ -155,7 +176,7 @@ def exercise_publication_conflict(guest, stage, project, compose, page_action,
         publication.phase('prepared_journal')
         check_unavailable()
         page_action('rotate', expected=False, label='rotate-publication-unavailable')
-        pending = pending_rotation(guest)
+        pending = pending_rotation(guest, evidence=evidence)
         if pending['native_before'] != before or native_read('native-publication-prepared.json') != before:
             raise GuestError('Unavailable rotation changed its original native assignment')
         if sql(state_query) != original_state or int(sql(rotation_query)) != operations or int(sql(audit_query)) != audits:
@@ -168,7 +189,7 @@ def exercise_publication_conflict(guest, stage, project, compose, page_action,
         blocked = native_trust(guest)
         if (blocked.get('phase') != 'rotation_pending' or blocked.get('confirmed') is not False
                 or native_read('native-publication-blocked.json') != before
-                or pending_rotation(guest) != pending or sql(applications) != reported):
+                or pending_rotation(guest, evidence=evidence) != pending or sql(applications) != reported):
             raise GuestError('Scheduled trust changed a pending native rotation or its receipt')
         body = {'agent_protocol_version': '1.6.0', 'device_id': device,
                 'operation_id': rejected_operation, 'replacement_secret': pending['candidate'],
@@ -225,11 +246,12 @@ def exercise_publication_conflict(guest, stage, project, compose, page_action,
         publication.phase('reference_overlap_application')
         overlap_witness_ms = synchronize_references(stage, overlap, request, sql, device, witness_id, install_witness)
         publication.phase('committed_response_loss')
-        committed = prepare_committed(guest, stage, compose, page_action, native_read, pending_rotation,
+        read_pending = lambda owned: pending_rotation(owned, evidence=evidence)
+        committed = prepare_committed(guest, stage, compose, page_action, native_read, read_pending,
                                       sql, device, stable_query, grants_query)
     publication.phase('committed_native_replay')
     committed_result, committed_credentials = recover_committed(
-        committed, guest, native_read, pending_rotation, native_trust, page_action,
+        committed, guest, native_read, read_pending, native_trust, page_action,
         request, sql, route, publication.restored, device, stable_query, grants_query)
     credentials += committed_credentials
     publication.phase('original_native_trust')
