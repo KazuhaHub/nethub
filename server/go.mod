@@ -8,7 +8,7 @@ require (
 	github.com/crewjam/saml v0.5.1
 	github.com/fatedier/yamux v0.2.0
 	github.com/go-jose/go-jose/v4 v4.1.6
-	github.com/jackc/pgx/v5 v5.11.0
+	github.com/jackc/pgx/v5 v5.12.0
 	github.com/mattermost/xml-roundtrip-validator v0.1.0
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/russellhaering/goxmldsig v1.6.1
