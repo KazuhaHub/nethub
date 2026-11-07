@@ -79,6 +79,7 @@ jobs:
           python3 -m unittest discover -s server/tests/recovery -p 'test_*.py'
           sudo python3 -B -m unittest discover -s server/tests/recovery -p test_cold_guard.py
           sudo python3 -B -m unittest discover -s server/tests/recovery -p test_checkpoint_transfer.py
+          sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT,NETHUB_SOURCE_HEAD python3 -B -m unittest discover -v -s server/tests/recovery -p test_cleanup_observation.py
           cd server
           go test -c -o "$RUNNER_TEMP/cold-guiacme.test" ./internal/guiacme
           sudo install -o root -g root -m 0555 "$RUNNER_TEMP/cold-guiacme.test" "$RUNNER_TEMP/cold-guiacme-root.test"

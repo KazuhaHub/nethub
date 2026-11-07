@@ -283,6 +283,25 @@ Only closed source/provenance/operation/cleanup results and the two hash-verifie
 masked native pages are eligible for upload. Failed operation results are retained
 through an exclusive private ownership pointer, without listing other namespaces.
 
-The entry and workflow are wired but have not executed. Actual cgroup/guard expiry,
-PHP, native behavior and full recovery remain untested. No execution or recovery
-acceptance is claimed by connected source or local admission tests.
+The workflow has executed. At source `a2ff444`, run `42335289162` captured the
+checkpoint, reaped the source, restored the distinct target and recovered the
+original TLS route, then failed the post-cleanup execution-state check during
+timer resumption. The actual source-bound outcome and full logs were retained;
+operation cgroup, private guests/disks/keys/logs and independent witness cleanup
+all passed. Initial issuance, native application and complete cold recovery were
+not accepted. Earlier failed attempts remain retained.
+
+The stock cleanup service is a nonpersistent oneshot. systemd may
+[collect an unreferenced unit and discard its execution state](https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html#Unit%20Garbage%20Collection).
+The fixture now holds an ordering reference from a private, 120-second-bounded
+observer while it starts cleanup and checks its successful exit and fresh
+monotonic start time. The observer is stopped in `finally`; product units and
+their timer settings are unchanged. This addresses a source-level observation
+race. The failed run did not record which predicate differed, so garbage
+collection is not retrospectively established as its exact cause.
+
+Hosted Linux controls exercise genuine unreferenced state collection, fresh
+success with the bounded reference, and refusal of a failed oneshot. Local
+admission tests cannot execute those controls. The revised harness still needs
+actual hosted success and the complete issuer/native cold-recovery result;
+connected source or a green component test does not establish full acceptance.

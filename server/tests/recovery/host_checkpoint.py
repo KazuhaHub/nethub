@@ -204,6 +204,39 @@ class SourceCheckpoint:
         return self.command(['systemctl', 'show', unit, '--property=' + name, '--value'],
                             'Owned persistent unit observation').decode().strip()
 
+    @contextmanager
+    def retain_service_result(self, unit):
+        if (type(unit) is not str or unit != 'nethub-http01-cleanup.service'
+                and re.fullmatch(r'nethub-cold-unit-[a-f0-9]{32}\.service', unit) is None):
+            raise CheckpointError('Owned cleanup observation unit required')
+        observer = 'nethub-cold-observer-' + uuid.uuid4().hex + '.service'
+        # An active unit's ordering reference keeps a completed oneshot loaded.
+        # Without it, systemd may discard its execution result before show runs.
+        self.command(['systemd-run', '--quiet', '--unit=' + observer,
+                      '--property=Type=exec', '--property=After=' + unit,
+                      '--property=RuntimeMaxSec=120s', '--property=TimeoutStopSec=5s',
+                      '--property=NoNewPrivileges=yes', '--property=PrivateNetwork=yes',
+                      '/usr/bin/sleep', '120'], 'Bounded cleanup observation reference', timeout=15)
+        try:
+            if (self.property(observer, 'ActiveState') != 'active'
+                    or unit not in self.property(observer, 'After').split()):
+                raise CheckpointError('Live cleanup observation reference not established')
+            yield
+        finally:
+            self.command(['systemctl', 'stop', observer], 'Owned cleanup observer removal', timeout=10)
+
+    def fresh_cleanup(self, unit='nethub-http01-cleanup.service'):
+        with self.retain_service_result(unit):
+            before = int(time.monotonic() * 1000000)
+            self.command(['systemctl', 'start', unit], 'Fresh independent target cleanup execution', timeout=60)
+            start = self.property(unit, 'ExecMainStartTimestampMonotonic')
+            if self.property(unit, 'Result') != 'success':
+                raise CheckpointError('Fresh independent cleanup did not succeed')
+            if self.property(unit, 'ExecMainStatus') != '0':
+                raise CheckpointError('Fresh independent cleanup did not exit successfully')
+            if re.fullmatch('[0-9]+', start) is None or int(start) < before:
+                raise CheckpointError('Fresh independent cleanup execution time not established')
+
     def inventory(self):
         ids = self.command([*COMPOSE, 'ps', '-q'], 'Source service inventory').decode().splitlines()
         if len(ids) != 6 or any(re.fullmatch('[a-f0-9]{64}', value) is None for value in ids):
@@ -466,14 +499,7 @@ class TargetCheckpoint(SourceCheckpoint):
                     or self.property(unit, 'FragmentPath') != '/etc/systemd/system/' + unit
                     or self.property(unit, 'DropInPaths') != '' or self.property(unit, 'ActiveState') != 'inactive'):
                 raise CheckpointError('Recovered unit changed or started before coordinated resumption')
-        before = int(time.monotonic() * 1000000)
-        self.command(['systemctl', 'start', 'nethub-http01-cleanup.service'],
-                     'Fresh independent target cleanup execution', timeout=60)
-        start = self.property('nethub-http01-cleanup.service', 'ExecMainStartTimestampMonotonic')
-        if (self.property('nethub-http01-cleanup.service', 'Result') != 'success'
-                or self.property('nethub-http01-cleanup.service', 'ExecMainStatus') != '0'
-                or re.fullmatch('[0-9]+', start) is None or int(start) < before):
-            raise CheckpointError('Fresh successful independent target cleanup not established')
+        self.fresh_cleanup()
         for timer in ('nethub-http01-cleanup.timer', 'nethub-gui-issuer.timer'):
             self.command(['systemctl', 'enable', '--now', timer], 'Recovered protected timer intent and startup')
             if (self.property(timer, 'UnitFileState') != self.metadata['unit_intent'][timer]
