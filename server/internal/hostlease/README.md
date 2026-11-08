@@ -24,7 +24,7 @@ exact owned process and acquire the unchanged file again. POSIX tests cover
 linked paths, unsafe ownership/modes and outside-file preservation. Windows
 checks local content/LockFileEx behavior; deployed host commands require Linux.
 The protected Docker-host fixture additionally holds this exact lease while
-invoking all three command families and requires refusal/skip, recovery and an
+invoking renewal, public trust and offline authority commands; it requires refusal/skip, recovery and an
 unchanged authority/runtime/public head.
 
 This is a prerequisite for authority activation, not its transaction journal.
