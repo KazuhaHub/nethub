@@ -10,6 +10,7 @@ import traceback
 
 from cold_flow import PHASES, ROOT, admission, exercise
 from cold_guard import read_json, save_once
+from cold_issuance import validate_status
 from host_layout import valid_tags
 from linux_guest import invoke
 
@@ -25,7 +26,7 @@ PROOFS = ('original_source_reaped_before_distinct_target',
 TIMINGS = ('baseline_route_recovery_ms', 'initial_issuance_recovery_ms', 'checkpoint_start_to_native_issuance_ms')
 FILES = {'cold_flow.py', 'cold_route.py', 'cold_console.py', 'cold_witness.py', 'source_host.py',
          'target_host.py', 'host_checkpoint.py', 'linux_guest.py', 'cold_native.py', 'cold_native_probe.py',
-         'bootstrap.py', 'guest.py', 'database.py', 'payload.py'}
+         'bootstrap.py', 'guest.py', 'database.py', 'payload.py', 'cold_issuance.py'}
 
 
 def success(value, head):
@@ -50,10 +51,16 @@ def failure(error, head, phase):
             locations.extend(validate_failure(error.checkpoint_failure)['locations'])
         except (ValueError, TypeError):
             pass
-    return {'version': 1, 'source_head': head, 'passed': False,
+    result = {'version': 1, 'source_head': head, 'passed': False,
             'phase': phase if phase in PHASES else 'unavailable',
             'failure_kind': 'timeout' if isinstance(error, TimeoutError) else 'other',
             'locations': locations[-16:], 'full_recovery_or_goal_accepted': False}
+    if phase == 'issued_generation' and hasattr(error, 'issuer_status'):
+        try:
+            result['issuer_status'] = validate_status(error.issuer_status)
+        except (ValueError, TypeError):
+            pass
+    return result
 
 
 def run(control):

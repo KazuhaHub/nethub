@@ -301,7 +301,19 @@ race. The failed run did not record which predicate differed, so garbage
 collection is not retrospectively established as its exact cause.
 
 Hosted Linux controls exercise genuine unreferenced state collection, fresh
-success with the bounded reference, and refusal of a failed oneshot. Local
-admission tests cannot execute those controls. The revised harness still needs
-actual hosted success and the complete issuer/native cold-recovery result;
-connected source or a green component test does not establish full acceptance.
+success with the bounded reference, and refusal of a failed oneshot. All three
+passed at source `08485ad`. Cold run `42338520078` also crossed timer resumption,
+then timed out waiting 120 seconds for the original initial generation to become
+issued. All owned cleanup proofs passed. The cause of nonissuance remains unknown;
+complete issuer/native cold recovery is still unaccepted.
+
+`cold_issuance.py` now captures a read-only snapshot after that issuance deadline:
+closed job state, failure code, progress phase, bounded retry counters, expiry
+booleans and issuer/timer service state. It does not export checkpoint contents,
+identities, timestamps, URLs, credentials, journal text or child diagnostics.
+Unavailable observations remain explicit and do not replace the original timeout.
+The existing deadline, stock timers, issuance success criteria and cleanup guard
+are unchanged. Privacy/admission tests cover malformed or duplicate fields,
+invalid identities, child failures and projection into issuance failures only.
+The new observation path still needs its own actual hosted execution; local
+tests do not establish the missing cold-recovery result.

@@ -11,6 +11,7 @@ import time
 import uuid
 
 from cold_console import ColdConsole
+from cold_issuance import collect_status
 from cold_route import check as route
 from cold_witness import ColdWitness, private_json
 from linux_guest import LinuxGuest, RecoveryError, invoke
@@ -106,6 +107,16 @@ def issued(host, device, request):
     return value
 
 
+def wait_issued(host, device, request, deadline):
+    while (generation := issued(host, device, request)) is None:
+        if time.monotonic() >= deadline:
+            error = TimeoutError('Restored stock issuer did not finish the original initial job')
+            error.issuer_status = collect_status(host, device, request)
+            raise error
+        time.sleep(1)
+    return generation
+
+
 def exercise(control, images, tags, witness_binary, sdk):
     control = Path(control)
     stage('guard_admission')
@@ -195,11 +206,7 @@ def exercise(control, images, tags, witness_binary, sdk):
         stage('timer_resume')
         resumed = target.resume_automation()
         stage('issued_generation')
-        deadline = time.monotonic() + 120
-        while (generation := issued(target, native.device, request)) is None:
-            if time.monotonic() >= deadline:
-                raise RecoveryError('Restored stock issuer did not finish the original initial job')
-            time.sleep(1)
+        generation = wait_issued(target, native.device, request, time.monotonic() + 120)
         stage('native_application')
         native.wait_application(generation['id'], generation['leaf'])
         stage('application_ack')
