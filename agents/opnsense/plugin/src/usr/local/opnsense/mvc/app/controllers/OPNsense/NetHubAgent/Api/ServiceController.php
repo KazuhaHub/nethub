@@ -62,6 +62,7 @@ class ServiceController extends \OPNsense\Base\ApiControllerBase
         if (!$this->request->isPost()) { return ['success' => false]; }
         $this->throwReadOnly();
         $failure = ['success' => false, 'action' => 'rotate', 'phase' => 'error',
+            'failure_reason' => 'backend_response',
             'message' => gettext('Rotation response unavailable. Retain local recovery state and retry.')];
         try {
             $backend = new \OPNsense\Core\Backend();
@@ -86,9 +87,25 @@ class ServiceController extends \OPNsense\Base\ApiControllerBase
                 return ['success' => false, 'action' => 'rotate', 'phase' => 'saved',
                     'message' => gettext('Credentials saved. Retry rotation to finish tunnel reconciliation.')];
             }
+            if ($value['success'] === false && ($value['phase'] ?? null) === 'error') {
+                // Match fixed local diagnostics; never return backend message text.
+                $reasons = [
+                    'Relay trust synchronization failed; inspect trust and recovery status' => 'trust_sync',
+                    'Pending relay trust recovery failed; tunnel startup is blocked' => 'trust_recovery',
+                    'Managed trust needs local review; retain the rotation journal' => 'trust_recovery',
+                    'Native rotation model operation failed' => 'native_model',
+                    'Rotation storage or original assignment needs local review' => 'rotation_journal',
+                    'Native rotation model save is unconfirmed' => 'native_save',
+                    'Native rotation save is unconfirmed; retain the journal' => 'native_save',
+                    'Rotation interrupted; retain the private journal and retry.' => 'interrupted',
+                ];
+                $message = $value['message'] ?? null;
+                $failure['failure_reason'] = is_string($message) ? ($reasons[$message] ?? 'unclassified') : 'unclassified';
+            }
             return $failure;
         } catch (\Throwable $error) {
             // Child/model diagnostics can contain private settings.
+            $failure['failure_reason'] = 'backend_exception';
             return $failure;
         }
     }

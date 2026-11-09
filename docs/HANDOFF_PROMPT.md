@@ -46,6 +46,16 @@ unsuppressed image scans and 48 human DCOs. Earlier failed attempts remain retai
 Public/operator recovery, durable encrypted off-host custody, renewal-clock
 behavior and formal release remain separate; W7-5 is still incomplete.
 
+The PR #224 documentation head `804f5cc` passed its independent CI, fresh-host,
+database, native-filesystem and full isolated cold-recovery checks. Its installed
+run `42590999232` failed at the native Rotate after shared-token cutover, after
+the earlier rotation/publication cases passed. The original failure and cleanup
+evidence are retained; that run is not accepted. Follow-up work reproduced an
+uncaught `NativeTrustError` at synchronization and rotation trust checks and adds
+bounded error handling and fixed failure categories. This gap is independently
+proven; the original installed failure's root cause remains unconfirmed pending
+new-source evidence.
+
 The [clean-host integration](../deploy/validation-clean-host-restore.md)
 in [PR #194](https://github.com/KazuhaHub/nethub/pull/194), merged as `c4102ab`, passed current-key,
 database and six-service restoration on a distinct empty hosted guest. Both

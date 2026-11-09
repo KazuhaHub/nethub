@@ -6,6 +6,18 @@ import pytest
 from test_relay_trust_transaction import transaction, example
 import relay_trust_sync as CLIENT
 from protocol import ProtocolError
+from relay_trust_backend import NativeTrustError
+
+
+def test_native_read_failure_is_closed_before_network_or_trust_mutation(transaction):
+    with mock.patch.object(transaction.backend, 'read', side_effect=NativeTrustError('private backend details')), \
+            mock.patch.object(CLIENT, 'request_json') as network:
+        with pytest.raises(CLIENT.TrustSyncError) as failure:
+            sync(transaction)
+    assert str(failure.value) == 'Relay trust synchronization failed; inspect local trust and recovery status'
+    network.assert_not_called()
+    assert transaction.read() is None
+    assert transaction.backend.operations == [] and transaction.calls == []
 
 
 def sync(transaction):
