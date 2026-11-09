@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from enrollment import request_json
 from protocol import ProtocolError
 from relay_trust import verify_settings
-from relay_trust_backend import model_snapshot
+from relay_trust_backend import model_snapshot, NativeTrustError
 from relay_trust_protocol import settings_request, applied_request
 from relay_trust_transaction import TrustTransactionError
 
@@ -55,5 +55,5 @@ class TrustSynchronizer:
                 # Application remains good if the report reply is lost, stale,
                 # rejected or unavailable. The next poll fetches before retry.
                 return dict(result, phase='applied_unconfirmed', confirmed=False)
-        except (ProtocolError, TrustTransactionError, OSError, ValueError, TypeError, KeyError):
+        except (ProtocolError, TrustTransactionError, NativeTrustError, OSError, ValueError, TypeError, KeyError):
             raise TrustSyncError('Relay trust synchronization failed; inspect local trust and recovery status') from None

@@ -1,5 +1,10 @@
 # Isolated host issuer identity
 
+This records the initial role boundary. The current issuer also has the narrow
+job, progress and completion functions added by later migrations; see the
+[queue contract](../guiissuer/README.md) and [protected worker](../guiissuer/HOST.md).
+The original no-login, no-membership and no-raw-table boundary remains.
+
 The PostgreSQL bootstrap reserves `nethub_issuer` as NOLOGIN, NOINHERIT,
 NOSUPERUSER, NOCREATEDB, NOCREATEROLE, NOREPLICATION and NOBYPASSRLS. It has public
 schema usage, no table/credential-function access and no role memberships in
@@ -13,8 +18,8 @@ This role is for the privileged host's one-shot issuer boundary, following the
 existing host maintenance model. No database password or login endpoint is
 created, and the setup manifest remains version 3 with the same 22 files. The
 web, authz and migration logins cannot assume the role. `OpenRole` deliberately
-does not accept it as a password-backed client. Future issuer operations may be
-granted explicit, narrow functions rather than broad device/table access.
+does not accept it as a password-backed client. Issuer operations use explicit,
+narrow function grants rather than broad device/table access.
 
 A trusted host operation can select the SQL identity over PostgreSQL's local
 socket before invoking fixed queries. This does not confine a compromised host:
@@ -26,9 +31,11 @@ The ordinary application logins cannot perform that identity transition.
 Fresh initialization creates the reserved role. Existing PostgreSQL volumes do
 not rerun bootstrap on image replacement. An existing deployment needs an
 explicit reviewed bootstrap/upgrade operation before enabling an issuer; this
-change does not run it, rewrite manifests, regenerate authority, start a worker,
-grant issuance functions or contact a CA. Current device admission/lifecycle
-does not require the issuer role and remains independent of that future upgrade.
+initial role bootstrap does not rewrite manifests, regenerate authority, start
+a worker or contact a CA. Later migrations grant issuance functions only when
+the reserved role exists; an older volume still needs an explicit reviewed
+role/function upgrade before enabling issuance. Device enrollment and ordinary
+lifecycle operations remain independent of that issuer upgrade.
 
 The genuine PostgreSQL suite checks flags, memberships, schema/data/function
 grants, application/migration refusal, selected host identity and actual denied

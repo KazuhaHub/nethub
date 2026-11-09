@@ -57,10 +57,10 @@ Keeping the source here buys three things:
    beside this directory without either of them needing to know anything about
    FreeBSD packaging.
 
-The cost is that day-to-day iteration on the plugin's web UI spans two
-checkouts. During development, symlink or `rsync` this directory into the
-packaging repository's `src/os-nethub-agent/` instead of committing to both —
-only the release flow is genuinely cross-repository.
+Develop and test the plugin in this repository, using `plugin/build.sh` for
+unsigned appliance packages. No development copy or symlink into the packaging
+repository is required. Only the formal release recipe crosses repositories;
+see the [development build instructions](plugin/README.md).
 
 ## What the agent is
 

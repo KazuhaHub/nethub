@@ -281,8 +281,12 @@ protected host's ACME account, issuer/HTTP-01 policies and namespaces, installed
 helper and reviewed systemd configuration. These live outside the six-container
 database restore. The [custody inventory](../deploy/database-backups.md#custody-and-restoration)
 and [account namespace procedure](../server/internal/guiacme/PROVISIONING.md)
-describe that boundary; full cold-host restoration with resumed issuance remains
-unaccepted independently of control-plane/device reconnection.
+describe that boundary. The later
+[protected-host drill](../deploy/validation-protected-host-cold-recovery.md)
+passed isolated restoration with the same original issuance request, native
+application and verified route. That is independent evidence beyond the
+six-service checkpoint; it does not establish a public operator restore
+procedure or durable encrypted off-host custody.
 
 ## Troubleshooting
 

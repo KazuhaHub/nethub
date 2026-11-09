@@ -88,10 +88,12 @@ The separate [hosted checkpoint](validation-clean-host-restore.md) passed
 current-key/database/six-service recovery and both retained native/witness TLS
 routes. It is not a complete production restore command. Do not overwrite an
 existing database on the strength of these isolated checks.
-The hosted drill also excludes
-protected-host issuer restoration and independently durable encrypted custody.
-Neither a successful archive hash nor an isolated six-service recovery would
-complete those requirements.
+That six-service drill excludes protected-host issuer restoration. The later
+[protected-host checkpoint](validation-protected-host-cold-recovery.md) separately
+restored the issuer/account/publisher installation and verified resumed issuance
+and native application of the original request. Independently durable encrypted
+custody and a public operator drill remain open. Neither an archive hash nor
+these isolated recoveries completes those requirements.
 
 See [deployment boundaries](../docs/deployment.md#backup-and-restore-boundary),
 [archive internals](../server/internal/dbbackup/README.md) and

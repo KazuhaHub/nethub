@@ -43,6 +43,20 @@ credentials and native snapshots never appear in browser responses, process
 arguments or diagnostic messages. The root-only PHP model helper exchanges its
 private data over stdin/stdout with the bounded Python caller.
 
+Interactive Rotate acquires that same lock inside the agent rather than in an
+outer `lockf` process. Contention returns the existing fixed busy response before
+trust lookup, journal creation or network access. Retry explicitly after the
+other operation finishes; the action neither waits indefinitely nor bypasses
+scheduler exclusion. Scheduled jobs retain their nonblocking external lock.
+
+An error response may also contain a fixed `failure_reason`: `backend_response`,
+`backend_exception`, `trust_sync`, `trust_recovery`, `native_model`,
+`rotation_journal`, `native_save`, `interrupted` or `unclassified`. These categories
+help distinguish unavailable backend output from trust, model and journal
+failures. Unknown backend messages remain private. A category does not prove
+whether a remote commit occurred; retain recovery state and use the same action
+to recover it.
+
 The saved disabled flag and local circuit/stop markers remain unchanged. A
 revoked device or one undergoing removal cannot rotate. The action does not
 grant source-IP access or bypass the router's own login. Old credential/claim

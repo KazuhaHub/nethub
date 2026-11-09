@@ -13,7 +13,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'src/usr/local/opnsense/scripts/nethub-agent'))
 from certificate_key import KeyStore
-from relay_trust_backend import model_nodes
+from relay_trust_backend import model_nodes, NativeTrustError
 from relay_trust_transaction import TrustTransaction, TrustTransactionError
 from test_relay_trust import authority, bundle
 
@@ -83,6 +83,22 @@ def test_durable_application_and_lost_report_retry_do_not_reinstall(transaction)
     assert transaction.read()['receipt']['agent_protocol_version'] == '1.5.0'
     assert transaction.calls == ['reload']
     assert transaction.path.read_bytes() == KeyStore._encoded(transaction.read())
+
+
+@pytest.mark.parametrize('operation', ['check_rotation_ready', 'rebind_rotation'])
+def test_native_read_failure_retains_applied_trust_and_closes_rotation_error(transaction, operation):
+    transaction.apply(example())
+    original = transaction.path.read_bytes()
+    nodes = dict.fromkeys(('console_url', 'device_id', 'device_secret', 'domain_claim', 'frp_token',
+                          'server_addr', 'server_name', 'server_port', 'subdomain',
+                          'relay_ca', 'relay_trust_state', 'enabled'), 'unchanged')
+    args = () if operation == 'check_rotation_ready' else (nodes, nodes)
+    with mock.patch.object(transaction.backend, 'read', side_effect=NativeTrustError('private backend details')):
+        with pytest.raises(TrustTransactionError) as failure:
+            getattr(transaction, operation)(*args)
+    assert 'private' not in str(failure.value)
+    assert transaction.path.read_bytes() == original
+    assert transaction.backend.operations == ['install'] and transaction.calls == ['reload']
 
 
 def test_wrong_receipt_retains_good_local_application(transaction):

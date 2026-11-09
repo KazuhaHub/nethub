@@ -12,7 +12,7 @@ import time
 
 from certificate_key import KeyStore
 from relay_trust import verify_settings
-from relay_trust_backend import model_nodes, model_snapshot, _nodes
+from relay_trust_backend import model_nodes, model_snapshot, _nodes, NativeTrustError
 from relay_trust_protocol import applied_request, applied_response, _stamp
 
 
@@ -203,7 +203,7 @@ class TrustTransaction:
             value = self.read()
             if value is not None and (value['phase'] != 'applied' or not self._current(value)):
                 raise ValueError('Managed trust is not ready for rotation')
-        except (KeyError, TypeError, ValueError, OSError):
+        except (KeyError, TypeError, ValueError, OSError, NativeTrustError):
             raise TrustTransactionError('Complete relay trust recovery before rotating credentials') from None
 
     def rebind_rotation(self, before, after):
@@ -232,7 +232,7 @@ class TrustTransaction:
                 raise ValueError('Managed trust rotation binding differs')
             if value['binding'] != new_binding:
                 self._write(dict(value, binding=new_binding))
-        except (KeyError, TypeError, ValueError, OSError):
+        except (KeyError, TypeError, ValueError, OSError, NativeTrustError):
             raise TrustTransactionError('Managed relay trust binding needs local review after rotation') from None
 
     def recover(self):

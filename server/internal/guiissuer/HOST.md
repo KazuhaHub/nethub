@@ -13,6 +13,11 @@ That checkpoint does not prove cold-host issuer/account/publisher restoration;
 the remaining [W7 recovery boundary](../../../deploy/database-backups.md#custody-and-restoration)
 includes state outside the six runtime containers.
 
+The later [protected-host recovery](../../../deploy/validation-protected-host-cold-recovery.md)
+independently passed that restoration with the original account/request and native
+application. Public/operator recovery, durable encrypted off-host custody and
+renewal-clock behavior remain separate requirements.
+
 ## Deployment prerequisites
 
 - An initialized deployment with its independently verified authority backup.

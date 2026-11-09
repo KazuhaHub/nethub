@@ -83,8 +83,13 @@ def test_lifecycle_actions_are_bounded_locked_and_uncached(name):
     else:
         assert command[:4] == ['/usr/bin/timeout', '-k', '2', '35']
         command = command[4:]
-    assert command[:6] == ['/usr/bin/lockf', '-sk', '-t', '0', LOCK, '/usr/local/bin/python3.13']
-    assert command[-2:] == ['--locked', name]
+    if name == 'rotate':
+        assert command == ['/usr/local/bin/python3.13',
+                           '/usr/local/opnsense/scripts/nethub-agent/agentctl.py', 'rotate']
+        assert '--locked' not in command
+    else:
+        assert command[:6] == ['/usr/bin/lockf', '-sk', '-t', '0', LOCK, '/usr/local/bin/python3.13']
+        assert command[-2:] == ['--locked', name]
     assert parser[name]['parameters'] == ''
     assert parser[name]['errors'] == 'no' and parser[name]['cache_ttl'] == '0'
 

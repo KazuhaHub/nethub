@@ -1,8 +1,10 @@
 """Dispatch rotation under the shared lock without exposing private assignments."""
 from unittest import mock
 import os
+import signal
 import subprocess
 import sys
+import time
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -76,6 +78,50 @@ def test_rotation_dispatch_uses_private_journal_and_existing_reconcile(case):
     assert journal.path == case.agent.state / 'rotation.json'
     assert actual_backend is backend and reconcile == case.agent.reconcile_locked
     assert not (case.agent.state / 'rotation.json').exists()
+
+
+def test_rotation_contention_returns_busy_before_any_native_or_network_work(case):
+    import fcntl
+    case.agent.state.mkdir(parents=True, exist_ok=True)
+    case.agent.state.chmod(0o700)
+    path = case.agent.state / 'reconcile.lock'
+    path.touch(mode=0o600)
+    with path.open('r+b') as held:
+        fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        with mock.patch.object(case.agent, 'rotate_locked') as rotate:
+            result = case.agent.apply('rotate')
+        assert result == {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
+        rotate.assert_not_called()
+    assert not (case.agent.state / 'rotation.json').exists()
+
+
+@pytest.mark.skipif(not sys.platform.startswith('freebsd'), reason='This case requires actual FreeBSD lockf')
+def test_rotation_observes_actual_scheduler_lock_without_losing_busy_response(case):
+    case.agent.state.mkdir(parents=True, exist_ok=True)
+    case.agent.state.chmod(0o700)
+    path = case.agent.state / 'reconcile.lock'
+    path.touch(mode=0o600)
+    ready = case.root / 'rotation-lock-ready'
+    holder = subprocess.Popen(['/usr/bin/lockf', '-sk', '-t', '0', str(path), sys.executable,
+        '-c', 'from pathlib import Path; import sys,time; Path(sys.argv[1]).touch(); time.sleep(20)',
+        str(ready)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    try:
+        deadline = time.monotonic() + 5
+        while not ready.exists():
+            assert holder.poll() is None and time.monotonic() < deadline
+            time.sleep(.02)
+        with mock.patch.object(case.agent, 'rotate_locked') as rotate:
+            result = case.agent.apply('rotate')
+        assert result['success'] is False and result['action'] == 'busy'
+        rotate.assert_not_called()
+        assert not (case.agent.state / 'rotation.json').exists()
+    finally:
+        if holder.poll() is None:
+            os.killpg(holder.pid, signal.SIGTERM)
+        holder.wait(timeout=5)
+    with mock.patch.object(case.agent, 'rotate_locked', return_value={'success': True}) as rotate:
+        assert case.agent.apply('rotate') == {'success': True}
+    rotate.assert_called_once_with()
 
 
 @pytest.mark.parametrize('marker', ['revoked', 'uninstalling'])

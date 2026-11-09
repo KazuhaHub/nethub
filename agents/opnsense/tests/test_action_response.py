@@ -24,6 +24,16 @@ assert.deepEqual(actionResponse(200, { success: true, phase: 'applied' }),
 for (const status of [true, 200.1, 99, 600, 'private']) {
   assert.equal(actionResponse(status, null).http_status, 0);
 }
+for (const reason of ['backend_response', 'backend_exception', 'trust_sync', 'trust_recovery',
+  'native_model', 'rotation_journal', 'native_save', 'interrupted', 'unclassified']) {
+  assert.deepEqual(actionResponse(200, { success: false, phase: 'error', failure_reason: reason,
+    message: 'private response', device_secret: 'private credential' }),
+    { http_status: 200, success: false, phase: 'error', failure_reason: reason });
+}
+for (const reason of ['private', [], {}, null, true]) {
+  assert.deepEqual(actionResponse(200, { success: false, phase: 'error', failure_reason: reason }),
+    { http_status: 200, success: false, phase: 'error' });
+}
 '''
     result = subprocess.run([shutil.which('node') or 'node', '--input-type=module', '-e', script, module],
                             capture_output=True, timeout=10)
