@@ -5,16 +5,16 @@ checks, then failed configuration-restoration recovery. The failed operation is
 retained as failed; it does not complete the combined W5 recovery requirement.
 The approved 1 GiB allocation remains a resource deviation.
 
-| Native observation | Result |
-| --- | --- |
-| WAN address changed on the owned WAN adapter | Same frpc PID logged in and restored its proxy; the new source address was observed in sockstat |
-| Changed WAN to observed frpc login/proxy and new socket source | 23.552 seconds; the subsequent system-trusted public GUI probe passed |
-| Original WAN restored | Original address and system-trusted public GUI recovered |
-| One guest reboot | SSH became unavailable and the kernel boot epoch changed |
-| Reboot dispatch to verified public GUI | 125.469 seconds to successful observation |
-| Identity after reboot | Device configuration, GUI private key and installed version retained |
-| Native backup and restore | Actual GUI download and Core restore accepted; enabled intent restored |
-| Automatic service recovery after restore | Failed: frpc remained stopped at the 90-second deadline |
+| Native observation                                             | Result                                                                                          |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| WAN address changed on the owned WAN adapter                   | Same frpc PID logged in and restored its proxy; the new source address was observed in sockstat |
+| Changed WAN to observed frpc login/proxy and new socket source | 23.552 seconds; the subsequent system-trusted public GUI probe passed                           |
+| Original WAN restored                                          | Original address and system-trusted public GUI recovered                                        |
+| One guest reboot                                               | SSH became unavailable and the kernel boot epoch changed                                        |
+| Reboot dispatch to verified public GUI                         | 125.469 seconds to successful observation                                                       |
+| Identity after reboot                                          | Device configuration, GUI private key and installed version retained                            |
+| Native backup and restore                                      | Actual GUI download and Core restore accepted; enabled intent restored                          |
+| Automatic service recovery after restore                       | Failed: frpc remained stopped at the 90-second deadline                                         |
 
 The public probes checked the exact issued leaf, hostname and system trust. The
 WAN and reboot helpers did not manually start or reconcile the agent. A real
@@ -61,13 +61,13 @@ A fresh guarded operation installed that package and completed all three native
 recovery checks. Public TLS used normal DNS and system trust, with the exact issued
 leaf checked. A fresh authenticated GUI browser passed after all three recoveries.
 
-| Measurement | Observed |
-| --- | ---: |
-| Enrollment click to automatic online display | 7.572 s |
-| GUI certificate issuance to native confirmation | 2.683 s |
-| WAN change to observed login/proxy and new socket source | 26.360 s |
-| Guest reboot dispatch to verified public GUI | 128.500 s |
-| Native Core restore acknowledgement to verified public TLS | 45.578 s |
+| Measurement                                                |  Observed |
+| ---------------------------------------------------------- | --------: |
+| Enrollment click to automatic online display               |   7.572 s |
+| GUI certificate issuance to native confirmation            |   2.683 s |
+| WAN change to observed login/proxy and new socket source   |  26.360 s |
+| Guest reboot dispatch to verified public GUI               | 128.500 s |
+| Native Core restore acknowledgement to verified public TLS |  45.578 s |
 
 The WAN check retained the frpc PID and restored the original address afterward.
 The reboot changed the kernel boot epoch and preserved device identity and the GUI
@@ -118,5 +118,7 @@ failure after the first refusal, and a storage preflight refusal before stack
 startup. Their guarded baselines were restored before the successful retry test.
 The test does not measure live console revocation or heartbeat cutoff.
 
-Native heartbeat cutoff, console Revoke/no reconnect and the W5 mobile Open sample
-remain separate requirements. W5-W7 are incomplete.
+The subsequent [heartbeat and console Revoke record](validation-native-w5-heartbeat.md)
+contains actual cutoff and no-reconnect measurements. Its W0 timing comparison
+and the W5 mobile Open sample remain open. The failed combined recovery operation
+above remains failed; W5-W7 are incomplete.

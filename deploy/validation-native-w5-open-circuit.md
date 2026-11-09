@@ -18,13 +18,13 @@ The complete `config.xml`, saved enabled intent and GUI private key stayed uncha
 through both switch operations. After release, a fresh system-trusted public TLS
 connection succeeded. The sample does not cover an entire five-minute watchdog cycle.
 
-| Measurement | Observed |
-| --- | ---: |
-| Enrollment click to automatic online display | 7.447 s |
-| GUI certificate issuance to native confirmation | 3.043 s |
-| Disable action completed | 1.492 s |
-| Release action completed | 2.057 s |
-| Stopped native samples spanned | 73.610 s |
+| Measurement                                     | Observed |
+| ----------------------------------------------- | -------: |
+| Enrollment click to automatic online display    |  7.447 s |
+| GUI certificate issuance to native confirmation |  3.043 s |
+| Disable action completed                        |  1.492 s |
+| Release action completed                        |  2.057 s |
+| Stopped native samples spanned                  | 73.610 s |
 
 The public certificate used the existing registered account and genuine native
 cron application. Read-only inspection confirmed one issued job, a valid saved
@@ -43,6 +43,8 @@ of all fourteen original server containers and listener owners. Earlier attempts
 stopped before enrollment at an owned-network preflight and an incorrectly addressed
 admin probe; their failed outcomes were retained separately.
 
-Native authz-outage timing, console Revoke/no reconnect, reboot, configuration
-restore, WAN changes and the mobile Open flow remain open. This is partial W5
-acceptance, not a signed release or complete W5 acceptance.
+At this checkpoint, authz outage, console Revoke, reboot, configuration restore
+and WAN changes were still pending. Subsequent [heartbeat/Revoke measurements](validation-native-w5-heartbeat.md)
+and [recovery checks](validation-native-w5-recovery.md) retain their own results
+and limitations. Mobile Open and the W0 timing comparison remain open. This is
+partial W5 acceptance, not a signed release or complete W5 acceptance.
