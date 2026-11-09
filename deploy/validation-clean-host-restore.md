@@ -80,6 +80,11 @@ prove resumed certificate automation after cold-host loss. Public/mobile checks,
 external port witnesses, published-package agreement and formal release remain
 separate. W7-5 and the full project goal are incomplete.
 
+The subsequent [protected-host drill](validation-protected-host-cold-recovery.md)
+passed that separate issuer/account/publisher restoration and original-request
+native application. It does not change this earlier six-service test's scope or
+close the public-operator and durable-custody requirements.
+
 See the [drill sequence](../server/tests/recovery/README.md),
 [custody inventory](database-backups.md#custody-and-restoration) and
 [account namespace procedure](../server/internal/guiacme/PROVISIONING.md).

@@ -7,6 +7,13 @@ changes still need their own required checks. This isolated
 fixture does not complete W7-5, a public operator drill, protected-host issuer
 restoration or durable off-host backup custody.
 
+The later [protected-host checkpoint](../../../deploy/validation-protected-host-cold-recovery.md)
+passed source `a2bb4ef` and run `42538171102`, including original-account/request
+issuance and native application after source loss. It merged in PR #223 with the
+tested tree unchanged. The original six-service test and its failure history
+below retain their own scope. Public/operator recovery and durable encrypted
+off-host custody remain open.
+
 The dated Canonical image is pinned by SHA256 and checked against its signed
 checksum list. The signing fingerprint comes from Canonical's
 [cloud image verification guide](https://ubuntu.com/docs/public-images/public-images-how-to/verify-image-checksum/).
@@ -174,7 +181,11 @@ unavailable; malformed or excessive observations are refused. This adds no
 request logging to the product, does not restart a service or create a grant,
 and cannot turn a failed route into recovery acceptance.
 
-### Cold protected-host fixture under development
+### Cold protected-host fixture
+
+The implementation described here passed the separate checkpoint linked above.
+The failed attempts below retain their original outcomes; successful current
+execution does not retrospectively accept an earlier run.
 
 `source_host.py` prepares a distinct hosted guest with the shipped deployment
 paths, helper and four unmodified persistent issuer/cleanup units. Its registered

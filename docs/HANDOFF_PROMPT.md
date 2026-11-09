@@ -13,7 +13,7 @@
 这样你在任何地方都能打开在 NAT 或 CGNAT 后面的路由器的管理页面。
 项目负责人是 **Kazuha**。凡是要拍板的事都归他，你负责按计划执行，并拿出证据。
 
-### Current state (updated 2026-11-05 UTC)
+### Current state (updated 2026-11-09 UTC)
 
 NetHub has implemented OPNsense enrollment, source-IP-gated GUI access,
 certificate automation, local circuit breaking, revocation, account/invitation
@@ -30,6 +30,22 @@ recorded evidence. Accepted integration and documentation changes include
 PRs #203, #204, #206, #207 and #208. Historical checkpoints below describe their original source,
 not missing functionality in today's tree.
 
+The [protected-host cold recovery](../deploy/validation-protected-host-cold-recovery.md)
+passed source `a2bb4ef`, six-job CI `42538171113` and recovery run `42538171102`.
+PR #223 merged as `16c4f45` with the tested tree unchanged. A distinct empty host
+restored the complete database, matching keys, registered ACME account,
+HTTP-01/publisher state, helper and stock automation after the source was reaped.
+The original route recovered in 120.047 seconds; the same original request's
+issuance, native acknowledgement and exact served leaf passed in 179.847 seconds
+from source stop. Identity/key/CSR/process/security checks and the original Open
+grant survived without reenrollment, Rotate or a requested client restart.
+Normal Remove, server revocation and independent cleanup passed. Both full logs,
+official archive bytes and two image hashes/views were checked. The same source
+passed the complete installed regression, all independent prerequisites,
+unsuppressed image scans and 48 human DCOs. Earlier failed attempts remain retained.
+Public/operator recovery, durable encrypted off-host custody, renewal-clock
+behavior and formal release remain separate; W7-5 is still incomplete.
+
 The [clean-host integration](../deploy/validation-clean-host-restore.md)
 in [PR #194](https://github.com/KazuhaHub/nethub/pull/194), merged as `c4102ab`, passed current-key,
 database and six-service restoration on a distinct empty hosted guest. Both
@@ -39,8 +55,9 @@ Remove, full tail and owned cleanup passed. Exact archive/logs, eight image
 hashes/views and 28 human DCOs were checked. Tested source `38fda4b` and the merge
 have identical trees. The earlier source23 checkpoint and source-access failure are
 retained; the corrected fixture binds normal Open and forwarding to the same
-owned source and checks its fresh grant. Full W7-5 still needs the public operator drill, protected-host certificate
-issuance state and durable off-host custody beyond these six services.
+owned source and checks its fresh grant. The later protected-host checkpoint
+covers issuer restoration separately. Full W7-5 still needs the public operator
+drill and durable off-host custody beyond these isolated tests.
 
 The [installed trust-conflict combination](../deploy/validation-native-trust-conflict.md)
 passed source `cb7ae89`, CI `42001855929` and native run `42001855424`; PR #205

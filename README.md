@@ -248,7 +248,8 @@ Summary of what v1 is designed to guarantee:
   time. When a device's `frpc` logs in or registers its proxy, `frps` asks
   `nethub authz`, which checks both the signature _and_ that it matches the
   database record — two independent checks, not one.
-- **The signing key lives only in `nethub authz`.** The public console
+- **Only `nethub authz` receives the claim-signing key among runtime services.**
+  The protected deployment host and its matching backups also retain it. The public console
   (`nethub web`) is a separate process with its own database role; it never
   holds the signing key or the `frps` admin credentials, cannot create device
   rows, and cannot write subdomains or claim fields. So even a fully
@@ -328,9 +329,12 @@ isolated host interruption and online native/reference recovery. Public/mobile,
 offline fleet and complete restoration gates remain separate.
 The [isolated clean-host integration](deploy/validation-clean-host-restore.md)
 passed current-key/full-database/six-service restoration and automatic recovery of
-both retained client routes. Public operator recovery, protected-host issuer state,
-durable off-host custody, full document review, friend-from-zero deployment and signed/faulty-version release gates remain
-W7 work. There is no released package or production-readiness claim.
+both retained client routes. The later
+[protected-host drill](deploy/validation-protected-host-cold-recovery.md) also
+restored issuer/account/publisher state and verified the original native request's
+issuance and application. Public operator recovery, durable off-host custody,
+full document review, friend-from-zero deployment and signed/faulty-version
+release gates remain W7 work. There is no released package or production-readiness claim.
 
 ## Roadmap
 
