@@ -53,7 +53,8 @@ Successful runs may copy masked screenshots and a nonsecret result summary to
 `NETHUB_BROWSER_EVIDENCE`. The full Compose evidence archive contains disposable
 credentials and must stay private; CI uploads only the selected browser files.
 
-CI also retains the four tested immutable images for one day as
+CI also retains the five tested immutable images (runtime, PostgreSQL, Caddy,
+frps and backup) for one day as
 `deployment-images`, with a SHA256 checksum and image-content manifest. This lets native
 acceptance use the exact tested images without rebuilding on a constrained relay.
 No container snapshots, runtime mounts, configuration bundles or test credentials
@@ -84,7 +85,11 @@ Scoped [native/public W4 acceptance](validation-native-public-certificate.md),
 [two-Dex OIDC](validation-two-dex.md) and [Keycloak SAML](validation-keycloak-saml.md)
 are recorded separately. Remaining W5 measurements, public-provider checks and
 final W7 operational/release acceptance remain open.
-The [daily backup service](database-backups.md) passed the [scoped container checkpoint](validation-database-backups.md); complete clean-host/key/device restoration remains open.
+The [daily backup service](database-backups.md) passed its [scoped container checkpoint](validation-database-backups.md).
+[Clean-host restoration](validation-clean-host-restore.md) and
+[protected-host recovery](validation-protected-host-cold-recovery.md) have separate
+isolated acceptance; public operator recovery, durable off-host custody and the
+remaining W7 gates remain open.
 [Shared-token replacement](shared-relay-token-rotation.md) uses a retained host
 operation and existing native Rotate actions; read its
 [isolated validation and limits](validation-shared-token.md) before a controlled window.

@@ -2,6 +2,12 @@
 
 > 配合 `RUNBOOK.md` 使用；每项验收对应 RUNBOOK 里的同名小节，判定标准和
 > "不通过意味着什么"都写在 RUNBOOK 里，这里只填实测数据和结论。
+>
+> Historical blank template for the original frp 0.71.0 experiment; the version
+> is not a current product pin. Keep filled templates, raw payloads, addresses,
+> hostnames, credentials and screenshots outside Git. Publish only a sanitized
+> summary with measured scope and owner-approved exceptions; the accepted
+> [W0 report](results-2026-10-17.md) remains unchanged.
 
 ## 基本信息
 

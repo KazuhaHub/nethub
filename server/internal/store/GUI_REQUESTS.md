@@ -7,7 +7,9 @@ then inserts the request and one audit event in the same transaction. A retry of
 the same DER returns the same request ID. A newly signed CSR, including another
 ECDSA signature over otherwise identical content, conflicts instead of creating
 another issuance identity. Certificate generations and renewal jobs are separate
-future records; the CSR is not consumed after one issuance.
+records; the CSR is not consumed after one issuance. See the
+[current certificate lifecycle](../../../docs/certificate-automation.md) for the
+implemented issuer, delivery and native application boundaries.
 
 The caller must authenticate the device secret first. Under the parent device's
 row lock, the store rechecks that verified credential hash, tenant, revocation,

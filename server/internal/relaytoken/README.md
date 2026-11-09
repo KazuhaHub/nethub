@@ -65,6 +65,7 @@ passed genuine precommit refusal, native trust synchronization, this shared-toke
 recovery and isolated six-service restoration. Replay of an already committed
 candidate across a later trust publication also passed its
 [separate installed record](../../../deploy/validation-native-trust-conflict.md#committed-replay-after-a-later-publication).
-Public/mobile/operator checks, offline fleet recovery, protected-host issuer
-restoration, durable off-host custody and formal release remain open. Neither
-isolated checkpoint completes the full HANDOFF goal.
+The later [protected-host recovery](../../../deploy/validation-protected-host-cold-recovery.md)
+also restored issuer state and completed native initial issuance. Public/mobile/operator
+checks, offline fleet recovery, durable off-host custody and formal release remain
+open. These isolated checkpoints do not complete the full HANDOFF goal.

@@ -104,8 +104,10 @@ Fault tests reopen the disk journal with a fresh host object at preparation,
 fence, apply, commit, rollback and lost-reply boundaries. They use synthetic host
 bytes and an in-memory database seam, so they do not prove actual deployment
 migration, PostgreSQL integration, backup custody or TLS observation. POSIX unsafe
-path tests run on the privileged-host platform. A concrete protected deployment
-adapter and genuine combined acceptance are still required before activation.
+path tests run on the privileged-host platform. These component tests alone
+do not establish activation. The separate [protected host operations](../../../deploy/relay-authority-operations.md)
+and [installed acceptance](../../../deploy/validation-native-trust-conflict.md)
+cover their concrete adapter and runtime scopes.
 
 ## Activation remains separate
 
@@ -129,9 +131,10 @@ Structurally valid committed/rolled-back records or verified cancellation receip
 which still performs its original authority/runtime checks. This prevents a timer
 from modifying a planned mixed deployment before recovery acquires the lease.
 
-There is deliberately no activate command in this component. Active deployment
-files, runtime mounts, setup manifest, database trust head and services remain
-unchanged. Complete activation still requires verified candidate custody,
+Preparation in this component does not activate a deployment. The separate
+host command owns activation; preparation alone leaves active deployment files,
+runtime mounts, setup manifest, database trust head and services unchanged.
+Activation requires verified candidate custody,
 authenticated overlap application or explicit offline quarantine, a shared host
 mutation lease, a crash-recoverable authority/manifest/backup transition, actual
 served-certificate verification and rollback/recovery. Public trust retirement

@@ -16,21 +16,39 @@ preserve host ownership. The PostgreSQL 16 Alpine image uses UID 70; runtime sec
 Docker's [file-based service secret model](https://docs.docker.com/compose/how-tos/use-secrets/)
 is the reference for the explicit read-only mounts and ownership checks.
 
-The clean Debian 13 test installed the host prerequisites as root:
+For a fresh Debian 13 host without an existing container installation, use
+[Docker's official apt repository](https://docs.docker.com/engine/install/debian/).
+Run as root:
 
 ```sh
 apt-get update
-apt-get install -y docker.io docker-compose docker-buildx ca-certificates curl
+apt-get install -y ca-certificates curl
+install -d -m 0755 /etc/apt/keyrings
+curl --fail --silent --show-error --location https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+cat > /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/debian
+Suites: trixie
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 systemctl enable --now docker
 docker version
 docker compose version
 ```
 
-That earlier run used Docker 26.1.5 and Compose 2.26.1, before the loopback
-callback publication. Current bundles require Docker Engine 28 or newer with
-default NAT bridge behavior for [localhost port isolation](https://docs.docker.com/engine/network/port-publishing/).
-Check the installed Engine and Compose versions; upgrade the distribution packages
-if they are below these requirements. The Docker-only path below needs no host Go, Node, or npm.
+Confirm Engine 28+ and Compose 2.24.4+ before proceeding. Existing Docker,
+Podman, containerd or distribution packages require the official conflict/upgrade
+procedure and a reviewed maintenance plan; this fresh-host recipe does not migrate
+running services. Keep default NAT bridge behavior for
+[localhost port isolation](https://docs.docker.com/engine/network/port-publishing/).
+The original W3 Debian observation used Docker 26.1.5 and Compose 2.26.1 before
+loopback callback publication; those dated results do not establish current readiness.
+The Docker-only path below needs no host Go, Node, or npm.
 Keep the source checkout and protected state/backup parents available.
 
 1. Arrange the console DNS hostname outside the device wildcard, wildcard DNS,

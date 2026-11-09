@@ -52,9 +52,10 @@ run; the current client separately passed a real FreeBSD-target build and
 source/binary vulnerability checks with matching lock hashes. This does not claim
 that the newly built client was installed or retested on an appliance.
 
-The isolated restored database is not the full W7-5 clean-host recovery drill.
-Current deployment keys/control-plane restoration, an already-enrolled native
-device reconnecting after that restore and off-host backup durability remain
-open. Independent external port witnesses and agreement with a formally
+The isolated restored database in this checkpoint is not the full W7-5 drill.
+Later [clean-host](validation-clean-host-restore.md) and
+[protected-host](validation-protected-host-cold-recovery.md) checkpoints restored
+current keys, the control plane and retained native access within their isolated
+scopes. Public operator recovery and durable off-host custody remain open. Independent external port witnesses and agreement with a formally
 published appliance package also remain open. W7-3, W7-5 and the full project goal
 are incomplete. See [operations and custody](database-backups.md).

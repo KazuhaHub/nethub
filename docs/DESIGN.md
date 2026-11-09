@@ -3,7 +3,7 @@
 > 设计方案 v0.3（草案，2026-10-16）。v0.2 基于一轮调研与两轮对抗评审（15 条完整性评审 + 8 个红队灾难场景；
 > §13 已把这 8 个扩展为 12 个，v0.3 再补 2 个，现为 14 个），并按「全部开源、个人与企业均可自行搭建」的前提重写。
 > v0.3 纳入用户在 2026-09-17 会话里做出的决定（服务端改 Go、React 控制台、v1 多用户 + OIDC 等），
-> 并修正 v0.2 的若干事实错误与自相矛盾之处，逐条见 §0。**Implementation status (2026-10-18): W2 frpc integration is natively validated; enrollment and the control plane remain planned.**
+> 并修正 v0.2 的若干事实错误与自相矛盾之处，逐条见 §0。**Current status:** enrollment, the control plane, OIDC/SAML, GUI certificate automation, rotation and isolated recovery are implemented with scoped acceptance. W5-W7 and release remain incomplete; see [HANDOFF](HANDOFF_PROMPT.md) and [PLAN](PLAN.md). Dated tables and illustrative layouts below retain the original design context; component and operator guides describe the current implementation.
 >
 > 仓库 `github.com/KazuhaHub/nethub` · 许可证 Apache-2.0 · 贡献协议 DCO（不用 CLA）
 >
@@ -18,12 +18,14 @@ added SAML to v1 through a direct authcore module import, and required reuse of
 matching shared packages. Reusable gaps may be improved in authcore. Earlier
 2026-09-17/v0.3 records that deferred SAML are superseded by this decision.
 
-SSO implementation update (2026-10-26): the shared OIDC package added through
+Historical SSO implementation checkpoint (2026-10-26): the shared OIDC package added through
 authcore PR #32 is imported directly. SAML provider work pins verified upstream
 merge `ee68d852d973` from PR #34, retaining signed NameID qualifiers from PR #33
 and adding RSA/ECDSA AuthnRequest signing. This is not a new formal release.
 NetHub retains its own account,
 invitation, session, outbound-policy and durable-state responsibilities.
+The current reviewed dependency and interim parser replacement are recorded in
+[the server guide](../server/README.md) and [security dependencies](../deploy/saml-dependency-security.md).
 
 ## 0. v0.3 变更记录
 
@@ -73,8 +75,10 @@ v0.2 写完之后，用户在 2026-09-17 的会话里拍板了一批事项，它
 | 仓库签名改在 Irvine Home 上做；打包仓库的专用测试机移走签名私钥和构建/签名临时文件之后，用作 NetHub 的 OPNsense 测试机（决策 #20、§10） | 用户："就用那台，签名 Irvine Home 也可以做"。决策 #20 的原则不变：持有签名私钥的机器不装、不跑 NetHub 的任何部分 | 用户; superseded by the subsequent co-hosting decision below | 2026-10-17 |
 | Decision #20 revised: the designated packaging test host may build, sign, and run NetHub; no signing-key or build-scratch removal is required | Kazuha explicitly changed the rule in this chat; the approved host shares its compromise boundary with any signing material present | Kazuha | 2026-10-17 |
 
-**仍未决定（本文不替用户回答）：** 控制通道的服务端认证（Q10）；OPNsense 主机名检查的处理（Q9）；v1 功能清单的最终确认；
-设备 GUI 公网暴露面的处理（Q7）。D4 upgrade timing was confirmed on 2026-10-18 (§5).
+**Decision status:** Q7/D7 source-IP admission, Q9/D17 exact Alternate Hostnames,
+and Q10/D22 verified relay trust are confirmed and implemented within their recorded
+acceptance scopes. D14 still requires owner review of Q1/Q3/Q4/Q5; no new decision is
+implied here. See PLAN §2 for the current decision register.
 
 ---
 
@@ -82,7 +86,9 @@ v0.2 写完之后，用户在 2026-09-17 的会话里拍板了一批事项，它
 
 **v1 只做一件事：让任何一台装了 `os-nethub-agent` 的 OPNsense，在不做端口转发、不绕 CGNAT、
 浏览器不装任何客户端的前提下，被一台你自己部署的中继点一下就能打开它的 Web UI。
-除此之外，控制面不能读你的 `config.xml`、不能改一条防火墙规则、不能重启任何服务。**
+The control plane has no general configuration-read, firewall-write or command API.
+The local adapter owns plugin settings and the narrowly validated GUI certificate
+installation/restart path confirmed for v1.**
 
 这不是「又一个 UniFi」，差异在三处，而且每一处都是架构事实而不是营销话术：
 
@@ -97,9 +103,11 @@ v0.2 写完之后，用户在 2026-09-17 的会话里拍板了一批事项，它
 
 **v0.3 补充：控制台本身是多用户的。** 按用户 2026-09-17 的要求，v1 的控制台支持多个账号
 （`admin` / `member`，邀请制）和 OIDC 登录（可配置多个 IdP），SAML in v1 via authcore/saml (Kazuha, 2026-10-18)。这扩大的是"谁能登录控制台"，
-**不**扩大控制面对设备的权限——控制面对设备唯一的写权限仍然只是"这台设备的隧道能不能连上"。
+SSO does not grant arbitrary device commands or configuration access. The separately
+confirmed certificate scope permits only the validated local certificate adapter
+to install a GUI certificate and restart the GUI.
 同样要说清楚：控制台的登录与 SSO **不保护**设备自己的 OPNsense GUI，那个页面仍由 OPNsense 自己的登录把守
-（暴露面见 Q7）。v1 功能清单的最终确认仍待用户。
+（暴露面见 Q7）。Current implementation and outstanding acceptance are tracked in PLAN.
 
 **明确不与谁竞争：**
 
@@ -156,8 +164,10 @@ remain traceable in their respective repositories.
 `os-sing-box`、`os-frp`、`os-easytier` 全是打包第三方软件（sing-box、frp、EasyTier）。从它的视角看，NetHub 就是又一个上游，
 走的是它已经跑熟的那条路，没有任何特殊逻辑。
 
-**唯一的代价**是开发插件 Web 界面时要跨两个 checkout。绕法：开发阶段把
-`agents/opnsense/plugin/` symlink 或 rsync 进 `src/os-nethub-agent/`，只有发布流程才真正跨仓。
+**Development builds are independent.** Build and test
+`agents/opnsense/plugin/` in this repository using its documented unsigned build.
+Do not copy or link development source into the external packaging repository.
+Release packaging consumes a checked release archive and remains a separate gate.
 
 **Packaging ownership.** The project owner maintains the packaging integration. Release packaging changes
 remain separate from development in this repository and follow the release procedure. Existing upstream
@@ -214,13 +224,18 @@ license notices remain in the packaging repository.
 | 20 | 签名私钥主机的部署边界 | Kazuha permits building, signing, and NetHub use on the designated packaging test machine (revised 2026-10-17). Removing its signing keys or build/signing scratch, or relocating signing, is no longer required. Other signing hosts remain outside deployment scope; production routers remain excluded | 在日常路由器上装新插件做验收 | 一旦决策 #4 的劫持路径成立而受害机恰好是私钥主机，攻击者拿到管理员凭证登入 shell 就能拿到签名私钥，把"控制面被攻破"升级成"能对仓库里的全部插件（截至 2026-10-16 共 13 个）重新签名推给所有用户"。这是产品自己给现有生态制造的新攻击面 | 低（纯运维纪律） |
 | 21 | 每部署独立密钥 | **所有密钥由 `nethub init` 在部署者机器上生成，按服务分文件存放，每个容器只拿到自己需要的那几份**：domain-claim 签名密钥（只给 authz）；frps auth token（每部署一份、所有设备共用；frps 与 authz 持有，authz 在 enroll 响应里把它交给设备。它只是进入 frps 的第一道门，每台设备的身份靠签名声明 + `device_secret`，见 §6）；frps admin 用户名/密码（frps + authz）；`nethub_owner` / `nethub_web` / `nethub_authz` / `nethub_backup` 四个 Postgres 角色的密码（各归对应服务：`nethub_owner` 只给 `nethub migrate`，`nethub_backup` 只给 `backup`）；Postgres 引导超级用户的密码（官方镜像的 `POSTGRES_PASSWORD`，只给 postgres 容器首次初始化用，运行时没有服务使用）；`NETHUB_SECRETS_KEY`（只给 web，用于加密 OIDC client secret）；session key（如果需要的话，只给 web）。上游不持有任何全局密钥 | 任何形式的内置默认密钥 / 上游签发；所有密钥写进一个共享 `.env` | 全开源自建的结构性红利：不存在"一把钥匙开所有实例"的东西。按服务分文件让决策 #4 的进程拆分在密钥层面也成立。同时也意味着**没有任何人能替部署者找回密钥**，`init` 必须强制提示备份，`doctor` 检查备份是否存在 | 低 |
 | 22 | 控制台登录与外部身份绑定 | 本地密码（argon2id）+ **OIDC**（Authorization Code + PKCE、state + nonce，`coreos/go-oidc/v3` 做 issuer discovery 与 ID token 校验，支持多个 IdP）；外部身份**只按 `(issuer, subject)` 绑定**；新绑定只发生在从邀请链接发起的 OIDC 流程里，邀请 token 有效（未过期、未使用）、`email_verified=true`、email 与这条邀请一致三者同时成立；SAML in v1 via authcore/saml (Kazuha, 2026-10-18) | 按 email 绑定；只凭 email 认领任意一条待处理邀请；自助注册 / JIT 开户；Duplicate SAML implementation | email 在不同 IdP 之间不能证明是同一个人，按 email 绑定就是 §13 场景 #13 的账号接管。`email_verified` 本身也不能跨 IdP 信任——自建 Dex / Keycloak 的管理员可以把任意 email 标成已验证，也有 IdP 会发出未验证或可变的 email 声明——所以认领邀请的凭据是一次性的邀请 token，email 只是附加校验。SAML deferral from 2026-09-17 was superseded by v1 inclusion on 2026-10-18 | 低 |
-| 23 | 共享认证模块 `authcore` 的用法 | **遵循 authcore 自己的准入逻辑**：只在某个包能替 NetHub 省掉一件"必须自己做对"的事时才引入，pin a verified commit or tag (current OIDC development pin `211d823f478c`, not a formal release). v1 directly imports `oidc` and `saml`; matching shared capabilities must be reused;可选 `captcha`（N 次登录失败后）与 `geoip`（审计视图里显示登录地点）；以后 `passkey` 作为控制台登录方式 | 为了"复用"而整体引入 | 依赖越少，自建者要信任的东西越少；authcore 为 Apache-2.0，许可证兼容 | 低 |
+| 23 | 共享认证模块 `authcore` 的用法 | **遵循 authcore 自己的准入逻辑**：只在某个包能替 NetHub 省掉一件"必须自己做对"的事时才引入，pin a verified commit or tag (current reviewed dependency: `c1447857d71b`, not a formal release; see the security dependency record). v1 directly imports `oidc` and `saml`; matching shared capabilities must be reused;可选 `captcha`（N 次登录失败后）与 `geoip`（审计视图里显示登录地点）；以后 `passkey` 作为控制台登录方式 | 为了"复用"而整体引入 | 依赖越少，自建者要信任的东西越少；authcore 为 Apache-2.0，许可证兼容 | 低 |
 
 ---
 
 ## 4. 设备侧插件设计
 
 **包名** `os-nethub-agent` · **目标平台** OPNsense 26.7 / FreeBSD:15:amd64（arm64 留 v1.1）
+
+The following is the original packaging-oriented layout, not a current path inventory.
+The implemented source is `agents/opnsense/plugin/{src,packaging/freebsd,build.sh,tests}`;
+see [the plugin guide](../agents/opnsense/plugin/README.md). The independent cron task
+is package-owned under `/usr/local/etc/cron.d/`; decision #14 is implemented.
 
 ```
 src/os-nethub-agent/
@@ -251,7 +266,10 @@ src/os-nethub-agent/
 ### 语言
 
 **设备侧全部是 Python 3.13（`agentctl.py`）+ PHP/Phalcon MVC，这是 OPNsense 决定的，v0.3 不变。
-设备侧 v1 没有一行自己写的 Go/daemon 代码**——唯一的二进制是 vendored、未经修改的 `frpc`。
+The adapter scripts do not introduce a separate long-lived agent daemon.**
+The packaged `frpc` is rebuilt with the reviewed dependency locks; an official
+prebuilt is retained only as a separately identified interoperability fixture.
+See [frp builds](../deploy/frp/README.md).
 （服务端改成了 Go，见决策 #5；整个项目里 Python 只用于 `agentctl.py` 和 `weekend0/probe.py`。）
 
 ### `agentctl.py` 的五个子命令（全部幂等）
@@ -554,7 +572,8 @@ server/
 
 ### 用户、角色与登录（v1 新范围）
 
-**首个管理员。** `nethub init` 用本地密码（argon2id）创建首个管理员。这是 break-glass 账号；
+**First administrator.** Run `nethub init`, start PostgreSQL, apply migrations,
+then run `nethub admin create` with a local Argon2id password. 这是 break-glass 账号；
 本地密码登录始终保留，不因为配了 OIDC 就关掉。控制台要保证**任何时候都至少有一个启用中、带本地密码的 admin**：
 停用或降级会破坏这一条时直接拒绝，避免 break-glass 账号被删光、只剩依赖 IdP 的管理员。
 
@@ -621,7 +640,9 @@ member 的设备查询额外按 `owner_user_id` 过滤；RLS 仍然只按租户�
 ### authcore 的使用
 
 NetHub pins `KazuhaHub/authcore` at
-`v0.6.3-0.20261025140127-211d823f478c`, the verified upstream OIDC merge. The
+`v0.6.3-0.20261106113728-c1447857d71b`, together with the reviewed interim SAML
+parser replacement in `server/go.mod`. See [security dependencies](../deploy/saml-dependency-security.md)
+for the vulnerability gate and the limits of that replacement. The
 module contains `oidc`, `saml`, `captcha`, `geoip` and `passkey`. The earlier
 v0.6.2 description without OIDC is historical. `audit` was removed in ADR 0002;
 `ratelimit` and `clientip` remain application responsibilities under ADR 0003.
@@ -818,7 +839,10 @@ retain normal session activity.
 
 **v1 里这一整块是空的，这是故意的，不是没想到。**
 
-- 控制面**从不**读写设备的 `config.xml`。唯一被本插件写入的是它自己 Settings 模型里的标量字段。
+- The control plane has no general `config.xml` read/write API. PHP saves plugin
+  settings through the native model/lock. The confirmed GUI certificate adapter
+  also writes the validated certificate entry/reference and restarts the GUI;
+  that exception does not allow arbitrary configuration, firewall changes or commands.
 - 渲染出的 `frpc.toml` 是这些字段的**确定性函数**：恢复 config.xml → 开机 hook 重渲染 → 自动恢复。
   不需要 diff / patch / 镜像机制。
 - `rotate` 不构成"控制面下发配置"——触发者仍是设备侧的显式调用，控制面无法推送任意内容。
@@ -837,7 +861,7 @@ retain normal session activity.
 | 密钥归属 | 每部署自生成，上游不持有任何全局密钥；按服务分文件，每个容器只拿自己的（决策 #21） |
 | 准入 | 设备：enroll token 一次性、15 分钟过期（由数据库默认值和 `consume_enroll_token` 强制，web 定不了有效期，见 §6）、带外交付；用户：只能经邀请（一次性、只存哈希、会过期），无自助注册 / JIT |
 | 远程会话撤销 | Authz polls for discovery every 15s with three confirmations; manual bypass skips confirmation. D6 denies Ping/Login/NewProxy together with explicit 10s heartbeat and 30s timeout. Three stock-client trials disconnected in 2.136–4.958s. Authz failure interrupts access; hangs can leave admin state stale and recovery unstable. Bound handler work and retain independent out-of-band access; see §5 and the accepted W0 report. |
-| 爆炸半径 | 控制面唯一写权限 = "决定这台设备的隧道能不能连上"。不能改防火墙规则、不能重启服务、不能读 config.xml |
+| Device permissions | No general config.xml read/write, firewall or command API. The local adapter manages plugin settings, tunnel lifecycle and verified GUI certificate installation/restart; certificate automation is an explicit v1 scope addition. |
 | 设备侧权限 | 所有特权动作限定在显式注册的 configd action 内，无任意 shell 执行路径 |
 | 本地熔断 | `/var/db/nethub-agent/disabled` flat file，不写 config.xml；onboarding 明确提示用户确认拥有**独立于本产品之外**的带外/物理访问手段 |
 | 控制台防护 | 服务端 session（cookie 只放不透明随机 token：HttpOnly / Secure / SameSite=Lax，库里只存哈希；空闲 + 绝对超时，可吊销）+ 每 session 同步器 CSRF token（自定义请求头）+ 严格 CSP、无服务端模板 + 按 IP 与按账号的登录限流 + argon2id + OIDC 只按 `(issuer, subject)` 绑定（新绑定只在从邀请链接发起的流程里发生：邀请 token 有效 + `email_verified` + email 与邀请一致） |
@@ -1224,7 +1248,7 @@ CA 私钥只进部署者的密钥备份、不挂进任何容器（决策 #21 新
   尚未实际跑过。
 - **v0.2 决策 #5 的前提是错的**（"没有自写 Go"），v0.3 已更正。
 - §6 的 DDL 与授权语句是示意，迁移落地时定稿。
-- W2 tunnel integration is implemented and natively validated. Enrollment and control-plane descriptions remain plans; see component READMEs for implementation status.
+- W2 tunnel integration, enrollment and the control plane are implemented with scoped validation. Dated design sketches are historical; use component READMEs and PLAN for current behavior and remaining acceptance.
 
 ---
 

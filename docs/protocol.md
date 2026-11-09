@@ -32,7 +32,8 @@ supported. Do not treat an old peer ignoring a field as acknowledging it.
 
 ## Enrollment and the tunnel
 
-1. An administrator issues a one-use enrollment token. The agent sends it in the
+1. An authorized console user issues a one-use enrollment token; a member
+   enrolls devices under their own ownership. The agent sends it in the
    enrollment JSON body with its version, platform, bounded capabilities,
    hostname and cluster hint. Never put it in a URL, command argument or log.
 2. Authz consumes the token in the device-creation transaction and returns the

@@ -25,7 +25,9 @@ test. A precompiled invocation must additionally supply
 protocol fixtures are copied into the isolated test container; no host ports
 are published.
 
-The Compose development file does not publish PostgreSQL on a host port.
+The development-only `deploy/compose.dev.yml` publishes PostgreSQL at
+`127.0.0.1:15432`. The generated deployment and isolated SQL harness do not
+publish PostgreSQL host ports. Keep those separate scopes explicit.
 It expects pre-generated service-specific files under the ignored
 `deploy/secrets/postgres` directory, owned by the image's postgres UID with mode
 0600. The init wizard prepares service-separated deployment secrets.

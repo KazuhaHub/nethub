@@ -1,5 +1,13 @@
 # Weekend 0 传输层验证 RUNBOOK
 
+> Historical W0 kit and dated observations for frp 0.71.0. W0 was accepted on
+> 2026-10-18 with the recorded resource and network exceptions. Statements below
+> about unimplemented product features describe that checkpoint. Current NetHub
+> uses the reviewed rebuilt client and relay; use the [deployment guide](../deploy/README.md),
+> [plugin guide](../agents/opnsense/plugin/README.md) and [PLAN](../docs/PLAN.md)
+> for present installation and acceptance. Do not rerun these disruptive experiments
+> on an active deployment.
+
 ## Supplemental VM boot preflight
 
 The `W0 VM preflight` workflow boots the official 26.7 serial live image on a disposable Ubuntu runner. It checks KVM and memory first, validates the compressed image and the release signing key against the pinned upstream announcement, verifies the image signature, and waits for the guest login prompt.
@@ -1268,8 +1276,9 @@ frps 日志的时间戳），frpc 的日志只用来看发生了什么。
 
 验收全部做完之后，除了第 2.6 步 OPNsense 测试机上的清理，VPS 上也检查一遍：
 
-- [ ] `frps`、`probe.py` 进程都已经 Ctrl+C 停掉（或者 `pkill frps`；
-      `pkill -f probe.py`）。
+- [ ] Stop only the `frps` and `probe.py` foreground jobs started for this
+      experiment with Ctrl+C. If a terminal was lost, verify the recorded owned
+      PID and command before terminating it; do not use process-name-wide kills.
 - [ ] 验收项④的 443 基线已经清理：`openssl s_server` 已停，`/tmp/w0-baseline`
       （自签证书和私钥）已删，防火墙上临时放行的 TCP 443 已关。
 - [ ] 如果为了验收④做了多网络的长时间采样，检查 VPS 的出站流量/日志没有

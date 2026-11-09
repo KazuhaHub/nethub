@@ -30,9 +30,10 @@ state. The normal Web callback and its SQL refusal remain under test, and the
 original valid flow must remain unused. These routes exist only in the generated
 test configuration.
 
-The four deployed images come from the preceding assembled-image acceptance
-archive. Its SHA256, image IDs and filesystem-layer identities must match before
-reuse. The helper is built as a separate Docker target and is absent from the
+The original checkpoint used four deployed images. The current harness consumes
+the five-role assembled-image archive, including the subsequently added backup
+worker. Its SHA256, image IDs and filesystem-layer identities must match before
+reuse; this later archive inventory does not change the original measured outcome. The helper is built as a separate Docker target and is absent from the
 product image. Private host exceptions are restricted to `dex-one.test` and
 `dex-two.test`; other destination policies remain active.
 
