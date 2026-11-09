@@ -315,5 +315,17 @@ Unavailable observations remain explicit and do not replace the original timeout
 The existing deadline, stock timers, issuance success criteria and cleanup guard
 are unchanged. Privacy/admission tests cover malformed or duplicate fields,
 invalid identities, child failures and projection into issuance failures only.
-The new observation path still needs its own actual hosted execution; local
-tests do not establish the missing cold-recovery result.
+At source `908acb4`, run `42534592533` retained the new observation: the original
+job failed with `policy` in `validating`, without an issued generation. Both
+timers were active; the issuer had started and exited successfully. All owned
+cleanup proofs passed. This narrows the failure beyond the outer wait deadline
+but does not expose the private CA response or establish complete recovery.
+
+The pinned Pebble validator constructs an HTTP URL with explicit port 80. The
+witness's exact bare-host comparison rejected that authority before forwarding.
+A real HTTP round trip reproduced 404 for `assigned-host:80` and 200 for the bare
+host. The shared witness admission helper now accepts those two exact forms;
+other ports, noncanonical ports, hosts, peers, methods and paths remain refused.
+The regression failed before the change and passes afterward. The shipped issuer,
+proxy configuration, wait deadline and success criteria are unchanged. Complete
+hosted issuance/native recovery remains required.

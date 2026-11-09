@@ -160,9 +160,7 @@ func TestColdHostACMEWitness(t *testing.T) {
 	}
 	server := &http.Server{ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 20 * time.Second,
 		MaxHeaderBytes: 8192, Handler: http.HandlerFunc(func(w http.ResponseWriter, requestHTTP *http.Request) {
-			peer, _, err := net.SplitHostPort(requestHTTP.RemoteAddr)
-			if err != nil || peer != p.address.String() || requestHTTP.Host != request.Host ||
-				requestHTTP.Method != http.MethodGet || !strings.HasPrefix(requestHTTP.URL.Path, "/.well-known/acme-challenge/") {
+			if !coldWitnessAllowsHTTP(requestHTTP, p.address.String(), request.Host) {
 				http.NotFound(w, requestHTTP)
 				return
 			}
