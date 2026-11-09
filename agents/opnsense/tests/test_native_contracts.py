@@ -16,6 +16,7 @@ def receipt():
               for name, spec in NATIVE.GROUPS.items()}
     groups['enrollment']['native_cases_passed'] = ['test_enrollment_lock_interoperates_with_native_scheduler_lockf']
     groups['service']['native_cases_passed'] = ['test_native_lockf_excludes_both_python_operations',
+        'test_rotation_observes_actual_scheduler_lock_without_losing_busy_response',
         'test_external_lock_mode_is_hardened_without_replacing_its_inode']
     groups['wire']['native_cases_passed'] = ['test_native_rotation_model_keeps_policy_and_confirms_single_save[journal]']
     return {'version': 1, 'source_head': HEAD, 'manifest_sha': SHA, 'system': 'FreeBSD',

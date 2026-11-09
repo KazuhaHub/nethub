@@ -56,6 +56,16 @@ bounded error handling and fixed failure categories. This gap is independently
 proven; the original installed failure's root cause remains unconfirmed pending
 new-source evidence.
 
+Follow-up source `74fb820` passed all six CI jobs and independent native
+filesystem/package-preparation checks. Its installed run `42597702806` failed
+earlier, at fresh rotation after publication synchronization, with the fixed
+`backend_response` category and no pending journal. This does not establish the
+original failure's cause. Review separately identified that the outer
+nonblocking `lockf` could exit before the agent returned structured contention;
+interactive Rotate now takes the same lock internally. Its regression checks
+include actual FreeBSD scheduler-lock contention and an explicit subsequent
+action after release. New-source installed acceptance is still required.
+
 The [clean-host integration](../deploy/validation-clean-host-restore.md)
 in [PR #194](https://github.com/KazuhaHub/nethub/pull/194), merged as `c4102ab`, passed current-key,
 database and six-service restoration on a distinct empty hosted guest. Both
