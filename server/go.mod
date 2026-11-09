@@ -12,7 +12,7 @@ require (
 	github.com/mattermost/xml-roundtrip-validator v0.1.0
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/russellhaering/goxmldsig v1.6.1
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	golang.org/x/crypto v0.58.0
 	golang.org/x/sys v0.49.0
 	golang.org/x/term v0.47.0
