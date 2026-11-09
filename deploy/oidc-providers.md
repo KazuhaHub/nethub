@@ -28,7 +28,7 @@ Bound providers must be disabled instead of deleted or moved to another issuer.
 ## Shared protocol and network policy
 
 NetHub directly imports `authcore/oidc` at
-`v0.6.3-0.20261026125641-ee68d852d973`, recorded in [the module manifest](../server/go.mod).
+`v0.6.3-0.20261106113728-c1447857d71b`, recorded in [the module manifest](../server/go.mod).
 This is a development pin, not a new authcore release. Authcore owns discovery and the
 authorization-code protocol, including PKCE and token verification. NetHub owns
 deployment egress policy, accounts, permissions, storage and admission.

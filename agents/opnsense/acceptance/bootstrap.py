@@ -14,6 +14,55 @@ SDK = 'go1.26.10.freebsd-amd64.tar.gz'
 SDK_SHA256 = '3f47779b4534a578f9d4d3c263455574f073d6f0e382684ec3c1c08eadb4aaff'
 
 
+def install_current_package(guest, source, sdk, result):
+    """Reuse the normal signed update and unsigned package build in owned flows."""
+    if (type(guest) is not Guest or guest.process is None or guest.process.poll() is not None
+            or os.environ.get('GITHUB_ACTIONS') != 'true'
+            or os.environ.get('RUNNER_ENVIRONMENT') != 'github-hosted'
+            or digest(sdk) != SDK_SHA256):
+        raise GuestError('Live owned guest and pinned native compiler required')
+    result['phase'] = 'signed_package_update'
+    guest.console.command('set -eu\npkg update -f\npkg upgrade -y\n', timeout=900)
+    guest.ensure_ssh()
+    version = guest.ssh('/usr/local/sbin/opnsense-version -v\n', 'installed platform version').decode().strip()
+    if not supported_platform(version):
+        raise GuestError('Guest has not reached the required patched 26.7 platform')
+    result['opnsense_version'] = version
+    result['phase'] = 'native_package_build'
+    guest.put(source, 'source.tar')
+    guest.put(sdk, 'toolchain.tar.gz')
+    build = '''set -eu
+umask 077
+mkdir /root/nethub-ci/source /root/nethub-ci/toolchain
+tar -xf /root/nethub-ci/source.tar -C /root/nethub-ci/source
+tar -xzf /root/nethub-ci/toolchain.tar.gz -C /root/nethub-ci/toolchain
+PATH=/root/nethub-ci/toolchain/go/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+export PATH
+sh /root/nethub-ci/source/agents/opnsense/plugin/build.sh
+'''
+    guest.ssh(build, 'native unsigned package build', timeout=1000)
+    guest.console.command('pkg add /root/nethub-ci/source/agents/opnsense/plugin/dist/os-nethub-agent.pkg\n', timeout=180)
+    guest.ensure_ssh()
+    inspect = '''set -eu
+pkg info -e os-nethub-agent
+/usr/local/opnsense/nethub-agent/bin/frpc --version
+/usr/local/bin/python3.13 - <<'PY'
+import hashlib,json,pathlib,subprocess
+p=pathlib.Path('/usr/local/opnsense/nethub-agent/bin')
+r=json.loads((p/'FRP_BUILD.json').read_text())
+assert r['compiler']=='go1.26.10' and r['frp_version']=='0.71.1'
+assert hashlib.sha256((p/'frpc').read_bytes()).hexdigest()==r['binary_sha256']
+status=json.loads(subprocess.check_output(['/usr/local/sbin/configctl','nethub-agent','status']))
+assert status['status']=='stopped' and status['revoked'] is False
+print(json.dumps({'native_status':'stopped','frpc_sha256':r['binary_sha256'],'frpc_compiler':r['compiler'],'frp_version':r['frp_version']}))
+PY
+'''
+    response = guest.ssh(inspect, 'installed client and configd verification').decode().splitlines()
+    if response[0] != '0.71.1':
+        raise GuestError('Installed client version differs')
+    result['installed'] = json.loads(response[-1])
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--directory', type=Path, required=True)
@@ -56,46 +105,7 @@ def main():
         with owned as guest:
             result['image'] = guest.image_receipt
             result['guest_memory_mib'] = 3072
-            result['phase'] = 'signed_package_update'
-            guest.console.command('set -eu\npkg update -f\npkg upgrade -y\n', timeout=900)
-            guest.ensure_ssh()
-            version = guest.ssh('/usr/local/sbin/opnsense-version -v\n', 'installed platform version').decode().strip()
-            if not supported_platform(version):
-                raise GuestError('Guest has not reached the required patched 26.7 platform')
-            result['opnsense_version'] = version
-            result['phase'] = 'native_package_build'
-            guest.put(source, 'source.tar')
-            guest.put(sdk, 'toolchain.tar.gz')
-            build = '''set -eu
-umask 077
-mkdir /root/nethub-ci/source /root/nethub-ci/toolchain
-tar -xf /root/nethub-ci/source.tar -C /root/nethub-ci/source
-tar -xzf /root/nethub-ci/toolchain.tar.gz -C /root/nethub-ci/toolchain
-PATH=/root/nethub-ci/toolchain/go/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
-export PATH
-sh /root/nethub-ci/source/agents/opnsense/plugin/build.sh
-'''
-            guest.ssh(build, 'native unsigned package build', timeout=1000)
-            guest.console.command('pkg add /root/nethub-ci/source/agents/opnsense/plugin/dist/os-nethub-agent.pkg\n', timeout=180)
-            guest.ensure_ssh()
-            inspect = '''set -eu
-pkg info -e os-nethub-agent
-/usr/local/opnsense/nethub-agent/bin/frpc --version
-/usr/local/bin/python3.13 - <<'PY'
-import hashlib,json,pathlib,subprocess
-p=pathlib.Path('/usr/local/opnsense/nethub-agent/bin')
-r=json.loads((p/'FRP_BUILD.json').read_text())
-assert r['compiler']=='go1.26.10' and r['frp_version']=='0.71.1'
-assert hashlib.sha256((p/'frpc').read_bytes()).hexdigest()==r['binary_sha256']
-status=json.loads(subprocess.check_output(['/usr/local/sbin/configctl','nethub-agent','status']))
-assert status['status']=='stopped' and status['revoked'] is False
-print(json.dumps({'native_status':'stopped','frpc_sha256':r['binary_sha256'],'frpc_compiler':r['compiler'],'frp_version':r['frp_version']}))
-PY
-'''
-            response = guest.ssh(inspect, 'installed client and configd verification').decode().splitlines()
-            if response[0] != '0.71.1':
-                raise GuestError('Installed client version differs')
-            result['installed'] = json.loads(response[-1])
+            install_current_package(guest, source, sdk, result)
             result['phase'] = 'native_page'
             config = directory / 'browser-private.json'
             config.write_text(json.dumps({'origin': f'https://127.0.0.1:{guest.gui_port}',

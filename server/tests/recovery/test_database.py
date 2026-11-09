@@ -1,10 +1,43 @@
 """Database differences retain every comparison without exporting private values."""
 import copy
 import json
+from pathlib import Path
+import subprocess
+import tempfile
 import unittest
+from unittest.mock import patch
 
 from database import (CATEGORIES, DETAIL_FIELDS, bootstrap_extensions, difference_details,
                       differing_categories, snapshot_fingerprint)
+from database_probe import Probe, ProbeCommandFailure
+
+
+class ClosedProbeCommandFailures(unittest.TestCase):
+    def test_build_failure_exports_only_closed_classification(self):
+        private = b'private repository, credential and SQL; unable to select packages'
+        result = subprocess.CompletedProcess(['private argument'], 1, private, private)
+        with tempfile.TemporaryDirectory() as directory:
+            probe = Probe(Path(directory), Path(directory))
+            with patch('database_probe.subprocess.run', return_value=result):
+                with self.assertRaises(ProbeCommandFailure) as caught:
+                    probe.command(['build', 'private argument'], data=private)
+            self.assertEqual((Path(directory) / 'step-1.log').read_bytes(), private + private)
+        self.assertEqual(caught.exception.report, {
+            'action': 'build', 'kind': 'nonzero_exit', 'package_resolution_failed': True,
+        })
+        self.assertNotIn('private', str(caught.exception) + json.dumps(caught.exception.report))
+
+    def test_timeout_does_not_export_child_output_or_unknown_action(self):
+        error = subprocess.TimeoutExpired(['private argument'], 1, output=b'private output', stderr=b'private error')
+        with tempfile.TemporaryDirectory() as directory:
+            probe = Probe(Path(directory), Path(directory))
+            with patch('database_probe.subprocess.run', side_effect=error):
+                with self.assertRaises(ProbeCommandFailure) as caught:
+                    probe.command(['private action'])
+        self.assertEqual(caught.exception.report, {
+            'action': 'unknown', 'kind': 'timeout', 'package_resolution_failed': False,
+        })
+        self.assertNotIn('private', str(caught.exception) + json.dumps(caught.exception.report))
 
 
 class ClosedDatabaseDifferences(unittest.TestCase):

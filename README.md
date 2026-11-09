@@ -61,7 +61,7 @@ The execution plan tracks the confirmed scope and its remaining acceptance.
   own tunnel/settings and bounded GUI certificate installation, which can
   reload the GUI service. See [Security model](#security-model).
 
-- **No fleet operations.** No bulk upgrades, no scheduled jobs, no
+- **No fleet operations.** No bulk upgrades, no scheduled fleet actions, no
   fleet-wide config push.
 - **No general device monitoring.** The console reports approximate monthly
   tunnel traffic and a configurable usage warning. Device health metrics and a
@@ -75,15 +75,18 @@ If you're looking for a configuration manager for your fleet, that's on the
 
 ## Why not just use Tailscale / Cloudflare Tunnel / expose the web UI directly?
 
-Fair question, and for most people the honest answer is: use Tailscale.
+These options make different choices about relay infrastructure and client access.
 
-- **Tailscale** is simpler to set up, runs no server of your own, and just
-  works across NAT. If you have one device, or a handful, and you don't mind
-  a third party's coordination plane sitting in the connection path — use
-  Tailscale. NetHub does not try to out-convenience it.
-- **Cloudflare Tunnel** is a similar trade: no infrastructure to run
-  yourself, backed by Cloudflare's edge. Same caveat — you're trusting
-  Cloudflare with the path and, to some extent, the identity model.
+- **Tailscale** uses a hosted coordination service for discovery, key distribution
+  and policy. Device traffic uses its separate encrypted data plane, directly or
+  through relays; it does not flow through the coordination service.
+  Clients also support self-managed coordination such as Headscale. See its
+  [control/data planes](https://tailscale.com/docs/concepts/control-data-planes) and
+  [custom coordination](https://tailscale.com/docs/how-to/set-up-custom-coordination-server) documentation.
+- **Cloudflare Tunnel** connects local services to Cloudflare through outbound
+  `cloudflared` connections. Published application traffic passes through
+  Cloudflare's network; that service remains part of the access path. See
+  [Tunnel fundamentals](https://developers.cloudflare.com/tunnel/concepts/).
 - **Exposing the OPNsense web UI directly to the internet** (port-forwarded
   or otherwise) is the risk that Tailscale and Cloudflare Tunnel exist to help
   you avoid — and NetHub is **not** a way around it. By design NetHub also
@@ -106,6 +109,8 @@ infrastructure than you need; go install Tailscale.
 
 The control plane and OPNsense development plugin implement this architecture.
 Accepted workflows and remaining validation are listed under [Project status](#project-status).
+The diagram shows the default bundled Caddy topology. An existing host reverse
+proxy can own console HTTPS instead; see [external proxy routing](deploy/external-proxy.md).
 
 ```
              SNI = abcd1234.router.example.com                     frp tunnel
@@ -167,7 +172,8 @@ OPNsense development plugin and acceptance fixtures. OpenWrt and VyOS adapters
 remain planned.
 
 All of NetHub lives in this repository, including the OPNsense plugin source
-under `agents/opnsense/plugin/`. FreeBSD packages are *built* elsewhere:
+under `agents/opnsense/plugin/`. CI builds unsigned development packages here.
+Formal signed release packaging is planned separately:
 [`KKazuhaK/OPNsense-repo`](https://github.com/KKazuhaK/OPNsense-repo) will
 carry a packaging recipe that fetches a tagged NetHub release, verifies its
 checksum, and runs it through an existing FreeBSD build/signing/publish
@@ -184,13 +190,14 @@ Self-hosting NetHub means having, before you start:
    public IP (e.g. `203.0.113.10`).
 3. **A relay server reachable from the public internet** with these ports
    open:
-   - **80** — HTTP-01 validation for device GUI certificates, plus Caddy's HTTP listener;
-   - **443** — Caddy: the web console and the device enroll API;
+   - **80** — HTTP-01 validation for device GUI certificates, served by the selected reverse proxy;
+   - **443** — the web console and device enroll API through bundled Caddy or an existing host reverse proxy;
    - **7000** — `frps` `bindPort`: the device control channel (TLS);
    - **8443** — `frps` `vhostHTTPSPort`: browser to device, SNI passthrough.
 
    The `frps` admin API binds the deployment's private edge gateway. The
    authz hook and Postgres use private Docker networks; none is a public listener.
+
 4. **Docker and Docker Compose** on that server.
 
 There is no hosted option. If you don't want to run a server, see
@@ -239,14 +246,14 @@ Summary of what v1 is designed to guarantee:
 - **Enroll tokens are one-time use and expire after 15 minutes.**
 - **Device identity is a signed domain claim** (HMAC-SHA256) issued at enroll
   time. When a device's `frpc` logs in or registers its proxy, `frps` asks
-  `nethub authz`, which checks both the signature *and* that it matches the
+  `nethub authz`, which checks both the signature _and_ that it matches the
   database record — two independent checks, not one.
 - **The signing key lives only in `nethub authz`.** The public console
   (`nethub web`) is a separate process with its own database role; it never
   holds the signing key or the `frps` admin credentials, cannot create device
   rows, and cannot write subdomains or claim fields. So even a fully
   compromised console cannot mint a claim for an existing device or reassign
-  a subdomain. It *could* still create enroll tokens (enrolling a new device
+  a subdomain. It _could_ still create enroll tokens (enrolling a new device
   under a new subdomain), revoke devices, read device metadata and the audit
   log, and manage users and sign-in providers — that is, take over the
   console. The full boundary is in [`docs/DESIGN.md`](docs/DESIGN.md) §6.
@@ -329,13 +336,13 @@ W7 work. There is no released package or production-readiness claim.
 
 Everything in this table is plan, not shipped.
 
-| Version | Focus |
-|---|---|
-| v1 | Remote web UI access for OPNsense devices behind CGNAT/dynamic IP, plus a multi-user console (admin/member, invitation-only) with OIDC/SAML sign-in and per-device public GUI certificates — no general configuration API |
-| v1.1 | arm64 |
-| v1.2 | Telemetry: tunnel/device health metrics |
-| v2 | Encrypted config backup: the device encrypts `config.xml` with a key derived on the device before uploading, and the control plane stores ciphertext it cannot decrypt (so no server-side diffing) |
-| v2.5 | Config push (send config changes to devices) |
+| Version | Focus                                                                                                                                                                                                                     |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1      | Remote web UI access for OPNsense devices behind CGNAT/dynamic IP, plus a multi-user console (admin/member, invitation-only) with OIDC/SAML sign-in and per-device public GUI certificates — no general configuration API |
+| v1.1    | arm64                                                                                                                                                                                                                     |
+| v1.2    | Telemetry: tunnel/device health metrics                                                                                                                                                                                   |
+| v2      | Encrypted config backup: the device encrypts `config.xml` with a key derived on the device before uploading, and the control plane stores ciphertext it cannot decrypt (so no server-side diffing)                        |
+| v2.5    | Config push (send config changes to devices)                                                                                                                                                                              |
 
 Later console option: passkey sign-in.
 
@@ -352,8 +359,8 @@ checklist.
 
 ---
 
-*OPNsense® is a registered trademark of Deciso B.V. NetHub is an independent
-project and is not affiliated with, endorsed by, or sponsored by Deciso B.V.*
+_OPNsense® is a registered trademark of Deciso B.V. NetHub is an independent
+project and is not affiliated with, endorsed by, or sponsored by Deciso B.V._
 
 ## 中文
 

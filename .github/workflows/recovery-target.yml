@@ -31,6 +31,12 @@ jobs:
           persist-credentials: false
       - name: Check source refusal cases
         run: python3 -m unittest discover -s server/tests/recovery -p 'test_*.py'
+      - name: Check actual private root-owned checkpoint exports
+        run: sudo python3 -B -m unittest discover -s server/tests/recovery -p test_checkpoint_transfer.py
+      - name: Check actual private cleanup receipts and removal boundaries
+        run: sudo python3 -B -m unittest discover -s server/tests/recovery -p test_cold_guard.py
+      - name: Check actual oneshot execution history and bounded observation
+        run: sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT,NETHUB_SOURCE_HEAD python3 -B -m unittest discover -v -s server/tests/recovery -p test_cleanup_observation.py
       - name: Prepare fresh hosted KVM tools
         run: |
           test "$RUNNER_ENVIRONMENT" = github-hosted

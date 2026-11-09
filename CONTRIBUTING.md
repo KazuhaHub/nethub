@@ -28,10 +28,10 @@ NetHub uses the **Developer Certificate of Origin (DCO)** instead of a
 Contributor License Agreement (CLA).
 
 **What this means for you:** you keep the copyright to your own contribution.
-You are not assigning or licensing your copyright to the project maintainers
-or to any single entity — you are simply certifying, for each commit, that you
-wrote it (or otherwise have the right to submit it) and that you are
-knowingly submitting it under the project's license (Apache-2.0, see below).
+The sign-off does not transfer copyright ownership. For each commit, you certify
+that you wrote the contribution or otherwise have the right to submit it under
+the project's Apache-2.0 license. The license applies to the contribution;
+there is no separate CLA or copyright assignment requirement.
 There is no separate agreement to read, sign, or fax in; the certification
 lives in your commit itself.
 
@@ -100,13 +100,13 @@ packages it, and the difference is worth being explicit about:
 
 - **`KKazuhaK/OPNsense-repo`**: a separate, pre-existing repository that hosts
   an unrelated collection of OPNsense plugins together with a working FreeBSD
-  packaging, signing, and pkg-repository pipeline. It will carry a *packaging
-  recipe* for NetHub — an entry in its `packaging/plugins.json` and a
+  packaging, signing, and pkg-repository pipeline. It will carry a _packaging
+  recipe_ for NetHub — an entry in its `packaging/plugins.json` and a
   `build.sh` that fetches a tagged NetHub release, verifies its checksum, and
   stages it into a signed package. It does **not** hold NetHub source, it does
   not hold a copy of `proto/`, and it runs no NetHub tests: it only builds
-  tagged releases. You should not need to touch it to contribute here, except
-  when iterating on the plugin's web UI (see `docs/DESIGN.md` §2).
+  tagged releases. Plugin UI and other source changes belong in this repository;
+  see the [plugin development guide](agents/opnsense/plugin/README.md).
 
   That repository is MIT-licensed and has other copyright holders in its
   history, which is exactly why NetHub source does not live in it: keeping all
@@ -165,15 +165,15 @@ authorization have scoped installed acceptance; follow the
 
 ### Tools
 
-| Tool | Version | Used for | Check |
-|---|---|---|---|
-| Git and the GitHub CLI | any recent | everything | `git --version`, `gh --version` |
-| Go | 1.26.10 (the build pin in `server/.go-version`; `go.mod` declares the compatibility floor) | the control plane in `server/` | `go version` |
-| Node.js | 24.14.0, matching CI and the Docker builder | the console source in `server/web/` | `node -v` |
-| Docker and Docker Compose | Compose 2.24.4 or later; tested Engine/Compose versions are in the quickstart | console/relay deployment and isolated database/deployment tests | `docker version`, `docker compose version` |
-| Python | 3.13.x on OPNsense 26.7; 3.11 or newer for host-side checks | agent, packaging helpers, deployment checks and Weekend 0 tools | `python3.13 --version` |
-| PHP CLI | the same major and minor version as the test device's OPNsense | syntax checks (`php -l`) of the plugin's PHP files | `php -v` |
-| `psql` | 16 or newer | inspecting the local database | `psql --version` |
+| Tool                      | Version                                                                                    | Used for                                                        | Check                                      |
+| ------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------- | ------------------------------------------ |
+| Git and the GitHub CLI    | any recent                                                                                 | everything                                                      | `git --version`, `gh --version`            |
+| Go                        | 1.26.10 (the build pin in `server/.go-version`; `go.mod` declares the compatibility floor) | the control plane in `server/`                                  | `go version`                               |
+| Node.js                   | 24.14.0, matching CI and the Docker builder                                                | the console source in `server/web/`                             | `node -v`                                  |
+| Docker and Docker Compose | Engine 28 or newer, Compose 2.24.4 or later; tested versions are in the quickstart         | console/relay deployment and isolated database/deployment tests | `docker version`, `docker compose version` |
+| Python                    | 3.13.x on OPNsense 26.7; 3.11 or newer for host-side checks                                | agent, packaging helpers, deployment checks and Weekend 0 tools | `python3.13 --version`                     |
+| PHP CLI                   | the same major and minor version as the test device's OPNsense                             | syntax checks (`php -l`) of the plugin's PHP files              | `php -v`                                   |
+| `psql`                    | 16 or newer                                                                                | inspecting the local database                                   | `psql --version`                           |
 
 On macOS with Homebrew, two packages need care:
 
@@ -335,7 +335,7 @@ When filing an issue, please include:
   applicable. Redact anything sensitive (see the note on public files below).
 - **Component**: which part this touches — `proto/`, `server/`,
   `agents/opnsense/`, `deploy/`, `weekend0/`, or docs. If the problem is with
-  the *packaged* plugin rather than its source (install, upgrade, signing, pkg
+  the _packaged_ plugin rather than its source (install, upgrade, signing, pkg
   repository), say so — that points at the packaging repository instead.
 - **Environment**: NetHub version/commit, OPNsense version if relevant, OS of
   the control-plane host.
@@ -397,7 +397,7 @@ Before opening a PR:
 - [ ] No real domains, IPs, ports, or credentials from a real deployment
       anywhere in the diff — use `example.com` / `203.0.113.10` style
       placeholders.
-- [ ] The PR description explains *why*, not just *what*.
+- [ ] The PR description explains _why_, not just _what_.
 
 Maintainers may ask for changes on any of the above before merge. Thanks again
 for contributing.

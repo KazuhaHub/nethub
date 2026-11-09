@@ -41,6 +41,16 @@ type pebbleHarness struct {
 
 func newPebbleHarness(t *testing.T, management ...bool) *pebbleHarness {
 	t.Helper()
+	return newPebbleHarnessForHost(t, orderHost, false, management...)
+}
+
+// The cold-host driver knows the genuine assigned name only after enrollment.
+// Its host proxy forwards HTTP-01 to the separately owned source/target guest.
+func newPebbleHarnessForHost(t *testing.T, host string, hostProxy bool, management ...bool) *pebbleHarness {
+	t.Helper()
+	if !regexp.MustCompile(`^[a-z0-9]{8}\.devices\.example\.test$`).MatchString(host) {
+		t.Fatal("invalid isolated ACME order hostname")
+	}
 	image := os.Getenv("NETHUB_GUIACME_PEBBLE_IMAGE")
 	if image == "" {
 		t.Skip("requires the isolated genuine ACME deployment harness")
@@ -195,9 +205,13 @@ func newPebbleHarness(t *testing.T, management ...bool) *pebbleHarness {
 	if os.WriteFile(filepath.Join(stage, "config.json"), raw, 0600) != nil {
 		t.Fatal("CA configuration fixture")
 	}
+	validationAddress := address.Next()
+	if hostProxy {
+		validationAddress = address.Prev()
+	}
 	containerID = strings.TrimSpace(string(docker("create", "--name", name, "--label", label, "--network", network,
 		"--ip", address.String(), "--read-only", "--user", "0:0", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "64", "--memory", "128m",
-		"--add-host", orderHost+":"+address.Next().String(), "--env", "PEBBLE_VA_NOSLEEP=1",
+		"--add-host", host+":"+validationAddress.String(), "--env", "PEBBLE_VA_NOSLEEP=1",
 		"--env", "PEBBLE_WFE_NONCEREJECT=0", "--env", "PEBBLE_AUTHZREUSE=0",
 		"--mount", "type=bind,src="+filepath.Join(stage, "cert.pem")+",dst=/fixture/cert.pem,readonly",
 		"--mount", "type=bind,src="+filepath.Join(stage, "key.pem")+",dst=/fixture/key.pem,readonly",

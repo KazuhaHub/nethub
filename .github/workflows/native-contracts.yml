@@ -27,6 +27,18 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Bound host package downloads
+        run: |
+          # The VM action installs QEMU through apt on the hosted runner.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          printf '%s\n' \
+            'Acquire::Retries "2";' \
+            'Acquire::http::Timeout "15";' \
+            'Acquire::https::Timeout "15";' \
+            'APT::Update::Error-Mode "any";' \
+            | sudo tee /etc/apt/apt.conf.d/80-nethub-ci >/dev/null
       - name: Bind native source manifest
         id: source
         run: python3 agents/opnsense/native_contracts.py prepare --directory .native-evidence

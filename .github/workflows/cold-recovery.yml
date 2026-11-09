@@ -1,0 +1,115 @@
+name: Protected host cold recovery
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/cold-recovery.yml
+      - server/tests/recovery/**
+      - server/internal/guiacme/**
+      - agents/opnsense/acceptance/**
+  workflow_dispatch:
+    inputs:
+      accepted_ci_run:
+        description: Successful six-job CI run for this exact source
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: cold-recovery-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  accepted-images:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      run: ${{ steps.accepted.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - id: accepted
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NETHUB_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python3 agents/opnsense/acceptance/wait_for_images.py
+  recovery:
+    needs: accepted-images
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.accepted-images.result == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    permissions:
+      actions: read
+      contents: read
+    env:
+      NETHUB_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      PYTHONDONTWRITEBYTECODE: "1"
+      GOTOOLCHAIN: local
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Check fresh hosted resource boundary
+        run: |
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test -c /dev/kvm
+          test "$(awk '/MemAvailable/ {print int($2 / 1024)}' /proc/meminfo)" -ge 5500
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 update -qq
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y --no-install-recommends \
+            qemu-system-x86 qemu-utils cloud-image-utils gnupg openssh-client netcat-openbsd
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: server/.go-version
+          cache: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24.14.0"
+          package-manager-cache: false
+      - name: Check recovery admission and build same-source witness
+        run: |
+          python3 -m unittest discover -s server/tests/recovery -p 'test_*.py'
+          sudo python3 -B -m unittest discover -s server/tests/recovery -p test_cold_guard.py
+          sudo python3 -B -m unittest discover -s server/tests/recovery -p test_checkpoint_transfer.py
+          sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT,NETHUB_SOURCE_HEAD python3 -B -m unittest discover -v -s server/tests/recovery -p test_cleanup_observation.py
+          cd server
+          go test -c -o "$RUNNER_TEMP/cold-guiacme.test" ./internal/guiacme
+          sudo install -o root -g root -m 0555 "$RUNNER_TEMP/cold-guiacme.test" "$RUNNER_TEMP/cold-guiacme-root.test"
+      - name: Install browser runtime
+        working-directory: server/web
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/cold-native-browsers
+        run: |
+          npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: Recover protected host and confirm original native client
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACCEPTED_CI_RUN: ${{ inputs.accepted_ci_run || needs.accepted-images.outputs.run }}
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/cold-native-browsers
+        run: |
+          NETHUB_NODE_BINARY="$(command -v node)"
+          export NETHUB_NODE_BINARY
+          sudo --preserve-env=GH_TOKEN,GITHUB_ACTIONS,RUNNER_ENVIRONMENT,RUNNER_TEMP,NETHUB_SOURCE_HEAD,NETHUB_NODE_BINARY,PLAYWRIGHT_BROWSERS_PATH,PYTHONDONTWRITEBYTECODE \
+            python3 server/tests/recovery/cold_entry.py --run "$ACCEPTED_CI_RUN" \
+            --directory "$RUNNER_TEMP/cold-entry-private" --evidence "$RUNNER_TEMP/cold-recovery-evidence" \
+            --witness-binary "$RUNNER_TEMP/cold-guiacme-root.test"
+      - name: Retain closed outcomes and masked native page images
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: protected-host-cold-recovery
+          path: |
+            ${{ runner.temp }}/cold-recovery-evidence/result.json
+            ${{ runner.temp }}/cold-recovery-evidence/installed-enroll.png
+            ${{ runner.temp }}/cold-recovery-evidence/installed-remove.png
+          retention-days: 7
+          if-no-files-found: warn

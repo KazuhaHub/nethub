@@ -139,6 +139,8 @@ class LinuxGuest:
         self.directory.mkdir(mode=0o700)
         self.process = None
         self.log = None
+        self.started_monotonic = None
+        self.stopped_monotonic = None
 
     def __enter__(self):
         try:
@@ -162,6 +164,7 @@ class LinuxGuest:
             known = self.directory / 'known_hosts'
             known.write_text(f'[127.0.0.1]:{self.port} ' + config['ssh_keys']['ed25519_public'] + '\n')
             self.log = (self.directory / 'qemu-private.log').open('xb')
+            self.started_monotonic = time.monotonic()
             self.process = subprocess.Popen([
                 'qemu-system-x86_64', '-machine', 'q35,accel=kvm', '-cpu', 'host', '-m', '2048', '-smp', '2',
                 '-display', 'none', '-monitor', 'none', '-serial', 'stdio',
@@ -288,5 +291,8 @@ class LinuxGuest:
             except subprocess.TimeoutExpired:
                 os.killpg(self.process.pid, signal.SIGKILL)
                 self.process.wait(timeout=10)
+        if (self.process is not None and self.process.poll() is not None
+                and getattr(self, 'stopped_monotonic', None) is None):
+            self.stopped_monotonic = time.monotonic()
         if self.log is not None:
             self.log.close()

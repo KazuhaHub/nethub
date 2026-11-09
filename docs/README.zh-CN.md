@@ -48,7 +48,7 @@
 ## v1 不做什么
 
 - **不提供通用设备配置接口。** 没有防火墙、任意命令或配置下发接口。插件管理自己的设置和隧道，受限的 GUI 证书安装路径可能重载 GUI 服务，见[安全模型](#安全模型)。
-- **不做批量运维。** 没有批量升级、定时任务，也没有全网配置下发。
+- **不做批量运维。** 没有批量升级、面向设备群的定时操作，也没有全网配置下发。
 - **不提供通用设备监控。** 控制台已有近似的月度隧道流量统计和可配置的用量提醒；设备健康指标和通用监控面板仍不在范围内。详见[流量统计及限制](../deploy/traffic-counters.md)。
 - **不支持 OpenWrt 和 VyOS。** 目录结构和协议设计上不绑定单一平台，但 v1 只面向 OPNsense。
 
@@ -56,10 +56,10 @@
 
 ## 为什么不用 Tailscale、Cloudflare Tunnel，或者直接暴露 Web 界面
 
-问得好。对大多数人来说，老实的回答是：用 Tailscale。
+这些方案对中继基础设施和客户端访问方式的取舍不同。
 
-- **Tailscale** 更容易上手，不需要自己运行服务器，跨 NAT 也能直接用。如果你只有一台或几台设备，也不介意连接路径上有第三方的协调服务，就用 Tailscale。NetHub 不打算在方便程度上和它比。
-- **Cloudflare Tunnel** 也是类似的取舍：不用自己维护基础设施，背后是 Cloudflare 的边缘网络。同样要注意：连接路径、以及一定程度上的身份认证，都交给了 Cloudflare。
+- **Tailscale** 的托管协调服务负责发现、密钥分发和策略；设备流量走独立的加密数据平面，通过直连或中继传输，不经过协调服务。客户端也支持 Headscale 等自托管协调服务。见其[控制面与数据面](https://tailscale.com/docs/concepts/control-data-planes)和[自定义协调服务](https://tailscale.com/docs/how-to/set-up-custom-coordination-server)说明。
+- **Cloudflare Tunnel** 通过 `cloudflared` 的出站连接将本地服务接到 Cloudflare。已发布应用的流量经过 Cloudflare 网络，其服务仍是访问路径的一部分。见 [Tunnel 原理](https://developers.cloudflare.com/tunnel/concepts/)。
 - **直接把 OPNsense 的 Web 界面暴露到公网**（端口转发或其他方式）：Tailscale 和 Cloudflare Tunnel 存在的意义，就是帮你避开这个风险，而 NetHub **并不是**绕开它的办法。
   按照设计，NetHub 同样会让设备自己的登录页可以经由你的中继从公网访问到（见[设备 Web 界面的暴露面](#设备-web-界面的暴露面)）。
   NetHub 省掉的是"在设备所在网络上做入站端口转发"这一步（在 CGNAT 下往往本来就做不到），而不是暴露面本身。
@@ -76,6 +76,7 @@ NetHub 适合一个更窄的场景，同时满足下面三点：
 ## 工作原理
 
 控制面和 OPNsense 开发插件已实现下面的架构；已验收流程及剩余验证见[项目状态](#项目状态)。
+图中是默认的内置 Caddy 拓扑；也可以由现有宿主机反代负责控制台 HTTPS，见[外部反代路由](../deploy/external-proxy.md)。
 
 ```
              SNI = abcd1234.router.example.com                    frp 隧道
@@ -117,7 +118,7 @@ weekend0/         Weekend 0 传输层测试工具（RUNBOOK、frps/frpc 配置�
 
 仓库已有控制面、控制台、部署工具、OPNsense 开发插件和验收工具。OpenWrt 和 VyOS 适配器仍在规划中。
 
-NetHub 的全部源码都在这个仓库里，包括 `agents/opnsense/plugin/` 下的 OPNsense 插件源码。FreeBSD 软件包在别处**构建**：
+NetHub 的全部源码都在这个仓库里，包括 `agents/opnsense/plugin/` 下的 OPNsense 插件源码。CI 在这里构建未签名的开发包；正式签名发布包的打包流程计划单独维护：
 [`KKazuhaK/OPNsense-repo`](https://github.com/KKazuhaK/OPNsense-repo) 将会放一份打包配方：拉取打了 tag 的 NetHub release、校验 checksum，
 再交给现成的 FreeBSD 构建、签名、发布流水线——和它现在打包 sing-box、frp 的方式一样。从那个仓库的角度看，NetHub 只是又一个上游项目。
 详见 [`CONTRIBUTING.md`](../CONTRIBUTING.md#license-and-repository-layout)。
@@ -129,12 +130,13 @@ NetHub 的全部源码都在这个仓库里，包括 `agents/opnsense/plugin/` �
 1. **一个域名**，你能管理它的 DNS。
 2. **一条泛解析记录**：`*.router.example.com` → 中继服务器的公网 IP（例如 `203.0.113.10`）。
 3. **一台能从公网访问的中继服务器**，开放以下端口：
-   - **80**：设备 GUI 证书的 HTTP-01 验证，以及 Caddy 的 HTTP 监听；
-   - **443**：Caddy，提供 Web 控制台和设备 enroll 接口；
+   - **80**：由选定的反代提供设备 GUI 证书的 HTTP-01 验证；
+   - **443**：通过内置 Caddy 或现有宿主机反代提供 Web 控制台和设备 enroll 接口；
    - **7000**：`frps` 的 `bindPort`，设备的控制通道（TLS）；
    - **8443**：`frps` 的 `vhostHTTPSPort`，浏览器到设备，SNI 透传。
 
    `frps` 的 admin API 绑定部署的私有 edge 网关；authz 钩子和 Postgres 使用私有 Docker 网络，都不是公网监听。
+
 4. 这台服务器上装好 **Docker 和 Docker Compose**。
 
 没有托管版。如果你不想自己运行服务器，请看上面的[为什么不用 Tailscale、Cloudflare Tunnel，或者直接暴露 Web 界面](#为什么不用-tailscalecloudflare-tunnel或者直接暴露-web-界面)。
@@ -202,13 +204,13 @@ SNI 透传保留设备自己的登录。正常运行时，新连接还需要匹�
 
 表里的内容都是计划，没有一项已经发布。
 
-| 版本 | 重点 |
-|---|---|
-| v1 | 远程访问 CGNAT 或动态 IP 后面的 OPNsense 设备的 Web 界面，外加多用户控制台（admin / member，邀请制）、OIDC/SAML 登录及每设备公共 GUI 证书——不提供通用设备配置接口 |
-| v1.1 | arm64 |
-| v1.2 | 遥测：隧道和设备的健康指标 |
-| v2 | 加密的配置备份：设备用一把在设备上派生的密钥加密 `config.xml` 后再上传，控制面只保存它无法解密的密文（因此不做服务端比对） |
-| v2.5 | 配置下发（把配置变更发到设备） |
+| 版本 | 重点                                                                                                                                                              |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1   | 远程访问 CGNAT 或动态 IP 后面的 OPNsense 设备的 Web 界面，外加多用户控制台（admin / member，邀请制）、OIDC/SAML 登录及每设备公共 GUI 证书——不提供通用设备配置接口 |
+| v1.1 | arm64                                                                                                                                                             |
+| v1.2 | 遥测：隧道和设备的健康指标                                                                                                                                        |
+| v2   | 加密的配置备份：设备用一把在设备上派生的密钥加密 `config.xml` 后再上传，控制面只保存它无法解密的密文（因此不做服务端比对）                                        |
+| v2.5 | 配置下发（把配置变更发到设备）                                                                                                                                    |
 
 以后可能加入的控制台登录方式：passkey。
 
@@ -222,4 +224,4 @@ Apache-2.0，见 [`LICENSE`](../LICENSE)。
 
 ---
 
-*OPNsense® 是 Deciso B.V. 的注册商标。NetHub 是独立项目，与 Deciso B.V. 没有隶属、认可或赞助关系。*
+_OPNsense® 是 Deciso B.V. 的注册商标。NetHub 是独立项目，与 Deciso B.V. 没有隶属、认可或赞助关系。_

@@ -248,6 +248,7 @@ jobs:
           sudo timeout --signal=TERM --kill-after=5 120 apt-get install -y --no-install-recommends libnss3-tools
       - name: Check closed traffic-browser failure projection
         run: |
+          python3 server/tests/test_image_scans.py
           python3 server/tests/test_traffic_failure.py
           node server/web/tests/traffic-failure-test.mjs
       - name: Verify clean Compose startup and migration failure
