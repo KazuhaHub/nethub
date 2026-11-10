@@ -158,9 +158,13 @@ implementation and keep local/CI/container builds aligned.
 
 ## SAML and shared-module implementation
 
-Import github.com/KazuhaHub/authcore/saml from the pinned v0.6.2 module. The tag
+Historical W3 dependency selection: `github.com/KazuhaHub/authcore/saml` used
+the pinned v0.6.2 module. The tag
 was resolved to commit c5960e0d3e482fca92c8b3a736ea6aac9f2ffd70 and the Go module
-checksum was recorded. No authcore source is copied or vendored into NetHub.
+checksum was recorded. The current development pin and interim parser replacement
+are recorded in [security dependencies](../deploy/saml-dependency-security.md);
+v0.6.2 is not a present installation instruction. No authcore source is copied
+or vendored into NetHub.
 Matching authentication capabilities use the shared packages; a missing reusable
 primitive can be implemented and tested in authcore with a separate PR. Tenant,
 user, invitation, session, and device-authorization rules remain application code.

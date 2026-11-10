@@ -20,6 +20,13 @@ origin remains HTTPS, including secure cookies and same-origin request checks.
 This choice does not change the relay's required TLS listener on 7000 or TLS
 passthrough on 8443.
 
+Device GUI certificate HTTP-01 validation also needs a separate public TCP-80
+challenge route. The console proxy examples below do not install that route or
+provision the protected issuer. Follow [certificate ingress and lifecycle](../docs/certificate-automation.md):
+serve only the bounded public challenge material for the exact host/token, return
+404 for unmatched or expired requests, and never mount issuer private state in the
+public proxy. Keep device GUI TLS on the passthrough route.
+
 Use Linux Docker Engine 28 or newer with the default NAT bridge behavior. Docker
 documents a localhost-publication isolation issue in older releases; do not use
 this path with older engines, routed bridge gateway modes or customized direct

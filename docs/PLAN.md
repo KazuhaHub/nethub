@@ -242,7 +242,7 @@ and the stage validation records for current implementation evidence.
 
 ### 3.2 外部资料
 
-- frp 官方文档与源码：<https://github.com/fatedier/frp>（本项目用 v0.71.0 tag；配置字段以源码 `pkg/config/v1/` 为准）
+- frp 官方文档与源码：<https://github.com/fatedier/frp>（historical W0 uses v0.71.0; current product frpc/frps use reviewed rebuilds of v0.71.1; configuration fields follow `pkg/config/v1/`）
 - OPNsense 插件开发文档：<https://docs.opnsense.org/development/>（重点看 "Frontend"、"Backend"（configd）、"Models"、"Templates"）
 - Go 语言入门：<https://go.dev/tour/>；标准库 `net/http`、`database/sql` 文档
 - Postgres 行级安全（RLS）：<https://www.postgresql.org/docs/16/ddl-rowsecurity.html>
@@ -1119,7 +1119,7 @@ Native checks completed 2026-10-18; see [evidence and limits](../agents/opnsense
 | 模块位置和路径 | `server/`，`github.com/KazuhaHub/nethub/server` | 已定 |
 | HTTP | 标准库 `net/http`（Go 1.22 起支持按方法和路径路由） | 建议 |
 | 命令行子命令 | 标准库 `flag`，自己分发 `web` / `authz` / `migrate` / `init` / `doctor` | 建议【D16】 |
-| 数据库驱动 | `github.com/jackc/pgx/v5`（`pgxpool`） | 建议【D16】 |
+| 数据库驱动 | `database/sql` with `github.com/jackc/pgx/v5/stdlib`; pgxpool was the original proposal | Implemented; see server/internal/store |
 | 迁移工具 | `github.com/pressly/goose/v3`，SQL 文件用 `embed` 打进二进制 | 建议【D16】 |
 | 密码哈希 | `golang.org/x/crypto/argon2`（argon2id） | 已定（DESIGN） |
 | 日志 | 标准库 `log/slog` | 建议 |
@@ -1162,8 +1162,13 @@ go mod init github.com/KazuhaHub/nethub/server
 - `cmd/nethub/main.go` 先把五个子命令搭好，每个打印一行"未实现"。
 
 **W3-2 本地开发数据库。**
-新建 `deploy/compose.dev.yml`，只有一个 `postgres:16` 服务，端口只绑 `127.0.0.1`，密码从一个被 `.gitignore` 忽略的本地文件读。
-用 `docker compose -f deploy/compose.dev.yml up -d` 启动，用 `psql` 能连上。
+The development-only `deploy/compose.dev.yml` publishes PostgreSQL at
+`127.0.0.1:15432`. Start it with `docker compose -f deploy/compose.dev.yml up -d`;
+for a local-socket session use
+`docker compose -f deploy/compose.dev.yml exec postgres psql -U postgres -d nethub`.
+Keep role credentials in the ignored private files required by the
+[store development guide](../server/internal/store/README.md). The generated
+deployment and isolated SQL harness do not publish PostgreSQL host ports.
 
 **W3-3 写第一个迁移（核心表、角色、RLS、列级授权）。**
 照 DESIGN §6 的 DDL 写。分两部分：**数据库和角色**由 Postgres 容器初始化时创建；**表和权限**由迁移创建。

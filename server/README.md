@@ -7,8 +7,9 @@ verified GUI certificate application; that bounded path can reload the GUI.
 The relay passes GUI TLS through without decrypting it.
 
 NetHub is pre-alpha. Scoped server, native and public-certificate checks have
-passed. Public/operator W5-W7, complete restoration, disclosure and formal release
-remain separate gates. The [handoff](../docs/HANDOFF_PROMPT.md) binds acceptance
+passed, including isolated protected-host recovery. Public/operator W5-W7,
+durable off-host custody, disclosure and formal release remain separate gates.
+ The [handoff](../docs/HANDOFF_PROMPT.md) binds acceptance
 to sources and environments; the [plan](../docs/PLAN.md) tracks remaining work.
 Changed sources and rebuilt clients need their own applicable checks.
 
@@ -104,7 +105,9 @@ process-local throttling. Explicit background-read routes can use passive
 validation without extending activity. See [authentication](internal/auth/README.md).
 
 NetHub directly imports authcore OIDC/SAML at development revision
-ee68d852d973d83832dd6eaedd3700a7266e438c, not a new formal release.
+`c1447857d71b` (`v0.6.3-0.20261106113728-c1447857d71b`), not a new formal
+release. The reviewed interim SAML parser replacement is also pinned in
+`go.mod`; see [the dependency record](../deploy/saml-dependency-security.md).
 Authcore owns protocol verification. NetHub owns browser/replay persistence,
 invitation/account admission, outbound network policy, roles, encryption and audit.
 Reusable protocol gaps belong in authcore with their own tests; do not copy it.
@@ -173,6 +176,8 @@ independent IdPs. Native installation uses a separate exact-source workflow.
 The [isolated recovery integration](../deploy/validation-clean-host-restore.md)
 restored current keys, the full database and six services, then recovered retained
 native/witness TLS routes without requested client restart, Rotate or enrollment.
-It does not prove public operator recovery, protected-host issuer restoration or
-durable encrypted off-host custody. Signed packaging, canary/faulty-version,
+The [protected-host recovery](../deploy/validation-protected-host-cold-recovery.md)
+also restored the registered issuer account, issuance policy and publication state.
+These isolated checks do not prove public operator recovery or durable encrypted
+off-host custody. Signed packaging, canary/faulty-version,
 friend-from-zero deployment and remaining W5-W7 checks are still required.

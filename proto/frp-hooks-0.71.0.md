@@ -8,8 +8,10 @@ contain deployment identifiers, network addresses, and authentication material.
 
 These are implementation input notes, not a NetHub message schema or a change
 to the device protocol. No deployed-agent compatibility or schema version
-changes result from this document. Contract tests belong with the eventual
-consumers; there are no consumers to update yet.
+changes result from this document. The no-consumer observation belonged to
+the original W0 checkpoint. Current authorization consumers and their contract
+tests are implemented; see [the server guide](../server/README.md). Preserve these
+0.71.0 observations separately from current rebuilt 0.71.1 runtime evidence.
 
 ## Login
 

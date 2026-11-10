@@ -106,5 +106,8 @@ HTTP and deployment gates then passed. Thirteen final traffic/SAML/Dex/Keycloak
 images were opened and hash-verified before normal expected-head merge.
 
 Public-network/native-appliance traffic accuracy, external-provider acceptance,
-remaining doctor checks, operational credential rotation, scheduled backups,
-clean-host restoration and formal release are separate open requirements.
+remaining doctor checks and formal release remain open. Later checkpoints cover
+[device rotation](device-rotation.md), [shared-token replacement](validation-shared-token.md),
+[scheduled backups](validation-database-backups.md) and
+[isolated restoration](validation-protected-host-cold-recovery.md). Those scoped
+results do not establish public operator recovery or durable off-host custody.

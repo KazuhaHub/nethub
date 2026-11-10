@@ -166,8 +166,9 @@ a successful API response is not an independent check of the served device leaf.
   creates them.
 - OIDC client secrets and imported SAML metadata are write-only. SAML SP private
   keys never appear in responses; public SP metadata includes its certificate.
-- No response ever contains a password hash, session token, device secret,
-  domain claim or any `*_hash` column.
+- JSON response bodies never contain a password hash, session token, device
+  secret, domain claim or any `*_hash` column. Authentication sends its opaque
+  session token only through the protected `Set-Cookie` header.
 
 ### Rate limits
 
@@ -513,8 +514,10 @@ Marks the device revoked. Request: `{}`. Response `200`:
 The manual "confirmed stolen, cut now" bypass (DESIGN §5).
 
 - It requires the device to be revoked already.
-- `nethub web` only records the request. `nethub authz` carries it out,
-  because only authz holds the relay credentials.
+- `nethub web` records the request. `nethub authz` arms heartbeat denial in
+  its published admission snapshot. This does not synchronously close or observe
+  every established stream; relay administration credentials do not provide an
+  online-client disconnect API.
 - An enabled owner or tenant admin can call it with `{}`. An owned active device
   returns `409 device_not_revoked`; a missing/foreign device returns `404` first.
 - Response `200` contains `request_id`, `requested_at`, nullable `armed_at` and

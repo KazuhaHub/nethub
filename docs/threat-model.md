@@ -343,8 +343,13 @@ restored current matching keys, the complete database and six services on a
 distinct empty hosted guest. Both retained client routes reconnected without a
 requested client restart, Rotate or reenrollment. That isolated acceptance does
 not restore protected-host issuer/account/publisher/systemd state or prove
-resumed GUI issuance. Public operator recovery and durable encrypted off-host
-custody also remain open.
+resumed GUI issuance. The later
+[protected-host cold recovery](../deploy/validation-protected-host-cold-recovery.md)
+also restored the registered account, issuance policy, publisher and stock service/
+timer installation. The same retained initial request issued and was natively
+applied after restoration, with the original identity and normal Open grant
+preserved. Public operator recovery, durable encrypted off-host custody and the
+public renewal clock remain open.
 
 Per-device rotation passed the genuine native page/model/relay workflow at source
 `986ee4c`, including response loss, native save-lock interruption and real Remove
@@ -410,5 +415,6 @@ not solved by this single-host v1 model.
 | Actual signed SAML vendor                                             | [Keycloak deployment](../deploy/validation-keycloak-saml.md). Fixture inventory is not agent/tunnel evidence; no assertion-encryption or public/mobile claim.                                                                                                                                                                              |
 | Scheduled database archives and worker isolation                      | [Backup service checkpoint](../deploy/validation-database-backups.md). Its restored device is a database fixture; the separate retained-client drill is listed below.                                                                                                                                                                      |
 | Isolated current-key/database/control-plane restoration               | [Merged clean-host integration](../deploy/validation-clean-host-restore.md). A distinct empty guest restored six services and both retained source-host TLS routes without requested client recovery. This does not restore protected-host issuance state or prove durable off-host custody, public operator recovery or a signed release. |
+| Isolated protected-host issuer recovery | [Cold recovery record](../deploy/validation-protected-host-cold-recovery.md). Complete database/keys and registered account/policy/publication state restored on a distinct target; retained native initial issuance/application and cleanup passed. Public operator recovery, durable custody, renewal-clock and release remain separate. |
 | Device-local client attribution, hostile streams and broader networks | Do not infer complete GUI lockout/logging behavior or malicious-client cutoff from normal browser samples. These remain unverified where no direct measurement exists.                                                                                                                                                                     |
 | Operational release/restore/disclosure                                | W7 and owner gates remain open. Repository publication does not by itself complete D12 or authorize history rewriting.                                                                                                                                                                                                                     |

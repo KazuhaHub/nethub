@@ -81,12 +81,39 @@ and source-contract checks. The installed workflow above covers response loss
 and native save-lock recovery. The subsequent
 [installed publication-conflict combination](validation-native-trust-conflict.md)
 passed definitive precommit refusal, native synchronization and one fresh
-candidate. Committed-candidate replay across a later publication still needs
-its own installed acceptance.
+candidate. [Committed replay after a later publication](validation-native-trust-conflict.md#committed-replay-after-a-later-publication)
+also has scoped installed acceptance in PR #212; changed sources still need their
+own applicable regression checks.
 
 This per-device workflow is only part of W7-4. Coordinated deployment-wide frps
 shared-token replacement, current-key backup/manifest transitions and online
 native/reference recovery have separate [scoped acceptance](validation-shared-token.md).
 Offline devices in a forced replacement window require manual re-enrollment,
 as recorded in the incident procedure. Public-network incidents, an offline-fleet
-drill, complete clean-host restoration and release acceptance remain open.
+drill and release acceptance remain open. Isolated clean-host and protected-host
+restoration have [separate acceptance](validation-protected-host-cold-recovery.md);
+public operator recovery and durable off-host custody remain open.
+
+## Lock-handoff validation
+
+PR #224 merged as `50f591f` from source `5f1b344` with the tested tree unchanged.
+Six-job [CI 42715789184](https://github.com/KazuhaHub/nethub/actions/runs/42715789184)
+and all independent prerequisites passed. The FreeBSD suite ran 216 actual cases,
+including a real scheduler `lockf` holder, structured busy response before any
+mutation, and a separate explicit action after release. The lock, scheduler
+exclusion and existing operation deadlines were preserved.
+
+[Installed run 42715788756](https://github.com/KazuhaHub/nethub/actions/runs/42715788756)
+passed normal rotation, lost-response and native save-lock recovery, publication
+conflict/synchronization, committed replay after a later publication, shared-token
+recovery, six-service restoration and genuine Remove with the complete tail.
+Committed replay recovered in 5.493 seconds; restoration recovered both original
+routes in 60.826 seconds. Exact source, all 37 official artifact entries, both
+complete logs, guest exit zero, owned cleanup, thirteen image hashes and ten
+unique actual views were checked. The native footer clips lower Remove content;
+independent model, SQL, service and route evidence verifies removal.
+
+Earlier failed installed runs remain retained and unaccepted. Reproducing the
+exception/outer-lock handling gaps and passing this source does not establish
+their exact causes. These isolated outcomes do not complete public/mobile/operator,
+offline-fleet, signed-release or the remaining W5-W7 acceptance.

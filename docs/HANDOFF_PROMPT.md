@@ -53,8 +53,7 @@ the earlier rotation/publication cases passed. The original failure and cleanup
 evidence are retained; that run is not accepted. Follow-up work reproduced an
 uncaught `NativeTrustError` at synchronization and rotation trust checks and adds
 bounded error handling and fixed failure categories. This gap is independently
-proven; the original installed failure's root cause remains unconfirmed pending
-new-source evidence.
+proven; the original installed failure's root cause remains unconfirmed.
 
 Follow-up source `74fb820` passed all six CI jobs and independent native
 filesystem/package-preparation checks. Its installed run `42597702806` failed
@@ -64,7 +63,21 @@ original failure's cause. Review separately identified that the outer
 nonblocking `lockf` could exit before the agent returned structured contention;
 interactive Rotate now takes the same lock internally. Its regression checks
 include actual FreeBSD scheduler-lock contention and an explicit subsequent
-action after release. New-source installed acceptance is still required.
+action after release.
+
+PR #224 merged as `50f591f` from tested source `5f1b344` with an identical tree.
+The [lock-handoff validation](../deploy/device-rotation.md#lock-handoff-validation)
+passed six-job CI `42715789184`, 216 actual FreeBSD cases and the complete
+[installed run `42715788756`](https://github.com/KazuhaHub/nethub/actions/runs/42715788756).
+Both interrupted recoveries, trust conflict, committed replay, shared-token
+recovery, six-service restoration, genuine Remove and the full tail passed.
+Thirteen image hashes/ten unique actual views, official archive bytes, full logs
+and owned cleanup were checked. Committed replay took 5.493 seconds; restoration
+recovered both routes in 60.826 seconds. Separate cold run `42715788940` restored
+the protected issuer and completed original-request issuance/application in
+221.480 seconds from source stop. Earlier failures remain failed records; this
+successful source does not prove their exact causes. Public/operator, durable
+custody, renewal-clock, disclosure and release gates remain open.
 
 The [clean-host integration](../deploy/validation-clean-host-restore.md)
 in [PR #194](https://github.com/KazuhaHub/nethub/pull/194), merged as `c4102ab`, passed current-key,
@@ -308,12 +321,13 @@ Experiment ⑤ (2026-10-17): mobile source IPv4 matched NewUserConn remote_addr;
 
 ### Next work
 
-1. Finish and verify the clean-host current-key/database/enrolled-device drill.
-   Preserve failed runs, generic client rejections, source-IP policy and the
-   original reconnect deadline. Complete protected-host issuer recovery and
-   durable off-host custody separately; do not narrow W7-5 to six containers.
-2. Add the remaining installed publication-conflict/synchronization recovery
-   cases, preserving the accepted per-device and shared-token runtime.
+1. Continue the public operator recovery drill and durable encrypted off-host
+   custody work. Isolated current-key/database/enrolled-device and protected-host
+   issuer restoration have scoped acceptance; preserve those outcomes and failed
+   attempts. Full W7-5 also needs operator and renewal/custody evidence.
+2. Complete the current changed-source native rotation and recovery regression.
+   Publication conflict/synchronization and committed replay have earlier scoped
+   acceptance; preserve their controls and independently diagnose any later failure.
 3. Complete the remaining W5/W6 public-network and operator gates, resolve the
    installed cutoff timing discrepancy, and retain explicit scope for any waived
    network sample. Isolated IdPs do not establish public-provider acceptance.
@@ -347,13 +361,13 @@ PLAN §2 列了 D1–D22，**全部归 Kazuha 拍板**。你的职责有三件�
 
 几类最常遇到的：
 
-- **开工前决策：** D1、D2 已确认（见上），可继续 P0；D3 uses the topology above; do not accept W0 until the guest and external-network checks pass. W1 之前还要定 D10（插件目录结构）和 D20（打包仓库里的文件能不能复制，涉及版权）。
-- **等 W0 结果再定：**
-  - D5：要不要把 8443 换成 443；
-  - D6：撤销时怎么断开在线隧道；
-  - D7：设备登录页的公网暴露要不要加门禁；
-  - D17：OPNsense 自己的主机名检查。
-- **v1 发布前必须解决：** D22（设备到中继的控制通道还没有服务端认证，见下面"已知的坑"第 5 条）。
+- **Confirmed:** D1/D2, the selected NAT topology, W0 with recorded exceptions,
+  D10/D20 independent plugin development, and D5/D6/D7/D17 transport/admission/hostname
+  choices. Do not reopen these as implementation prerequisites.
+- **Implemented within recorded scope:** D22 relay server authentication, managed
+  trust and certificate automation; retain the pending renewal/operator limits.
+- **Still requires owner review:** D14 architectural choices and D13 formal release.
+  Follow PLAN §2 rather than inferring a decision from historical prose.
 
 ### 已知的坑
 
@@ -370,8 +384,10 @@ PLAN §2 列了 D1–D22，**全部归 Kazuha 拍板**。你的职责有三件�
 9. **Postgres 的 `SECURITY DEFINER` 函数，默认谁都能执行。** 要先对 PUBLIC 收回执行权限，再单独授权给 `nethub_authz`。
 10. **租户设置必须用事务内有效的写法**（`set_config(..., true)`），否则连接池里的连接会把上一个请求的租户带给下一个请求。
 11. **`go.work` 陷阱**：仓库上级目录有 `go.work` 时，Go 命令前要加 `GOWORK=off`。
-12. **测试机和"NAT 后面的家用路由器"不一样**（PLAN §5.2）：GUI 不在 443，`frpc.toml` 的 `localPort` 要改；
-    它有公网 IP，GUI 端口在 WAN 上对外开放，做 W0 ① 之前要请 Kazuha 把这条规则限制成只允许你的 IP；它可能没有快照，测完按清理清单恢复。
+12. **Historical public-device comparison:** the earlier packaging test device
+    used a nonstandard GUI port and public WAN access; it could not establish NAT
+    traversal. W0 instead used the selected local NAT guest. Do not treat that
+    abandoned comparison or its WAN-rule prerequisite as the current topology.
 13. **D4 confirmed 2026-10-18:** coordinate the os-frp, NetHub frpc, and frps upgrade to 0.71.1 before W2 integration. Keep historical W0 evidence at 0.71.0. Build-time official downloads with fixed SHA256 are approved. D22 uses a deployment CA, trustedCaFile and serverName, without mounting the CA private key in runtime containers. D21 omits newwanip and requires measured WAN-address recovery in W2; failed automatic recovery requires a debounced hook and a repeated test.
 
 ### 怎么工作
