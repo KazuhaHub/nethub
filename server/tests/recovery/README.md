@@ -26,7 +26,14 @@ filesystem or Docker socket is shared with the guest.
 or manual dispatch. It checks a new
 machine/boot identity, empty deployment/database paths, and an empty Docker
 daemon before returning closed decisions and runtime versions. Apt installs
-the distribution's signed Docker packages. The harness stops only its owned
+the distribution's signed Docker packages. Metadata refresh, package installation
+and service startup have separate fixed failure labels and share the original
+600-second preparation budget. HTTP and HTTPS acquisition have bounded timeouts;
+partial metadata refreshes are refused. Process launch failures and timeouts are
+reported separately without command output. These diagnostics do not establish
+the cause of a previously recorded installation timeout.
+
+The harness stops only its owned
 QEMU process on success or failure. Raw disks, seeds, keys, console output and
 machine identifiers are private and are never uploaded. Only
 `target-result.json` is eligible for publication. Temporary hosted storage is

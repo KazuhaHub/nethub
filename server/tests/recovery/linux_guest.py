@@ -30,8 +30,10 @@ class RecoveryError(Exception):
 def invoke(arguments, label, *, timeout=60, data=None):
     try:
         result = subprocess.run(arguments, input=data, capture_output=True, timeout=timeout)
-    except (OSError, subprocess.TimeoutExpired):
-        raise RecoveryError(label + ' unavailable or timed out') from None
+    except OSError:
+        raise RecoveryError(label + ' unavailable') from None
+    except subprocess.TimeoutExpired:
+        raise RecoveryError(label + ' timed out') from None
     if result.returncode:
         raise RecoveryError(label + ' failed')
     return result.stdout
@@ -253,12 +255,26 @@ class LinuxGuest:
                         process.kill()
                         process.wait(timeout=5)
 
+    def _prepare_runtime(self):
+        deadline = time.monotonic() + 600
+        apt = ('apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 '
+               '-o Acquire::https::Timeout=20 ')
+        stages = (
+            (apt + '-o APT::Update::Error-Mode=any update -qq\n',
+             'Recovery package metadata refresh'),
+            (apt + 'install -y --no-install-recommends docker.io docker-compose-v2 python3\n',
+             'Recovery container package installation'),
+            ('systemctl enable --now docker\n', 'Recovery container service startup'),
+        )
+        for script, label in stages:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise RecoveryError('Recovery container runtime preparation timed out')
+            self.ssh('export DEBIAN_FRONTEND=noninteractive\n' + script,
+                     label, timeout=remaining)
+
     def prepare(self):
-        self.ssh('export DEBIAN_FRONTEND=noninteractive\n'
-                 'apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 update -qq\n'
-                 'apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y '
-                 '--no-install-recommends docker.io docker-compose-v2 python3\n'
-                 'systemctl enable --now docker\n', 'Recovery container runtime installation', timeout=600)
+        self._prepare_runtime()
         value = json.loads(self.ssh('python3 - <<\'PY\'\n'
             'import json, pathlib, subprocess\n'
             'def out(*args): return subprocess.check_output(args).decode().strip()\n'
