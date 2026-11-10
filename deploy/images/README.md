@@ -7,7 +7,7 @@ upstream inputs and rebuild affected Go binaries with the compiler pinned in
 in its [JOSE migration note](caddy/README.md); its upstream sources are not
 claimed to be unchanged.
 
-- Caddy 2.11.7 uses the standard module set and embedded time zones, with
+- Caddy 2.11.9 uses the standard module set and embedded time zones, with
   `golang.org/x/net` upgraded to 0.62.0 for
   [GO-2026-6860](https://pkg.go.dev/vuln/GO-2026-6860). Its version identifies the
   NetHub build.
@@ -18,8 +18,9 @@ claimed to be unchanged.
   Its inherited curl and libcurl packages are upgraded to 8.23.0-r0 for
   [CVE-2026-92392](https://curl.se/docs/CVE-2026-92392.html), matching the Alpine
   3.23 security database. The assembled-image HIGH/CRITICAL scan remains required.
-  Its crypto dependency uses a pre-release pin and prepared JOSE v4 adaptations;
-  the migration note records the exact changes and upstream test limitation.
+  Its crypto dependency uses released Smallstep v0.92.0 and JOSE v4.1.9 with
+  the retained, hash-fenced compatibility adaptations. The migration note records
+  the changes, upstream test evidence and separate image/runtime gates.
 - Caddy, PostgreSQL and the backup tools stage install zlib 1.4-r0 from their
   existing Alpine repositories. The previous assembled-image scan reported
   CVE-2026-85091 against 1.3.2-r0. The initial 1.3.2-r1 pin passed source

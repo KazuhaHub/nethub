@@ -4,15 +4,15 @@ go 1.26.0
 
 require (
 	github.com/KazuhaHub/authcore v0.6.3-0.20261106113728-c1447857d71b
-	github.com/beevik/etree v1.7.0
+	github.com/beevik/etree v1.8.1
 	github.com/crewjam/saml v0.5.1
-	github.com/fatedier/yamux v0.2.0
-	github.com/go-jose/go-jose/v4 v4.1.6
-	github.com/jackc/pgx/v5 v5.11.0
+	github.com/fatedier/yamux v0.3.0
+	github.com/go-jose/go-jose/v4 v4.1.9
+	github.com/jackc/pgx/v5 v5.12.0
 	github.com/mattermost/xml-roundtrip-validator v0.1.0
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/russellhaering/goxmldsig v1.6.1
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	golang.org/x/crypto v0.58.0
 	golang.org/x/sys v0.49.0
 	golang.org/x/term v0.47.0
