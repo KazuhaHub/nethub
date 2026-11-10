@@ -27,13 +27,17 @@ class RecoveryError(Exception):
     """Only fixed operation labels may reach public diagnostics."""
 
 
+class RecoveryTimeout(RecoveryError):
+    """Preserve a timeout classification without retaining private process output."""
+
+
 def invoke(arguments, label, *, timeout=60, data=None):
     try:
         result = subprocess.run(arguments, input=data, capture_output=True, timeout=timeout)
     except OSError:
         raise RecoveryError(label + ' unavailable') from None
     except subprocess.TimeoutExpired:
-        raise RecoveryError(label + ' timed out') from None
+        raise RecoveryTimeout(label + ' timed out') from None
     if result.returncode:
         raise RecoveryError(label + ' failed')
     return result.stdout
@@ -259,19 +263,19 @@ class LinuxGuest:
         deadline = time.monotonic() + 600
         apt = ('apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 '
                '-o Acquire::https::Timeout=20 ')
-        stages = (
-            (apt + '-o APT::Update::Error-Mode=any update -qq\n',
-             'Recovery package metadata refresh'),
-            (apt + 'install -y --no-install-recommends docker.io docker-compose-v2 python3\n',
-             'Recovery container package installation'),
-            ('systemctl enable --now docker\n', 'Recovery container service startup'),
-        )
-        for script, label in stages:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise RecoveryError('Recovery container runtime preparation timed out')
-            self.ssh('export DEBIAN_FRONTEND=noninteractive\n' + script,
-                     label, timeout=remaining)
+        self._runtime_stage(deadline, apt + '-o APT::Update::Error-Mode=any update -qq\n',
+                            'Recovery package metadata refresh')
+        self._runtime_stage(deadline, apt + 'install -y --no-install-recommends docker.io docker-compose-v2 python3\n',
+                            'Recovery container package installation')
+        self._runtime_stage(deadline, 'systemctl enable --now docker\n',
+                            'Recovery container service startup')
+
+    def _runtime_stage(self, deadline, script, label):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RecoveryTimeout('Recovery container runtime preparation timed out')
+        self.ssh('export DEBIAN_FRONTEND=noninteractive\n' + script,
+                 label, timeout=remaining)
 
     def prepare(self):
         self._prepare_runtime()

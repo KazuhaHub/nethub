@@ -33,6 +33,11 @@ partial metadata refreshes are refused. Process launch failures and timeouts are
 reported separately without command output. These diagnostics do not establish
 the cause of a previously recorded installation timeout.
 
+The fresh-target entry point publishes only recognized fixed preparation labels;
+other exceptions retain its generic failure message. Cold outcomes preserve the
+wrapped process timeout classification and each preparation stage's distinct
+source location. Neither path exports exception text or process output.
+
 The harness stops only its owned
 QEMU process on success or failure. Raw disks, seeds, keys, console output and
 machine identifiers are private and are never uploaded. Only
