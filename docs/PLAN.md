@@ -1889,7 +1889,7 @@ W7-5 protected-host checkpoint (2026-11-09): PR #223 source `a2bb4ef` passed six
 
 - [ ] 上面三项关键验收都完成，各有记录
 - [ ] 恢复演练成功，步骤写进了 `docs/deployment.md`
-- [ ] `docs/deployment.md`、`docs/threat-model.md`、`docs/protocol.md` 已合并
+- [x] `docs/deployment.md`、`docs/threat-model.md`、`docs/protocol.md` 已合并 — PR #225 merged as `a77ca58`; full semantic/translation review, D12 and the other W7 gates remain separate.
 - [ ] 公开前的内容审查由 Kazuha 确认通过
 - [ ] CI 全绿，`govulncheck` 没有报告漏洞，没有积压未处理的 Dependabot PR
 
