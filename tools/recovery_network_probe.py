@@ -11,18 +11,53 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'server/tests/recov
 from linux_guest import IMAGE_SHA256, LinuxGuest
 
 GUEST = r'''
-import json,pathlib,re,socket,subprocess,sys,urllib.error,urllib.parse,urllib.request
+import json,os,pathlib,re,signal,socket,subprocess,sys,tempfile,time,urllib.error,urllib.parse,urllib.request
 def allowed(url):
     value=urllib.parse.urlsplit(url)
     return (value.scheme in ('http','https') and value.hostname is not None
         and (value.hostname=='ubuntu.com' or value.hostname.endswith('.ubuntu.com'))
         and value.username is None and value.password is None
         and value.port in (None,80,443) and not value.query and not value.fragment)
+def source_urls(text,deb822):
+    lines=[]
+    for line in text.splitlines():
+        line=line.strip()
+        if not line or line.startswith('#'): continue
+        if (deb822 and line.startswith('URIs:')) or (not deb822 and line.startswith(('deb ','deb-src '))):
+            lines.append(line.split('#',1)[0])
+    return re.findall(r"https?://[^\s\"'<>]+",'\n'.join(lines))
+def apt_probe():
+    command=['apt-get','-o','Acquire::Retries=2','-o','Acquire::http::Timeout=20',
+             '-o','Acquire::https::Timeout=20','-o','APT::Update::Error-Mode=any','update','-qq']
+    markers={'dns':False,'connection':False,'lock':False,'http':False,'signature':False,'certificate':False}
+    started=time.monotonic()
+    timed_out=False
+    with tempfile.TemporaryFile() as output:
+        process=subprocess.Popen(command,stdin=subprocess.DEVNULL,stdout=output,stderr=subprocess.STDOUT,start_new_session=True)
+        try:
+            process.wait(timeout=120)
+        except subprocess.TimeoutExpired:
+            timed_out=True
+        finally:
+            if process.poll() is None:
+                os.killpg(process.pid,signal.SIGKILL)
+                process.wait(timeout=10)
+        output.seek(0)
+        data=output.read(131073)
+    lowered=data[:131072].lower()
+    markers['dns']=any(x in lowered for x in (b'temporary failure resolving',b'could not resolve',b'name or service not known'))
+    markers['connection']=any(x in lowered for x in (b'could not connect',b'connection failed',b'connection timed out',b'network is unreachable'))
+    markers['lock']=any(x in lowered for x in (b'could not get lock',b'waiting for cache lock',b'unable to acquire'))
+    markers['http']=any(x in lowered for x in (b'403 forbidden',b'404 not found',b'502 bad gateway',b'503 service unavailable'))
+    markers['signature']=any(x in lowered for x in (b'no_pubkey',b'not signed',b'signatures couldn',b'clearsigned file isn'))
+    markers['certificate']=any(x in lowered for x in (b'certificate verification failed',b'certificate issuer is unknown'))
+    return {'timed_out':timed_out,'exit_status':process.returncode,'elapsed_seconds':int(time.monotonic()-started),
+            'process_reaped':process.poll() is not None,'output_truncated':len(data)>131072,'markers':markers}
 urls=[]
 for path in sorted(pathlib.Path('/etc/apt').glob('sources.list*')):
     files=sorted(path.glob('*.sources'))+sorted(path.glob('*.list')) if path.is_dir() else [path]
     for item in files:
-        for url in re.findall(r"https?://[^\s\"'<>]+",item.read_text()):
+        for url in source_urls(item.read_text(),item.suffix=='.sources'):
             if allowed(url) and url not in urls:
                 urls.append(url)
 urls=urls[:4]
@@ -65,12 +100,12 @@ for label,url in targets:
         except (TimeoutError,socket.timeout): row['metadata']='timeout'
         except Exception: row['metadata']='error'
     results.append(row)
-print(json.dumps({'configured_source_count':len(urls),'probes':results}))
+print(json.dumps({'configured_source_count':len(urls),'probes':results,'apt_update':apt_probe()}))
 '''
 
 
 def validate(value):
-    if not isinstance(value, dict) or set(value) != {'configured_source_count', 'probes'}:
+    if not isinstance(value, dict) or set(value) != {'configured_source_count', 'probes', 'apt_update'}:
         raise ValueError('Closed network result required')
     count = value['configured_source_count']
     if type(count) is not int or not 0 <= count <= 4 or len(value['probes']) != count + 2:
@@ -85,6 +120,17 @@ def validate(value):
             raise ValueError('Closed transport result required')
         if row['metadata'] not in ('unavailable', 'index-header', 'unexpected', 'http-error', 'timeout', 'error'):
             raise ValueError('Closed repository result required')
+    apt = value['apt_update']
+    if not isinstance(apt, dict) or set(apt) != {'timed_out', 'exit_status', 'elapsed_seconds', 'process_reaped', 'output_truncated', 'markers'}:
+        raise ValueError('Closed APT result required')
+    if any(type(apt[k]) is not bool for k in ('timed_out', 'process_reaped', 'output_truncated')) or apt['process_reaped'] is not True:
+        raise ValueError('APT cleanup required')
+    if type(apt['exit_status']) is not int or not -64 <= apt['exit_status'] <= 255:
+        raise ValueError('Closed APT exit status required')
+    if type(apt['elapsed_seconds']) is not int or not 0 <= apt['elapsed_seconds'] <= 140:
+        raise ValueError('Bounded APT observation required')
+    if not isinstance(apt['markers'], dict) or set(apt['markers']) != {'dns', 'connection', 'lock', 'http', 'signature', 'certificate'} or any(type(v) is not bool for v in apt['markers'].values()):
+        raise ValueError('Closed APT markers required')
     return value
 
 
@@ -103,7 +149,7 @@ def main():
     try:
         guest = LinuxGuest(private / 'guest')
         with guest:
-            raw = guest.ssh("python3 - <<'PY'\n" + GUEST + '\nPY\n', 'Closed guest network diagnosis', timeout=240)
+            raw = guest.ssh("python3 - <<'PY'\n" + GUEST + '\nPY\n', 'Closed guest network diagnosis', timeout=360)
             result['network'] = validate(json.loads(raw))
     finally:
         stopped = guest is not None and guest.process is not None and guest.process.poll() is not None
@@ -116,7 +162,7 @@ def main():
         evidence.chmod(0o755)
     if not result['owned_guest_stopped'] or not result['private_workspace_removed']:
         raise ValueError('Owned diagnosis cleanup incomplete')
-    print('Closed recovery network diagnosis retained; no packages installed or recovery accepted')
+    print('Closed recovery network and bounded APT diagnosis retained; no packages installed or recovery accepted')
 
 
 if __name__ == '__main__':
