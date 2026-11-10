@@ -39,6 +39,7 @@ PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installe
                 'native/native-model-probe.json',
                 'native/rotation-recovery-probe.json',
                 'native/native-storage-probe.json',
+                'native/native-lock-probe.json',
                 'native/native-fixture-host.json',
                 'native/installed-enroll-page.json', 'native/installed-rotate-page.json',
                 'native/installed-enroll.png', 'native/installed-rotate.png',

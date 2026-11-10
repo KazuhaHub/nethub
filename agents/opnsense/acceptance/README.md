@@ -286,6 +286,21 @@ terminal input bound. Failure results retain only the waiting stage, selected
 prompt flags, byte count and image-verification receipt; raw transcripts remain
 private. A serial timeout does not establish that the package was installed.
 
+An unexpected native page failure also requests a read-only FreeBSD descriptor
+snapshot before the existing model probe. The snapshot uses the documented
+[`procstat` file view](https://man.freebsd.org/cgi/man.cgi?query=procstat&sektion=1&manpath=FreeBSD+15.1-RELEASE)
+to select held descriptors for the exact mutation lock. Up to four matching
+processes are classified into fixed agent/wrapper roles. Raw paths, process IDs,
+arguments and utility diagnostics are not exported. Collection has one eight-second
+budget, bounded reads and fixed unavailable/timeout/malformed outcomes. The upload
+contract includes only its validated projection.
+
+This is a snapshot after the failed action, not an atomic record of that action's
+lock owner. A holder may exit or change before observation; an empty snapshot does
+not disprove earlier contention. Probe failure preserves the original page failure.
+The fixture does not replay Rotate, modify the scheduler or convert a failed
+installation run into acceptance.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)
