@@ -44,6 +44,12 @@ claimed to be unchanged.
   required for the changed libc and utility packages.
   The earlier Caddy base used the Alpine 3.23 backport, musl and musl-utils
   1.2.5-r24, for the same advisory after its previous 1.2.5-r23 scan.
+- PostgreSQL and backup tools pin krb5-libs 1.22.3-r0 and libxslt 1.1.43-r4
+  from the same Alpine 3.24 branch. CI run 42913613997 reported HIGH findings
+  against the base's krb5-libs 1.22.2-r1 and libxslt 1.1.43-r3 and identified
+  these fixed versions. The official branch index lists both replacements;
+  APK signature verification and final assembled-image scanning remain required.
+  This update does not suppress findings or complete recovery acceptance.
 - PostgreSQL uses the pinned official 16 Alpine image. Its gosu binary is replaced,
   rebuilt from the upstream 1.19 commit (`6456aaa0f3c8`); Go records that tag as
   a pseudo-version because the upstream tag does not use a `v` prefix. The

@@ -56,6 +56,7 @@ COPY --from=oidc-fixture-build /out/oidcfixture /oidcfixture
 
 FROM postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea AS backup-tools
 RUN apk add --no-cache --upgrade zlib=1.4-r0 musl=1.2.6-r3 musl-utils=1.2.6-r3 \
+    krb5-libs=1.22.3-r0 libxslt=1.1.43-r4 \
     && test -s /etc/ssl/certs/ca-certificates.crt \
     && mkdir -p /out/storage/var/lib/nethub-backups /out/storage/run/nethub-backup \
     && chmod 0700 /out/storage/var/lib/nethub-backups /out/storage/run/nethub-backup
