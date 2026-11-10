@@ -37,11 +37,13 @@ claimed to be unchanged.
   CVE-2026-107891 against musl-utils 1.2.6-r2 and identified r3 as fixed.
   The [official Alpine index](https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/)
   supplies both r3 packages. Digest-verified upstream root layers identify the
-  PostgreSQL base as Alpine 3.24.2 and Caddy as Alpine 3.23.6; package pins follow
-  those existing branches. Fresh scans and database/backup acceptance remain
+  PostgreSQL base as Alpine 3.24.2 and the earlier Caddy 2.11.7 base as Alpine
+  3.23.6. The pinned Caddy 2.11.9 base now uses Alpine 3.24, so its musl and
+  musl-utils pins also use 1.2.6-r3. Package pins follow each base's branch;
+  the 3.23 backport is not installed into the newer base. Fresh scans and database/backup acceptance remain
   required for the changed libc and utility packages.
-  Caddy pins the Alpine 3.23 backport, musl and musl-utils 1.2.5-r24, for the same
-  advisory; its previous base contained musl-utils 1.2.5-r23.
+  The earlier Caddy base used the Alpine 3.23 backport, musl and musl-utils
+  1.2.5-r24, for the same advisory after its previous 1.2.5-r23 scan.
 - PostgreSQL uses the pinned official 16 Alpine image. Its gosu binary is replaced,
   rebuilt from the upstream 1.19 commit (`6456aaa0f3c8`); Go records that tag as
   a pseudo-version because the upstream tag does not use a `v` prefix. The
