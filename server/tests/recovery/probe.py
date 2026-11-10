@@ -7,7 +7,21 @@ import re
 import signal
 import sys
 
-from linux_guest import IMAGE_SHA256, LinuxGuest, RecoveryError
+from linux_guest import IMAGE_SHA256, LinuxGuest, RecoveryError, RecoveryTimeout
+
+
+def failure_message(error):
+    labels = {
+        stage + ' ' + outcome
+        for stage in ('Recovery package metadata refresh',
+                      'Recovery container package installation',
+                      'Recovery container service startup')
+        for outcome in ('failed', 'unavailable', 'timed out')
+    }
+    labels.add('Recovery container runtime preparation timed out')
+    if type(error) in (RecoveryError, RecoveryTimeout) and str(error) in labels:
+        return 'Recovery target preparation failed: ' + str(error)
+    return 'Recovery target preparation failed; inspect private runner state'
 
 
 def interrupted(*_):
@@ -58,7 +72,7 @@ if __name__ == '__main__':
     signal.signal(signal.SIGTERM, interrupted)
     try:
         main()
-    except Exception:
+    except Exception as error:
         # HTTP, SSH, cloud-init and QEMU errors can contain private arguments/output.
-        print('Recovery target preparation failed; inspect private runner state', file=sys.stderr)
+        print(failure_message(error), file=sys.stderr)
         sys.exit(1)

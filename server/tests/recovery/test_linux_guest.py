@@ -3,7 +3,7 @@ import subprocess
 import unittest
 from unittest.mock import Mock, patch
 
-from linux_guest import (IMAGE, IMAGE_SHA256, SIGNER, LinuxGuest, RecoveryError, cloud_config, invoke,
+from linux_guest import (IMAGE, IMAGE_SHA256, SIGNER, LinuxGuest, RecoveryError, RecoveryTimeout, cloud_config, invoke,
                          validate_identity, verify_checksum_list, verify_signer)
 
 
@@ -67,6 +67,10 @@ class RuntimePreparation(unittest.TestCase):
                 with self.assertRaises(RecoveryError) as raised:
                     invoke(['private argument'], 'Recovery package metadata refresh')
                 self.assertEqual(str(raised.exception), 'Recovery package metadata refresh ' + expected)
+                if isinstance(failure, subprocess.TimeoutExpired):
+                    self.assertIsInstance(raised.exception, RecoveryTimeout)
+                else:
+                    self.assertIs(type(raised.exception), RecoveryError)
 
 
 class DistinctHostAdmission(unittest.TestCase):
