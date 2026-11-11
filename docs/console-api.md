@@ -714,7 +714,12 @@ A paginated list of provider objects.
 ### `POST /oidc-providers`
 
 Request:
-`{ "slug", "display_name", "issuer_url", "client_id", "client_secret", "scopes"?, "enabled"? }`.
+`{ "slug", "display_name", "issuer_url", "client_id", "client_secret"?, "scopes"?, "enabled"? }`.
+
+Omit `client_secret` for a public client only when discovery accepts it. Omitted
+scopes default to `["openid", "email", "profile"]`, and `enabled` defaults to
+false. Creating a provider without a secret still requires the same discovery
+and outbound-network validation.
 
 - Before saving, the server fetches the issuer's discovery document. If that
   fails, the request is rejected with `422 oidc_discovery_failed`. The error
