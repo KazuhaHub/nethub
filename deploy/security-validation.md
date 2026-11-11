@@ -1,4 +1,23 @@
-# Go X.509 security update (2026-10-21)
+# Go HTTP/1 security update (2026-11-11)
+
+CI run 42970214312 reported reachable standard-library advisory
+[GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859) with Go 1.26.10. The advisory
+describes an HTTP/1 server crash involving a MaxBytesReader header race and lists
+Go 1.26.11 as fixed. A source call graph is not proof of exploitation.
+
+The update changes the shared compiler pin, all four Docker builder tags and
+official OCI index digests, and the native FreeBSD SDK filename/checksum and
+identity assertions together. The official release metadata supplies the archive
+checksums; the official golang registry index, amd64 manifest and configuration
+were independently content-hash checked. The module compatibility floor remains
+Go 1.26.0. No scan exclusion, retry or weaker acceptance is introduced.
+
+Current-source compiler, helper, actual FreeBSD client, final-image, native and
+recovery gates must pass before acceptance. The dated records below retain their
+original versions and do not establish current vulnerability status or acceptance
+of the new compiler.
+
+## Go X.509 security update (2026-10-21)
 
 The appliance client also needs an independent artifact check. The checksum-pinned
 official FreeBSD frpc 0.71.1 reports Go 1.26.8; govulncheck v1.9.0 binary mode

@@ -15,7 +15,7 @@ Changed sources and rebuilt clients need their own applicable checks.
 
 ## Technology stack
 
-- Go 1.26.10 builds one nethub binary. The module is
+- Go 1.26.11 builds one nethub binary. The module is
   github.com/KazuhaHub/nethub/server; Go 1.26.0 is its language floor.
 - React, TypeScript and Vite build the embedded SPA, using shadcn/ui and native
   dialog. Generated web/dist is not committed.

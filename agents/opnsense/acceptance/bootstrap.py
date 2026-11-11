@@ -10,8 +10,8 @@ from guest import Guest, GuestError, download, digest, invoke, supported_platfor
 
 
 ROOT = Path(__file__).resolve().parents[3]
-SDK = 'go1.26.10.freebsd-amd64.tar.gz'
-SDK_SHA256 = '3f47779b4534a578f9d4d3c263455574f073d6f0e382684ec3c1c08eadb4aaff'
+SDK = 'go1.26.11.freebsd-amd64.tar.gz'
+SDK_SHA256 = '4e04c98d485bc363da3e0ef5c3d99eb0e2432bd3481680007296ef4fd99ee6da'
 
 
 def install_current_package(guest, source, sdk, result):
@@ -50,7 +50,7 @@ pkg info -e os-nethub-agent
 import hashlib,json,pathlib,subprocess
 p=pathlib.Path('/usr/local/opnsense/nethub-agent/bin')
 r=json.loads((p/'FRP_BUILD.json').read_text())
-assert r['compiler']=='go1.26.10' and r['frp_version']=='0.71.1'
+assert r['compiler']=='go1.26.11' and r['frp_version']=='0.71.1'
 assert hashlib.sha256((p/'frpc').read_bytes()).hexdigest()==r['binary_sha256']
 status=json.loads(subprocess.check_output(['/usr/local/sbin/configctl','nethub-agent','status']))
 assert status['status']=='stopped' and status['revoked'] is False
@@ -89,7 +89,7 @@ def main():
         if not re.fullmatch(r'[a-f0-9]{40}', result['source_head']) or actual != result['source_head']:
             raise GuestError('Acceptance source head differs')
         invoke(['git', '-C', str(ROOT), 'diff', '--exit-code', 'HEAD'], 'clean source verification')
-        if (ROOT / 'server/.go-version').read_text(encoding='ascii').strip() != '1.26.10':
+        if (ROOT / 'server/.go-version').read_text(encoding='ascii').strip() != '1.26.11':
             raise GuestError('Pinned guest SDK needs explicit compiler update')
         source = directory / 'source.tar'
         source.write_bytes(invoke(['git', '-C', str(ROOT), '-c', 'core.autocrlf=false',
