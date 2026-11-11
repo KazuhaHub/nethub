@@ -12,7 +12,7 @@ from cold_flow import PHASES, ROOT, admission, exercise
 from cold_guard import read_json, save_once
 from cold_issuance import validate_status
 from host_layout import valid_tags
-from linux_guest import invoke
+from linux_guest import RecoveryTimeout, invoke
 
 
 PROOFS = ('original_source_reaped_before_distinct_target',
@@ -53,7 +53,7 @@ def failure(error, head, phase):
             pass
     result = {'version': 1, 'source_head': head, 'passed': False,
             'phase': phase if phase in PHASES else 'unavailable',
-            'failure_kind': 'timeout' if isinstance(error, TimeoutError) else 'other',
+            'failure_kind': 'timeout' if isinstance(error, (TimeoutError, RecoveryTimeout)) else 'other',
             'locations': locations[-16:], 'full_recovery_or_goal_accepted': False}
     if phase == 'issued_generation' and hasattr(error, 'issuer_status'):
         try:

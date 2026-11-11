@@ -1,13 +1,13 @@
 # Caddy helper dependencies
 
-The image rebuilds the standard Caddy 2.11.7 bundle with the pinned Go toolchain
-and module checksums. `v2.11.7-nethub.4` identifies the local dependency rebuild;
+The image rebuilds the standard Caddy 2.11.9 bundle with the pinned Go toolchain
+and module checksums. `v2.11.9-nethub.1` identifies the local dependency rebuild;
 it is not an upstream Caddy release.
 
 The compression dependency is pinned to `github.com/klauspost/compress v1.20.2`
 for GO-2026-6865. The required scan reached the vulnerable FSE/Huffman code through
-the standard Caddy bundle at v1.20.1. This rebuild changes that dependency without
-changing the upstream Caddy version or introducing a scanner exception. The
+the standard Caddy bundle at v1.20.1. Keep this reviewed dependency while updating
+the standard bundle; no scanner exception is introduced. The
 prepared source, helper tests, source/image scans and actual deployment must be
 revalidated for this build; prior image evidence is not acceptance of this pin.
 
@@ -18,13 +18,12 @@ This pin must pass the prepared helper tests, source and assembled-image scans
 and actual deployment checks; a previous called-code scan does not replace the
 required final-image scan.
 
-The Smallstep crypto dependency is pinned to upstream maintainer commit
-[`00c45432f48558f92a6e7da6d885d94e90db4d7a`](https://github.com/smallstep/crypto/commit/00c45432f48558f92a6e7da6d885d94e90db4d7a),
-the [pending JOSE v4 migration](https://github.com/smallstep/crypto/pull/1157).
-This is an unreleased dependency, selected explicitly to remove the legacy JOSE
-implementation from the linked standard bundle while retaining Smallstep's
-compatibility API. The root module pins JOSE v4.1.6, including its RSA parameter
-bounds. [The upstream advisory](https://github.com/go-jose/go-jose/security/advisories/GHSA-mgcc-cww5-fp2q)
+The Smallstep crypto dependency now uses the reviewed upstream
+[v0.92.0 release](https://github.com/smallstep/crypto/releases/tag/v0.92.0), which
+includes the merged JOSE v4 migration and replaces the earlier pre-release pin.
+It removes legacy JOSE from the linked standard bundle while retaining Smallstep's
+compatibility API. This helper module pins JOSE v4.1.9, including the retained RSA
+parameter bounds. [The upstream advisory](https://github.com/go-jose/go-jose/security/advisories/GHSA-mgcc-cww5-fp2q)
 lists no patched v3 release; updating v4 alone leaves v3 linked through the older
 Smallstep wrapper.
 
@@ -47,13 +46,14 @@ Helper tests reject oversized RSA JWKs through that wrapper and require the
 patched linked dependency. Acceptance must also pass the existing real internal
 CA, public-route and protected host issuance/renewal cases, and scan the assembled
 image at HIGH/CRITICAL severity. No vulnerability suppression or scanner exception
-is introduced. Replace this pre-release pin with a reviewed upstream release when
-it includes the migration; rerun the complete helper and deployment acceptance.
+is introduced. A released dependency does not replace these integration gates;
+rerun the complete helper and deployment acceptance for the changed inputs.
 
-The upstream package's own tests still reference the removed `jose.RandReader`
-test hook and cannot compile against v4.1.6. They are not reported as passing.
-The helper's focused production-API tests and the actual Caddy issuance/renewal
-acceptance remain required for this integration.
+Smallstep v0.92.0 also fixes its upstream JOSE tests for the removed
+`jose.RandReader` hook. A separate execution of that release's actual `./jose`
+suite passed 415 cases without failures or skips. This does not establish
+NetHub's assembled image or runtime behavior. The helper's focused production-API
+tests and actual Caddy issuance/renewal acceptance remain required.
 
 The build retains linked dependency licenses and module identities in the final
 image. Dependency verification and source tests do not establish a signed NetHub

@@ -64,7 +64,7 @@ func TestCaddyLinksOnlyPatchedJOSE(t *testing.T) {
 			t.Fatal("legacy unpatched JOSE is linked into the standard Caddy bundle")
 		}
 		if dependency.Path == "github.com/go-jose/go-jose/v4" {
-			if dependency.Version != "v4.1.6" || dependency.Replace != nil {
+			if dependency.Version != "v4.1.9" || dependency.Replace != nil {
 				t.Fatal("JOSE must use the checksum-pinned patched upstream release")
 			}
 			found = true

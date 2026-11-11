@@ -7,7 +7,7 @@ upstream inputs and rebuild affected Go binaries with the compiler pinned in
 in its [JOSE migration note](caddy/README.md); its upstream sources are not
 claimed to be unchanged.
 
-- Caddy 2.11.7 uses the standard module set and embedded time zones, with
+- Caddy 2.11.9 uses the standard module set and embedded time zones, with
   `golang.org/x/net` upgraded to 0.62.0 for
   [GO-2026-6860](https://pkg.go.dev/vuln/GO-2026-6860). Its version identifies the
   NetHub build.
@@ -18,8 +18,9 @@ claimed to be unchanged.
   Its inherited curl and libcurl packages are upgraded to 8.23.0-r0 for
   [CVE-2026-92392](https://curl.se/docs/CVE-2026-92392.html), matching the Alpine
   3.23 security database. The assembled-image HIGH/CRITICAL scan remains required.
-  Its crypto dependency uses a pre-release pin and prepared JOSE v4 adaptations;
-  the migration note records the exact changes and upstream test limitation.
+  Its crypto dependency uses released Smallstep v0.92.0 and JOSE v4.1.9 with
+  the retained, hash-fenced compatibility adaptations. The migration note records
+  the changes, upstream test evidence and separate image/runtime gates.
 - Caddy, PostgreSQL and the backup tools stage install zlib 1.4-r0 from their
   existing Alpine repositories. The previous assembled-image scan reported
   CVE-2026-85091 against 1.3.2-r0. The initial 1.3.2-r1 pin passed source
@@ -36,11 +37,19 @@ claimed to be unchanged.
   CVE-2026-107891 against musl-utils 1.2.6-r2 and identified r3 as fixed.
   The [official Alpine index](https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/)
   supplies both r3 packages. Digest-verified upstream root layers identify the
-  PostgreSQL base as Alpine 3.24.2 and Caddy as Alpine 3.23.6; package pins follow
-  those existing branches. Fresh scans and database/backup acceptance remain
+  PostgreSQL base as Alpine 3.24.2 and the earlier Caddy 2.11.7 base as Alpine
+  3.23.6. The pinned Caddy 2.11.9 base now uses Alpine 3.24, so its musl and
+  musl-utils pins also use 1.2.6-r3. Package pins follow each base's branch;
+  the 3.23 backport is not installed into the newer base. Fresh scans and database/backup acceptance remain
   required for the changed libc and utility packages.
-  Caddy pins the Alpine 3.23 backport, musl and musl-utils 1.2.5-r24, for the same
-  advisory; its previous base contained musl-utils 1.2.5-r23.
+  The earlier Caddy base used the Alpine 3.23 backport, musl and musl-utils
+  1.2.5-r24, for the same advisory after its previous 1.2.5-r23 scan.
+- PostgreSQL and backup tools pin krb5-libs 1.22.3-r0 and libxslt 1.1.43-r4
+  from the same Alpine 3.24 branch. CI run 42913613997 reported HIGH findings
+  against the base's krb5-libs 1.22.2-r1 and libxslt 1.1.43-r3 and identified
+  these fixed versions. The official branch index lists both replacements;
+  APK signature verification and final assembled-image scanning remain required.
+  This update does not suppress findings or complete recovery acceptance.
 - PostgreSQL uses the pinned official 16 Alpine image. Its gosu binary is replaced,
   rebuilt from the upstream 1.19 commit (`6456aaa0f3c8`); Go records that tag as
   a pseudo-version because the upstream tag does not use a `v` prefix. The
