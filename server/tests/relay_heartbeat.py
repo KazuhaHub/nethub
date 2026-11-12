@@ -187,10 +187,32 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
     wait_online(expected, resumed + 20)
     freeze_recovery_ms = round((time.monotonic() - resumed) * 1000)
     assert all(client.poll() is None for client in clients)
+    # Live controls can recover before Docker's scheduled health probe catches
+    # up. The next host operation independently requires a healthy authz binding.
+    # Observe that restoration without restarting or changing the cutoff clock.
+    health_samples = []
+    while True:
+        status = subprocess.run(compose + ['ps', '--all', '--format', 'json', 'nethub-authz'],
+                                capture_output=True, timeout=3)
+        assert status.returncode == 0 and len(status.stdout) <= 65536
+        rows = json.loads(status.stdout)
+        if isinstance(rows, dict):
+            rows = [rows]
+        assert isinstance(rows, list) and len(rows) == 1
+        healthy = rows[0].get('Health') == 'healthy'
+        health_elapsed = time.monotonic() - resumed
+        health_samples.append({'elapsed_ms': round(health_elapsed * 1000), 'healthy': healthy})
+        assert health_elapsed <= 30, 'authz did not regain runtime-binding health after unpause'
+        if healthy:
+            break
+        time.sleep(0.2)
+    (work / 'frozen-authz-health-recovery.json').write_text(json.dumps(health_samples, indent=2))
+    freeze_health_ms = round(health_elapsed * 1000)
     print(json.dumps({'official_frp_authz_freeze': {
         'clock_start': 'owned compose pause dispatch', 'original_controls_gone_ms': freeze_gone_ms,
         'deadline_ms': 5000, 'proxy_labels_still_online_after_original_TCP_loss': frozen_labels_online,
         'same_clients_recovered_after_unpause_ms': freeze_recovery_ms,
+        'runtime_binding_health_after_unpause_ms': freeze_health_ms,
         'revoked_device_or_public_network_acceptance': False}}), flush=True)
 
     # Later authority tests retain the original two enrollments. Revocation is
@@ -254,6 +276,7 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
               'frozen_authz_original_controls_gone_ms': freeze_gone_ms,
               'frozen_authz_proxy_labels_still_online_after_TCP_loss': frozen_labels_online,
               'same_clients_recovered_after_unpause_ms': freeze_recovery_ms,
+              'frozen_authz_runtime_binding_health_recovery_ms': freeze_health_ms,
               'revoked_control_offline_ms': revoked_ms, 'unrevoked_control_and_verified_TLS_preserved': True,
               'unrevoked_original_control_sockets_preserved': True,
               'original_survivor_control_count': len(survivor_sockets),

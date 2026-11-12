@@ -79,3 +79,9 @@ The parent independently verifies unchanged native identity and Open grant, an
 unexpired source grant despite fresh verified-TLS refusal, and the unrelated
 original control/TLS route. This candidate fixture must run successfully before
 its new receipt or screenshot can support native deadline acceptance.
+
+Frozen-hook recovery reports original TCP loss, client recovery and Docker health
+recovery separately. A reconnected client does not establish the healthy runtime
+binding required by subsequent host operations. The fixture observes that health
+recovery without forcing a restart; its separate recovery bound does not extend
+the five-second cutoff measurement.
