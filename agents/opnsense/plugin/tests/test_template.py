@@ -24,8 +24,8 @@ def test_enabled_template(port, expected, device_id):
     text = jinja2.Environment(undefined=jinja2.StrictUndefined).from_string(TEMPLATE.read_text()).render(**context)
     config = tomllib.loads(text)
     assert config['loginFailExit'] is False
-    assert config['transport']['heartbeatInterval'] == 10
-    assert config['transport']['heartbeatTimeout'] == 30
+    assert config['transport']['heartbeatInterval'] == 1
+    assert config['transport']['heartbeatTimeout'] == 3
     assert config['transport']['tls'] == {
         'enable': True, 'trustedCaFile': '/usr/local/etc/nethub-agent/relay-ca.pem',
         'serverName': 'relay.example.com'}

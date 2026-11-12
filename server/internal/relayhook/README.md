@@ -65,7 +65,7 @@ issuance floors, keyed by tenant and device. It still verifies the signed login
 metadata and trusted socket peer. Claims older than a known rotation floor are
 denied; rotation alone does not mark a device revoked or complete a revocation
 disconnect request. Authz loads the initial snapshot before serving hooks and
-refreshes it every five seconds through bounded read-only, repeatable-read scans
+refreshes it every second through bounded read-only, repeatable-read scans
 with tenant-local RLS. Revocations and rotation floors are read separately within
 the shared refresh budget, not as one cross-query database snapshot.
 Database failures retain the last good snapshot; known one-way revocations never
@@ -73,26 +73,30 @@ disappear and out-of-order reads cannot lower a known issuance floor. Login and
 proxy admission continue to query current database state. Successful Ping decisions
 log at debug level; denials keep the fixed operation/decision log.
 
-Refresh has a two-second database budget and a 250 ms cancellation grace. An
+Refresh has a one-second database budget and a 250 ms cancellation grace. An
 unresponsive loader or a failed in-memory self-check stops both authz listeners
 and exits unsuccessfully, allowing the container restart policy to act. There
-is at most one refresh request in flight. Normal database errors do not trigger
-this exit. HTTP draining retains its ten-second bound; observation cleanup and
+is at most one refresh request in flight. Normal database errors retain known
+denials, but snapshots expire 2.5 seconds after their read started. Expired state
+cannot admit Ping, and a failed freshness self-check stops the worker. Disconnect
+acknowledgements run independently with their own bounded pass. HTTP draining retains its ten-second bound; observation cleanup and
 database cleanup each wait at most one additional second so an unresponsive
 dependency cannot trap process exit.
 Snapshot reads are limited to 1,024 tenants, 100,000 revoked device IDs and
 100,000 rotated-device floors. Exceeding a limit refuses the refresh instead of
 discarding existing denials.
 
-Clients retain the explicit 10-second heartbeat interval and 30-second timeout.
+The development agent uses a one-second heartbeat and three-second timeout.
 frp's [Ping handler](https://github.com/fatedier/frp/blob/v0.71.1/server/control.go)
 processes plugin refusal through its heartbeat error path. Authz restart or outage
 therefore affects every connected tunnel. Deploy authz changes with that
 interruption in mind; clients reconnect after service recovery. A suspended
 process can delay callbacks, and refusing a heartbeat does not promise immediate
 closure of every established browser stream. Newly revoked IDs wait for a
-successful refresh and their next heartbeat. Database outage can delay that
-refresh while new Login/proxy/user connections already fail closed.
+successful refresh and their next heartbeat; expired-cache refusal is independent
+of a successful read. New Login/proxy/user connections check current SQL. These
+settings target the owner-retained five-second cutoff, whose native/public
+end-to-end measurement remains required; nominal timer values are not acceptance.
 
 The official-client deployment fixture checks actual frps proxy control states
 through its private admin API, not only TLS failures (which could instead be

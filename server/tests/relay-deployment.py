@@ -118,7 +118,7 @@ def start_client(assignment, name, backend_port, corrupt=False, subdomain=None):
         "loginFailExit": True, "auth": {"method": "token", "token": assignment["frp_token"]},
         "log": {"to": "console", "level": "warn"},
         "metadatas": {"device_id": assignment["device_id"], "domain_claim": claim},
-        "transport": {"heartbeatInterval": 10, "heartbeatTimeout": 30,
+        "transport": {"heartbeatInterval": 1, "heartbeatTimeout": 3,
                       "tls": {"enable": True, "serverName": assignment["server_name"],
                               "trustedCaFile": str(work / "relay-ca.pem")}},
         "proxies": [{"name": "nethub-" + assignment["device_id"] + "-web", "type": "https",

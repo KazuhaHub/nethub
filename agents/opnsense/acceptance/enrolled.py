@@ -296,7 +296,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         'loginFailExit': False, 'auth': {'method': 'token', 'token': other['frp_token']},
         'log': {'to': 'console', 'level': 'warn'},
         'metadatas': {'device_id': other['device_id'], 'domain_claim': other['domain_claim']},
-        'transport': {'heartbeatInterval': 10, 'heartbeatTimeout': 30,
+        'transport': {'heartbeatInterval': 1, 'heartbeatTimeout': 3,
                       'tls': {'enable': True, 'serverName': other['server_name'], 'trustedCaFile': str(work / 'relay-ca.pem')}},
         'proxies': [{'name': 'nethub-' + other['device_id'] + '-web', 'type': 'https',
                      'localIP': '127.0.0.1', 'localPort': backend.server_port, 'subdomain': other['subdomain']}]})
@@ -377,7 +377,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         'loginFailExit': True, 'auth': {'method': 'token', 'token': before['frp_token']},
         'log': {'to': 'console', 'level': 'warn'},
         'metadatas': {'device_id': device, 'domain_claim': before['domain_claim']},
-        'transport': {'heartbeatInterval': 10, 'heartbeatTimeout': 30,
+        'transport': {'heartbeatInterval': 1, 'heartbeatTimeout': 3,
                       'tls': {'enable': True, 'serverName': before['server_name'], 'trustedCaFile': str(relay_ca)}},
         'proxies': [{'name': 'nethub-' + device + '-web', 'type': 'https', 'localIP': '127.0.0.1',
                      'localPort': 1, 'subdomain': before['subdomain']}]})

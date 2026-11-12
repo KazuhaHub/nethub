@@ -1,7 +1,10 @@
 # Revocation and authz availability
 
 The generated frps callback list includes Login, NewProxy, NewUserConn and Ping.
-The agent retains a 10-second heartbeat interval and 30-second timeout. Existing
+The development candidate uses a one-second heartbeat and three-second
+client/server timeout, replacing the original 10/30 configuration. Kazuha retained
+the five-second revocation target on 2026-11-12; these settings are an implementation
+candidate, not completed native/public deadline acceptance. Existing
 bundles need a reviewed configuration migration; replacing the web/authz binary
 alone does not enable the added operations. Preserve the immutable setup backup
 and rollback material rather than rerunning initialization over an existing stack.
@@ -24,21 +27,25 @@ origin ports and proxy trust remain separate. This does not impose a total
 transport deadline on upstream frp or make a suspended process responsive.
 
 Authz loads revocations and rotated-claim issuance floors before serving callbacks
-and refreshes them every five seconds. Ping checks this memory state after
+and refreshes them every second. Ping checks this memory state after
 signature and peer validation; a claim issued before its device's retained floor
 is denied. Login, NewProxy and NewUserConn continue to check current SQL state.
 Known revocations remain denied and known issuance floors never decrease when
 later reads omit them or return older values. Ordinary database errors retain
-the previous state, so new revocations or floors may wait for database recovery;
-new connection admissions already fail closed.
+known denials. A snapshot can admit Ping only for 2.5 seconds from the start of
+its database read; slow completion cannot renew that age. Expired or future-dated
+state refuses Ping, and a failed freshness self-check stops authz. New connection
+admissions continue to fail closed against current SQL state.
 
 Revocations and floors use separate read-only repeatable-read scans within one
-shared two-second refresh budget; they are not one atomic database snapshot.
+shared one-second refresh budget; they are not one atomic database snapshot.
 Each scan caps at 1,024 tenants, with independent limits of 100,000 revoked IDs
 and 100,000 rotated-device floors. Migration 19 adds the revoked-device index.
 
 An unresponsive refresh dependency or failed self-check stops both authz APIs and
-exits unsuccessfully for container restart. Database requests have a two-second
+exits unsuccessfully for container restart. Disconnect acknowledgements run in a
+separate bounded worker so their locks cannot queue revocation publication.
+Database requests have a one-second
 budget and 250 ms cancellation grace. HTTP drain is bounded at ten seconds;
 observation and database cleanup each have a one-second limit. A suspended process
 can still delay callbacks; these bounds do not make a frozen host responsive.
@@ -47,6 +54,16 @@ Revocation waits for a successful refresh and the next heartbeat. Existing brows
 streams are not promised to close immediately. Explicit source-IP grants still
 expire after 30 minutes and only Open renews them; they do not replace revocation
 or router authentication.
+
+The stock client's independent one-second timeout check provides a separate
+recovery path when a hook does not return ([pinned client source](https://github.com/fatedier/frp/blob/v0.71.1/client/control.go)).
+This is not an unconditional wall-clock guarantee: scheduling, transport delay,
+rolling upgrades and reconnect behavior still require measurement. A three-second
+timeout and expired-cache refusal deliberately trade availability for quicker
+cutoff. Test load, short network interruptions and WAN recovery before deployment.
+Upgrade the agent and generated relay configuration together; changing only the
+server cannot impose a faster heartbeat on an old client. Do not rerun setup over
+an existing deployment or claim the five-second target for an unmigrated fleet.
 
 The deployment fixture measures actual frps proxy control states on authz outage,
 restart recovery and revocation, rather than inferring control loss from failed

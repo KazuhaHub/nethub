@@ -43,6 +43,8 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
             if observe is not None:
                 observe(active, active == wanted)
             if active == wanted:
+                if time.monotonic() > deadline:
+                    raise RuntimeError('official control-session state was observed after its deadline')
                 return
             if time.monotonic() >= deadline:
                 raise RuntimeError('official control-session state exceeded the heartbeat deadline')
@@ -170,7 +172,7 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
     device = str(uuid.UUID(target['device_id']))
     started = time.monotonic()
     sql("UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id='" + device + "';")
-    wait_online(expected - {target_name}, started + 48)
+    wait_online(expected - {target_name}, started + 5)
     revoked_ms = round((time.monotonic() - started) * 1000)
     deadline = time.monotonic() + 20
     while True:
@@ -187,7 +189,9 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
     assert survivor.returncode == 0 and survivor.stdout.decode() == assignments[1]['subdomain'] + '.router.example.com'
     assert online() == expected - {target_name}
     check_tunnels()
-    result = {'heartbeat_interval_seconds': 10, 'heartbeat_timeout_seconds': 30,
+    result = {'heartbeat_interval_seconds': 1, 'heartbeat_timeout_seconds': 3,
+              'revocation_deadline_ms': 5000, 'revocation_measurement_start': 'SQL update dispatch',
+              'console_dispatch_or_public_mobile_deadline_accepted': False,
               'control_state_probe_timeout_seconds': 2,
               'authz_outage_controls_offline_ms': outage_ms, 'authz_restart_recovery_ms': recovery_ms,
               'authz_stop_command_ms': stop_command_ms, 'authz_stop_exit_code': stopped_state['ExitCode'],
