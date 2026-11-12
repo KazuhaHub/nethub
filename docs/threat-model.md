@@ -245,7 +245,9 @@ POST. This does not relax the normal Lax session/OIDC cookies or general API CSR
 policy. The ACS validates its one-use browser/request binding and signed response;
 a foreign IdP Origin is not itself an authorization credential.
 
-OIDC outbound traffic is HTTPS, bounded, redirect-refusing and DNS-policy checked.
+OIDC outbound traffic is HTTPS, bounded and DNS-policy checked. GET redirects
+are bounded and revalidated against the destination policy; token POST redirects
+are refused.
 Private-network exceptions are operator-configured exact authorities, not
 wildcards, and do not bypass TLS. SAML metadata is explicitly supplied by the
 trusted administrator with XML bounds; it is not an arbitrary metadata URL fetch.
