@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - .github/workflows/native-enrolled.yml
+      - server/web/package.json
+      - server/web/package-lock.json
       - agents/opnsense/acceptance/**
       - agents/opnsense/plugin/src/**
       - server/internal/device/**

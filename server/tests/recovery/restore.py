@@ -334,9 +334,7 @@ def exercise(stage, port, project, evidence, native_read, inspect_gui, route, wi
         images = fixture.work / 'images.tar'
         fixture.command(['docker', 'image', 'save', '-o', str(images), *image_tags], 'Owned tested image export', timeout=180)
         images.chmod(0o600)
-        original_images = inspect_archive(images)
-        if set(original_images) != set(image_ids) or any(original_images[tag]['config'] != identifier for tag, identifier in image_ids.items()):
-            raise RecoveryError('Source saved image configuration differs from running containers')
+        original_images = inspect_archive(images, image_ids)
         result['phase'] = 'target_prepare'
         target_directory = Path(os.environ['RUNNER_TEMP']) / 'native-recovery-target-private'
         target_guest = LinuxGuest(target_directory)

@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - .github/workflows/cold-recovery.yml
+      - server/web/package.json
+      - server/web/package-lock.json
       - server/tests/recovery/**
       - server/internal/guiacme/**
       - agents/opnsense/acceptance/**

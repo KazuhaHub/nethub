@@ -120,8 +120,27 @@ try {
   page.on("request", (request) => {
     if (!request.url().startsWith(origin + "/")) externalRequests++;
   });
-  await page.goto(origin);
-  await page.getByRole("heading", { name: "Sign in to NetHub" }).waitFor();
+  const loginPageAfter = async (action) => {
+    const providers = ["oidc", "saml"].map((protocol) =>
+      page.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname ===
+            `/api/v1/console/${protocol}/providers` &&
+          response.request().method() === "GET" &&
+          response.status() === 200,
+      ),
+    );
+    await action();
+    await page.getByRole("heading", { name: "Sign in to NetHub" }).waitFor();
+    // Finish both login-page reads before signing in or navigating away.
+    // Unmounting the page intentionally aborts its outstanding provider reads.
+    for (const pending of providers) {
+      const response = await pending;
+      assert.equal(await response.finished(), null);
+      assert.deepEqual((await response.json()).items, []);
+    }
+  };
+  await loginPageAfter(() => page.goto(origin));
   await page.screenshot({ path: join(evidence, "login.png"), fullPage: true });
   const login = async () => {
     await page.getByLabel("Email address").fill("compose-admin@example.com");
@@ -251,25 +270,24 @@ try {
     "-c",
     "UPDATE sessions SET expires_at = clock_timestamp() - interval '1 second'",
   ]);
-  await page
-    .getByRole("button", { name: "Generate token", exact: true })
-    .click();
-  await page.getByRole("heading", { name: "Sign in to NetHub" }).waitFor();
+  await loginPageAfter(() =>
+    page.getByRole("button", { name: "Generate token", exact: true }).click(),
+  );
   assert.equal(await tokenField.count(), 0);
   await login();
   const renewed = (await context.cookies()).find(
     (cookie) => cookie.name === "__Host-nethub_session",
   );
   assert.ok(renewed && renewed.value !== session.value);
-  await page.getByRole("button", { name: "Sign out" }).click();
-  await page.getByRole("heading", { name: "Sign in to NetHub" }).waitFor();
+  await loginPageAfter(() =>
+    page.getByRole("button", { name: "Sign out" }).click(),
+  );
   assert.ok(
     !(await context.cookies()).some(
       (cookie) => cookie.name === "__Host-nethub_session",
     ),
   );
-  await page.reload();
-  await page.getByRole("heading", { name: "Sign in to NetHub" }).waitFor();
+  await loginPageAfter(() => page.reload());
   assert.equal(
     await page.evaluate(async () => {
       const response = await fetch("/api/v1/console/devices", {
