@@ -156,6 +156,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if allowMethod(w, r, "GET") {
 			s.trafficReport(w, r)
 		}
+	case prefix + "/audit":
+		if allowMethod(w, r, "GET") {
+			s.auditReport(w, r)
+		}
 	case prefix + "/traffic/settings":
 		if allowMethod(w, r, "PATCH") {
 			s.setTrafficWarning(w, r, ip)

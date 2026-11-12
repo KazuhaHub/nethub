@@ -1147,6 +1147,54 @@ p {
   font-size: 26px;
 }
 .traffic-summary small,
+.audit-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.audit-filters > div {
+  flex: 1 1 180px;
+}
+.audit-events td {
+  overflow-wrap: anywhere;
+  max-width: 260px;
+  white-space: normal;
+}
+.audit-events table {
+  min-width: 1100px;
+}
+.audit-events td:nth-child(1),
+.audit-events td:nth-child(2),
+.audit-events td:nth-child(5) {
+  white-space: nowrap;
+}
+.audit-events th:nth-child(3),
+.audit-events th:nth-child(4) {
+  min-width: 200px;
+}
+.audit-events th:nth-child(6) {
+  min-width: 140px;
+}
+.audit-scroll-hint {
+  display: none;
+}
+@media (max-width: 640px) {
+  .audit-scroll-hint {
+    display: block;
+  }
+}
+.audit-events dl {
+  margin: 0;
+  min-width: 130px;
+}
+.audit-events dt {
+  color: var(--muted);
+}
+.audit-events dd {
+  margin: 0 0 8px;
+}
 .traffic-device-id {
   display: block;
   color: var(--muted);

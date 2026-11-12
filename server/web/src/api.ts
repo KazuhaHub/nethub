@@ -1,4 +1,112 @@
 export type User = { id: string; email: string; role: "admin" | "member" };
+export type AuditFilters = {
+  action: string;
+  device_id: string;
+  user_id: string;
+  since: string;
+  until: string;
+};
+export type AuditEntry = {
+  id: string;
+  created_at: string;
+  actor_type: "user" | "system" | "device";
+  actor: string | null;
+  action: string;
+  target_device_id: string | null;
+  client_ip?: string;
+  details: {
+    target_user_id?: string;
+    role?: "admin" | "member";
+    disabled?: boolean;
+    sessions_revoked?: number;
+    expires_at?: string;
+    request_id?: string;
+  };
+};
+export type AuditPage = { items: AuditEntry[]; next_cursor: string | null };
+
+export function validAuditPage(value: unknown): value is AuditPage {
+  const record = (v: unknown): v is Record<string, unknown> =>
+    !!v && typeof v === "object" && !Array.isArray(v);
+  const uuid = (v: unknown) =>
+    typeof v === "string" &&
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(v);
+  const stamp = (v: unknown) =>
+    typeof v === "string" &&
+    v.length <= 40 &&
+    /^\d{4}-\d\d-\d\dT/.test(v) &&
+    Number.isFinite(Date.parse(v));
+  if (
+    !record(value) ||
+    Object.keys(value).sort().join() !== "items,next_cursor" ||
+    !Array.isArray(value.items) ||
+    value.items.length > 50 ||
+    !(
+      value.next_cursor === null ||
+      (typeof value.next_cursor === "string" &&
+        /^[A-Za-z0-9_-]{1,256}$/.test(value.next_cursor))
+    )
+  )
+    return false;
+  const ids = new Set<string>();
+  return value.items.every((entry) => {
+    if (
+      !record(entry) ||
+      Object.keys(entry).some(
+        (key) =>
+          ![
+            "id",
+            "created_at",
+            "actor_type",
+            "actor",
+            "action",
+            "target_device_id",
+            "client_ip",
+            "details",
+          ].includes(key),
+      ) ||
+      !uuid(entry.id) ||
+      ids.has(entry.id as string) ||
+      !stamp(entry.created_at) ||
+      typeof entry.actor_type !== "string" ||
+      !["user", "system", "device"].includes(entry.actor_type) ||
+      !(entry.actor === null || uuid(entry.actor)) ||
+      !(entry.target_device_id === null || uuid(entry.target_device_id)) ||
+      typeof entry.action !== "string" ||
+      !/^[a-z][a-z0-9_.]{0,99}$/.test(entry.action) ||
+      !(
+        entry.client_ip === undefined ||
+        (typeof entry.client_ip === "string" &&
+          /^[0-9a-fA-F:.]{2,45}$/.test(entry.client_ip))
+      ) ||
+      !record(entry.details)
+    )
+      return false;
+    ids.add(entry.id as string);
+    return Object.entries(entry.details).every(([key, v]) => {
+      switch (key) {
+        case "target_user_id":
+        case "request_id":
+          return uuid(v);
+        case "role":
+          return v === "admin" || v === "member";
+        case "disabled":
+          return typeof v === "boolean";
+        case "sessions_revoked":
+          return (
+            Number.isInteger(v) &&
+            typeof v === "number" &&
+            v >= 0 &&
+            v < 1000000000
+          );
+        case "expires_at":
+          return stamp(v);
+        default:
+          return false;
+      }
+    });
+  });
+}
 export type TrafficDevice = {
   device_id: string;
   label: string;
@@ -280,6 +388,29 @@ async function request<T>(
 }
 
 export const api = {
+  async audit(
+    filters: AuditFilters,
+    cursor: string | null,
+    signal?: AbortSignal,
+  ) {
+    const query = new URLSearchParams({ limit: "50" });
+    for (const [key, value] of Object.entries(filters)) {
+      if (value)
+        query.set(
+          key,
+          key === "since" || key === "until"
+            ? new Date(value).toISOString()
+            : value,
+        );
+    }
+    if (cursor) query.set("cursor", cursor);
+    const page = await request<AuditPage>(`/audit?${query}`, undefined, signal);
+    if (!validAuditPage(page))
+      throw new Error(
+        "Audit data could not be verified. Refresh to try again.",
+      );
+    return page;
+  },
   traffic(
     month: string,
     cursor: string | null,
