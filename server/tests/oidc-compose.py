@@ -57,7 +57,9 @@ def archive_images(directory):
         raise Failure('image archive service set')
     preexisting = set()
     for item in images.values():
-        if not re.fullmatch(r'sha256:[a-f0-9]{64}', item['id']) or not re.fullmatch(r'nethub-stack-test:tmp-[a-z0-9-]+', item['tag']):
+        if (not re.fullmatch(r'sha256:[a-f0-9]{64}', item['id'])
+                or not re.fullmatch(r'sha256:[a-f0-9]{64}', item['config_digest'])
+                or not re.fullmatch(r'nethub-stack-test:tmp-[a-z0-9-]+', item['tag'])):
             raise Failure('image identity format')
         prior = invoke(['docker', 'image', 'inspect', item['tag']], 'prior image inventory', check=False)
         if prior.returncode == 0:
@@ -70,8 +72,13 @@ def archive_images(directory):
 def verify_loaded_images(images):
     for item in images.values():
         current = docker_json(['image', 'inspect', item['tag']], 'loaded image identity')[0]
-        if current['Id'] != item['id'] or current['RootFS']['Layers'] != item['diff_ids'] or item['platform'] != current['Os'] + '/' + current['Architecture']:
+        if (current['Id'] not in (item['id'], item['config_digest'])
+                or current['RootFS']['Layers'] != item['diff_ids']
+                or item['platform'] != current['Os'] + '/' + current['Architecture']):
             raise Failure('loaded image identity mismatch')
+        # Classic stores use the configuration digest; containerd may use an index.
+        # Cleanup must compare the identity observed on this daemon.
+        item['loaded_id'] = current['Id']
 
 
 def require_empty_namespace(config, project):
@@ -395,7 +402,7 @@ def main():
             cleanup_ok = remove_image(helper_image, helper_id) and cleanup_ok
         for item in images.values():
             if item['tag'] not in preexisting:
-                cleanup_ok = remove_image(item['tag'], item['id']) and cleanup_ok
+                cleanup_ok = remove_image(item['tag'], item.get('loaded_id', item['id'])) and cleanup_ok
         if dex_id is not None and not dex_preexisting:
             cleanup_ok = remove_image(DEX_IMAGE, dex_id) and cleanup_ok
         result['owned_services_removed'] = cleanup_ok

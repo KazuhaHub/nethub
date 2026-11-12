@@ -104,12 +104,12 @@ def main():
             output.flush()
             os.fsync(output.fileno())
         result['image_phase'] = 'archive_content'
-        inspected = inspect_archive(expanded)
+        inspected = inspect_archive(expanded, {item['tag']: item['id'] for item in images.values()})
         result['image_phase'] = 'producer_identity'
         if set(inspected) != set(tags.values()):
             raise RecoveryError('Exact five archived image tags required')
         for item in images.values():
-            if (inspected[item['tag']]['config'] != item['id']
+            if (inspected[item['tag']]['config'] != item['config_digest']
                     or inspected[item['tag']]['layers'] != item['diff_ids']):
                 raise RecoveryError('Actual archived image differs from producer manifest')
         result['image_phase'] = 'verified'

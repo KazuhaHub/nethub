@@ -60,6 +60,7 @@ class OIDCOwnershipBoundaries(unittest.TestCase):
         (directory / 'images.tar.gz').write_bytes(raw)
         (directory / 'SHA256SUMS').write_text(hashlib.sha256(raw).hexdigest() + '  images.tar.gz\n')
         images = {name: {'tag': 'nethub-stack-test:tmp-owned-' + name, 'id': 'sha256:' + str(index) * 64,
+                         'config_digest': 'sha256:' + str(index) * 64,
                          'platform': 'linux/amd64', 'diff_ids': ['sha256:' + 'a' * 64]}
                   for index, name in enumerate(('runtime', 'postgres', 'caddy', 'frps', 'backup'), 1)}
         (directory / 'images.json').write_text(json.dumps(images))
@@ -93,6 +94,31 @@ class OIDCOwnershipBoundaries(unittest.TestCase):
                             suite.archive_images(directory)
                 if mode in ('checksum', 'unrelated'):
                     self.assertEqual(calls, [])
+
+    def test_loaded_store_identity_requires_exact_config_layers_and_platform(self):
+        item = {'tag': 'nethub-stack-test:tmp-owned', 'id': 'sha256:' + '1' * 64,
+                'config_digest': 'sha256:' + '2' * 64, 'diff_ids': ['sha256:' + '3' * 64],
+                'platform': 'linux/amd64'}
+        for variant in ('index', 'classic', 'wrong_id', 'wrong_layers', 'wrong_platform'):
+            with self.subTest(variant=variant):
+                current = {'Id': item['config_digest'] if variant == 'classic' else item['id'],
+                           'RootFS': {'Layers': list(item['diff_ids'])}, 'Os': 'linux', 'Architecture': 'amd64'}
+                if variant == 'wrong_id':
+                    current['Id'] = 'sha256:' + '4' * 64
+                elif variant == 'wrong_layers':
+                    current['RootFS']['Layers'] = []
+                elif variant == 'wrong_platform':
+                    current['Architecture'] = 'arm64'
+                images = {'runtime': dict(item)}
+                with patch.object(suite, 'docker_json', return_value=[current]):
+                    if variant in ('index', 'classic'):
+                        suite.verify_loaded_images(images)
+                        self.assertEqual(images['runtime']['loaded_id'], current['Id'])
+                        self.assertEqual(images['runtime']['id'], item['id'])
+                    else:
+                        with self.assertRaises(suite.Failure):
+                            suite.verify_loaded_images(images)
+                        self.assertNotIn('loaded_id', images['runtime'])
 
     def test_namespace_refuses_existing_or_external_resources_without_mutations(self):
         project = 'nethub-oidc-owned'

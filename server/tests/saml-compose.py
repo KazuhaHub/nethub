@@ -249,7 +249,7 @@ def main():
             cleanup_ok = owned.remove_image(helper_image, helper_id) and cleanup_ok
         for item in images.values():
             if item['tag'] not in preexisting:
-                cleanup_ok = owned.remove_image(item['tag'], item['id']) and cleanup_ok
+                cleanup_ok = owned.remove_image(item['tag'], item.get('loaded_id', item['id'])) and cleanup_ok
         if idp_id is not None and not idp_preexisting:
             cleanup_ok = owned.remove_image(IDP_IMAGE, idp_id) and cleanup_ok
         result['owned_services_removed'] = cleanup_ok

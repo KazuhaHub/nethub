@@ -199,7 +199,7 @@ def main():
             for item in images.values():
                 if item['tag'] not in preexisting:
                     try:
-                        suite.remove_image(item['tag'], item['id'])
+                        suite.remove_image(item['tag'], item.get('loaded_id', item['id']))
                     except Exception:
                         cleanup = False
         result['owned_image_cleanup_confirmed'] = cleanup
