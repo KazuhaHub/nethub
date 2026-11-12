@@ -89,8 +89,10 @@ def main():
         spec = importlib.util.spec_from_file_location('cold_image_archive_policy', ROOT / 'server/tests/oidc-compose.py')
         policy = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(policy)
+        result['image_phase'] = 'archive_inventory'
         images, _ = policy.archive_images(archive)
         tags = {role: item['tag'] for role, item in images.items()}
+        result['image_phase'] = 'archive_expansion'
         expanded = args.directory / 'images.tar'
         total = 0
         with gzip.open(archive / 'images.tar.gz', 'rb') as compressed, expanded.open('xb') as output:
@@ -101,13 +103,16 @@ def main():
                 output.write(block)
             output.flush()
             os.fsync(output.fileno())
+        result['image_phase'] = 'archive_content'
         inspected = inspect_archive(expanded)
+        result['image_phase'] = 'producer_identity'
         if set(inspected) != set(tags.values()):
             raise RecoveryError('Exact five archived image tags required')
         for item in images.values():
             if (inspected[item['tag']]['config'] != item['id']
                     or inspected[item['tag']]['layers'] != item['diff_ids']):
                 raise RecoveryError('Actual archived image differs from producer manifest')
+        result['image_phase'] = 'verified'
         result.update(artifact_id=matches[0]['id'], image_archive_sha256=sha256(archive / 'images.tar.gz'))
         result['phase'] = 'pinned_inputs'
         sdk = args.directory / SDK

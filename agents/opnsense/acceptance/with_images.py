@@ -129,9 +129,13 @@ def main():
         spec = importlib.util.spec_from_file_location('native_image_policy', ROOT / 'server/tests/oidc-compose.py')
         suite = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(suite)
+        result['image_phase'] = 'archive_inventory'
         images, preexisting = suite.archive_images(archive)
+        result['image_phase'] = 'docker_load'
         invoke(['docker', 'load', '-i', str(archive / 'images.tar.gz')], 'accepted image load', timeout=180)
+        result['image_phase'] = 'loaded_identity'
         suite.verify_loaded_images(images)
+        result['image_phase'] = 'verified'
         result['tested_images'] = {name: value['id'] for name, value in images.items()}
         result['artifact_id'] = matches[0]['id']
         result['phase'] = 'actual_native_and_six_service_run'
