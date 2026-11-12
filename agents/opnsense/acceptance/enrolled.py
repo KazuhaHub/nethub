@@ -99,6 +99,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         raise GuestError('Unexpected native runtime condition fields')
     private_json(evidence / 'native-fixture-host.json', conditions)
     guest.put(Path(__file__).with_name('native_model_probe.py'), 'native_model_probe.py')
+    guest.put(Path(__file__).with_name('native_lock_probe.py'), 'native_lock_probe.py')
     from native_model_probe import validate_storage
     storage = json.loads(guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py storage\n',
                                   'closed native storage conditions'))
@@ -144,6 +145,15 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             invoke([os.environ['NETHUB_NODE_BINARY'], str(browser), str(config)],
                    'installed native ' + action + ' page', timeout=120)
         except GuestError:
+            try:
+                from native_lock_probe import validate as validate_lock
+                snapshot = json.loads(guest.ssh(
+                    '/usr/local/bin/python3.13 /root/nethub-ci/native_lock_probe.py\n',
+                    'read-only native lock snapshot', timeout=12))
+                validate_lock(snapshot)
+                private_json(evidence / 'native-lock-probe.json', snapshot)
+            except (GuestError, ValueError, TypeError, OSError):
+                pass
             try:
                 from native_model_probe import validate_rotation_conditions
                 conditions = json.loads(guest.ssh(

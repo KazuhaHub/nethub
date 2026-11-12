@@ -205,7 +205,7 @@ and the stage validation records for current implementation evidence.
 | D11 | DESIGN v0.3 里标「建议」的设计点逐条确认，重点是 §6：web/authz 进程拆分和列级授权、`nethub_backup` 角色、删掉 `frp_token_hash`、一次性撤销。另外还有几处 DESIGN §6 没写到、需要补表或补权限的地方：W5 的"立即断"请求、Q7 门禁的 IP 登记、Postgres 初始化时容器要拿到全部角色密码（和决策 #21"每个容器只拿自己的密钥"有出入）、邀请有效期（本计划暂按 72 小时）和"邀请限定身份提供方"是否要做 | W3 写数据库迁移之前 | W3、W4、W5、W6 | 按 DESIGN v0.3 | Confirmed 2026-10-18: use the process/data permissions and additions in w3-decisions.md; no per-device frp_token_hash, one-way revocation, scoped Open/cutoff records, backup role, bootstrap password exception, and invitation rules. |
 | D12 | `docs/DESIGN.md` 公开之前要不要删改敏感内容：第三方名字、本地路径、针对签名主机的攻击路径描述；本计划 `docs/PLAN.md` 要不要放进公开仓库 | 仓库公开之前 | W7 | 公开前删改；PLAN.md 不公开（本计划建议） | 待定 |
 | D13 | 插件的正式包（签名后发布到软件源）由谁构建和发布 | 第一次给别人装插件之前 | W4 以后 | Kazuha 做；你只做未签名的开发包（本计划建议） | 待定 |
-| D14 | DESIGN §14 的 Q1、Q3、Q4、Q5（mTLS、审计链锚定、离线签名机、CARP） | W7 之前 | W7 | 按 DESIGN 里的推荐 | 待定 |
+| D14 | DESIGN §14 的 Q1、Q3、Q4、Q5（mTLS、审计链锚定、离线签名机、CARP） | W7 之前 | W7 | 按 DESIGN 里的推荐 | Confirmed 2026-11-10: mTLS evaluation in v1.1; no external audit anchor with its limitation disclosed; designated signing/runtime co-hosting without runtime-container signing authority; cluster marking and alarm-only automatic handling without transparent CARP failover acceptance. See DESIGN §14 Q1/Q3/Q4/Q5. |
 | D15 | 首个管理员账号的创建顺序：`nethub init` 在 `docker compose up` 之前运行，那时数据库还没起来，管理员在哪一步创建；如果按 W3-8 的建议，就要新增一个 `nethub admin create` 子命令 | W3-8 之前 | W3 | 见 W3-8（本计划建议） | Confirmed 2026-10-18: init, Compose/migrate, then one-shot admin create; never grant owner credentials to web. |
 | D16 | 技术选型：数据库迁移工具、协议版本号规则、命令行写法、运行镜像等（W3、W4 里会逐个提出） | 对应任务开始前 | W3、W4 | 各任务里给出推荐（本计划建议） | Confirmed for W3 on 2026-10-18: standard net/http, flag, slog, pgx/v5, goose/v3, nonroot static runtime; reuse matching authcore packages. W4 protocol SemVer and incompatible-major rejection confirmed 2026-10-18; see w4-decisions.md. |
 | D17 | OPNsense 自己的 DNS 重绑定 / HTTP_REFERER 检查会不会拦下经中继的访问；会拦的话怎么处理（DESIGN §14 Q9） | W0 第 ① 项结果出来后、W4 之前 | W4、W5 | 先实测；会拦就让用户手动加 Alternate Hostnames，并在 enroll 页面提示（DESIGN） | Confirmed 2026-10-18: manually add the exact Alternate Hostnames entry; preserve both security checks and explain the step during enrollment. |
@@ -1889,7 +1889,7 @@ W7-5 protected-host checkpoint (2026-11-09): PR #223 source `a2bb4ef` passed six
 
 - [ ] 上面三项关键验收都完成，各有记录
 - [ ] 恢复演练成功，步骤写进了 `docs/deployment.md`
-- [ ] `docs/deployment.md`、`docs/threat-model.md`、`docs/protocol.md` 已合并
+- [x] `docs/deployment.md`、`docs/threat-model.md`、`docs/protocol.md` 已合并 — PR #225 merged as `a77ca58`; full semantic/translation review, D12 and the other W7 gates remain separate.
 - [ ] 公开前的内容审查由 Kazuha 确认通过
 - [ ] CI 全绿，`govulncheck` 没有报告漏洞，没有积压未处理的 Dependabot PR
 

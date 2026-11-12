@@ -366,8 +366,14 @@ PLAN §2 列了 D1–D22，**全部归 Kazuha 拍板**。你的职责有三件�
   choices. Do not reopen these as implementation prerequisites.
 - **Implemented within recorded scope:** D22 relay server authentication, managed
   trust and certificate automation; retain the pending renewal/operator limits.
-- **Still requires owner review:** D14 architectural choices and D13 formal release.
-  Follow PLAN §2 rather than inferring a decision from historical prose.
+- **D14 confirmed by Kazuha on 2026-11-10:** defer device-client mTLS evaluation
+  to v1.1; omit external audit anchoring with its integrity limit disclosed;
+  retain the designated signing/runtime co-hosting exception without mounting
+  signing authority into runtime containers; provide cluster marking and
+  alarm-only automatic handling without transparent CARP failover acceptance.
+  See DESIGN §14 Q1/Q3/Q4/Q5. These decisions do not complete W5-W7 validation.
+- **Still requires owner review:** D13 formal release. D12 disclosure review
+  also remains separate from the repository's existing public visibility.
 
 ### 已知的坑
 

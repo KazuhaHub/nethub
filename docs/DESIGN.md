@@ -1124,6 +1124,10 @@ AGPL 能替你保住的东西不多。**唯一该选 AGPL 的情况**：你觉�
 mTLS 需要一整套设备端 PKI（签发/分发/吊销/CA 维护），对 W0–W7 的 MVP 不成比例。
 Per-device GUI certificates are now included in v1. They authenticate the GUI server, not the device to the control plane; mTLS evaluation remains v1.1 and needs its own authorization and lifecycle design.
 
+D14 confirmed by Kazuha on 2026-11-10: retain signed assignments and verified
+relay TLS for v1; evaluate device-client mTLS in v1.1. This decision does not
+establish a device-client PKI or mTLS acceptance.
+
 **Q2 / D5 (confirmed 2026-10-18): retain 8443 for v1.**
 Two mobile networks each returned 20/20 TCP successes per port. Neither Q2 condition triggered. Company/campus sampling was explicitly waived and remains untested. Retain the following rule for future evidence.
 
@@ -1139,6 +1143,11 @@ SNI dispatcher，是有意义的额外复杂度。建议规则：**实测样本�
 推荐 **v1 不做，先加诚实免责声明**。自建场景下每个实例的链头锚定到哪里本身就是个问题，
 边际价值低还多一个暴露面。等有真实第三方审计/合规要求时再加。
 
+D14 confirmed by Kazuha on 2026-11-10: v1 does not add external audit
+anchoring. Retain read-only chain verification and disclose that an administrator
+able to replace database history can recompute an unanchored chain. Internal
+consistency is not independent forensic integrity.
+
 **Q4: separate signing and runtime boundaries.**
 
 A shared signing, build and remote-management host shares an operating-system compromise boundary.
@@ -1146,9 +1155,18 @@ The designated test-host arrangement is accepted in decision #20; it is not evid
 isolation. Further signer separation is an operational project. Runtime containers must not receive
 signing authority merely because services are co-located.
 
+D14 confirmed by Kazuha on 2026-11-10: retain the designated co-hosting
+exception and exclude signing authority from runtime-container mounts. This
+accepts the shared operating-system risk, not signing-key isolation or D13 release.
+
 **Q5：HA/CARP 场景 v1 只做"标注 + 降级为告警"，还是索性明确不支持？**
 推荐 **维持轻量支持，不排除**。完全排除会让一部分用 HA 网关的潜在用户直接用不了，
 而"标注 + 降级"的实现成本很低（#17），一刀切得不偿失。
+
+D14 confirmed by Kazuha on 2026-11-10: v1 supports cluster marking and
+alarm-only automatic anomaly handling for tagged devices. It does not claim
+verified transparent CARP failover, paired-device credential behavior or failover
+timing. Manual revocation and normal admission retain their own authority.
 
 **Q6：产品名。已决定 NetHub（用户，2026-09-17）。**
 满足唯一的硬约束（不含 "OPNsense"）。GitHub 仓库名（`KazuhaHub/nethub`）、域名、插件包名（`os-nethub-agent`）
