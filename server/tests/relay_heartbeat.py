@@ -56,14 +56,16 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
         assert result.returncode == 0, 'isolated authz lifecycle command failed'
 
     def control_sockets():
-        result = subprocess.run(['ss', '-tnpH'], capture_output=True, text=True, timeout=3)
+        result = subprocess.run(['ss', '-tnpeH'], capture_output=True, text=True, timeout=3)
         assert result.returncode == 0, 'isolated control socket inventory failed'
         peers = set()
         for line in result.stdout.splitlines():
             fields = line.split()
             if len(fields) >= 6 and fields[0] == 'ESTAB' and fields[4].endswith(':7000') and any(
                     re.search(r'pid=' + str(client.pid) + r'[,)]', line) for client in clients):
-                peers.add((fields[3], fields[4]))
+                inode = re.search(r'\bino:([0-9]+)\b', line)
+                assert inode is not None, 'original control socket identity unavailable'
+                peers.add((fields[3], fields[4], inode[1]))
         return peers
 
     def diagnose_outage(original, started):
@@ -153,6 +155,44 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
         'authz_outage_after_confirmed_stop_ms': after_stop_ms,
         'authz_restart_recovery_ms': recovery_ms}}), flush=True)
 
+    # A stopped listener refuses callbacks quickly. Freeze the owned process as
+    # a separate case: a connected HTTP hook can hang without returning a Pong.
+    freeze_original = control_sockets()
+    assert len(freeze_original) == len(clients), 'original multiplexed controls required before authz freeze'
+    freeze_samples = []
+    frozen = False
+    freeze_started = time.monotonic()
+    try:
+        command(['pause', 'nethub-authz'], 'authz-pause')
+        frozen = True
+        while True:
+            remaining = len(freeze_original & control_sockets())
+            elapsed = time.monotonic() - freeze_started
+            freeze_samples.append({'elapsed_ms': round(elapsed * 1000), 'original_controls': remaining})
+            assert elapsed <= 5, 'original controls survived the five-second frozen-hook deadline'
+            if remaining == 0:
+                break
+            time.sleep(0.1)
+        freeze_gone_ms = round(elapsed * 1000)
+        # Proxy labels may lag while the callback is frozen. Report them rather
+        # than substituting their state for observed original TCP closure.
+        frozen_labels_online = len(online())
+        assert all(client.poll() is None for client in clients)
+    finally:
+        (work / 'frozen-authz-samples.json').write_text(json.dumps(freeze_samples, indent=2))
+        if frozen:
+            command(['unpause', 'nethub-authz'], 'authz-unpause')
+    resumed = time.monotonic()
+    check_tunnels()
+    wait_online(expected, resumed + 20)
+    freeze_recovery_ms = round((time.monotonic() - resumed) * 1000)
+    assert all(client.poll() is None for client in clients)
+    print(json.dumps({'official_frp_authz_freeze': {
+        'clock_start': 'owned compose pause dispatch', 'original_controls_gone_ms': freeze_gone_ms,
+        'deadline_ms': 5000, 'proxy_labels_still_online_after_original_TCP_loss': frozen_labels_online,
+        'same_clients_recovered_after_unpause_ms': freeze_recovery_ms,
+        'revoked_device_or_public_network_acceptance': False}}), flush=True)
+
     # Later authority tests retain the original two enrollments. Revocation is
     # irreversible: create a separate authenticated identity for this control.
     target = revocation_client()
@@ -170,12 +210,23 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
     prior_ping = sum(event.get('operation') == 'Ping' and event.get('decision') == 'device_denied' for event in before)
     prior_login = sum(event.get('operation') == 'Login' and event.get('decision') == 'device_denied' for event in before)
     device = str(uuid.UUID(target['device_id']))
+    survivor_sockets = control_sockets()
+    assert len(survivor_sockets) == len(clients), 'one original multiplexed control per survivor required'
     started = time.monotonic()
+    survivor_samples = []
+
+    def observe_survivors(_active=None, _complete=False):
+        original = len(survivor_sockets & control_sockets())
+        survivor_samples.append({'elapsed_ms': round((time.monotonic() - started) * 1000),
+                                 'original_survivor_controls': original})
+        assert original == len(clients), 'revocation interrupted an unrelated original control'
+
     sql("UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id='" + device + "';")
-    wait_online(expected - {target_name}, started + 5)
+    wait_online(expected - {target_name}, started + 5, observe_survivors)
     revoked_ms = round((time.monotonic() - started) * 1000)
     deadline = time.monotonic() + 20
     while True:
+        observe_survivors()
         events = hook_events('after-revoked-heartbeat')
         pings = sum(event.get('operation') == 'Ping' and event.get('decision') == 'device_denied' for event in events)
         logins = sum(event.get('operation') == 'Login' and event.get('decision') == 'device_denied' for event in events)
@@ -189,6 +240,8 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
     assert survivor.returncode == 0 and survivor.stdout.decode() == assignments[1]['subdomain'] + '.router.example.com'
     assert online() == expected - {target_name}
     check_tunnels()
+    observe_survivors()
+    (work / 'revocation-survivor-samples.json').write_text(json.dumps(survivor_samples, indent=2))
     result = {'heartbeat_interval_seconds': 1, 'heartbeat_timeout_seconds': 3,
               'revocation_deadline_ms': 5000, 'revocation_measurement_start': 'SQL update dispatch',
               'console_dispatch_or_public_mobile_deadline_accepted': False,
@@ -198,7 +251,12 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
               'stopped_authz_loopback_callback_refused_ms': callback_refusal_ms,
               'authz_outage_after_confirmed_stop_ms': after_stop_ms,
               'authz_outage_original_sockets_gone_ms': original_sockets_gone_ms,
+              'frozen_authz_original_controls_gone_ms': freeze_gone_ms,
+              'frozen_authz_proxy_labels_still_online_after_TCP_loss': frozen_labels_online,
+              'same_clients_recovered_after_unpause_ms': freeze_recovery_ms,
               'revoked_control_offline_ms': revoked_ms, 'unrevoked_control_and_verified_TLS_preserved': True,
+              'unrevoked_original_control_sockets_preserved': True,
+              'original_survivor_control_count': len(survivor_sockets),
               'actual_Ping_and_fresh_Login_denials': True, 'passed': True}
     (work / 'result.json').write_text(json.dumps(result, indent=2))
     print(json.dumps({'official_frp_heartbeat_controls': result}))

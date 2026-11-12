@@ -27,6 +27,23 @@ Old agents and old generated bundles retain their old timing until upgraded;
 changing only Web/authz does not establish the target for an existing fleet.
 Keep an independent recovery path and reviewed configuration rollback material.
 
+## Existing development deployments
+
+First inventory and upgrade agents to the new rendered heartbeat configuration,
+while retaining the existing relay timeout during that stage. Only lower the
+server timeout after the participating agents are ready. The [server checks the
+time since its last accepted Ping](https://github.com/fatedier/frp/blob/v0.71.1/server/control.go);
+lowering its timeout while old clients retain a ten-second interval can repeatedly
+disconnect those clients. Offline agents need an independent upgrade/recovery path.
+An incomplete migration does not establish the five-second target for that fleet.
+
+Then deploy the reviewed authz behavior and relay configuration, with the planned
+relay restart and retained rollback material. Verify the new settings, repeated
+cutoff samples and recovery on the actual devices. A rollback must restore a
+compatible relay timeout before reverting agents to their old interval. Mixed
+versions, short outages and rollback still require actual validation; this order
+is an operational requirement, not a completed compatibility result.
+
 ## Required validation before acceptance
 
 1. Preserve every original signature, tenant, peer, claim-floor and disconnect
@@ -52,3 +69,13 @@ The ordinary relay fixture now rejects an observed control loss after five secon
 from SQL-update dispatch. That stricter fixture must pass independently and does
 not replace console-dispatch or native/public validation. W5 remains open until
 the required end-to-end evidence supports the owner-retained target.
+
+The installed fixture additionally opens the real console, signs in locally and
+confirms Revoke for its live native device. One browser-process monotonic clock
+starts before confirmation, samples the private relay's actual proxy state and
+retains thirty seconds without re-registration. Its receipt records the internal
+console CA exception explicitly; it does not claim public/mobile acceptance.
+The parent independently verifies unchanged native identity and Open grant, an
+unexpired source grant despite fresh verified-TLS refusal, and the unrelated
+original control/TLS route. This candidate fixture must run successfully before
+its new receipt or screenshot can support native deadline acceptance.

@@ -20,6 +20,7 @@ from guest import GuestError, invoke
 from rotation_recovery import exercise_response_loss, exercise_save_interruption
 from trust_publication_recovery import exercise_publication_conflict
 from shared_token import exercise_shared_token
+from console_revoke_result import validate as validate_console_revoke
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -533,6 +534,37 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         original_survivor = survivor_sockets()
         if not original_survivor:
             raise GuestError('Returned witness control was not observed after recovery')
+    # Exercise the actual console confirmation against this live native client.
+    # Keep the clock and all deadline observations in the browser orchestrator.
+    active_grant_query = ("SELECT count(*) FROM device_access_grants WHERE device_id='" + device
+        + "' AND source_ip='" + gateway + "'::inet AND expires_at>clock_timestamp();")
+    if not route() or sql(active_grant_query) != '1' or not original_survivor.issubset(survivor_sockets()):
+        raise GuestError('Console Revoke baseline lacked the original verified routes')
+    items = request('/api/v1/console/devices?limit=200')['items']
+    targets = [item for item in items if item['id'] == device and not item['revoked']]
+    if len(targets) != 1:
+        raise GuestError('Exactly one current native console device required')
+    target = targets[0]
+    revoke_config = work / 'native-console-revoke-private.json'
+    private_json(revoke_config, {'console_port': port, 'device_id': device,
+        'device_name': target['label'] or target['hostname'] or target['subdomain'],
+        'gateway': gateway, 'password_file': str(stage / 'admin-password'),
+        'frps_secrets': str(stage / 'deployment/secrets/frps'), 'evidence': str(evidence)})
+    invoke([os.environ['NETHUB_NODE_BINARY'], str(Path(__file__).with_name('console-revoke-browser.mjs')),
+            str(revoke_config)], 'normal console Revoke against installed native agent', timeout=75)
+    console_revoke = json.loads((evidence / 'installed-console-revoke.json').read_text(encoding='utf-8'))
+    validate_console_revoke(console_revoke)
+    if (sql("SELECT count(*) FROM devices WHERE id='" + device + "' AND revoked AND revoked_by_user_id IS NOT NULL;") != '1'
+            or sql(stable_query) != stable or sql(grants_query) != grants
+            or sql(active_grant_query) != '1'
+            or route() or not survivor_route() or not original_survivor.issubset(survivor_sockets())):
+        raise GuestError('Native console Revoke deadline, identity, grants or survivor evidence differed')
+    console_revoke['native_identity_and_grants_retained'] = True
+    console_revoke['fresh_verified_native_route_refused'] = True
+    console_revoke['independent_original_control_and_verified_TLS_retained'] = True
+    console_revoke['valid_source_grant_retained_during_TLS_refusal'] = True
+    validate_console_revoke(console_revoke, native=True)
+    private_json(evidence / 'installed-console-revoke.json', console_revoke)
     native_logs = guest.ssh("/usr/local/bin/python3.13 - <<'PY'\n"
         "import os,pathlib,stat,sys\n"
         "for name in ('frpc.log','scheduler.log'):\n"
@@ -589,6 +621,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
               'installed_committed_trust_replay': committed_replay,
               'shared_token_incident_native_recovery': shared_token,
               'clean_host_restoration': host_restore,
+              'installed_console_revoke_deadline': console_revoke,
               'fixture_removed_through_native_page': True,
               'removed_fixture_revoked_model_cleared_service_stopped_route_closed': True,
               'independent_device_preserved_after_fixture_removal': True,
