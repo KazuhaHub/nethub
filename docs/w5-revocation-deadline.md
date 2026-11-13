@@ -142,3 +142,10 @@ also inherits that data. Revocation identities use fresh ordinary enrollment
 tokens after pressure preparation. This fixture has not executed yet. It does
 not establish 99,000 online clients, PostgreSQL CPU cost, public-network behavior
 or direct cache-publication phase timing.
+
+The candidate also reads each dedicated authz, frps and PostgreSQL cgroup's CPU
+counter and charged memory, including descendant tasks. It binds the exact
+Docker container and original cgroup inode, requires cgroup v2 and retains each
+counter's measurement window. Charged memory includes cache and is distinct from
+the process RSS above. These counters exclude clients and the observer. Their
+PostgreSQL cost requires actual execution; no local estimates are accepted.
