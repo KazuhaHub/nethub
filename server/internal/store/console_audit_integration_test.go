@@ -15,24 +15,14 @@ import (
 
 func testConsoleAudit(t *testing.T, ctx context.Context, owner, db *sql.DB) {
 	t.Helper()
-	var tenants []string
-	t.Cleanup(func() {
-		clean, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		for _, tenant := range tenants {
-			for _, statement := range []string{`DELETE FROM audit_log WHERE tenant_id=$1`, `DELETE FROM devices WHERE tenant_id=$1`, `DELETE FROM users WHERE tenant_id=$1`, `DELETE FROM tenants WHERE id=$1`} {
-				if _, err := owner.ExecContext(clean, statement, tenant); err != nil {
-					t.Error("audit fixture cleanup failed")
-				}
-			}
-		}
-	})
+	// Keep fixture tenants until the enclosing disposable database is removed by
+	// tests/postgres.sh, as with the other tenant-scoped integration fixtures.
+	// Deleting their last local administrator would violate the product guard.
 	newTenant := func() string {
 		var id string
 		if err := owner.QueryRowContext(ctx, `INSERT INTO tenants(name) VALUES('Audit view fixture') RETURNING id`).Scan(&id); err != nil {
 			t.Fatal(err)
 		}
-		tenants = append(tenants, id)
 		return id
 	}
 	tenant, foreign := newTenant(), newTenant()
