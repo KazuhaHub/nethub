@@ -52,6 +52,7 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
 
     roles = {role: process(role) for role in ('nethub-authz', 'frps')}
     original_controls = sockets(originals)
+    retained_controls = original_controls
     try:
         for total in (5, 10):
             sample = {'passed': False, 'phase': 'preparation', 'dedicated_clients': total,
@@ -74,7 +75,8 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
                         time.sleep(0.1)
                 clients = originals + [entry[2] for entry in owned]
                 baseline = sockets(clients)
-                assert all(baseline[pid] == values for pid, values in original_controls.items())
+                assert all(baseline[pid] == values for pid, values in retained_controls.items()), 'batch preparation replaced an original fleet control'
+                retained_controls = baseline
                 before = {role: usage(pid) for role, pid in roles.items()}
                 peak = {role: value['resident_bytes'] for role, value in before.items()}
                 counts, initial, observed, gaps = {}, {}, {}, []

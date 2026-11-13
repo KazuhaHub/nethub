@@ -115,7 +115,8 @@ console/native/public and live-fleet tests.
 The small-fleet fixture prepares five, then ten additional identities through
 ordinary authenticated enrollment and Open. It observes seven, then twelve live
 official frpc controls including the two original witnesses for 30 seconds per
-stage. It requires the same original TCP inodes, successful per-client Pongs and
+stage. Original TCP inodes remain unchanged across both stages and their
+preparation waits. Each stage requires successful per-client Pongs and
 verified TLS before and after each stage, with no client or service restart.
 It reports authz/frps process CPU and observed resident memory separately from
 PostgreSQL/client/observer costs. Pong log observation gaps use requested 200 ms
