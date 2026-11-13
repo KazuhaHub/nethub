@@ -21,6 +21,7 @@ from rotation_recovery import exercise_response_loss, exercise_save_interruption
 from trust_publication_recovery import exercise_publication_conflict
 from shared_token import exercise_shared_token
 from console_revoke_result import validate as validate_console_revoke
+from wan_recovery import exercise as exercise_wan_recovery
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -327,13 +328,16 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             response.returncode == 0 and status == b'200' and raw == assigned.encode('ascii'))
 
     def survivor_sockets():
-        raw = invoke(['ss', '-tnpH'], 'independent original control socket evidence').decode()
+        raw = invoke(['ss', '-tnpeH'], 'independent original control socket evidence').decode()
         peers = set()
         for line in raw.splitlines():
             fields = line.split()
             if (len(fields) >= 6 and fields[0] == 'ESTAB' and fields[4].endswith(':7000')
                     and re.search(r'pid=' + str(survivor.pid) + r'[,)]', line)):
-                peers.add((fields[3], fields[4]))
+                inode = re.search(r'\bino:([0-9]+)\b', line)
+                if inode is None:
+                    raise GuestError('Independent original control inode unavailable')
+                peers.add((fields[3], fields[4], inode[1]))
         return peers
 
     for _ in range(30):
@@ -352,6 +356,18 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     stable = sql(stable_query)
     grants_query = "SELECT source_ip::text||expires_at::text FROM device_access_grants WHERE device_id='" + device + "' ORDER BY source_ip;"
     grants = sql(grants_query)
+
+    def check_wan_witness():
+        if (survivor.poll() is not None or not survivor_route()
+                or not original_survivor.issubset(survivor_sockets())):
+            raise GuestError('Native WAN change interrupted the independent original control')
+
+    def check_wan_database():
+        if sql(stable_query) != stable or sql(grants_query) != grants:
+            raise GuestError('Native WAN change altered identity or source grants')
+
+    wan_recovery = exercise_wan_recovery(guest, evidence, nonce, native_read, route,
+        lambda: fixture('inspect', host=host), check_wan_witness, check_wan_database)
     started = time.monotonic()
     page_action('rotate')
     after = native_read('native-after.json')
@@ -622,6 +638,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
               'shared_token_incident_native_recovery': shared_token,
               'clean_host_restoration': host_restore,
               'installed_console_revoke_deadline': console_revoke,
+              'installed_wan_recovery': wan_recovery,
               'fixture_removed_through_native_page': True,
               'removed_fixture_revoked_model_cleared_service_stopped_route_closed': True,
               'independent_device_preserved_after_fixture_removal': True,

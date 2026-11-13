@@ -122,3 +122,28 @@ The subsequent [heartbeat and console Revoke record](validation-native-w5-heartb
 contains actual cutoff and no-reconnect measurements. Its W0 timing comparison
 and the W5 mobile Open sample remain open. The failed combined recovery operation
 above remains failed; W5-W7 are incomplete.
+
+## New-heartbeat hosted WAN candidate
+
+The hosted acceptance candidate changes the fixed WAN address of its disposable
+OPNsense guest, using independent LAN SSH. A root-owned nonce, expected native
+LAN/WAN assignments, the fixed private subnet and gateway bind the operation to
+that guest. It checks the original frpc PID/start time and the actual established
+control socket's new source address, then verifies the existing HTTPS route.
+Socket state and process ownership are read through the stock
+[FreeBSD sockstat interface](https://raw.githubusercontent.com/freebsd/freebsd-src/releng/14.3/usr.bin/sockstat/sockstat.1).
+The unrelated witness must retain its original TCP inode and verified route.
+
+The harness restores the original address even if the change response is lost.
+Both changes have a separate 60-second recovery limit; this does not extend the
+five-second revocation target. A late observation or partially recovered trial
+stays failed. No manual agent start, restart, reconcile or grant renewal is used.
+The native model, runtime configuration, native XML, GUI identity and database
+identity/grants must remain unchanged.
+
+This is a runtime address change behind the fixture's NAT, not a public-network
+or ISP DHCP-renewal sample. Local parser/orchestrator tests do not establish
+automatic recovery on an actual appliance. The candidate must execute with the
+new one/three-second heartbeat settings, retain its closed outcome and pass the
+later normal Remove/full-tail/cleanup checks before accepting that scope.
+Reboot, Core restore, public/mobile, migration and rollback remain separate.

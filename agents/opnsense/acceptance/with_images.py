@@ -13,6 +13,7 @@ from guest import GuestError, invoke
 from compose_tail import read_phase
 from compose_setup import inspect as inspect_setup
 from compose_setup import project as project_setup
+from wan_recovery import validate as validate_wan_recovery
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -20,6 +21,7 @@ JOBS = {'workflow lint', 'Go vulnerability checks', 'weekend0 kit checks',
         'OPNsense plugin checks', 'Control plane checks', 'Deployment checks'}
 PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installed-rotation.json',
                 'native/installed-console-revoke.json', 'native/installed-console-revoke.png',
+                'native/installed-wan-recovery.json',
                 'native/installed-shared-token.json', 'native/installed-trust-publication.json',
                 'native/installed-committed-trust-replay.json',
                 'native/installed-rotate-publication-committed-lost-page.json',
@@ -185,6 +187,10 @@ def main():
         native = json.loads((evidence / 'native/installed-rotation.json').read_text(encoding='utf-8'))
         if native.get('passed') is not True:
             raise GuestError('Installed native rotation proof missing')
+        wan = json.loads((evidence / 'native/installed-wan-recovery.json').read_text(encoding='utf-8'))
+        validate_wan_recovery(wan)
+        if wan['passed'] is not True or native.get('installed_wan_recovery') != wan:
+            raise GuestError('Installed native WAN recovery proof missing')
         restored = native.get('clean_host_restoration')
         if not isinstance(restored, dict) or restored.get('passed') is not True:
             raise GuestError('Installed native clean-host restoration proof missing')
