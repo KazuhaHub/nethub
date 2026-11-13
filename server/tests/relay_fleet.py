@@ -81,6 +81,11 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
                 baseline = sockets(clients)
                 assert all(baseline[pid] == values for pid, values in retained_controls.items()), 'batch preparation replaced an original fleet control'
                 retained_controls = baseline
+                check_tunnels()
+                for assignment, _, _ in owned:
+                    result = probe(assignment, source)
+                    assert result.returncode == 0 and result.stdout.decode() == assignment['subdomain'] + '.router.example.com'
+                assert sockets(clients) == baseline, 'fleet TLS preflight replaced an original control'
                 before = {role: usage(pid) for role, pid in roles.items()}
                 peak = {role: value['resident_bytes'] for role, value in before.items()}
                 counts, initial, observed, gaps = {}, {}, {}, []
