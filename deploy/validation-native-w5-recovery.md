@@ -223,6 +223,21 @@ route retry, configuration change or longer budget. Arbitrary errors, logs and
 credential values stay out of uploaded evidence. Local projection checks do not
 establish installed recovery; a new original execution is required.
 
+Source `954f053` passed CI, native filesystem checks, preparation and isolated
+cold recovery, but
+[installed run 43407885702](https://github.com/KazuhaHub/nethub/actions/runs/43407885702)
+failed earlier at the first native Rotate response: HTTP 200, `success=false`,
+phase `error`, reason `unclassified`. Its standalone WAN change/restoration
+passed in 3,470/4,460 ms. Neither post-failure native snapshot was available,
+and the post-Rotate route diagnostic was not reached. The retained response does
+not establish the failed operation's cause; that run remains failed.
+
+The next follow-up classifies more exact local runtime/service/request failures
+without returning backend text. Both fixed post-failure snapshot commands now
+share the existing four-event read-only SSH recovery budget. No failed Rotate is
+replayed, no scheduler or mutation timeout changes, and no failed record becomes
+accepted. These changes need their own exact-source appliance execution.
+
 This is a runtime address change behind the fixture's NAT, not a public-network
 or ISP DHCP-renewal sample. Local parser/orchestrator tests do not establish
 automatic recovery on an actual appliance. The candidate must execute with the

@@ -267,6 +267,8 @@ def test_read_only_recovery_projection_rejects_private_or_inconsistent_fields():
 @pytest.mark.parametrize('script,label,operation', [
     ('test "$(id -u)" = 0\n', 'native inspection boundary', 'inspection_preflight'),
     ('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py\n', 'native model readback', 'model_readback'),
+    ('/usr/local/bin/python3.13 /root/nethub-ci/native_lock_probe.py\n', 'native lock snapshot', 'lock_snapshot'),
+    ('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py rotation\n', 'native rotation conditions', 'rotation_conditions'),
 ])
 def test_readback_and_preflight_share_the_bounded_recovery_inventory(script, label, operation):
     guest = inspection_guest()

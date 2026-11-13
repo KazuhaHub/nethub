@@ -301,6 +301,12 @@ not disprove earlier contention. Probe failure preserves the original page failu
 The fixture does not replay Rotate, modify the scheduler or convert a failed
 installation run into acceptance.
 
+The fixed lock snapshot and rotation-condition read share the same four-event
+read-only SSH recovery budget as model/GUI inspection. They use already staged
+helpers and never replay the failed action. The Rotate API classifies additional
+exact local error messages into closed request, binding, runtime, service and
+timeout categories; unknown messages still remain unclassified and private.
+
 A failed first post-Rotate route check retains its last existing curl status and
 one read-only native snapshot in `installed-route-failure.json`. The snapshot
 compares the live claim/token with the native model, records service and local

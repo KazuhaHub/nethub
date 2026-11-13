@@ -153,18 +153,16 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         except GuestError:
             try:
                 from native_lock_probe import validate as validate_lock
-                snapshot = json.loads(guest.ssh(
-                    '/usr/local/bin/python3.13 /root/nethub-ci/native_lock_probe.py\n',
-                    'read-only native lock snapshot', timeout=12))
+                snapshot = json.loads(guest.ssh_read_only_inspection(
+                    '/usr/local/bin/python3.13 /root/nethub-ci/native_lock_probe.py\n'))
                 validate_lock(snapshot)
                 private_json(evidence / 'native-lock-probe.json', snapshot)
             except (GuestError, ValueError, TypeError, OSError):
                 pass
             try:
                 from native_model_probe import validate_rotation_conditions
-                conditions = json.loads(guest.ssh(
-                    '/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py rotation\n',
-                    'read-only native recovery conditions'))
+                conditions = json.loads(guest.ssh_read_only_inspection(
+                    '/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py rotation\n'))
                 validate_rotation_conditions(conditions)
                 private_json(evidence / 'rotation-recovery-probe.json', conditions)
             except (GuestError, ValueError, TypeError, OSError):

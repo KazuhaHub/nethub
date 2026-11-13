@@ -51,7 +51,8 @@ def validate_read_only_inspection_recoveries(value, *, require_completed=False):
     for item in value:
         if (not isinstance(item, dict) or set(item) != {
                 'operation', 'first_transport_failure', 'phase', 'listener_recovery', 'read_completed', 'elapsed_ms'}
-                or item['operation'] not in ('GUI_inspection', 'model_readback', 'inspection_preflight')
+                or item['operation'] not in ('GUI_inspection', 'model_readback', 'inspection_preflight',
+                                              'lock_snapshot', 'rotation_conditions')
                 or item['first_transport_failure'] not in (
                     'guest_ssh_connection_refused', 'guest_ssh_connect_timeout', 'guest_ssh_connection_reset')
                 or item['phase'] not in ('listener_probe', 'readback', 'failed', 'completed')
@@ -424,6 +425,10 @@ cat /root/nethub-ci/host-key.pub
             '/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py\n':
                 ('native model readback', 'model_readback'),
             'test "$(id -u)" = 0\n': ('native inspection boundary', 'inspection_preflight'),
+            '/usr/local/bin/python3.13 /root/nethub-ci/native_lock_probe.py\n':
+                ('native lock snapshot', 'lock_snapshot'),
+            '/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py rotation\n':
+                ('native rotation conditions', 'rotation_conditions'),
         }
         if not isinstance(script, str) or script not in commands:
             raise GuestError('Only the fixed read-only native inspection may recover transport')
