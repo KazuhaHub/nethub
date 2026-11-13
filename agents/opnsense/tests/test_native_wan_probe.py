@@ -50,10 +50,46 @@ class WANProbeTests(unittest.TestCase):
 
     def test_restore_does_not_require_the_changed_default_route_before_repair(self):
         with (patch.object(probe, 'boundary', side_effect=['10.0.2.16', '10.0.2.15']) as boundary,
+              patch.object(probe, 'gateway') as gateway,
               patch.object(probe, 'run') as run):
             self.assertEqual(probe.operation('restore', 'a' * 32), {'restored': True})
             self.assertEqual(boundary.call_args_list[0].kwargs, {'require_route': False})
             run.assert_called_once_with(['/sbin/ifconfig', 'em1', 'inet', '10.0.2.15', 'netmask', '255.255.255.0'])
+            gateway.assert_called_once_with(repair=True)
+
+    def test_missing_gateway_is_repaired_and_verified_after_address_change(self):
+        header = 'Routing tables\n\nInternet:\nDestination Gateway Flags Netif Expire\n'
+        expected = header + 'default 10.0.2.2 UGS em1\n'
+        route = '   gateway: 10.0.2.2\n interface: em1\n'
+        with patch.object(probe, 'run', side_effect=[header, '', expected, route]) as run:
+            probe.gateway(repair=True)
+            self.assertEqual(run.call_args_list[1].args[0],
+                             ['/sbin/route', '-n', 'add', 'default', '10.0.2.2'])
+            self.assertEqual(run.call_count, 4)
+        with patch.object(probe, 'run', return_value=header) as run:
+            with self.assertRaisesRegex(probe.ProbeError, '^wan_route_missing$'):
+                probe.gateway()
+            run.assert_called_once()
+
+    def test_unexpected_or_ambiguous_gateway_is_never_replaced(self):
+        header = 'Destination Gateway Flags Netif Expire\n'
+        row = 'default 10.0.2.2 UGS em1\n'
+        for text in (header + row.replace('10.0.2.2', '10.0.2.3'),
+                     header + row.replace('em1', 'em0'), header + row + row,
+                     header.replace('Netif', 'Unknown') + row):
+            with self.subTest(text=text), patch.object(probe, 'run', return_value=text) as run:
+                with self.assertRaises(probe.ProbeError):
+                    probe.gateway(repair=True)
+                run.assert_called_once_with(['/usr/bin/netstat', '-rn', '-f', 'inet'])
+
+    def test_change_repairs_gateway_inside_the_single_mutation(self):
+        with (patch.object(probe, 'boundary', return_value='10.0.2.15'),
+              patch.object(probe, 'inspect', return_value={}),
+              patch.object(probe, 'gateway') as gateway,
+              patch.object(probe, 'run') as run):
+            probe.operation('change', 'a' * 32)
+            run.assert_called_once_with(['/sbin/ifconfig', 'em1', 'inet', '10.0.2.16', 'netmask', '255.255.255.0'])
+            gateway.assert_called_once_with(repair=True)
 
 
 if __name__ == '__main__':

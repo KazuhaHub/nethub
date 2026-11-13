@@ -141,6 +141,21 @@ stays failed. No manual agent start, restart, reconcile or grant renewal is used
 The native model, runtime configuration, native XML, GUI identity and database
 identity/grants must remain unchanged.
 
+The original candidate `d6f1b43` failed at the change phase in
+[installed run 43371274201](https://github.com/KazuhaHub/nethub/actions/runs/43371274201).
+Restoration was attempted but not verified. The retained outcome did not identify
+the failing operation; it cannot establish whether the default route disappeared.
+Keep that trial failed. Review separately found that the fixture replaced the
+primary address without restoring a dependent default route. The follow-up checks
+the IPv4 route table and reinstates only the absent fixed fixture gateway after
+each address change, within the original recovery clock. An unexpected gateway,
+interface, duplicate route or malformed table is refused, never overwritten.
+Address configuration and default-router configuration are separate steps in the
+[FreeBSD network handbook](https://docs.freebsd.org/en/books/handbook/network/).
+Version-two outcomes retain closed failure reasons for the original operation and
+restoration separately, without publishing child output. A successful restoration
+does not turn the original failed operation into a passing trial.
+
 This is a runtime address change behind the fixture's NAT, not a public-network
 or ISP DHCP-renewal sample. Local parser/orchestrator tests do not establish
 automatic recovery on an actual appliance. The candidate must execute with the

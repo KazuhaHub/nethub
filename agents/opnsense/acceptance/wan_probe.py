@@ -16,6 +16,33 @@ HEADER = 'USER COMMAND PID FD PROTO LOCAL ADDRESS FOREIGN ADDRESS PATH STATE CON
 TCP_HEADER = 'USER COMMAND PID FD PROTO LOCAL ADDRESS FOREIGN ADDRESS CONN STATE'.split()
 
 
+class ProbeError(ValueError):
+    """An allowlisted diagnostic without command output or configuration."""
+
+
+def gateway(*, allow_missing=False, repair=False):
+    lines = run(['/usr/bin/netstat', '-rn', '-f', 'inet']).splitlines()
+    if sum(line.split() == ['Destination', 'Gateway', 'Flags', 'Netif', 'Expire']
+           for line in lines) != 1:
+        raise ProbeError('wan_route_table')
+    rows = [line.split() for line in lines if line.split()[:1] == ['default']]
+    if not rows:
+        if repair:
+            run(['/sbin/route', '-n', 'add', 'default', '10.0.2.2'])
+            gateway()
+            return
+        if allow_missing:
+            return
+        raise ProbeError('wan_route_missing')
+    if (len(rows) != 1 or len(rows[0]) != 4 or rows[0][1] != '10.0.2.2'
+            or rows[0][3] != 'em1'):
+        raise ProbeError('wan_route_mismatch')
+    route = run(['/sbin/route', '-n', 'get', 'default'])
+    if (re.findall(r'^\s*gateway:\s*(\S+)\s*$', route, re.M) != ['10.0.2.2']
+            or re.findall(r'^\s*interface:\s*(\S+)\s*$', route, re.M) != ['em1']):
+        raise ProbeError('wan_route_mismatch')
+
+
 def run(arguments):
     result = subprocess.run(arguments, capture_output=True, timeout=5)
     if result.returncode or len(result.stdout) > 1024 * 1024:
@@ -74,11 +101,7 @@ def boundary(nonce, *, require_route=True):
     if root.findtext('interfaces/lan/if') != 'em0' or root.findtext('interfaces/wan/if') != 'em1':
         raise ValueError('Owned LAN and WAN binding changed')
     address(run(['/sbin/ifconfig', 'em0', 'inet']), 'em0', ('192.168.1.1',))
-    if require_route:
-        route = run(['/sbin/route', '-n', 'get', 'default'])
-        if (re.findall(r'^\s*gateway:\s*(\S+)\s*$', route, re.M) != ['10.0.2.2']
-                or re.findall(r'^\s*interface:\s*(\S+)\s*$', route, re.M) != ['em1']):
-            raise ValueError('Owned WAN gateway changed')
+    gateway(allow_missing=not require_route)
     return address(run(['/sbin/ifconfig', 'em1', 'inet']), 'em1', ADDRESSES)
 
 
@@ -107,9 +130,13 @@ def operation(action, nonce):
             raise ValueError('Original WAN baseline required')
         inspect()
         run(['/sbin/ifconfig', 'em1', 'inet', ADDRESSES[1], 'netmask', '255.255.255.0'])
+        # Replacing a primary address may remove its dependent routes. Repair
+        # only the fixed fixture gateway; never replace an unexpected route.
+        gateway(repair=True)
     elif action == 'restore':
         if current != ADDRESSES[0]:
             run(['/sbin/ifconfig', 'em1', 'inet', ADDRESSES[0], 'netmask', '255.255.255.0'])
+        gateway(repair=True)
         return {'restored': boundary(nonce) == ADDRESSES[0]}
     return inspect()
 
@@ -119,6 +146,7 @@ if __name__ == '__main__':
         if len(sys.argv) != 3:
             raise ValueError('Owned WAN arguments required')
         print(json.dumps(operation(*sys.argv[1:])))
-    except (OSError, ValueError, subprocess.SubprocessError, ET.ParseError):
-        print(json.dumps({'owned_WAN_probe_failed': True}))
+    except (OSError, ValueError, subprocess.SubprocessError, ET.ParseError) as error:
+        reason = str(error) if isinstance(error, ProbeError) else 'wan_probe'
+        print(json.dumps({'success': False, 'fixture_phase': reason}))
         raise SystemExit(1)

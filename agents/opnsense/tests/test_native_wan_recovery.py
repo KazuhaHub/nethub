@@ -71,6 +71,8 @@ def test_lost_change_response_restores_but_does_not_turn_failure_into_success(mo
     assert guest.address == '10.0.2.15'
     assert guest.actions.count('change') == guest.actions.count('restore') == 1
     assert result['change_ms'] is None
+    assert result['failure_reason'] == 'guest_operation'
+    assert result['restore_failure_reason'] is None
 
 
 def test_late_success_is_a_failure_even_when_the_route_is_available(monkeypatch, tmp_path):
@@ -83,6 +85,29 @@ def test_late_success_is_a_failure_even_when_the_route_is_available(monkeypatch,
     assert result['passed'] is False and result['change_ms'] is None
     assert result['restore_attempted'] and guest.address == '10.0.2.15'
     assert guest.actions.count('change') == guest.actions.count('restore') == 1
+    assert result['failure_reason'] == result['restore_failure_reason'] == 'deadline'
+
+
+def test_closed_probe_reason_survives_restore_failure_without_raw_output(monkeypatch, tmp_path):
+    class FailedGuest(Guest):
+        def ssh(self, script, *args, **kwargs):
+            action = script.split()[-2]
+            if action == 'change':
+                raise RECOVERY.GuestError('owned native WAN change failed: fixture_wan_route_mismatch')
+            if action == 'restore':
+                raise RECOVERY.GuestError('owned native WAN restore failed: fixture_wan_route_missing')
+            return super().ssh(script, *args, **kwargs)
+    with pytest.raises(RECOVERY.GuestError, match='failed at change'):
+        exercise(monkeypatch, tmp_path, FailedGuest())
+    result = json.loads((tmp_path / 'installed-wan-recovery.json').read_text())
+    assert result['failure_reason'] == 'wan_route_mismatch'
+    assert result['restore_failure_reason'] == 'wan_route_missing'
+    assert result['restore_attempted'] and not result['restore_succeeded']
+    assert not result['passed']
+    for changes in ({'failure_reason': None}, {'failure_reason': 'raw private child output'},
+                    {'restore_attempted': False}, {'restore_succeeded': True}):
+        with pytest.raises(ValueError):
+            RECOVERY.validate(dict(result, **changes))
 
 
 def test_private_projection_refuses_unrelated_or_ambiguous_controls():
@@ -93,3 +118,24 @@ def test_private_projection_refuses_unrelated_or_ambiguous_controls():
                      ('control_sources', ['10.0.2.15', '10.0.2.16'])]:
         with pytest.raises(ValueError):
             RECOVERY.projection(dict(value, **{key: bad}))
+
+
+@pytest.mark.parametrize('field,value,reason', [
+    ('pid', 456, 'process_changed'), ('started', 'new process', 'process_changed'),
+    ('runtime_sha256', 'c' * 64, 'runtime_changed'),
+    ('native_xml_sha256', 'c' * 64, 'native_xml_changed'),
+])
+def test_route_recovery_cannot_hide_process_or_configuration_changes(monkeypatch, tmp_path, field, value, reason):
+    class ChangedGuest(Guest):
+        def ssh(self, script, *args, **kwargs):
+            result = json.loads(super().ssh(script, *args, **kwargs))
+            if self.address == '10.0.2.16':
+                result[field] = value
+            return json.dumps(result)
+    guest = ChangedGuest()
+    with pytest.raises(RECOVERY.GuestError, match='failed at change'):
+        exercise(monkeypatch, tmp_path, guest)
+    result = json.loads((tmp_path / 'installed-wan-recovery.json').read_text())
+    assert not result['passed'] and result['failure_reason'] == reason
+    assert result['restore_succeeded'] and result['restore_failure_reason'] is None
+    assert guest.actions.count('change') == guest.actions.count('restore') == 1
