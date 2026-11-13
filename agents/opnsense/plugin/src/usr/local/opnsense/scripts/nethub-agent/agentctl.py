@@ -564,11 +564,19 @@ class Agent:
             directory.chmod(0o700)
         os.umask(0o077)
         with self.open_mutation_lock() as lock:
-            try:
-                if not locked:
-                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
+            if not locked:
+                # Interactive rotation may wait briefly for scheduled work.
+                # Other actions keep their existing nonblocking admission.
+                deadline = time.monotonic() + (3 if action == 'rotate' else 0)
+                while True:
+                    try:
+                        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        break
+                    except BlockingIOError:
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
+                        time.sleep(min(0.1, remaining))
             try:
                 self.protect_mutation_lock(lock)
                 if action == 'disable':
