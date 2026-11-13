@@ -77,8 +77,9 @@ v0.2 写完之后，用户在 2026-09-17 的会话里拍板了一批事项，它
 
 **Decision status:** Q7/D7 source-IP admission, Q9/D17 exact Alternate Hostnames,
 and Q10/D22 verified relay trust are confirmed and implemented within their recorded
-acceptance scopes. D14 still requires owner review of Q1/Q3/Q4/Q5; no new decision is
-implied here. See PLAN §2 for the current decision register.
+acceptance scopes. Kazuha confirmed D14 Q1/Q3/Q4/Q5 on 2026-11-10; the four
+boundaries are recorded in §14. These decisions do not complete their runtime
+acceptance. See PLAN §2 for the current decision register.
 
 ---
 

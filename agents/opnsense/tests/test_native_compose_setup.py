@@ -84,3 +84,26 @@ def test_hardlinked_log_refused(tmp_path):
     os.link(path, tmp_path / 'linked.log')
     with pytest.raises(ValueError):
         SETUP.inspect(path, 1)
+
+
+def test_relay_failure_phase_location_and_deadline_hint_survive_without_child_text():
+    raw = (b'NETHUB_NATIVE_PHASE=relay\n'
+           b'NETHUB_NATIVE_PHASE=relay_heartbeat\n'
+           b'  File "/private-endpoint/relay_heartbeat.py", line 49, in wait_online\n'
+           b'  File "/private-endpoint/unknown.py", line 1, in private_function\n'
+           b'RuntimeError: official control-session state was observed after its deadline\n')
+    value = SETUP.project(raw, 1)
+    assert value == {'version': 2, 'phase': 'relay_heartbeat', 'exit_code': 1,
+                     'locations': [{'source': 'relay_heartbeat', 'line': 49}],
+                     'failed_tests': [], 'hints': ['relay_cutoff_late']}
+    assert 'private-endpoint' not in str(value)
+    assert 'RuntimeError' not in str(value)
+    replay = SETUP.project(SETUP.emit(value).encode(), 1)
+    assert replay['locations'] == value['locations'] and replay['hints'] == value['hints']
+
+
+@pytest.mark.parametrize('phase', ['relay_fleet', 'relay_heartbeat', 'relay_token_probe',
+                                  'relay_rotation', 'relay_token_runtime'])
+def test_relay_components_have_distinct_fixed_failure_phases(phase):
+    value = SETUP.project(('NETHUB_NATIVE_PHASE=' + phase + '\n').encode(), 1)
+    assert value['phase'] == phase

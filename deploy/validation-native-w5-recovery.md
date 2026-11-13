@@ -156,6 +156,17 @@ Version-two outcomes retain closed failure reasons for the original operation an
 restoration separately, without publishing child output. A successful restoration
 does not turn the original failed operation into a passing trial.
 
+The follow-up `1624ff9` passed CI, 217 actual FreeBSD cases, preparation and
+isolated cold recovery, but its
+[installed run 43377788624](https://github.com/KazuhaHub/nethub/actions/runs/43377788624)
+failed in the relay prerequisite before starting a native guest. It did not
+execute the WAN change and cannot validate or refute the gateway fix. The retained
+projection identified only the broad relay phase; previous successful Go source
+locations do not establish the later Python failure's cause. The diagnostic
+follow-up adds fixed relay component phases and allowlisted Python traceback
+locations and deadline hints without exporting child output or repeating a timed
+action inside a failed run. It changes no cutoff limit, workload or recovery guard.
+
 This is a runtime address change behind the fixture's NAT, not a public-network
 or ISP DHCP-renewal sample. Local parser/orchestrator tests do not establish
 automatic recovery on an actual appliance. The candidate must execute with the

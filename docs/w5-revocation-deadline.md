@@ -122,8 +122,9 @@ It reports authz/frps process CPU and observed resident memory separately from
 PostgreSQL/client/observer costs. Pong log observation gaps use requested 200 ms
 polling and are not HTTP callback latency measurements. Preparation honors the
 unchanged five-token minute limit; no failed timed stage is retried. All attempts
-are retained. This fixture still needs actual execution; these small sizes do not
-establish capacity for a larger fleet or complete the public/fault/migration gates.
+are retained. The dated checkpoint below records actual execution; changed inputs
+need fresh checks. These small sizes do not establish capacity for a larger fleet
+or complete the public/fault/migration gates.
 
 A third 30-second case keeps all twelve controls and loads 99,000 synthetic
 revoked-device rows plus 99,000 rotation floors into that same disposable
@@ -139,7 +140,7 @@ counts and authz/frps process cost, rather than inferring combined continuity
 from the separate SQL-only load run. Subsequent outage/freeze and five-phase
 revocation cases run with these rows retained; the later native console check
 also inherits that data. Revocation identities use fresh ordinary enrollment
-tokens after pressure preparation. This fixture has not executed yet. It does
+tokens after pressure preparation. The dated checkpoint below records its execution. It does
 not establish 99,000 online clients, PostgreSQL CPU cost, public-network behavior
 or direct cache-publication phase timing.
 
@@ -148,4 +149,25 @@ counter and charged memory, including descendant tasks. It binds the exact
 Docker container and original cgroup inode, requires cgroup v2 and retains each
 counter's measurement window. Charged memory includes cache and is distinct from
 the process RSS above. These counters exclude clients and the observer. Their
-PostgreSQL cost requires actual execution; no local estimates are accepted.
+PostgreSQL cost must be backed by actual measurements; no local estimates are accepted.
+
+## Scoped pressure execution checkpoint
+
+Source `1624ff9` passed complete [CI 43377788586](https://github.com/KazuhaHub/nethub/actions/runs/43377788586).
+The disposable deployment retained 99,000 synthetic revoked rows and 99,000
+rotation floors. All twelve original controls survived the 30.051-second pressure
+stage, with 299 observed Pongs and a maximum observed gap of 1,210 ms. Dedicated
+authz/frps/PostgreSQL cgroups averaged 0.4102/0.0080/0.1875 CPU cores; charged
+memory includes cache and is separate from process RSS. These are bounded
+measurements, not 99,000 online clients or production capacity.
+
+The ten additional clients stopped before later faults and the five-phase sweep;
+the synthetic database rows remained. SQL-dispatch cutoffs were 1,097, 1,927,
+1,645, 1,510 and 1,249 ms. These are not before-console or public timings.
+The same source's installed run failed in its earlier relay prerequisite, before
+starting the native guest. It supplies no WAN recovery or native console cutoff.
+The failure and cleanup are retained; the original relay cause was not exported.
+The earlier source `d6f1b43` failed at native WAN change with restoration attempted
+but not verified. Later fixture changes need their own exact-source execution;
+neither checkpoint completes W5 or public/mobile, direct cache-phase, larger-fleet,
+short-network and migration/rollback gates.

@@ -457,14 +457,19 @@ try:
                      signed_claims_or_enrollments_created=False, retained_until_owned_database_teardown=True)
         return value
 
+    print('NETHUB_NATIVE_PHASE=relay_fleet', flush=True)
     exercise_fleet(stage, compose, valid_clients, fleet_client, stop_client,
                    revoke_fleet, check_tunnels, probe, local_source, seed_fleet_pressure)
+    print('NETHUB_NATIVE_PHASE=relay_heartbeat', flush=True)
     exercise_heartbeats(stage, compose, assignments, valid_clients, gateway, sql,
                         check_tunnels, probe, local_source, hook_events, revocation_client,
                         stop_revocation_client, fresh_revoked_login)
+    print('NETHUB_NATIVE_PHASE=relay_token_probe', flush=True)
     exercise_token_probe(stage, assignments, valid_clients, check_tunnels)
+    print('NETHUB_NATIVE_PHASE=relay_rotation', flush=True)
     exercise_rotation(stage, port, assignments, valid_clients, start_client, stop_client,
                       backend.server_port, local_source, probe, check_tunnels, hook_events, sql)
+    print('NETHUB_NATIVE_PHASE=relay_token_runtime', flush=True)
     exercise_token_runtime(stage, port, sys.argv[3], assignments, valid_clients, start_client, stop_client,
                            backend.server_port, check_tunnels, sql)
 finally:
