@@ -899,7 +899,7 @@ W0 cleanup removed its temporary relay. Prepare an isolated W2 relay using the
 confirmed D6/D7/D22 settings; do not reuse an unauthenticated W0 control channel.
 
 1. 在 VPS 上复制一份 `weekend0/frps.toml`，命名为 `frps-w2.toml`（放在 VPS 上，不进仓库）；
-2. Keep the D6 server heartbeat timeout at 30 seconds; configure the client with a 10-second interval and 30-second timeout.
+2. The original W2 measurements used a 30-second server timeout and a 10/30-second client interval/timeout. The 2026-11-12 D6 development candidate uses 1/3-second client timing and a three-second server timeout; do not apply that shorter server timeout to old clients. Follow the coordinated upgrade/rollback order in [the current timing proposal](w5-revocation-deadline.md).
 3. Keep `Login`, `NewProxy`, `NewUserConn`, and `Ping` subscribed with the isolated all-allow probe; product authorization remains later work.
 4. 配上 `auth.token`（顶层），把这个值记下来，W2-8 手填时要用；
 5. Generate a temporary deployment CA and a relay server certificate with the expected DNS SAN. Configure frps with the server certificate/key, and frpc with the CA PEM and matching serverName. Keep the CA private key outside the relay process working directory and runtime mounts. Validate both configurations with 0.71.1 before starting the probe and relay. Later negative tests must reject an unrelated CA and an incorrect serverName.
@@ -1598,8 +1598,10 @@ requirement with the earlier private-CA renewal/fault controls and the accepted
 
 Implementation checkpoint (2026-10-24): explicit Open, scoped certificate status,
 NewUserConn source admission and the 0.0.17 local circuit breaker are implemented.
-Heartbeat revocation uses a five-second memory-cache refresh within the planned
-5–10 second range; Login/NewProxy remain database-current. See the
+That checkpoint used a five-second memory-cache refresh; Login/NewProxy remained
+database-current. The 2026-11-12 development candidate instead refreshes every
+second and expires admission authority after 2.5 seconds from read start. It still
+requires load, fault and native/public timing acceptance. See the
 [callback boundaries](../server/internal/relayhook/README.md) and
 [circuit test scope](../agents/opnsense/plugin/tests/circuit-breaker-progress.md).
 The acceptance checklist below remains open until the combined native/public
@@ -1633,8 +1635,13 @@ measurements, anomaly handling and recovery cases are complete.
 
 - 控制台"撤销"：web 只写撤销标记（`revoked`、`revoked_at`、`revoked_by_user_id`），并写审计记录。
 - `Login` 和 `NewProxy` 照旧**查数据库**，拒绝已撤销的设备。它们不频繁，查库是对的；用内存里可能过时的数据，会把刚撤销的设备放回来。
-- 如果用到 `Ping`（见下），authz 另外在内存里维护一份已撤销设备的集合，**只给 `Ping` 用**。
-  定时从数据库刷新（刷新间隔和 Kazuha 定，建议 5–10 秒），刷新失败时继续用上一份。
+- `Ping` uses an in-memory denial set and claim floors without querying SQL.
+  The D6 development candidate refreshes every second with a shared one-second
+  read budget. Failed reads retain known denials, but a snapshot older than
+  2.5 seconds from read start cannot admit Ping. A stale or future-dated snapshot
+  fails closed; the freshness self-check stops authz for ordinary restart recovery.
+  This replaces the original indefinite last-good admission proposal. Preserve
+  the coordinated agent/relay upgrade order and actual acceptance requirements.
 - 如果【D6】选的是"拒绝 Ping"：
   - frps 的 `ops` 加上 `Ping`；
   - 插件模板里写上 W0 实测后定下的心跳参数；

@@ -988,8 +988,12 @@ D7 requires `NewUserConn` gating: authenticated Open grants 30 minutes for the d
 
 **验收：** 手机开 4G，从控制台点开设备远程 UI 能登录 GUI；
 切 kill switch 后隧道立即停且不碰 config.xml；点"撤销"后，被撤销设备的新浏览器连接被拒；
-如果 Weekend 0 验证出了可用的断线机制，控制连接按它被断开，并记录实测断线时延（~45 秒是目标，不是承诺）；
-如果没有，这一条只验"新连接被拒 + 重连时被 `Login` 挡住"，"已建立的隧道断不掉"如实写进风险清单；
+Revoke must disconnect the control within five seconds of console confirmation
+dispatch and prevent reconnection, as retained by Kazuha on 2026-11-12. Record
+the measurement anchors, every failed attempt and unaffected-device behavior.
+The roughly 45-second anomaly-confirmation period does not replace this deadline.
+The original fallback to blocking only new connections applies only if no cutoff
+mechanism works and requires a new owner decision; it cannot waive this target.
 若采用了拒绝 `Ping`，再验一次停掉 authz 时全部隧道的断开与恢复（§5）；
 enroll 流程里提示"确认拥有独立于本产品之外的带外访问手段"；
 若上了门禁：没在控制台点过"打开"的源 IP 连不上 8443。
