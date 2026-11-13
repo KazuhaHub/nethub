@@ -1,9 +1,9 @@
 # NetHub console API
 
-Updated 2026-10-26 against the Web router, DTOs and store operations. This
+Updated 2026-11-13 against the Web router, DTOs and store operations. This
 reference distinguishes implemented routes from reserved proposals. Local
 sessions, device inventory/enrollment, Open/Revoke/disconnect, users, invitations
-and OIDC/SAML provider management and login are implemented. Actual two-Dex and
+audit browsing and OIDC/SAML provider management and login are implemented. Actual two-Dex and
 signed Keycloak deployment evidence is separate from public-provider and combined
 W5-W7 acceptance, which remain open.
 
@@ -107,8 +107,8 @@ never appears in the API.
 
 | Role     | Can                                                                                             |
 | -------- | ----------------------------------------------------------------------------------------------- |
-| `admin`  | Implemented device operations across the instance; user, invitation and provider administration |
-| `member` | Their own devices and enroll tokens; local session and logout                                   |
+| `admin`  | Implemented device operations across the instance; user, invitation and provider administration; tenant audit events |
+| `member` | Their own devices and enroll tokens; local session and logout; related account and device audit events |
 
 A member asking for someone else's device gets `404 not_found`, not `403`, so
 the API does not reveal that the device exists.
@@ -249,11 +249,12 @@ cookie/CSRF values, and enrollment tokens are absent from application/audit logs
 | `PATCH /saml-providers/{id}`                   | admin                            | W6    | yes                            |
 | `DELETE /saml-providers/{id}`                  | admin                            | W6    | yes                            |
 | `GET /traffic`                                | admin                            | W7    | no                             |
+| `GET /audit`                                  | signed in; visibility scoped     | W6    | no                             |
 | `PATCH /traffic/settings`                     | admin                            | W7    | changed setting only           |
 
 The table lists implemented routes. Phase identifies their plan stage, not full
 stage acceptance. These paths are reserved and have no handler: `POST /me/password`,
-`GET /devices/{id}`, `PATCH /devices/{id}` and `GET /audit`.
+`GET /devices/{id}` and `PATCH /devices/{id}`.
 Their proposed behavior below is not an available API contract.
 
 All paths below are relative to `/api/v1/console` unless stated otherwise.
@@ -576,7 +577,7 @@ The implemented backend accepts `limit` (1–200, default 50) and an opaque
 `cursor`, returning `{ "items": [...], "next_cursor": null | "..." }`.
 Passwords, hashes, identity subjects and provider secrets are never projected.
 The user-management interface is available at `/users`. GET `/users`,
-GET `/devices`, GET `/oidc-providers`, GET `/saml-providers`, GET `/traffic` and GET `/session`
+GET `/devices`, GET `/oidc-providers`, GET `/saml-providers`, GET `/traffic`, GET `/audit` and GET `/session`
 accept exactly one `X-NetHub-Background: 1` header for passive lookup without
 idle-time renewal.
 Explicit reads and all mutations use active lookup.
@@ -870,18 +871,35 @@ through PR #188; see the [accounting limits](../deploy/traffic-counters.md). The
 
 ### `GET /audit`
 
-**Reserved:** no audit-list Web handler exists. The following is proposed behavior.
-
-Admins see every entry; members see entries about themselves and their own
-devices.
+The handler checks the actor's current enabled account and role in its tenant-bound
+transaction. Administrators see tenant events. Members see their own actions,
+account-targeting user/session events and events for their devices. Removed-device
+history requires uniquely recorded enrollment ownership; conflicting ownership
+does not establish access. The console page is `/audit`.
 
 - Filters: `?action=`, `?device_id=`, `?user_id=` (admin only), `?since=`,
   `?until=`.
 - Response: a paginated list of
   `{ "id", "created_at", "actor_type": "user|system|device", "actor", "action", "target_device_id", "client_ip", "details" }`.
-- `details` never contains secrets.
+- `actor` and `target_device_id` are nullable UUID strings. `client_ip` is optional.
+- `details` exposes only typed fields for selected actions: `target_user_id`,
+  `role`, `disabled`, `sessions_revoked`, `expires_at` and `request_id`. Raw payloads,
+  credentials, hashes and claims are not returned. Other actions return `{}`.
 - For members, `client_ip` is omitted unless the actor is the caller. A member
   does not learn an admin's address from an entry about their own device.
+- Action and UUID filters match exactly. `user_id` selects the acting user;
+  members cannot supply it. `since` is inclusive and `until` exclusive, using
+  RFC 3339 timestamps. Unknown, empty, duplicate or invalid parameters return
+  `400 invalid_request`; a member actor filter returns `403 forbidden`.
+- Pagination uses descending append sequence, with default limit 50 and maximum
+  200. Opaque cursors bind tenant, actor and filters; changing those filters
+  invalidates the cursor. No total count or cross-request snapshot is promised.
+- Explicit reads update session activity. Passive reads use the common background
+  header; neither kind renews device grants. The UI refreshes only on user action.
+- Listing events does not verify the hash chain or prevent privileged database
+  rewriting. See [audit browsing](../deploy/console-audit.md) and the separate
+  [consistency checker](../deploy/audit-chain.md). Hosted SQL/browser acceptance
+  and the full W6/W7 gates remain separate from implementation.
 
 ### `GET /traffic`
 

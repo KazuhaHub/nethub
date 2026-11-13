@@ -74,7 +74,7 @@ func passiveSessionRequest(r *http.Request) bool {
 		return false
 	}
 	switch r.URL.Path {
-	case prefix + "/devices", prefix + "/users", prefix + "/session", prefix + "/oidc-providers", prefix + "/saml-providers", prefix + "/traffic":
+	case prefix + "/devices", prefix + "/users", prefix + "/session", prefix + "/oidc-providers", prefix + "/saml-providers", prefix + "/traffic", prefix + "/audit":
 		return true
 	default:
 		return false

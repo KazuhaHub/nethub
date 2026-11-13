@@ -172,6 +172,72 @@ try {
     path: join(evidence, "empty-inventory.png"),
     fullPage: true,
   });
+  const auditResponse = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/v1/console/audit" &&
+      response.status() === 200,
+  );
+  await page.getByRole("link", { name: "Audit log", exact: true }).click();
+  const audit = await auditResponse;
+  assert.equal(await audit.finished(), null);
+  const auditPage = await audit.json();
+  assert.ok(
+    Array.isArray(auditPage.items) &&
+      auditPage.items.length > 0 &&
+      auditPage.next_cursor === null,
+  );
+  const actualAuditIDs = docker([
+    "exec",
+    "-u",
+    "postgres",
+    databaseContainer,
+    "psql",
+    "-X",
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-d",
+    "nethub",
+    "-At",
+    "-c",
+    "SELECT coalesce(jsonb_agg(id ORDER BY sequence DESC),'[]'::jsonb)::text FROM audit_log",
+  ]);
+  assert.deepEqual(
+    auditPage.items.map((entry) => entry.id),
+    JSON.parse(actualAuditIDs),
+  );
+  assert.ok(auditPage.items.some((entry) => entry.action === "auth.login"));
+  for (const entry of auditPage.items) {
+    assert.ok(!("payload" in entry) && !("entry_hash" in entry));
+    assert.deepEqual(entry.details, {});
+  }
+  await page.locator("tbody tr").first().waitFor();
+  assert.equal(await page.locator("tbody tr").count(), auditPage.items.length);
+  await page.getByLabel("Action", { exact: true }).fill("auth.login");
+  const filteredAudit = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/v1/console/audit" &&
+      new URL(response.url()).searchParams.get("action") === "auth.login" &&
+      response.status() === 200,
+  );
+  await page
+    .getByRole("button", { name: "Apply filters", exact: true })
+    .click();
+  const filteredResponse = await filteredAudit;
+  assert.equal(await filteredResponse.finished(), null);
+  const filtered = await filteredResponse.json();
+  assert.deepEqual(
+    filtered.items.map((entry) => entry.id),
+    auditPage.items
+      .filter((entry) => entry.action === "auth.login")
+      .map((entry) => entry.id),
+  );
+  await page.waitForFunction(
+    (count) => document.querySelectorAll("tbody tr").length === count,
+    filtered.items.length,
+  );
+  await inventoryAfter(() =>
+    page.getByRole("link", { name: "Devices", exact: true }).click(),
+  );
   const opener = page.getByRole("button", { name: "Add device", exact: true });
   const dialog = page.getByRole("dialog", { name: "Add a device" });
   const tokenField = page.getByLabel("Enrollment token", { exact: true });
@@ -344,6 +410,7 @@ try {
           "session cookie",
           "reload",
           "empty inventory",
+          "audit page and action filter matched actual PostgreSQL append order and typed projection",
           "fresh enrollment tokens",
           "clipboard",
           "dialog focus and Escape",
