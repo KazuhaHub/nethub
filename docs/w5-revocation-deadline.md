@@ -96,3 +96,18 @@ the disposable database until its volume is removed; no live credentials or
 enrollments are manufactured. The one-second refresh budget is unchanged.
 These measurements do not establish signed HTTP Ping throughput, frp continuity,
 false cutoffs under a live fleet, or console/public five-second acceptance.
+
+The stock-client fixture also defines five independent irreversible revocations
+at preselected offsets of 0/200/400/600/800 ms after observing a successful Pong
+in that client's private debug log. It records the actual observed-Pong-to-SQL
+dispatch offset; log polling requests a 10 ms interval, which is an observation
+resolution rather than an exact packet timestamp. Each case independently
+requires cutoff within five seconds of SQL dispatch, the client's error Pong,
+server Ping refusal, a fresh official-client Login refusal, new TLS refusal and
+the same unrelated original TCP controls throughout the sweep. Completed revoked
+clients stop before the next case so old retries cannot satisfy new evidence.
+A single preparation wait clears the existing enrollment-token rate window;
+timed revocations are never retried. Every attempted case is retained, including
+failures. This fixture has to execute successfully before its results are accepted.
+It does not measure the cache refresh phase directly or replace the required
+console/native/public and live-fleet tests.

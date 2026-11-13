@@ -1,5 +1,6 @@
 """Measure real control-session loss and recovery with the pinned official clients."""
 import base64
+from datetime import datetime, timezone
 import json
 import re
 import socket
@@ -16,7 +17,8 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
-                        check_tunnels, probe, source, hook_events, revocation_client):
+                        check_tunnels, probe, source, hook_events, revocation_client,
+                        stop_revocation_client, fresh_revoked_login):
     work = Path(stage) / 'heartbeat-test'
     work.mkdir(mode=0o700)
     secrets = Path(stage) / 'deployment/secrets/frps'
@@ -215,55 +217,109 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
         'runtime_binding_health_after_unpause_ms': freeze_health_ms,
         'revoked_device_or_public_network_acceptance': False}}), flush=True)
 
-    # Later authority tests retain the original two enrollments. Revocation is
-    # irreversible: create a separate authenticated identity for this control.
-    target = revocation_client()
-    target_name = 'nethub-' + target['device_id'] + '-web'
-    expected.add(target_name)
-    wait_online(expected, time.monotonic() + 15)
-    deadline = time.monotonic() + 10
-    while True:
-        ready = probe(target, source)
-        if ready.returncode == 0 and ready.stdout.decode() == target['subdomain'] + '.router.example.com':
-            break
-        assert time.monotonic() < deadline, 'dedicated revocation client never completed verified TLS'
-        time.sleep(0.1)
-    before = hook_events('before-revoked-heartbeat')
-    prior_ping = sum(event.get('operation') == 'Ping' and event.get('decision') == 'device_denied' for event in before)
-    prior_login = sum(event.get('operation') == 'Login' and event.get('decision') == 'device_denied' for event in before)
-    device = str(uuid.UUID(target['device_id']))
-    survivor_sockets = control_sockets()
-    assert len(survivor_sockets) == len(clients), 'one original multiplexed control per survivor required'
-    started = time.monotonic()
-    survivor_samples = []
+    # Irreversible revocations use fresh authenticated identities. Offsets are
+    # fixed before observing any result; failed cases never get a favorable retry.
+    phase_results = []
+    phase_survivor_sockets = control_sockets()
+    assert len(phase_survivor_sockets) == len(clients), 'original phase-sweep survivor controls required'
+    for index, offset_ms in enumerate((0, 200, 400, 600, 800)):
+        sample = {'round': index, 'requested_after_observed_Pong_ms': offset_ms,
+                  'phase': 'prepare', 'passed': False,
+                  'clock_start': 'SQL update dispatch', 'deadline_ms': 5000,
+                  'heartbeat_log_poll_interval_ms': 10,
+                  'cache_refresh_phase_measured': False,
+                  'console_native_or_public_deadline_accepted': False}
+        phase_results.append(sample)
+        survivor_samples = []
+        try:
+            target, client_log, target_client = revocation_client(index)
+            target_name = 'nethub-' + target['device_id'] + '-web'
+            expected.add(target_name)
+            wait_online(expected, time.monotonic() + 15)
+            deadline = time.monotonic() + 10
+            while True:
+                ready = probe(target, source)
+                if ready.returncode == 0 and ready.stdout.decode() == target['subdomain'] + '.router.example.com':
+                    break
+                assert time.monotonic() < deadline, 'dedicated revocation client never completed verified TLS'
+                time.sleep(0.1)
 
-    def observe_survivors(_active=None, _complete=False):
-        original = len(survivor_sockets & control_sockets())
-        survivor_samples.append({'elapsed_ms': round((time.monotonic() - started) * 1000),
-                                 'original_survivor_controls': original})
-        assert original == len(clients), 'revocation interrupted an unrelated original control'
+            def client_output():
+                assert client_log.is_file() and client_log.stat().st_size <= 4 * 1024**2
+                return client_log.read_bytes()
 
-    sql("UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id='" + device + "';")
-    wait_online(expected - {target_name}, started + 5, observe_survivors)
-    revoked_ms = round((time.monotonic() - started) * 1000)
-    deadline = time.monotonic() + 20
-    while True:
-        observe_survivors()
-        events = hook_events('after-revoked-heartbeat')
-        pings = sum(event.get('operation') == 'Ping' and event.get('decision') == 'device_denied' for event in events)
-        logins = sum(event.get('operation') == 'Login' and event.get('decision') == 'device_denied' for event in events)
-        if pings > prior_ping and logins > prior_login:
-            break
-        if time.monotonic() >= deadline:
-            raise RuntimeError('revoked control session lacked actual Ping and reconnect Login denials')
-        time.sleep(0.2)
-    assert probe(target, source).returncode != 0
-    survivor = probe(assignments[1], source)
-    assert survivor.returncode == 0 and survivor.stdout.decode() == assignments[1]['subdomain'] + '.router.example.com'
-    assert online() == expected - {target_name}
-    check_tunnels()
-    observe_survivors()
-    (work / 'revocation-survivor-samples.json').write_text(json.dumps(survivor_samples, indent=2))
+            before = hook_events(f'before-revoked-heartbeat-{index}')
+            prior_ping = sum(event.get('operation') == 'Ping' and event.get('decision') == 'device_denied' for event in before)
+            prior_login = sum(event.get('operation') == 'Login' and event.get('decision') == 'device_denied' for event in before)
+            device = str(uuid.UUID(target['device_id']))
+            survivor_sockets = phase_survivor_sockets
+            assert survivor_sockets.issubset(control_sockets()), 'preparation interrupted an original phase-sweep survivor'
+
+            # The pinned client's fixed Debug message is emitted only after a
+            # successful Pong. Keep its complete log private, exporting counts
+            # and elapsed times rather than request metadata or credentials.
+            sample['phase'] = 'observe_successful_Pong'
+            previous_pongs = client_output().count(b'receive heartbeat from server')
+            deadline = time.monotonic() + 10
+            while client_output().count(b'receive heartbeat from server') <= previous_pongs:
+                assert target_client.poll() is None, 'phase client exited before its accepted heartbeat'
+                assert time.monotonic() < deadline, 'successful original-client Pong was not observed'
+                time.sleep(0.01)
+            pong_observed = time.monotonic()
+            time.sleep(offset_ms / 1000)
+            sample['phase'] = 'SQL_dispatch_and_cutoff'
+            started = time.monotonic()
+            sample['SQL_dispatch_utc'] = datetime.now(timezone.utc).isoformat(timespec='microseconds')
+            sample['observed_Pong_to_SQL_dispatch_ms'] = round((started - pong_observed) * 1000)
+
+            def observe_survivors(_active=None, _complete=False):
+                original = len(survivor_sockets & control_sockets())
+                survivor_samples.append({'elapsed_ms': round((time.monotonic() - started) * 1000),
+                                         'original_survivor_controls': original})
+                assert original == len(clients), 'revocation interrupted an unrelated original control'
+
+            sql("UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id='" + device + "';")
+            wait_online(expected - {target_name}, started + 5, observe_survivors)
+            sample['SQL_dispatch_to_proxy_offline_ms'] = round((time.monotonic() - started) * 1000)
+            sample['phase'] = 'Ping_and_reconnect_denial'
+            deadline = time.monotonic() + 20
+            while True:
+                observe_survivors()
+                events = hook_events(f'after-revoked-heartbeat-{index}')
+                pings = sum(event.get('operation') == 'Ping' and event.get('decision') == 'device_denied' for event in events)
+                logins = sum(event.get('operation') == 'Login' and event.get('decision') == 'device_denied' for event in events)
+                if (pings > prior_ping and logins > prior_login
+                        and b'pong message contains error: not_authorized' in client_output()):
+                    break
+                if time.monotonic() >= deadline:
+                    raise RuntimeError('revoked control session lacked its actual Pong error, Ping and reconnect Login denials')
+                time.sleep(0.2)
+            assert probe(target, source).returncode != 0
+            survivor = probe(assignments[1], source)
+            assert survivor.returncode == 0 and survivor.stdout.decode() == assignments[1]['subdomain'] + '.router.example.com'
+            assert online() == expected - {target_name}
+            check_tunnels()
+            observe_survivors()
+            assert target_client.poll() is None, 'original phase client exited instead of retrying its revoked Login'
+            fresh_revoked_login(target, index)
+            observe_survivors()
+            sample['observation_after_SQL_dispatch_ms'] = round((time.monotonic() - started) * 1000)
+            sample['actual_client_Pong_error_and_fresh_Login_denial'] = True
+            sample['original_unrelated_controls_retained'] = len(clients)
+            sample['phase'] = 'completed'
+            sample['passed'] = True
+            expected.remove(target_name)
+        finally:
+            # Stop this revoked client's retries before the next round so an old
+            # denial cannot satisfy the next identity's counters or evidence.
+            try:
+                stop_revocation_client(index)
+            finally:
+                (work / f'revocation-survivor-samples-{index}.json').write_text(json.dumps(survivor_samples, indent=2))
+                (work / 'phase-revocation-samples.json').write_text(json.dumps(phase_results, indent=2))
+                print(json.dumps({'official_frp_phase_revocation': sample}), flush=True)
+    assert len(phase_results) == 5 and all(sample['passed'] for sample in phase_results)
+    revoked_ms = phase_results[0]['SQL_dispatch_to_proxy_offline_ms']
     result = {'heartbeat_interval_seconds': 1, 'heartbeat_timeout_seconds': 3,
               'revocation_deadline_ms': 5000, 'revocation_measurement_start': 'SQL update dispatch',
               'console_dispatch_or_public_mobile_deadline_accepted': False,
@@ -278,6 +334,8 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
               'same_clients_recovered_after_unpause_ms': freeze_recovery_ms,
               'frozen_authz_runtime_binding_health_recovery_ms': freeze_health_ms,
               'revoked_control_offline_ms': revoked_ms, 'unrevoked_control_and_verified_TLS_preserved': True,
+              'five_preselected_Pong_relative_samples': phase_results,
+              'maximum_phase_revocation_ms': max(sample['SQL_dispatch_to_proxy_offline_ms'] for sample in phase_results),
               'unrevoked_original_control_sockets_preserved': True,
               'original_survivor_control_count': len(survivor_sockets),
               'actual_Ping_and_fresh_Login_denials': True, 'passed': True}

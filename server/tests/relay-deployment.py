@@ -107,7 +107,7 @@ class Backend(http.server.BaseHTTPRequestHandler):
         pass
 
 
-def start_client(assignment, name, backend_port, corrupt=False, subdomain=None):
+def start_client(assignment, name, backend_port, corrupt=False, subdomain=None, debug=False):
     claim = assignment["domain_claim"]
     if corrupt:
         # Change a signature byte without changing the claim's assigned identity.
@@ -116,7 +116,7 @@ def start_client(assignment, name, backend_port, corrupt=False, subdomain=None):
     config = {
         "serverAddr": "127.0.0.1", "serverPort": assignment["server_port"],
         "loginFailExit": True, "auth": {"method": "token", "token": assignment["frp_token"]},
-        "log": {"to": "console", "level": "warn"},
+        "log": {"to": "console", "level": "debug" if debug else "warn"},
         "metadatas": {"device_id": assignment["device_id"], "domain_claim": claim},
         "transport": {"heartbeatInterval": 1, "heartbeatTimeout": 3, "tcpMux": True,
                       "tls": {"enable": True, "serverName": assignment["server_name"],
@@ -337,24 +337,52 @@ try:
     exercise_traffic(stage, port, assignments, gateway, curl, check_tunnels, sql)
     exercise(stage, sys.argv[3], assignments, check_tunnels)
 
-    def revocation_client():
+    revocation_clients = {}
+
+    def revocation_client(index):
         # First-start acceptance reserved this genuine, unused console token.
         # Browser and relay cases already issue five tokens in the same minute;
         # a faster outage test must not depend on that rate-limit window expiring.
-        token = json.loads((stage / "token.json").read_bytes())["token"]
+        if index == 0:
+            token = json.loads((stage / "token.json").read_bytes())["token"]
+        else:
+            if index == 1:
+                # The first-start/browser/relay cases fill the five-token minute
+                # budget. Clear that preparation window once before issuing four
+                # more genuine tokens; never retry a timed revocation attempt.
+                time.sleep(60)
+            token = curl("/api/v1/console/enroll-tokens", {}, authenticated=True)["token"]
         request = {"agent_protocol_version": "1.0.0", "enroll_token": token, "platform": "opnsense",
                    "platform_version": "26.7.7", "agent_version": "0.0.2", "capabilities": ["remote.web"],
-                   "hostname": "heartbeat-control.example.com", "cluster_hint": False}
+                   "hostname": f"heartbeat-control-{index}.example.com", "cluster_hint": False}
         assignment = curl("/api/v1/devices/enroll", request)
-        (work / "heartbeat-only-assignment.json").write_text(json.dumps(assignment), encoding="utf-8")
+        (work / f"heartbeat-only-assignment-{index}.json").write_text(json.dumps(assignment), encoding="utf-8")
         opened = curl("/api/v1/console/devices/" + assignment["device_id"] + "/open", {}, authenticated=True)
         assert opened["url"] == "https://" + assignment["subdomain"] + ".router.example.com:8443"
         grant_local_fixture_source(assignment)
-        start_client(assignment, "heartbeat-only-client", backend.server_port)
-        return assignment
+        name = f"heartbeat-only-client-{index}"
+        client = start_client(assignment, name, backend.server_port, debug=True)
+        revocation_clients[index] = client
+        return assignment, work / (name + ".log"), client
+
+    def stop_revocation_client(index):
+        if index in revocation_clients:
+            stop_client(revocation_clients.pop(index))
+
+    def fresh_revoked_login(assignment, index):
+        name = f"heartbeat-revoked-fresh-login-{index}"
+        fresh = start_client(assignment, name, backend.server_port)
+        try:
+            assert fresh.wait(timeout=10) != 0, 'revoked identity established a fresh official control'
+            assert b'not_authorized' in (work / (name + '.log')).read_bytes(), 'fresh official Login lacked authorization refusal'
+        except subprocess.TimeoutExpired:
+            raise RuntimeError('fresh revoked official Login did not exit on refusal') from None
+        finally:
+            stop_client(fresh)
 
     exercise_heartbeats(stage, compose, assignments, valid_clients, gateway, sql,
-                        check_tunnels, probe, local_source, hook_events, revocation_client)
+                        check_tunnels, probe, local_source, hook_events, revocation_client,
+                        stop_revocation_client, fresh_revoked_login)
     exercise_token_probe(stage, assignments, valid_clients, check_tunnels)
     exercise_rotation(stage, port, assignments, valid_clients, start_client, stop_client,
                       backend.server_port, local_source, probe, check_tunnels, hook_events, sql)
