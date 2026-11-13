@@ -155,8 +155,16 @@ try {
   } while (performance.now() - observationStarted < 30000);
   result.no_reconnect_observation_ms = Math.floor(performance.now() - observationStarted);
   result.phase = 'revoked_inventory';
+  await page.getByLabel('Device table', { exact: true }).evaluate(element => {
+    element.scrollLeft = 0;
+    for (const child of element.querySelectorAll('div')) child.scrollLeft = 0;
+  });
   await page.screenshot({ path: join(config.evidence, 'installed-console-revoke.png'), fullPage: true });
-  await row.getByText('Revoked', { exact: true }).waitFor();
+  const revokedBadge = row.locator('.status-badge.revoked');
+  await revokedBadge.waitFor();
+  assert.equal(await revokedBadge.count(), 1);
+  assert.equal((await revokedBadge.innerText()).trim(), 'Revoked');
+  assert.equal(await row.getByRole('button', { name: 'Open', exact: true }).isDisabled(), true);
   result.phase = 'browser_integrity';
   result.csp_violations = csp; result.browser_errors = errors; result.external_requests = external;
   assert.equal(csp, 0); assert.equal(errors, 0); assert.equal(external, 0); assert.equal(refused, 0);
