@@ -111,6 +111,8 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     def fixture(action, **values):
         path = work / 'native-fixture-input.json'
         private_json(path, dict(action=action, nonce=nonce, **values))
+        if action == 'inspect':
+            guest.ssh_read_only_inspection('test "$(id -u)" = 0\n')
         guest.put(path, path.name)
         script = ('/usr/local/bin/php -d register_argc_argv=1 /root/nethub-ci/native-fixture.php '
                   '< /root/nethub-ci/native-fixture-input.json\n')
@@ -170,9 +172,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             raise
 
     def native_read(name):
-        guest.put(Path(__file__).with_name('native_model_probe.py'), 'native_model_probe.py')
-        raw = guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py\n',
-                        'native model readback')
+        raw = guest.ssh_read_only_inspection('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py\n')
         value = json.loads(raw)
         if isinstance(value, dict) and set(value) == {'native_model_failure'}:
             from native_model_probe import validate_projection

@@ -1,5 +1,6 @@
 """Keep hosted appliance preparation behind its host and signed-image boundaries."""
 import importlib.util
+import ast
 import io
 import json
 from pathlib import Path
@@ -221,7 +222,7 @@ def test_failed_recovery_remains_failed_and_does_not_loop(fail_listener):
 
 def test_read_only_recovery_budget_is_not_reset_after_success():
     guest = inspection_guest()
-    item = {'first_transport_failure': 'guest_ssh_connect_timeout', 'phase': 'completed',
+    item = {'operation': 'GUI_inspection', 'first_transport_failure': 'guest_ssh_connect_timeout', 'phase': 'completed',
             'listener_recovery': 'probe_only', 'read_completed': True, 'elapsed_ms': 1}
     guest.read_only_inspection_recoveries = [dict(item) for _ in range(4)]
     guest.ssh = Mock(side_effect=GUEST.GuestError('native fixture inspect failed: guest_ssh_connect_timeout'))
@@ -254,10 +255,128 @@ def test_listener_recovery_uses_only_the_original_private_configuration():
 
 
 def test_read_only_recovery_projection_rejects_private_or_inconsistent_fields():
-    item = {'first_transport_failure': 'guest_ssh_connect_timeout', 'phase': 'completed',
+    item = {'operation': 'GUI_inspection', 'first_transport_failure': 'guest_ssh_connect_timeout', 'phase': 'completed',
             'listener_recovery': 'probe_only', 'read_completed': True, 'elapsed_ms': 1}
     for change in ({'private_message': 'private-peer'}, {'elapsed_ms': True}, {'elapsed_ms': -1},
                    {'first_transport_failure': 'private-peer'}, {'listener_recovery': 'unconfirmed'},
-                   {'read_completed': False}):
+                   {'read_completed': False}, {'operation': 'private-peer'}):
         with pytest.raises(ValueError):
             GUEST.validate_read_only_inspection_recoveries([dict(item, **change)])
+
+
+@pytest.mark.parametrize('script,label,operation', [
+    ('test "$(id -u)" = 0\n', 'native inspection boundary', 'inspection_preflight'),
+    ('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py\n', 'native model readback', 'model_readback'),
+])
+def test_readback_and_preflight_share_the_bounded_recovery_inventory(script, label, operation):
+    guest = inspection_guest()
+    guest.ssh = Mock(side_effect=[GUEST.GuestError(label + ' failed: guest_ssh_connection_refused'), b'read'])
+    assert guest.ssh_read_only_inspection(script) == b'read'
+    assert guest.ssh.call_count == 2
+    assert guest.read_only_inspection_recoveries[0]['operation'] == operation
+    GUEST.validate_read_only_inspection_recoveries(guest.read_only_inspection_recoveries, require_completed=True)
+
+
+@pytest.mark.parametrize('stderr,category', [
+    (b'Host key verification failed\nConnection reset', 'guest_ssh_host_key'),
+    (b'REMOTE HOST IDENTIFICATION HAS CHANGED\nConnection reset', 'guest_ssh_host_key'),
+    (b'Permission denied (publickey)\nConnection reset', 'guest_ssh_authentication'),
+    (b'Authentication failed\nConnection timed out', 'guest_ssh_authentication'),
+    (b'Connection refused', 'guest_ssh_connection_refused'),
+    (b'Connection timed out', 'guest_ssh_connect_timeout'),
+    (b'Connection reset', 'guest_ssh_connection_reset'),
+])
+@pytest.mark.parametrize('transfer', [False, True])
+def test_identity_refusals_take_priority_and_transfer_errors_stay_closed(tmp_path, monkeypatch, stderr, category, transfer):
+    guest = GUEST.Guest.__new__(GUEST.Guest)
+    guest.directory, guest.ssh_port = tmp_path, 2222
+    invoked = Mock(return_value=SimpleNamespace(returncode=1, stdout=b'private-child-value',
+                                                stderr=stderr + b' private-peer-value'))
+    monkeypatch.setattr(GUEST.subprocess, 'run', invoked)
+    with pytest.raises(GUEST.GuestError) as caught:
+        if transfer:
+            guest.put(tmp_path / 'input.json', 'native-fixture-input.json')
+        else:
+            guest.ssh('false\n', 'fixed read')
+    assert str(caught.value) == ('private guest input transfer' if transfer else 'fixed read') + ' failed: ' + category
+    assert 'private-' not in str(caught.value)
+    assert invoked.call_count == 1
+    arguments = invoked.call_args.args[0]
+    assert 'StrictHostKeyChecking=yes' in arguments and 'IdentitiesOnly=yes' in arguments
+    logs = list(tmp_path.glob('*-private.log'))
+    assert len(logs) == 1 and b'private-child-value' in logs[0].read_bytes()
+
+
+def test_child_stdout_cannot_claim_an_ssh_transport_failure(tmp_path, monkeypatch):
+    guest = GUEST.Guest.__new__(GUEST.Guest)
+    guest.directory, guest.ssh_port = tmp_path, 2222
+    monkeypatch.setattr(GUEST.subprocess, 'run', lambda *args, **kwargs:
+        SimpleNamespace(returncode=1, stdout=b'Connection timed out', stderr=b''))
+    with pytest.raises(GUEST.GuestError, match='fixed read failed: unclassified'):
+        guest.ssh('false\n', 'fixed read')
+
+
+def enrolled_function(name, scope):
+    source = SOURCE.with_name('enrolled.py')
+    functions = [node for node in ast.walk(ast.parse(source.read_text()))
+                 if isinstance(node, ast.FunctionDef) and node.name == name]
+    assert len(functions) == 1
+    exec(compile(ast.Module(body=functions, type_ignores=[]), str(source), 'exec'), scope)
+    return scope[name]
+
+
+@pytest.mark.parametrize('action', ['inspect', 'trust', 'csr', 'install'])
+def test_only_inspection_probes_the_pinned_boundary_before_upload(tmp_path, action):
+    events = []
+    reply = json.dumps({'success': True, 'result': {'read': True}}).encode()
+    guest = SimpleNamespace(
+        ssh_read_only_inspection=lambda script: events.append('read:' + script) or reply,
+        put=lambda *args: events.append('put'),
+        ssh=lambda *args: events.append('mutation'))
+    if action != 'inspect':
+        guest.ssh = lambda *args: events.append('mutation') or reply
+    function = enrolled_function('fixture', {'work': tmp_path, 'private_json': lambda *args: None,
+        'nonce': 'owned', 'guest': guest, 'json': json, 'GuestError': GUEST.GuestError})
+    assert function(action) == {'read': True}
+    if action == 'inspect':
+        assert events[0] == 'read:test "$(id -u)" = 0\n'
+        assert events[1] == 'put' and len(events) == 3
+    else:
+        assert events == ['put', 'mutation']
+
+
+def test_native_model_read_uses_its_already_staged_read_only_probe(tmp_path):
+    guest = SimpleNamespace(put=Mock(), ssh_read_only_inspection=Mock(return_value=b'{"device":"fixture"}'))
+    writes = Mock()
+    function = enrolled_function('native_read', {'guest': guest, 'json': json, 'work': tmp_path,
+                                                'private_json': writes})
+    assert function('readback.json') == {'device': 'fixture'}
+    guest.put.assert_not_called()
+    guest.ssh_read_only_inspection.assert_called_once_with('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py\n')
+    writes.assert_called_once_with(tmp_path / 'readback.json', {'device': 'fixture'})
+
+
+@pytest.mark.parametrize('script', [None, {}, []])
+def test_read_only_boundary_refuses_nonliteral_commands(script):
+    guest = inspection_guest()
+    guest.ssh = Mock()
+    with pytest.raises(GUEST.GuestError, match='Only the fixed read-only'):
+        guest.ssh_read_only_inspection(script)
+    guest.ssh.assert_not_called()
+
+
+@pytest.mark.parametrize('timeout', [False, True])
+def test_unknown_or_timed_out_transfer_is_not_retried(tmp_path, monkeypatch, timeout):
+    guest = GUEST.Guest.__new__(GUEST.Guest)
+    guest.directory, guest.ssh_port = tmp_path, 2222
+    failure = GUEST.subprocess.TimeoutExpired(['private-argument'], 60,
+        output=b'private-child', stderr=b'private-stderr')
+    invoked = Mock(side_effect=failure) if timeout else Mock(return_value=
+        SimpleNamespace(returncode=1, stdout=b'private-child', stderr=b'private-stderr'))
+    monkeypatch.setattr(GUEST.subprocess, 'run', invoked)
+    with pytest.raises(GUEST.GuestError) as caught:
+        guest.put(tmp_path / 'input.json', 'native-fixture-input.json')
+    assert str(caught.value) == ('private guest input transfer timed out' if timeout else
+                                 'private guest input transfer failed: unclassified')
+    assert invoked.call_count == 1
+    assert list(tmp_path.glob('scp-*-private.log'))[0].read_bytes() == b'private-childprivate-stderr'

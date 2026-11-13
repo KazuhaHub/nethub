@@ -185,6 +185,26 @@ time, with a four-event budget for the entire guest. Host-key, authentication
 and command failures remain fatal; Rotate, Revoke and other mutations are never
 replayed. The original failed run is preserved.
 
+The next source `2e76868` passed CI, native filesystem checks, preparation and
+isolated cold recovery, but
+[installed run 43391262433](https://github.com/KazuhaHub/nethub/actions/runs/43391262433)
+failed at private input transfer after its first successful Rotate. Its standalone
+WAN change and restoration passed in 2,925 and 4,542 ms. Its read-only recovery
+inventory was empty: the failure preceded the recovery helper. SCP's retained
+error did not distinguish a transport problem from another transfer failure.
+Both the model readback and GUI inspection had a preceding upload, so the exact
+failed upload and daemon cause remain unconfirmed.
+
+The follow-up reuses the model probe staged before enrollment instead of uploading
+it again for every read. Model readback uses the same bounded, fixed-command
+recovery boundary. A pinned read-only root probe checks that boundary before
+staging GUI inspection input. Closed recovery records distinguish those three
+read-only operations. SCP failures retain private child logs and export only an
+allowlisted category; SCP and mutations are not retried. Host-key and authentication
+refusals take priority over accompanying reset messages, and child stdout cannot
+claim an SSH transport failure. These fixture changes need their own hosted
+execution; neither failed run becomes accepted.
+
 This is a runtime address change behind the fixture's NAT, not a public-network
 or ISP DHCP-renewal sample. Local parser/orchestrator tests do not establish
 automatic recovery on an actual appliance. The candidate must execute with the

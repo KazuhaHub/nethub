@@ -31,12 +31,27 @@ class GuestError(Exception):
     """A fixed operation label; never expose private child output or arguments."""
 
 
+def ssh_transport_failure(stderr):
+    text = stderr.decode('utf-8', errors='replace').lower()
+    for token, code in [('host key verification failed', 'guest_ssh_host_key'),
+                        ('remote host identification has changed', 'guest_ssh_host_key'),
+                        ('permission denied', 'guest_ssh_authentication'),
+                        ('authentication failed', 'guest_ssh_authentication'),
+                        ('connection refused', 'guest_ssh_connection_refused'),
+                        ('connection timed out', 'guest_ssh_connect_timeout'),
+                        ('connection reset', 'guest_ssh_connection_reset')]:
+        if token in text:
+            return code
+    return None
+
+
 def validate_read_only_inspection_recoveries(value, *, require_completed=False):
     if not isinstance(value, list) or len(value) > 4 or type(require_completed) is not bool:
         raise ValueError('Unexpected read-only inspection recovery inventory')
     for item in value:
         if (not isinstance(item, dict) or set(item) != {
-                'first_transport_failure', 'phase', 'listener_recovery', 'read_completed', 'elapsed_ms'}
+                'operation', 'first_transport_failure', 'phase', 'listener_recovery', 'read_completed', 'elapsed_ms'}
+                or item['operation'] not in ('GUI_inspection', 'model_readback', 'inspection_preflight')
                 or item['first_transport_failure'] not in (
                     'guest_ssh_connection_refused', 'guest_ssh_connect_timeout', 'guest_ssh_connection_reset')
                 or item['phase'] not in ('listener_probe', 'readback', 'failed', 'completed')
@@ -356,12 +371,7 @@ cat /root/nethub-ci/host-key.pub
             for token, code in [('no space left', 'disk_space'), ('certificate verify failed', 'download_tls'),
                                 ('not found', 'missing_dependency'), ('fatal error', 'php_failure'),
                                 ('differs from server/.go-version', 'compiler_mismatch'),
-                                ('no address record', 'guest_dns'), ('operation timed out', 'guest_network'),
-                                ('permission denied', 'guest_ssh_authentication'),
-                                ('host key verification failed', 'guest_ssh_host_key'),
-                                ('connection refused', 'guest_ssh_connection_refused'),
-                                ('connection timed out', 'guest_ssh_connect_timeout'),
-                                ('connection reset', 'guest_ssh_connection_reset')]:
+                                ('no address record', 'guest_dns'), ('operation timed out', 'guest_network')]:
                 if token in text:
                     category = code
             if len(result.stdout) <= 4096:
@@ -384,7 +394,7 @@ cat /root/nethub-ci/host-key.pub
                                         + '_' + context['source'] + '_' + str(context['line']))
                 except (ValueError, TypeError):
                     pass
-            raise GuestError(label + ' failed: ' + category)
+            raise GuestError(label + ' failed: ' + (ssh_transport_failure(result.stderr) or category))
         return result.stdout
 
     def ensure_ssh(self):
@@ -409,9 +419,15 @@ cat /root/nethub-ci/host-key.pub
     def ssh_read_only_inspection(self, script):
         expected = ('/usr/local/bin/php -d register_argc_argv=1 /root/nethub-ci/native-fixture.php '
                     '< /root/nethub-ci/native-fixture-input.json\n')
-        if script != expected:
+        commands = {
+            expected: ('native fixture inspect', 'GUI_inspection'),
+            '/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py\n':
+                ('native model readback', 'model_readback'),
+            'test "$(id -u)" = 0\n': ('native inspection boundary', 'inspection_preflight'),
+        }
+        if not isinstance(script, str) or script not in commands:
             raise GuestError('Only the fixed read-only native inspection may recover transport')
-        label = 'native fixture inspect'
+        label, operation = commands[script]
         try:
             return self.ssh(script, label)
         except GuestError as error:
@@ -419,7 +435,7 @@ cat /root/nethub-ci/host-key.pub
             code = next((code for code in failures if str(error) == label + ' failed: ' + code), None)
             if code is None or len(self.read_only_inspection_recoveries) >= 4:
                 raise
-            item = {'first_transport_failure': code, 'phase': 'listener_probe',
+            item = {'operation': operation, 'first_transport_failure': code, 'phase': 'listener_probe',
                     'listener_recovery': 'unconfirmed', 'read_completed': False, 'elapsed_ms': 0}
             self.read_only_inspection_recoveries.append(item)
             started = time.monotonic()
@@ -442,8 +458,17 @@ cat /root/nethub-ci/host-key.pub
     def put(self, path, name):
         if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,95}', name):
             raise GuestError('Invalid private guest staging name')
-        invoke(['scp', '-O', *self.ssh_options(), '-P', str(self.ssh_port), str(path),
-                'root@127.0.0.1:/root/nethub-ci/' + name], 'private guest input transfer')
+        try:
+            result = subprocess.run(['scp', '-O', *self.ssh_options(), '-P', str(self.ssh_port), str(path),
+                'root@127.0.0.1:/root/nethub-ci/' + name], capture_output=True, timeout=60)
+        except subprocess.TimeoutExpired as error:
+            (self.directory / ('scp-' + uuid.uuid4().hex + '-private.log')).write_bytes(
+                (error.stdout or b'') + (error.stderr or b''))
+            raise GuestError('private guest input transfer timed out') from None
+        (self.directory / ('scp-' + uuid.uuid4().hex + '-private.log')).write_bytes(result.stdout + result.stderr)
+        if result.returncode:
+            raise GuestError('private guest input transfer failed: ' +
+                             (ssh_transport_failure(result.stderr) or 'unclassified'))
 
     def __exit__(self, *_):
         self.exit_status_before_cleanup = self.process.poll() if self.process is not None else None

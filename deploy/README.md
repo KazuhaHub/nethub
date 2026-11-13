@@ -81,6 +81,10 @@ and logout. Private failure diagnostics and token/session hashes remain beside
 the config; neither belongs in published evidence. Public reachability and
 clean-host provenance are separate claims; this script proves the former flows.
 
+The current [public console verification](validation-public-console-source48.md)
+records real public TLS, login, token clearing and independently checked restoration.
+Native public revocation timing remains separate.
+
 Scoped [native/public W4 acceptance](validation-native-public-certificate.md),
 [two-Dex OIDC](validation-two-dex.md) and [Keycloak SAML](validation-keycloak-saml.md)
 are recorded separately. Remaining W5 measurements, public-provider checks and
