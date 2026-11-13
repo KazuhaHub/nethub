@@ -154,10 +154,12 @@ try {
     await delay(500);
   } while (performance.now() - observationStarted < 30000);
   result.no_reconnect_observation_ms = Math.floor(performance.now() - observationStarted);
-  await row.getByText('Revoked', { exact: true }).waitFor();
+  result.phase = 'revoked_inventory';
   await page.screenshot({ path: join(config.evidence, 'installed-console-revoke.png'), fullPage: true });
-  assert.equal(csp, 0); assert.equal(errors, 0); assert.equal(external, 0); assert.equal(refused, 0);
+  await row.getByText('Revoked', { exact: true }).waitFor();
+  result.phase = 'browser_integrity';
   result.csp_violations = csp; result.browser_errors = errors; result.external_requests = external;
+  assert.equal(csp, 0); assert.equal(errors, 0); assert.equal(external, 0); assert.equal(refused, 0);
   result.phase = 'completed'; result.passed = true;
 } catch {
   // Never print Playwright call logs: failed password fills can contain secrets.
