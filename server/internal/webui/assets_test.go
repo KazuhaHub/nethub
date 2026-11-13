@@ -36,11 +36,11 @@ func TestAssetPathsAndMissingBuild(t *testing.T) {
 
 func TestSAMLProviderPageDoesNotExposeNestedFiles(t *testing.T) {
 	h := handler{fstest.MapFS{"index.html": {Data: []byte("<html>console</html>")}}}
-	for _, path := range []string{"/saml-providers", "/saml-providers/unknown", "/traffic", "/traffic/unknown"} {
+	for _, path := range []string{"/saml-providers", "/saml-providers/unknown", "/traffic", "/traffic/unknown", "/audit", "/audit/unknown"} {
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
 		expected := 404
-		if path == "/saml-providers" || path == "/traffic" {
+		if path == "/saml-providers" || path == "/traffic" || path == "/audit" {
 			expected = 200
 		}
 		if w.Code != expected {

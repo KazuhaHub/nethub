@@ -143,6 +143,8 @@ Per-service mounts separate credentials; readiness and genuine SQL tests verify
 required privileges and refusals.
 
 Audit appends serialize the tenant chain and commit with their mutations.
+The [console audit view](../deploy/console-audit.md) provides filtered, paginated
+events with administrator/member visibility and a fixed detail projection.
 The [checker](../deploy/audit-chain.md) detects consistency failures, not privileged
 database rewriting. See [store boundaries](internal/store/README.md),
 [issuer role](internal/store/GUI_ISSUER_ROLE.md) and

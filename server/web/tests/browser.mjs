@@ -10,6 +10,7 @@ import { verifyInvitations } from "./invitations-browser.mjs";
 import { verifyProviders } from "./providers-browser.mjs";
 import { verifySAMLProviders } from "./saml-providers-browser.mjs";
 import { verifyTraffic } from "./traffic-browser.mjs";
+import { verifyAudit } from "./audit-browser.mjs";
 
 const root = resolve(import.meta.dirname, "../..");
 const stage = mkdtempSync(join(tmpdir(), "nethub-ui-"));
@@ -592,6 +593,7 @@ try {
   await verifyProviders({ page, origin, evidence, login });
   await verifySAMLProviders({ page, origin, evidence, login });
   await verifyTraffic({ page, origin, evidence, login });
+  await verifyAudit({ page, origin, evidence, login });
   assert.deepEqual(violations, []);
   assert.deepEqual(failures, []);
   assert.deepEqual(external, []);

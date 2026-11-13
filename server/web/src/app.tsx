@@ -53,6 +53,7 @@ import { Invitations } from "./invitations";
 import { Providers } from "./providers";
 import { SAMLProviders } from "./saml-providers";
 import { Traffic } from "./traffic";
+import { Audit } from "./audit";
 import {
   canOpenDevice,
   certificateLabel,
@@ -1000,6 +1001,7 @@ function Devices({ isAdmin }: { isAdmin: boolean }) {
 }
 
 export function App() {
+  const auditView = window.location.pathname === "/audit";
   const trafficView = window.location.pathname === "/traffic";
   const userView = window.location.pathname === "/users";
   const invitationView = window.location.pathname === "/invitations";
@@ -1090,9 +1092,15 @@ export function App() {
         <Brand />
         <div className="workspace-label">WORKSPACE</div>
         <nav aria-label="Main navigation">
-          <a href="/" aria-current={adminView ? undefined : "page"}>
+          <a
+            href="/"
+            aria-current={adminView || auditView ? undefined : "page"}
+          >
             <Router size={18} />
             Devices
+          </a>
+          <a href="/audit" aria-current={auditView ? "page" : undefined}>
+            <ShieldCheck size={18} /> Audit log
           </a>
           {session.user.role === "admin" && (
             <a
@@ -1141,15 +1149,17 @@ export function App() {
           <span className="breadcrumb">
             Workspace<span>/</span>
             <strong>
-              {trafficView
-                ? "Traffic"
-                : providerView
-                  ? "Identity providers"
-                  : userView
-                    ? "Users"
-                    : invitationView
-                      ? "Invitations"
-                      : "Devices"}
+              {auditView
+                ? "Audit log"
+                : trafficView
+                  ? "Traffic"
+                  : providerView
+                    ? "Identity providers"
+                    : userView
+                      ? "Users"
+                      : invitationView
+                        ? "Invitations"
+                        : "Devices"}
             </strong>
           </span>
           <div className="account-actions">
@@ -1173,7 +1183,12 @@ export function App() {
               {failure}
             </p>
           )}
-          {adminView ? (
+          {auditView ? (
+            <Audit
+              isAdmin={session.user.role === "admin"}
+              onAuthorityChanged={confirmAuthority}
+            />
+          ) : adminView ? (
             session.user.role === "admin" ? (
               trafficView ? (
                 <Traffic onAuthorityChanged={confirmAuthority} />
