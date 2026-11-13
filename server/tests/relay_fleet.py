@@ -59,8 +59,9 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
         assert result.returncode == 0 and result.stdout.strip().isdecimal()
         pid = int(result.stdout.strip())
         membership = Path(f'/proc/{pid}/cgroup').read_text().splitlines()
-        assert len(membership) == 1 and membership[0].startswith('0::/'), 'unified container cgroup required'
-        relative = membership[0][3:]
+        assert len(membership) == 1, 'one unified container cgroup required'
+        hierarchy, controllers, relative = membership[0].split(':', 2)
+        assert hierarchy == '0' and controllers == '' and relative.startswith('/'), 'unified container cgroup required'
         assert re.fullmatch(r'/(?:system.slice/docker-' + identifier + r'\.scope|docker/' + identifier + ')', relative), 'dedicated Docker cgroup required'
         root = Path('/sys/fs/cgroup').resolve(strict=True)
         folder = (root / relative.lstrip('/')).resolve(strict=True)
