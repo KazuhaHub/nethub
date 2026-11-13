@@ -85,3 +85,14 @@ recovery separately. A reconnected client does not establish the healthy runtime
 binding required by subsequent host operations. The fixture observes that health
 recovery without forcing a restart; its separate recovery bound does not extend
 the five-second cutoff measurement.
+
+The isolated PostgreSQL harness additionally measures actual runtime-role snapshot
+reads at 1,000, 10,000 and 100,000 revocations and rotation floors, then at the
+combined 1,024-tenant/100,000-row bounds. It retains every case's wall time,
+Go caller CPU and allocation observations and checks known denial, claim floors,
+unrelated identity admission and transaction-local RLS scope. A 1,025-tenant case
+checks refusal with the previous known denial retained. Synthetic rows remain inside
+the disposable database until its volume is removed; no live credentials or
+enrollments are manufactured. The one-second refresh budget is unchanged.
+These measurements do not establish signed HTTP Ping throughput, frp continuity,
+false cutoffs under a live fleet, or console/public five-second acceptance.
