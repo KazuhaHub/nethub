@@ -399,7 +399,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
                 events.append(value)
         return events
 
-    # The existing heartbeat snapshot publishes claim floors every five seconds.
+    # The heartbeat snapshot refreshes claim floors every second.
     # This new Login probe must fail on authorization rather than on TLS/setup.
     time.sleep(6)
     count = len(hook_events())
