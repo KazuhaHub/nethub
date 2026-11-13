@@ -15,6 +15,7 @@ import uuid
 
 from relay_maintenance import exercise
 from relay_heartbeat import exercise_heartbeats
+from relay_fleet import exercise_fleet
 from relay_traffic import exercise_traffic
 from relay_rotation import exercise_rotation
 from relay_token_probe import exercise_token_probe
@@ -383,6 +384,29 @@ try:
     exercise_heartbeats(stage, compose, assignments, valid_clients, gateway, sql,
                         check_tunnels, probe, local_source, hook_events, revocation_client,
                         stop_revocation_client, fresh_revoked_login)
+
+    def fleet_client(index):
+        token = curl("/api/v1/console/enroll-tokens", {}, authenticated=True)["token"]
+        assignment = curl("/api/v1/devices/enroll", {
+            "agent_protocol_version": "1.0.0", "enroll_token": token,
+            "platform": "opnsense", "platform_version": "26.7.7", "agent_version": "0.0.2",
+            "capabilities": ["remote.web"], "hostname": f"fleet-control-{index}.example.com", "cluster_hint": False,
+        })
+        opened = curl("/api/v1/console/devices/" + assignment["device_id"] + "/open", {}, authenticated=True)
+        assert opened["url"] == "https://" + assignment["subdomain"] + ".router.example.com:8443"
+        grant_local_fixture_source(assignment)
+        name = f"fleet-client-{index}"
+        client = start_client(assignment, name, backend.server_port, debug=True)
+        return assignment, work / (name + ".log"), client
+
+    def revoke_fleet(owned):
+        if owned:
+            identifiers = ','.join("'" + str(uuid.UUID(item["device_id"])) + "'" for item in owned)
+            sql("UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id IN (" + identifiers + ");")
+            assert sql("SELECT count(*) FROM devices WHERE revoked AND id IN (" + identifiers + ");") == str(len(owned))
+
+    exercise_fleet(stage, compose, valid_clients, fleet_client, stop_client,
+                   revoke_fleet, check_tunnels, probe, local_source)
     exercise_token_probe(stage, assignments, valid_clients, check_tunnels)
     exercise_rotation(stage, port, assignments, valid_clients, start_client, stop_client,
                       backend.server_port, local_source, probe, check_tunnels, hook_events, sql)

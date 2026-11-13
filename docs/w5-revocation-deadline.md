@@ -111,3 +111,15 @@ timed revocations are never retried. Every attempted case is retained, including
 failures. This fixture has to execute successfully before its results are accepted.
 It does not measure the cache refresh phase directly or replace the required
 console/native/public and live-fleet tests.
+
+The small-fleet fixture prepares five, then ten additional identities through
+ordinary authenticated enrollment and Open. It observes seven, then twelve live
+official frpc controls including the two original witnesses for 30 seconds per
+stage. It requires the same original TCP inodes, successful per-client Pongs and
+verified TLS before and after each stage, with no client or service restart.
+It reports authz/frps process CPU and observed resident memory separately from
+PostgreSQL/client/observer costs. Pong log observation gaps use requested 200 ms
+polling and are not HTTP callback latency measurements. Preparation honors the
+unchanged five-token minute limit; no failed timed stage is retried. All attempts
+are retained. This fixture still needs actual execution; these small sizes do not
+establish capacity for a larger fleet or complete the public/fault/migration gates.
