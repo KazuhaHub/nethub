@@ -54,7 +54,7 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
     original_controls = sockets(originals)
     retained_controls = original_controls
     try:
-        for index, total in enumerate((5, 10, 10)):
+        for stage_index, total in enumerate((5, 10, 10)):
             sample = {'passed': False, 'phase': 'preparation', 'dedicated_clients': total,
                       'unrelated_original_clients': len(originals), 'measurement_seconds': 30,
                       'larger_fleet_capacity_accepted': False, 'full_W5_acceptance': False}
@@ -62,7 +62,7 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
             try:
                 # Use ordinary authenticated enrollment. Clear the five-token
                 # minute window once per batch, never retry a failed load case.
-                if index < 2:
+                if stage_index < 2:
                     time.sleep(60)
                 else:
                     sample['phase'] = 'snapshot_pressure_preparation'
@@ -134,7 +134,7 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
                               Pong_scope='successful pinned-client debug log observations, 200ms requested polling; not HTTP callback latency')
             finally:
                 (work / 'attempts.json').write_text(json.dumps(attempts, indent=2))
-                key = 'official_frp_snapshot_pressure' if index == 2 else 'official_frp_small_fleet'
+                key = 'official_frp_snapshot_pressure' if stage_index == 2 else 'official_frp_small_fleet'
                 print(json.dumps({key: sample}), flush=True)
     finally:
         for _, _, client in owned:
