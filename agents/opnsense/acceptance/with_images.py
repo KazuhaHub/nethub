@@ -9,7 +9,7 @@ import signal
 import subprocess
 import sys
 
-from guest import GuestError, invoke
+from guest import GuestError, invoke, validate_read_only_inspection_recoveries
 from compose_tail import read_phase
 from compose_setup import inspect as inspect_setup
 from compose_setup import project as project_setup
@@ -191,6 +191,9 @@ def main():
         validate_wan_recovery(wan)
         if wan['passed'] is not True or native.get('installed_wan_recovery') != wan:
             raise GuestError('Installed native WAN recovery proof missing')
+        prepared = json.loads((evidence / 'native/result.json').read_text(encoding='utf-8'))
+        validate_read_only_inspection_recoveries(prepared['read_only_inspection_recoveries'], require_completed=True)
+        result['read_only_inspection_recoveries'] = prepared['read_only_inspection_recoveries']
         restored = native.get('clean_host_restoration')
         if not isinstance(restored, dict) or restored.get('passed') is not True:
             raise GuestError('Installed native clean-host restoration proof missing')

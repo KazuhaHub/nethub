@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import sys
 
-from guest import Guest, GuestError, download, digest, invoke, supported_platform
+from guest import Guest, GuestError, download, digest, invoke, supported_platform, validate_read_only_inspection_recoveries
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -131,6 +131,9 @@ def main():
     finally:
         if owned is not None:
             result['guest_diagnostic'] = owned.diagnostics()
+            validate_read_only_inspection_recoveries(owned.read_only_inspection_recoveries,
+                                                     require_completed=result['passed'])
+            result['read_only_inspection_recoveries'] = owned.read_only_inspection_recoveries
         (evidence / 'result.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     print('Fresh OPNsense package and native page preparation passed; enrollment/rotation/relay acceptance remains separate')
 

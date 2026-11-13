@@ -167,6 +167,24 @@ follow-up adds fixed relay component phases and allowlisted Python traceback
 locations and deadline hints without exporting child output or repeating a timed
 action inside a failed run. It changes no cutoff limit, workload or recovery guard.
 
+Source `d5c0d5f` executed that gateway fixture in
+[installed run 43382960772](https://github.com/KazuhaHub/nethub/actions/runs/43382960772).
+The version-two WAN outcome passed: the changed address recovered in 3,102 ms
+and restoration in 4,053 ms. The original frpc process, native model, runtime
+configuration, XML, GUI identity and independent control/TLS witness were retained.
+These are WAN recovery measurements, separate from revocation timing.
+
+That overall run remains failed. After the first normal Rotate succeeded, a
+read-only native fixture inspection timed out connecting to SSH. The retained
+transport category does not establish whether the private listener stopped or
+the connection failed transiently. No later full-tail acceptance is inferred.
+The follow-up allows only that fixed inspection to recover the disposable CI
+guest's original private SSH listener and repeat the same read once. It retains
+the initial transport category, listener recovery status and elapsed recovery
+time, with a four-event budget for the entire guest. Host-key, authentication
+and command failures remain fatal; Rotate, Revoke and other mutations are never
+replayed. The original failed run is preserved.
+
 This is a runtime address change behind the fixture's NAT, not a public-network
 or ISP DHCP-renewal sample. Local parser/orchestrator tests do not establish
 automatic recovery on an actual appliance. The candidate must execute with the

@@ -112,8 +112,10 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         path = work / 'native-fixture-input.json'
         private_json(path, dict(action=action, nonce=nonce, **values))
         guest.put(path, path.name)
-        raw = guest.ssh('/usr/local/bin/php -d register_argc_argv=1 /root/nethub-ci/native-fixture.php '
-                        '< /root/nethub-ci/native-fixture-input.json\n', 'native fixture ' + action)
+        script = ('/usr/local/bin/php -d register_argc_argv=1 /root/nethub-ci/native-fixture.php '
+                  '< /root/nethub-ci/native-fixture-input.json\n')
+        raw = (guest.ssh_read_only_inspection(script) if action == 'inspect'
+               else guest.ssh(script, 'native fixture ' + action))
         value = json.loads(raw)
         if value.get('success') is not True or not isinstance(value.get('result'), dict):
             raise GuestError('Native fixture preparation was not confirmed')

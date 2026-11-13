@@ -171,3 +171,13 @@ The earlier source `d6f1b43` failed at native WAN change with restoration attemp
 but not verified. Later fixture changes need their own exact-source execution;
 neither checkpoint completes W5 or public/mobile, direct cache-phase, larger-fleet,
 short-network and migration/rollback gates.
+
+Source `d5c0d5f` subsequently passed complete
+[CI 43382960743](https://github.com/KazuhaHub/nethub/actions/runs/43382960743).
+With the same synthetic row counts, twelve original controls survived 30.039
+seconds, with 298 Pongs and a maximum observed gap of 1,224 ms. Dedicated
+authz/frps/PostgreSQL cgroups averaged 0.4440/0.0094/0.2831 CPU cores.
+Its five SQL-dispatch cutoffs were 2,102, 1,975, 1,692, 1,545 and 1,275 ms.
+The same scope limits apply. Its installed run passed the standalone WAN change
+and restoration checks but later failed at a read-only SSH inspection following
+Rotate; it does not complete native or public console revocation acceptance.

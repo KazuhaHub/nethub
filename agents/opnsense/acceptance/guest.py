@@ -31,6 +31,24 @@ class GuestError(Exception):
     """A fixed operation label; never expose private child output or arguments."""
 
 
+def validate_read_only_inspection_recoveries(value, *, require_completed=False):
+    if not isinstance(value, list) or len(value) > 4 or type(require_completed) is not bool:
+        raise ValueError('Unexpected read-only inspection recovery inventory')
+    for item in value:
+        if (not isinstance(item, dict) or set(item) != {
+                'first_transport_failure', 'phase', 'listener_recovery', 'read_completed', 'elapsed_ms'}
+                or item['first_transport_failure'] not in (
+                    'guest_ssh_connection_refused', 'guest_ssh_connect_timeout', 'guest_ssh_connection_reset')
+                or item['phase'] not in ('listener_probe', 'readback', 'failed', 'completed')
+                or item['listener_recovery'] not in ('unconfirmed', 'probe_only', 'started_and_verified')
+                or type(item['read_completed']) is not bool or type(item['elapsed_ms']) is not int
+                or not 0 <= item['elapsed_ms'] <= 180000
+                or (item['phase'] == 'completed') != item['read_completed']
+                or item['read_completed'] and item['listener_recovery'] == 'unconfirmed'
+                or require_completed and not item['read_completed']):
+            raise ValueError('Unexpected read-only inspection recovery outcome')
+
+
 def wan_network(console_port=None):
     network = 'user,id=wan,net=10.0.2.0/24'
     if console_port is None:
@@ -222,6 +240,7 @@ class Guest:
         self.process = None
         self.console = None
         self.qemu_log = None
+        self.read_only_inspection_recoveries = []
 
     def __enter__(self):
         try:
@@ -371,8 +390,12 @@ cat /root/nethub-ci/host-key.pub
     def ensure_ssh(self):
         try:
             self.ssh('test "$(id -u)" = 0\n', 'existing owned SSH probe', timeout=15)
-            return
-        except GuestError:
+            return False
+        except GuestError as error:
+            if (str(error) not in {'existing owned SSH probe failed: ' + code for code in (
+                    'guest_ssh_connection_refused', 'guest_ssh_connect_timeout', 'guest_ssh_connection_reset')}
+                    or self.process is None or self.process.poll() is not None or self.console is None):
+                raise
             # OPNsense service regeneration can stop all openssh listener
             # processes. Restart only our private configuration through serial;
             # retain its original host key and never accept a replacement key.
@@ -381,6 +404,40 @@ cat /root/nethub-ci/host-key.pub
                                  "case \"$ssh_daemon\" in /usr/local/sbin/sshd|/usr/sbin/sshd) ;; *) exit 127 ;; esac\n"
                                  "\"$ssh_daemon\" -f /root/nethub-ci/sshd.conf -E /root/nethub-ci/sshd-private.log\n")
             self.ssh('test "$(id -u)" = 0\n', 'restored owned SSH boundary', timeout=15)
+            return True
+
+    def ssh_read_only_inspection(self, script):
+        expected = ('/usr/local/bin/php -d register_argc_argv=1 /root/nethub-ci/native-fixture.php '
+                    '< /root/nethub-ci/native-fixture-input.json\n')
+        if script != expected:
+            raise GuestError('Only the fixed read-only native inspection may recover transport')
+        label = 'native fixture inspect'
+        try:
+            return self.ssh(script, label)
+        except GuestError as error:
+            failures = ('guest_ssh_connection_refused', 'guest_ssh_connect_timeout', 'guest_ssh_connection_reset')
+            code = next((code for code in failures if str(error) == label + ' failed: ' + code), None)
+            if code is None or len(self.read_only_inspection_recoveries) >= 4:
+                raise
+            item = {'first_transport_failure': code, 'phase': 'listener_probe',
+                    'listener_recovery': 'unconfirmed', 'read_completed': False, 'elapsed_ms': 0}
+            self.read_only_inspection_recoveries.append(item)
+            started = time.monotonic()
+            try:
+                restarted = self.ensure_ssh()
+                if type(restarted) is not bool:
+                    raise GuestError('Owned SSH recovery status unavailable')
+                item['listener_recovery'] = 'started_and_verified' if restarted else 'probe_only'
+                item['phase'] = 'readback'
+                raw = self.ssh(script, label)
+                item.update(phase='completed', read_completed=True)
+                return raw
+            except Exception:
+                item['phase'] = 'failed'
+                raise
+            finally:
+                item['elapsed_ms'] = round((time.monotonic() - started) * 1000)
+                validate_read_only_inspection_recoveries(self.read_only_inspection_recoveries)
 
     def put(self, path, name):
         if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,95}', name):
