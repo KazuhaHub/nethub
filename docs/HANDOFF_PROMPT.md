@@ -13,7 +13,19 @@
 这样你在任何地方都能打开在 NAT 或 CGNAT 后面的路由器的管理页面。
 项目负责人是 **Kazuha**。凡是要拍板的事都归他，你负责按计划执行，并拿出证据。
 
-### Current state (updated 2026-11-09 UTC)
+### Current state (updated 2026-11-13 UTC)
+
+A scoped public desktop Revoke on the retained source `d5c0d5f` unsigned
+OPNsense package observed actual control/proxy cutoff at 788 ms and fresh TLS
+refusal at 856 ms from before the normal confirmation click. No reconnect was
+observed for 30.113 seconds; the independent genuine reference control, process,
+TCP socket and public nonce route survived. Normal public TLS and the real native
+GUI passed; the local 1 GiB exception and all earlier failed samples remain.
+Original services were independently restored. This is one public timing sample,
+not full W5/W7 acceptance. Source `71742b6` passed CI, filesystem, preparation and
+cold recovery but failed fresh native Rotate with `trust_sync`, before a pending
+journal; its WAN change/restoration passed. The failed native run is not accepted.
+See [current timing scope](w5-revocation-deadline.md).
 
 NetHub has implemented OPNsense enrollment, source-IP-gated GUI access,
 certificate automation, local circuit breaking, revocation, account/invitation

@@ -429,9 +429,13 @@ Console HTTPS is owned by the reverse proxy: bundled Caddy or an administrator-m
   adjust heartbeat/revocation rather than relax that target. The development
   candidate uses a one-second client heartbeat, three-second client/server timeout,
   independent one-second revocation refresh and disconnect workers, and a memory
-  snapshot that expires 2.5 seconds after its read started. These settings require
-  actual load, failure, native and public timing validation; they are not accepted
-  deadline measurements. The original 2026-10-18 configuration was 10/30 seconds.
+  snapshot that expires 2.5 seconds after its read started. A scoped 2026-11-13
+  public console sample observed control/proxy cutoff at 788 ms and fresh TLS
+  refusal at 856 ms, with an unchanged independent control/TLS witness and 30 seconds
+  without reconnect. Its unsigned source `d5c0d5f` package and 1 GiB exception do
+  not complete latest-source native, mobile, migration or full W5 acceptance; see
+  [the measurement and limits](w5-revocation-deadline.md). The original
+  2026-10-18 configuration was 10/30 seconds.
   Revoke by denying Ping, Login, and NewProxy together;
   NewUserConn must also reject a revoked device. Ping-only denial permits repeated
   registration. Retain mechanism 2 for new-connection gating and mechanism 3 as a

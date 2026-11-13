@@ -15,6 +15,7 @@ from compose_setup import inspect as inspect_setup
 from compose_setup import project as project_setup
 from wan_recovery import validate as validate_wan_recovery
 from route_failure import validate as validate_route_failure
+from native_model_probe import validate_rotation_conditions
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -71,6 +72,10 @@ def publish_evidence(directory):
                 if not 0 < path.stat().st_size <= 8192:
                     raise GuestError('Failed route evidence exceeds bound')
                 validate_route_failure(json.loads(path.read_text(encoding='utf-8')))
+            if name == 'native/rotation-recovery-probe.json':
+                if not 0 < path.stat().st_size <= 8192:
+                    raise GuestError('Rotation recovery evidence exceeds bound')
+                validate_rotation_conditions(json.loads(path.read_text(encoding='utf-8')))
             files.append(path)
     for path in files:
         os.chown(path, uid, gid)

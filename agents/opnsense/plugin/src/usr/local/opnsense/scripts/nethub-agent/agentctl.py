@@ -324,7 +324,15 @@ class Agent:
         try:
             result = TrustSynchronizer(self.trust_transaction()).sync(model.findtext('console_url'),
                 model.findtext('device_secret'), model.findtext('device_id'), model.findtext('server_name'))
-        except TrustSyncError:
+        except TrustSyncError as error:
+            if for_rotation:
+                # Keep only closed local metadata. Diagnostics must not replace
+                # the original failure or retry any trust/rotation mutation.
+                try:
+                    raw = json.dumps(error.diagnostic(), sort_keys=True, separators=(',', ':')) + '\n'
+                    self.atomic(self.state / 'rotation-trust-diagnostic.json', raw.encode())
+                except OSError:
+                    pass
             raise AgentError('Relay trust synchronization failed; inspect trust and recovery status') from None
         return self.trust_result(result)
 
@@ -502,7 +510,7 @@ class Agent:
         except (CertificateKeyError, CertificateTransactionError, TrustTransactionError, RotationError) as error:
             raise AgentError(str(error)) from None
         paths = [self.live, self.candidate, self.backup, self.config / 'relay-ca.pem']
-        paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'certificate.json', 'trust.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
+        paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'certificate.json', 'trust.json', 'rotation-trust-diagnostic.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
         for path in paths:
             if path.is_symlink():
                 raise AgentError('Runtime credential path needs local review')

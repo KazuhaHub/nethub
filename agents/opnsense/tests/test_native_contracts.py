@@ -18,8 +18,12 @@ def receipt():
     groups['service']['native_cases_passed'] = ['test_native_lockf_excludes_both_python_operations',
         'test_rotation_observes_actual_scheduler_lock_without_losing_busy_response',
         'test_rotation_waits_for_short_contention_without_replaying_native_work',
-        'test_external_lock_mode_is_hardened_without_replacing_its_inode']
-    groups['wire']['native_cases_passed'] = ['test_native_rotation_model_keeps_policy_and_confirms_single_save[journal]']
+        'test_external_lock_mode_is_hardened_without_replacing_its_inode',
+        'test_rotation_failure_keeps_only_closed_private_trust_metadata',
+        'test_private_diagnostic_write_failure_preserves_the_original_closed_error',
+        'test_periodic_trust_failure_does_not_overwrite_rotation_diagnostic']
+    groups['wire']['native_cases_passed'] = ['test_native_rotation_model_keeps_policy_and_confirms_single_save[journal]',
+        'test_actual_root_owned_diagnostic_is_bounded_and_refuses_links_and_permissions']
     return {'version': 1, 'source_head': HEAD, 'manifest_sha': SHA, 'system': 'FreeBSD',
             'release': '15.1-RELEASE-p4', 'machine': 'amd64', 'uid': 0,
             'groups': groups, 'passed': True, 'source_unchanged': True,

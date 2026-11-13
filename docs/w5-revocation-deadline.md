@@ -5,6 +5,62 @@ heartbeat and revocation processing. The original installed result, 17.218 secon
 from console confirmation dispatch, remains a failed timing comparison. Do not
 replace it with an easier threshold or restart the clock at database commit.
 
+## Scoped public console measurement, 2026-11-13
+
+One normal public-console Revoke on the retained genuine OPNsense enrollment
+disconnected its actual frps control and proxy within 788 ms. A fresh public TLS
+connection was refused within 856 ms. Both measurements use the same Windows
+monotonic clock, started before the normal CSRF-protected confirmation click.
+The target did not reconnect during the following 30.113 seconds.
+
+An independent reference client used ordinary enrollment, its own managed key,
+a genuine production-CA certificate and normal console Open. Its original control
+record, Linux process/start time and TCP socket inode survived the measurement.
+Fifty-five fresh public nonce checks passed; browsers and Node used normal public
+roots and hostname/leaf/key verification, without certificate exceptions. Only
+management observations used a pinned SSH forward to the existing private bridge.
+
+The tested deployment and unsigned 0.0.19 package were built from `d5c0d5f`, on the
+approved local OPNsense 26.7.7/1 GiB environment. Before confirmation, its genuine
+public GUI passed login, eleven widgets, recurring API calls and dashboard reload.
+Two earlier preflight windows failed before any confirmation: one discarded an
+unparseable start response; the other used a missing optional SSH configuration
+field after the GUI passed. Both failures remain retained. The single timed
+confirmation was not retried. Independent cleanup stopped the test clients before
+restoring the original services; all sixty container/image identities and the
+fifty-nine unaffected process states were verified. Private logs, six actual
+views, their hashes and the executed harness hash remain outside Git.
+
+This closes one desktop public IPv4 timing sample, not the complete W5 gate.
+It does not establish mobile timing, termination of existing browser streams,
+public renewal, mixed-version migration/rollback or the full latest-source
+installed regression. Source `71742b6` passed CI, preparation, filesystem and cold
+recovery, but its installed run
+[43415757113](https://github.com/KazuhaHub/nethub/actions/runs/43415757113) failed
+at fresh Rotate with `trust_sync`, before a pending rotation journal. Its lock
+snapshot found no held descriptors; this does not establish the original cause.
+The actual hosted WAN change/restoration checks passed in 4.092/4.609 seconds.
+That failed run remains failed and did not reach its native Revoke measurement.
+
+The follow-up retains only a closed stage/error-kind receipt when trust blocks
+fresh rotation. This private record never includes exception text, backend output,
+paths or credentials and is absent from the GUI/status response. Scheduled trust
+does not overwrite it; normal Remove deletes it. The read-only failure probe
+accepts only a bounded, canonical root-owned 0600 file and validates the projection
+again before publishing an artifact. Recording failure does not retry HTTP,
+recovery or native saves, and recording errors cannot replace the original failure.
+FreeBSD source contracts now require actual private-file and agent-dispatch checks.
+This adds diagnosis; the original `trust_sync` cause and full installed result
+remain unproven until the new source executes.
+
+Both public test enrollments were subsequently removed through their normal
+authenticated paths, including the native Remove UI and runtime cleanup. Only
+the original GUI certificate selection and alias text were restored; other XML
+and certificate records were preserved. The unused managed test certificate and
+protected evidence remain. The nonce-owned nonlogin reference user/group and
+service were removed after verifying no remaining UID processes; its retained
+state is root-only. Original services and container/process continuity passed.
+
 ## Development candidate
 
 - Agent 0.0.19 sends a heartbeat every nominal second and uses a three-second

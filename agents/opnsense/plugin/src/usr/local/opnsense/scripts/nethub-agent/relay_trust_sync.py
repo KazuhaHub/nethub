@@ -12,6 +12,19 @@ from relay_trust_transaction import TrustTransactionError
 class TrustSyncError(Exception):
     """A fixed diagnostic independent of remote and native response content."""
 
+    STAGES = ('recover', 'native_snapshot', 'binding', 'history', 'request', 'verify', 'apply', 'report', 'unclassified')
+    KINDS = ('protocol', 'transaction', 'native', 'storage', 'value', 'type', 'key', 'unclassified')
+
+    def __init__(self, stage='unclassified', kind='unclassified'):
+        super().__init__('Relay trust synchronization failed; inspect local trust and recovery status')
+        self.stage = stage
+        self.kind = kind
+
+    def diagnostic(self):
+        return {'version': 1,
+                'stage': self.stage if isinstance(self.stage, str) and self.stage in self.STAGES else 'unclassified',
+                'kind': self.kind if isinstance(self.kind, str) and self.kind in self.KINDS else 'unclassified'}
+
 
 class TrustSynchronizer:
     """The caller checks activation/lifecycle intent and holds reconcile.lock.
@@ -28,24 +41,32 @@ class TrustSynchronizer:
 
     def sync(self, origin, secret, device_id, server_name, context=None):
         transaction = self.transaction
+        stage = 'recover'
         try:
             transaction.recover()
+            stage = 'native_snapshot'
             current = transaction.backend.read()
+            stage = 'binding'
             if current['device_id'] != device_id or current['server_name'] != server_name:
                 raise ValueError('Native enrollment identity differs')
+            stage = 'history'
             history = transaction.read()
             previous = history['snapshot']['desired'] if history else None
             if previous is None and current['nodes']['relay_trust_state']:
                 previous = model_snapshot(device_id, current['nodes'])['desired']
+            stage = 'request'
             response = request_json(origin, '/api/v1/devices/relay-trust/settings', settings_request(device_id),
                                     secret=secret, context=context)
+            stage = 'verify'
             verified = verify_settings(response, device_id, server_name, transaction.config, previous=previous,
                 now=datetime.fromtimestamp(transaction.clock(), timezone.utc), openssl=transaction.openssl)
             if verified['desired'] is None:
                 return {'success': True, 'phase': 'pending', 'confirmed': False}
+            stage = 'apply'
             result = transaction.apply(verified, binding=current['binding'])
             if result['phase'] != 'applied' or result['confirmed']:
                 return result
+            stage = 'report'
             desired = verified['desired']
             report = applied_request(device_id, desired['generation_id'], desired['generation'], desired['bundle_fingerprint'])
             try:
@@ -55,5 +76,9 @@ class TrustSynchronizer:
                 # Application remains good if the report reply is lost, stale,
                 # rejected or unavailable. The next poll fetches before retry.
                 return dict(result, phase='applied_unconfirmed', confirmed=False)
-        except (ProtocolError, TrustTransactionError, NativeTrustError, OSError, ValueError, TypeError, KeyError):
-            raise TrustSyncError('Relay trust synchronization failed; inspect local trust and recovery status') from None
+        except (ProtocolError, TrustTransactionError, NativeTrustError, OSError, ValueError, TypeError, KeyError) as error:
+            kind = next(name for error_type, name in (
+                (ProtocolError, 'protocol'), (TrustTransactionError, 'transaction'), (NativeTrustError, 'native'),
+                (OSError, 'storage'), (ValueError, 'value'), (TypeError, 'type'), (KeyError, 'key'))
+                if isinstance(error, error_type))
+            raise TrustSyncError(stage, kind) from None

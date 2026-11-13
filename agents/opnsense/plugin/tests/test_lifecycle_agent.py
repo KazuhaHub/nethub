@@ -80,8 +80,11 @@ def test_forget_requires_cleared_model_and_erases_live_backup_trust(case):
     case.agent.state.mkdir(parents=True)
     case.agent.backup.write_text('former credential')
     (case.agent.state / 'recovery.json').write_text('{}')
+    diagnostic = case.agent.state / 'rotation-trust-diagnostic.json'
+    diagnostic.write_text('{"kind":"protocol","stage":"request","version":1}\n')
     result = case.agent.apply('forget')
     assert result['success'] and not case.active
+    assert not diagnostic.exists()
     assert not any(path.exists() for path in (case.agent.live, case.agent.backup, case.agent.config / 'relay-ca.pem', case.agent.state / 'recovery.json', case.agent.state / 'revoked'))
     assert case.agent.apply('reconcile')['action'] == 'stop'
 

@@ -111,3 +111,16 @@ def test_failed_route_evidence_is_validated_before_becoming_readable(tmp_path, m
     monkeypatch.setattr(SUITE.os, 'chown', lambda *args: pytest.fail('private data became readable'), raising=False)
     with pytest.raises(ValueError, match='Unexpected failed route evidence'):
         SUITE.publish_evidence(tmp_path)
+
+
+def test_private_trust_failure_cannot_be_published_in_rotation_conditions(tmp_path, monkeypatch):
+    (tmp_path/'native').mkdir()
+    (tmp_path/'native/rotation-recovery-probe.json').write_text(
+        '{"pending_exists":false,"pending_valid":false,"native_readable":true,'
+        '"current_matches_before":false,"current_matches_after":false,"phase":"absent",'
+        '"trust_sync_failure":{"available":true,"stage":"request","kind":"protocol","secret":"must-not-escape"}}')
+    monkeypatch.setenv('SUDO_UID', '1001')
+    monkeypatch.setenv('SUDO_GID', '1001')
+    monkeypatch.setattr(SUITE.os, 'chown', lambda *args: pytest.fail('private trust metadata became readable'), raising=False)
+    with pytest.raises(ValueError, match='Unexpected trust failure metadata'):
+        SUITE.publish_evidence(tmp_path)
