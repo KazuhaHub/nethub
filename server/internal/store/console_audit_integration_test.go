@@ -7,7 +7,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/auth"
 	"github.com/KazuhaHub/nethub/server/internal/web"
