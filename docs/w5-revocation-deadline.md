@@ -124,3 +124,21 @@ polling and are not HTTP callback latency measurements. Preparation honors the
 unchanged five-token minute limit; no failed timed stage is retried. All attempts
 are retained. This fixture still needs actual execution; these small sizes do not
 establish capacity for a larger fleet or complete the public/fault/migration gates.
+
+A third 30-second case keeps all twelve controls and loads 99,000 synthetic
+revoked-device rows plus 99,000 rotation floors into that same disposable
+single-tenant database. Rotation bindings are inserted while their synthetic
+devices are active, then revoked in the same transaction; no signed claims or
+enrollments are manufactured. These rows remain until owned database teardown.
+Their reserved canonical UUID range sorts after genuine v4 enrollments, so the
+ordinary interface fixtures retain their existing first-page visibility.
+The 1,000-row margin preserves the ordinary fixtures' later irreversible
+revocations. The original control inodes must survive preparation and the timed
+case; successful Pongs and verified TLS remain required. It records actual row
+counts and authz/frps process cost, rather than inferring combined continuity
+from the separate SQL-only load run. Subsequent outage/freeze and five-phase
+revocation cases run with these rows retained; the later native console check
+also inherits that data. Revocation identities use fresh ordinary enrollment
+tokens after pressure preparation. This fixture has not executed yet. It does
+not establish 99,000 online clients, PostgreSQL CPU cost, public-network behavior
+or direct cache-publication phase timing.

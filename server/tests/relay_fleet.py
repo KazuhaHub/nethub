@@ -8,7 +8,7 @@ import time
 
 
 def exercise_fleet(stage, compose, originals, create_client, stop_client,
-                   revoke_clients, check_tunnels, probe, source):
+                   revoke_clients, check_tunnels, probe, source, seed_pressure):
     work = Path(stage) / 'fleet-test'
     work.mkdir(mode=0o700)
     owned, attempts = [], []
@@ -54,7 +54,7 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
     original_controls = sockets(originals)
     retained_controls = original_controls
     try:
-        for total in (5, 10):
+        for index, total in enumerate((5, 10, 10)):
             sample = {'passed': False, 'phase': 'preparation', 'dedicated_clients': total,
                       'unrelated_original_clients': len(originals), 'measurement_seconds': 30,
                       'larger_fleet_capacity_accepted': False, 'full_W5_acceptance': False}
@@ -62,7 +62,11 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
             try:
                 # Use ordinary authenticated enrollment. Clear the five-token
                 # minute window once per batch, never retry a failed load case.
-                time.sleep(60)
+                if index < 2:
+                    time.sleep(60)
+                else:
+                    sample['phase'] = 'snapshot_pressure_preparation'
+                    sample['snapshot_fixture'] = seed_pressure()
                 while len(owned) < total:
                     assignment, log, client = create_client(len(owned))
                     owned.append((assignment, log, client))
@@ -130,13 +134,14 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
                               Pong_scope='successful pinned-client debug log observations, 200ms requested polling; not HTTP callback latency')
             finally:
                 (work / 'attempts.json').write_text(json.dumps(attempts, indent=2))
-                print(json.dumps({'official_frp_small_fleet': sample}), flush=True)
+                key = 'official_frp_snapshot_pressure' if index == 2 else 'official_frp_small_fleet'
+                print(json.dumps({key: sample}), flush=True)
     finally:
         for _, _, client in owned:
             stop_client(client)
         # Irreversible cleanup of only identities created by this fixture. The
         # enclosing owned Compose/database teardown remains the final boundary.
         revoke_clients([assignment for assignment, _, _ in owned])
-    assert len(attempts) == 2 and all(item['passed'] for item in attempts)
+    assert len(attempts) == 3 and all(item['passed'] for item in attempts)
     assert sockets(originals) == original_controls
     check_tunnels()
