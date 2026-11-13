@@ -384,6 +384,12 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             break
         time.sleep(1)
     else:
+        from route_failure import retain as retain_route_failure
+        try:
+            retain_route_failure(guest, evidence, route_observations)
+        except OSError:
+            # Evidence storage failure must not replace the original route failure.
+            pass
         raise GuestError('Rotated native assigned route did not recover verified TLS')
     elapsed = round((time.monotonic() - started) * 1000)
     checked = fixture('inspect', host=host)

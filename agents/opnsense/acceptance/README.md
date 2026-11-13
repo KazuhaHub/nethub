@@ -301,6 +301,16 @@ not disprove earlier contention. Probe failure preserves the original page failu
 The fixture does not replay Rotate, modify the scheduler or convert a failed
 installation run into acceptance.
 
+A failed first post-Rotate route check retains its last existing curl status and
+one read-only native snapshot in `installed-route-failure.json`. The snapshot
+compares the live claim/token with the native model, records service and local
+stop state, and exports only fixed reconciliation actions and recognized log
+events. It exports no credential, endpoint, arbitrary log line or child error.
+The probe does not retry SSH, replay Rotate, restart frpc or extend the route
+budget. A missing or malformed snapshot remains diagnostic failure; the original
+route failure still fails the run. A later snapshot cannot prove the state at the
+instant of the failed route request.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)

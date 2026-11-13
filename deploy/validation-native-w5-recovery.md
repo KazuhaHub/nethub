@@ -205,6 +205,24 @@ refusals take priority over accompanying reset messages, and child stdout cannot
 claim an SSH transport failure. These fixture changes need their own hosted
 execution; neither failed run becomes accepted.
 
+Source `c0ff774` passed CI, native filesystem checks, preparation and isolated
+cold recovery. Its
+[installed run 43398908870](https://github.com/KazuhaHub/nethub/actions/runs/43398908870)
+remains failed. The first ordinary Rotate succeeded. Its subsequent model-read
+SSH connect timeout recovered through the fixed read-only boundary in 10,580 ms;
+the read completed and native credential/assignment and database-preservation
+checks passed. The assigned route then failed to recover verified TLS within
+the existing probe budget.
+Its WAN change/restoration passed in 2,980/4,536 ms. Those observations do not
+establish why the route failed, and the run never reached console revocation.
+
+The follow-up retains the last existing curl outcome and one read-only native
+snapshot on that route failure: service/stop state, live-versus-model credential
+equality, fixed reconciliation action and recognized log events. It adds no
+route retry, configuration change or longer budget. Arbitrary errors, logs and
+credential values stay out of uploaded evidence. Local projection checks do not
+establish installed recovery; a new original execution is required.
+
 This is a runtime address change behind the fixture's NAT, not a public-network
 or ISP DHCP-renewal sample. Local parser/orchestrator tests do not establish
 automatic recovery on an actual appliance. The candidate must execute with the

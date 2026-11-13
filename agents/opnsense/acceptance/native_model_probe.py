@@ -4,6 +4,8 @@ from pathlib import Path
 import stat
 import subprocess
 import sys
+import tomllib
+import xml.etree.ElementTree as ET
 
 
 PHASES = ('arguments', 'private_lock', 'private_input', 'native_load', 'native_identity',
@@ -15,6 +17,74 @@ STORAGE_FIELDS = ('state_exists', 'state_directory', 'state_owner_root', 'state_
                   'lock_mode_private', 'lock_single_link', 'lock_empty', 'lock_canonical')
 ROTATION_FLAGS = ('pending_exists', 'pending_valid', 'native_readable',
                   'current_matches_before', 'current_matches_after')
+ROUTE_FLAGS = ('service_running', 'model_enabled', 'operator_stopped', 'disabled', 'revoked',
+               'runtime_readable', 'runtime_claim_matches_model', 'runtime_token_matches_model')
+ROUTE_ACTIONS = ('start', 'restart', 'unchanged', 'stop', 'quarantined', 'unavailable')
+ROUTE_EVENTS = ('login_success', 'login_failure', 'proxy_success', 'proxy_failure',
+                'control_closed', 'reconnect')
+
+
+def validate_route_conditions(value):
+    if (not isinstance(value, dict) or set(value) != set(ROUTE_FLAGS) | {
+            'reconcile_success', 'reconcile_action', 'events'}
+            or any(type(value[key]) is not bool for key in ROUTE_FLAGS)
+            or value['reconcile_success'] is not None and type(value['reconcile_success']) is not bool
+            or value['reconcile_action'] not in ROUTE_ACTIONS
+            or not isinstance(value['events'], list) or len(value['events']) > 10
+            or any(event not in ROUTE_EVENTS for event in value['events'])):
+        raise ValueError('Unexpected native route conditions')
+
+
+def route_conditions(root=Path('/'), runner=subprocess.run):
+    """Compare local bindings without exporting model values or arbitrary logs."""
+    state = root / 'var/db/nethub-agent'
+    value = dict.fromkeys(ROUTE_FLAGS, False)
+    value.update(reconcile_success=None, reconcile_action='unavailable', events=[])
+    result = runner(['/usr/sbin/service', 'nethub_agent_frpc', 'onestatus'],
+                    capture_output=True, timeout=5)
+    value['service_running'] = result.returncode == 0
+    for name in ('operator_stopped', 'disabled', 'revoked'):
+        value[name] = (state / ('stopped' if name == 'operator_stopped' else name)).exists()
+    model = ET.parse(root / 'conf/config.xml').find('OPNsense/NetHubAgent')
+    if model is None:
+        raise ValueError('Native route model unavailable')
+    value['model_enabled'] = model.findtext('enabled') == '1'
+    try:
+        runtime = tomllib.loads((root / 'usr/local/etc/nethub-agent/frpc.toml').read_text())
+        value['runtime_readable'] = True
+        for key, section, field, model_field in (
+                ('runtime_claim_matches_model', 'metadatas', 'domain_claim', 'domain_claim'),
+                ('runtime_token_matches_model', 'auth', 'token', 'frp_token')):
+            expected = model.findtext(model_field)
+            value[key] = bool(expected) and runtime.get(section, {}).get(field) == expected
+    except (OSError, ValueError, TypeError, AttributeError):
+        pass
+    try:
+        reconcile = json.loads((state / 'state.json').read_text())
+        if type(reconcile.get('success')) is bool:
+            value['reconcile_success'] = reconcile['success']
+        if reconcile.get('action') in ROUTE_ACTIONS:
+            value['reconcile_action'] = reconcile['action']
+    except (OSError, ValueError, AttributeError):
+        pass
+    try:
+        with (root / 'var/log/nethub-agent/frpc.log').open('rb') as source:
+            source.seek(0, 2)
+            source.seek(max(0, source.tell() - 8192))
+            lines = source.read().decode('utf-8', errors='replace').splitlines()[-10:]
+        for line in lines:
+            for marker, event in (
+                    ('login to server success', 'login_success'),
+                    ('login to the server failed', 'login_failure'),
+                    ('start proxy success', 'proxy_success'), ('start error', 'proxy_failure'),
+                    ('control writer is closing', 'control_closed'), ('reconnect', 'reconnect')):
+                if marker in line.lower():
+                    value['events'].append(event)
+                    break
+    except OSError:
+        pass
+    validate_route_conditions(value)
+    return value
 
 
 def validate_rotation_conditions(value):
@@ -131,7 +201,9 @@ def read_native():
 
 
 if __name__ == '__main__':
-    if sys.argv[1:] == ['rotation']:
+    if sys.argv[1:] == ['route']:
+        print(json.dumps(route_conditions()))
+    elif sys.argv[1:] == ['rotation']:
         print(json.dumps(rotation_conditions()))
     elif sys.argv[1:] == ['storage']:
         print(json.dumps(storage_conditions()))

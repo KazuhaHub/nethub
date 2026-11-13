@@ -14,6 +14,7 @@ from compose_tail import read_phase
 from compose_setup import inspect as inspect_setup
 from compose_setup import project as project_setup
 from wan_recovery import validate as validate_wan_recovery
+from route_failure import validate as validate_route_failure
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -22,6 +23,7 @@ JOBS = {'workflow lint', 'Go vulnerability checks', 'weekend0 kit checks',
 PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installed-rotation.json',
                 'native/installed-console-revoke.json', 'native/installed-console-revoke.png',
                 'native/installed-wan-recovery.json',
+                'native/installed-route-failure.json',
                 'native/installed-shared-token.json', 'native/installed-trust-publication.json',
                 'native/installed-committed-trust-replay.json',
                 'native/installed-rotate-publication-committed-lost-page.json',
@@ -65,6 +67,10 @@ def publish_evidence(directory):
         if path.exists():
             if path.is_symlink() or not path.is_file() or path.stat().st_nlink != 1:
                 raise GuestError('Linked native evidence refused')
+            if name == 'native/installed-route-failure.json':
+                if not 0 < path.stat().st_size <= 8192:
+                    raise GuestError('Failed route evidence exceeds bound')
+                validate_route_failure(json.loads(path.read_text(encoding='utf-8')))
             files.append(path)
     for path in files:
         os.chown(path, uid, gid)
