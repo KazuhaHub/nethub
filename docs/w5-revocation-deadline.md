@@ -71,6 +71,23 @@ protected evidence remain. The nonce-owned nonlogin reference user/group and
 service were removed after verifying no remaining UID processes; its retained
 state is root-only. Original services and container/process continuity passed.
 
+The later `f08585d` installed run
+[43549725046](https://github.com/KazuhaHub/nethub/actions/runs/43549725046) passed
+normal enrollment and its first Rotate page, then failed staging a private test
+input with `guest_ssh_connect_timeout`. Both actual views, exact archive/logs,
+guest exit and cleanup were checked; the overall run remains failed and did not
+reach its Revoke measurement. WAN change/restoration passed in 2.614/4.497 seconds
+with original native/process/route invariants. No read-only inspection recovery
+was recorded. These facts do not establish the cause of earlier `trust_sync`
+failures.
+
+The follow-up checks the existing fixed read-only root boundary before uploading
+private test inputs, sharing the four-event inspection-recovery budget. It does
+not retry a failed upload or replay Rotate/Revoke. Separate local source `f08585d`
+[reboot and configuration-restore observations](../deploy/validation-native-w5-recovery.md#current-0019-local-recovery-sample)
+retain their public-server-source and 1 GiB limits; no new current-source Revoke
+timing is inferred from them.
+
 ## Development candidate
 
 - Agent 0.0.19 sends a heartbeat every nominal second and uses a three-second

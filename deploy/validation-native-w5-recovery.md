@@ -123,6 +123,44 @@ contains actual cutoff and no-reconnect measurements. Its W0 timing comparison
 and the W5 mobile Open sample remain open. The failed combined recovery operation
 above remains failed; W5-W7 are incomplete.
 
+## Current 0.0.19 local recovery sample
+
+The unsigned source `f08585d` package passed a real router reboot on the approved
+OPNsense 26.7.7/1 GiB VM, against retained source `d5c0d5f` server images. The
+same enrollment, model, GUI identity and all 51 installed source files survived.
+No manual agent start or reconcile followed reboot. Dispatch to observed running
+service was 164.640 seconds, including a scheduled 60-second delay; this is not
+measured tunnel downtime. Normal public console Open, router login, eleven
+dashboard widgets, recurring API calls and reload passed afterward, with normal
+public roots and exact hostname/leaf/key checks.
+
+One native configuration-restore trial then downloaded the active backup through
+the stock GUI, saved disabled intent through the plugin Settings API, observed
+normal cron stop, and uploaded the backup through the stock configuration page.
+No reboot or direct config.xml replacement was requested. Enabled intent and the
+running service recovered through normal cron in 51.281 seconds from restore
+acknowledgement, without manual agent start or reconcile. Enrollment, GUI key and
+kernel boot identity stayed equal.
+
+That combined observer remains failed: its raw certificate-record comparison
+detected XML serialization changes before the public browser stage. Independent
+comparison of the downloaded backup and actual restored configuration verified
+all three certificate records semantically and all certificate/private-key bytes.
+The only other differences were revision metadata and an empty `system/serialusb`
+field added by the stock restore page's keep-console path. Native Config removed
+only that empty field, preserving all other semantic configuration. A separate
+same-leaf public GUI check then passed the complete Open/login/widgets/API/reload
+flow; it did not repeat restoration or issuance. The original failed observer and
+earlier captured-shutdown timeout remain retained.
+
+Independent cleanup normally stopped the client before restoring original relay
+services. All sixty container/image identities and fifty-nine unaffected process
+states were checked. Four actual views and their hashes were reviewed for each
+successful public GUI flow. The new enrollment and selected public leaf remain
+installed and normally stopped for later tests. These local recovery observations
+do not complete current hosted rotation/revocation, mobile, migration/rollback or
+W5/W7 acceptance.
+
 ## New-heartbeat hosted WAN candidate
 
 The hosted acceptance candidate changes the fixed WAN address of its disposable

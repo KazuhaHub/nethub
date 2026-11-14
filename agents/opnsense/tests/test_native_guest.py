@@ -144,6 +144,7 @@ def test_failed_ssh_exposes_only_closed_fixture_phases(tmp_path, monkeypatch, va
     with pytest.raises(GUEST.GuestError) as caught:
         guest.ssh('false\n', 'native fixture trust')
     assert str(caught.value) == 'native fixture trust failed: ' + category
+    assert GUEST.validate_ssh_failure_kind(caught.value.ssh_failure_kind) == category
     assert 'private-value' not in str(caught.value)
 
 
@@ -292,6 +293,7 @@ def test_readback_and_preflight_share_the_bounded_recovery_inventory(script, lab
 def test_identity_refusals_take_priority_and_transfer_errors_stay_closed(tmp_path, monkeypatch, stderr, category, transfer):
     guest = GUEST.Guest.__new__(GUEST.Guest)
     guest.directory, guest.ssh_port = tmp_path, 2222
+    guest.ssh_read_only_inspection = Mock(return_value=b'')
     invoked = Mock(return_value=SimpleNamespace(returncode=1, stdout=b'private-child-value',
                                                 stderr=stderr + b' private-peer-value'))
     monkeypatch.setattr(GUEST.subprocess, 'run', invoked)
@@ -371,6 +373,7 @@ def test_read_only_boundary_refuses_nonliteral_commands(script):
 def test_unknown_or_timed_out_transfer_is_not_retried(tmp_path, monkeypatch, timeout):
     guest = GUEST.Guest.__new__(GUEST.Guest)
     guest.directory, guest.ssh_port = tmp_path, 2222
+    guest.ssh_read_only_inspection = Mock(return_value=b'')
     failure = GUEST.subprocess.TimeoutExpired(['private-argument'], 60,
         output=b'private-child', stderr=b'private-stderr')
     invoked = Mock(side_effect=failure) if timeout else Mock(return_value=
@@ -382,3 +385,44 @@ def test_unknown_or_timed_out_transfer_is_not_retried(tmp_path, monkeypatch, tim
                                  'private guest input transfer failed: unclassified')
     assert invoked.call_count == 1
     assert list(tmp_path.glob('scp-*-private.log'))[0].read_bytes() == b'private-childprivate-stderr'
+
+
+def test_staging_checks_the_owned_boundary_before_one_transfer(tmp_path, monkeypatch):
+    guest = inspection_guest()
+    guest.directory, guest.ssh_port = tmp_path, 2222
+    guest.ssh = Mock(side_effect=[
+        GUEST.GuestError('native inspection boundary failed: guest_ssh_connect_timeout'), b''])
+    guest.ensure_ssh.return_value = True
+    transferred = Mock(return_value=SimpleNamespace(returncode=0, stdout=b'', stderr=b''))
+    monkeypatch.setattr(GUEST.subprocess, 'run', transferred)
+    guest.put(tmp_path / 'input.json', 'native-fixture-input.json')
+    assert guest.ssh.call_count == 2
+    assert all(call.args == ('test "$(id -u)" = 0\n', 'native inspection boundary')
+               for call in guest.ssh.call_args_list)
+    guest.ensure_ssh.assert_called_once_with()
+    assert transferred.call_count == 1
+    assert transferred.call_args.args[0][0] == 'scp'
+    assert guest.read_only_inspection_recoveries[0]['operation'] == 'inspection_preflight'
+    GUEST.validate_read_only_inspection_recoveries(guest.read_only_inspection_recoveries, require_completed=True)
+
+
+@pytest.mark.parametrize('kind', ['guest_ssh_host_key', 'guest_ssh_authentication'])
+def test_staging_refuses_identity_failure_before_upload(tmp_path, monkeypatch, kind):
+    guest = inspection_guest()
+    guest.directory, guest.ssh_port = tmp_path, 2222
+    guest.ssh = Mock(side_effect=GUEST.GuestError('native inspection boundary failed: ' + kind))
+    transferred = Mock()
+    monkeypatch.setattr(GUEST.subprocess, 'run', transferred)
+    with pytest.raises(GUEST.GuestError):
+        guest.put(tmp_path / 'input.json', 'native-fixture-input.json')
+    transferred.assert_not_called()
+    guest.ensure_ssh.assert_not_called()
+    assert guest.read_only_inspection_recoveries == []
+
+
+def test_invalid_staging_name_is_refused_before_boundary_probe(tmp_path):
+    guest = inspection_guest()
+    guest.ssh = Mock()
+    with pytest.raises(GUEST.GuestError, match='Invalid private guest staging name'):
+        guest.put(tmp_path / 'input.json', '../foreign-input.json')
+    guest.ssh.assert_not_called()

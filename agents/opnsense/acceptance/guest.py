@@ -31,6 +31,29 @@ class GuestError(Exception):
     """A fixed operation label; never expose private child output or arguments."""
 
 
+def validate_ssh_failure_kind(value):
+    """Accept only the fixed categories already produced by the owned SSH probe."""
+    if not isinstance(value, str):
+        raise ValueError('Closed native SSH failure kind required')
+    if value in {'command_timeout', 'unclassified', 'disk_space', 'download_tls', 'missing_dependency',
+                 'php_failure', 'compiler_mismatch', 'guest_dns', 'guest_network', 'guest_ssh_host_key',
+                 'guest_ssh_authentication', 'guest_ssh_connection_refused', 'guest_ssh_connect_timeout',
+                 'guest_ssh_connection_reset'}:
+        return value
+    for phase in NATIVE_FIXTURE_PHASES:
+        prefix = 'fixture_' + phase
+        if value == prefix:
+            return value
+        if value.startswith(prefix + '_'):
+            parts = value[len(prefix) + 1:].split('_')
+            if (len(parts) == 3 and parts[0] in
+                    ('Error', 'ErrorException', 'TypeError', 'ValueError', 'RuntimeException', 'other')
+                    and parts[1] in ('system', 'util', 'config', 'legacy', 'configuration', 'trust', 'fixture', 'other')
+                    and re.fullmatch(r'0|[1-9][0-9]{0,4}', parts[2]) and int(parts[2]) <= 20000):
+                return value
+    raise ValueError('Closed native SSH failure kind required')
+
+
 def ssh_transport_failure(stderr):
     text = stderr.decode('utf-8', errors='replace').lower()
     for token, code in [('host key verification failed', 'guest_ssh_host_key'),
@@ -363,7 +386,9 @@ cat /root/nethub-ci/host-key.pub
         try:
             result = subprocess.run(args, input=script.encode('utf-8'), capture_output=True, timeout=timeout)
         except subprocess.TimeoutExpired:
-            raise GuestError(label + ' timed out') from None
+            error = GuestError(label + ' timed out')
+            error.ssh_failure_kind = 'command_timeout'
+            raise error from None
         log = self.directory / ('ssh-' + uuid.uuid4().hex + '-private.log')
         log.write_bytes(result.stdout + result.stderr)
         if result.returncode:
@@ -395,7 +420,10 @@ cat /root/nethub-ci/host-key.pub
                                         + '_' + context['source'] + '_' + str(context['line']))
                 except (ValueError, TypeError):
                     pass
-            raise GuestError(label + ' failed: ' + (ssh_transport_failure(result.stderr) or category))
+            kind = validate_ssh_failure_kind(ssh_transport_failure(result.stderr) or category)
+            error = GuestError(label + ' failed: ' + kind)
+            error.ssh_failure_kind = kind
+            raise error
         return result.stdout
 
     def ensure_ssh(self):
@@ -463,6 +491,7 @@ cat /root/nethub-ci/host-key.pub
     def put(self, path, name):
         if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,95}', name):
             raise GuestError('Invalid private guest staging name')
+        self.ssh_read_only_inspection('test "$(id -u)" = 0\n')
         try:
             result = subprocess.run(['scp', '-O', *self.ssh_options(), '-P', str(self.ssh_port), str(path),
                 'root@127.0.0.1:/root/nethub-ci/' + name], capture_output=True, timeout=60)

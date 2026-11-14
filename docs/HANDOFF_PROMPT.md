@@ -15,6 +15,29 @@
 
 ### Current state (updated 2026-11-13 UTC)
 
+Source `f08585d` passed six-job CI, 248 actual FreeBSD cases/254 source blobs and
+unsigned package preparation. Its later cold recovery failed at `native_baseline`
+before checkpoint/restore; the fixed exported category does not yet distinguish
+the native SSH transport from fixture refusal. Full logs, official archive and
+owned cleanup were checked. A follow-up adds only a closed SSH failure category;
+the original failure remains failed. See [cold recovery limits](../deploy/validation-protected-host-cold-recovery.md#retained-failures-and-limits).
+
+Its installed run also failed, after normal enrollment and the first Rotate page
+passed: staging a private fixture input timed out connecting to SSH. Both actual
+views, full logs/archive and cleanup were checked; WAN change/restoration passed
+in 2.614/4.497 seconds. The follow-up adds the existing bounded read-only root
+preflight before staging, without retrying uploads or native actions. Neither
+failed run completes current-source installed or recovery acceptance.
+
+The same unsigned native source, against retained `d5c0d5f` server images, passed
+actual local router reboot recovery and a separate normal-public-TLS GUI check.
+One native GUI backup/restore also recovered through normal cron in 51.281 seconds.
+Its original observer failed on serialized certificate XML; semantic certificate/
+key checks, stock empty-console-field cleanup and a separate same-leaf public GUI
+check passed. The new enrollment remains installed and normally stopped. Keep
+the 1 GiB/26.7.7 scope and all failed observations; these do not complete the
+current hosted native or full W5/W7 gates. See [recovery evidence](../deploy/validation-native-w5-recovery.md#current-0019-local-recovery-sample).
+
 A scoped public desktop Revoke on the retained source `d5c0d5f` unsigned
 OPNsense package observed actual control/proxy cutoff at 788 ms and fresh TLS
 refusal at 856 ms from before the normal confirmation click. No reconnect was
