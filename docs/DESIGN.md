@@ -77,8 +77,9 @@ v0.2 写完之后，用户在 2026-09-17 的会话里拍板了一批事项，它
 
 **Decision status:** Q7/D7 source-IP admission, Q9/D17 exact Alternate Hostnames,
 and Q10/D22 verified relay trust are confirmed and implemented within their recorded
-acceptance scopes. D14 still requires owner review of Q1/Q3/Q4/Q5; no new decision is
-implied here. See PLAN §2 for the current decision register.
+acceptance scopes. Kazuha confirmed D14 Q1/Q3/Q4/Q5 on 2026-11-10; the four
+boundaries are recorded in §14. These decisions do not complete their runtime
+acceptance. See PLAN §2 for the current decision register.
 
 ---
 
@@ -424,14 +425,23 @@ Console HTTPS is owned by the reverse proxy: bundled Caddy or an administrator-m
   这个代价到底多大由 Weekend 0 第 6 项实测：订阅 `Ping` 后让后端整体停掉 / 返回 500 / 挂起，看已在线的设备多久被断开、
   后端恢复后多久自动连回来（§10）。
 
-  **D6 confirmed by Kazuha, 2026-10-18:** use mechanism 1 as the primary
-  revocation path with explicit client heartbeat interval 10 seconds and client/server
-  timeout 30 seconds. Revoke by denying Ping, Login, and NewProxy together;
+  **D6 updated by Kazuha, 2026-11-12:** retain the five-second cutoff target and
+  adjust heartbeat/revocation rather than relax that target. The development
+  candidate uses a one-second client heartbeat, three-second client/server timeout,
+  independent one-second revocation refresh and disconnect workers, and a memory
+  snapshot that expires 2.5 seconds after its read started. A scoped 2026-11-13
+  public console sample observed control/proxy cutoff at 788 ms and fresh TLS
+  refusal at 856 ms, with an unchanged independent control/TLS witness and 30 seconds
+  without reconnect. Its unsigned source `d5c0d5f` package and 1 GiB exception do
+  not complete latest-source native, mobile, migration or full W5 acceptance; see
+  [the measurement and limits](w5-revocation-deadline.md). The original
+  2026-10-18 configuration was 10/30 seconds.
+  Revoke by denying Ping, Login, and NewProxy together;
   NewUserConn must also reject a revoked device. Ping-only denial permits repeated
   registration. Retain mechanism 2 for new-connection gating and mechanism 3 as a
   manual fallback. The admin API discovers state; it does not disconnect clients.
 
-  Three stock-client trials disconnected after 2.136, 3.032, and 4.958 seconds.
+  Three original stock-client trials disconnected after 2.136, 3.032, and 4.958 seconds.
   These measurements are not an unconditional latency guarantee. Backend process
   loss and HTTP 500 also disconnected online clients. A 120-second hanging backend
   produced heartbeat timeout and unusable browser requests while admin status stayed
@@ -860,7 +870,7 @@ retain normal session activity.
 | 设备身份 / 域名归属 | 签名声明（HMAC-SHA256，`key_id` 可轮换）+ DB 记录双重校验（决策 #4；控制通道的服务端认证见 Q10）；`NewProxy` 拒绝任何 custom domain，设备不能承载控制台域名（§5）；`nethub web` / `nethub authz` 进程拆分，签名密钥只挂进 authz；列级授权：web 不能新建设备行、不能写子域名 / 声明 / 哈希列、不能改归属；子域名由 authz 随机生成 |
 | 密钥归属 | 每部署自生成，上游不持有任何全局密钥；按服务分文件，每个容器只拿自己的（决策 #21） |
 | 准入 | 设备：enroll token 一次性、15 分钟过期（由数据库默认值和 `consume_enroll_token` 强制，web 定不了有效期，见 §6）、带外交付；用户：只能经邀请（一次性、只存哈希、会过期），无自助注册 / JIT |
-| 远程会话撤销 | Authz polls for discovery every 15s with three confirmations; manual bypass skips confirmation. D6 denies Ping/Login/NewProxy together with explicit 10s heartbeat and 30s timeout. Three stock-client trials disconnected in 2.136–4.958s. Authz failure interrupts access; hangs can leave admin state stale and recovery unstable. Bound handler work and retain independent out-of-band access; see §5 and the accepted W0 report. |
+| 远程会话撤销 | Discovery retains its three-confirmation policy and manual bypass. D6's owner-retained five-second target now has a development candidate: 1s heartbeat, 3s timeout, independent 1s denial refresh and expiring memory authority. Original W0 samples and the failed 17.218s native result remain historical; the new candidate requires load/failure/native/public timing acceptance. Authz faults can interrupt access; retain independent recovery. See §5 and [validation requirements](w5-revocation-deadline.md). |
 | Device permissions | No general config.xml read/write, firewall or command API. The local adapter manages plugin settings, tunnel lifecycle and verified GUI certificate installation/restart; certificate automation is an explicit v1 scope addition. |
 | 设备侧权限 | 所有特权动作限定在显式注册的 configd action 内，无任意 shell 执行路径 |
 | 本地熔断 | `/var/db/nethub-agent/disabled` flat file，不写 config.xml；onboarding 明确提示用户确认拥有**独立于本产品之外**的带外/物理访问手段 |
@@ -983,8 +993,12 @@ D7 requires `NewUserConn` gating: authenticated Open grants 30 minutes for the d
 
 **验收：** 手机开 4G，从控制台点开设备远程 UI 能登录 GUI；
 切 kill switch 后隧道立即停且不碰 config.xml；点"撤销"后，被撤销设备的新浏览器连接被拒；
-如果 Weekend 0 验证出了可用的断线机制，控制连接按它被断开，并记录实测断线时延（~45 秒是目标，不是承诺）；
-如果没有，这一条只验"新连接被拒 + 重连时被 `Login` 挡住"，"已建立的隧道断不掉"如实写进风险清单；
+Revoke must disconnect the control within five seconds of console confirmation
+dispatch and prevent reconnection, as retained by Kazuha on 2026-11-12. Record
+the measurement anchors, every failed attempt and unaffected-device behavior.
+The roughly 45-second anomaly-confirmation period does not replace this deadline.
+The original fallback to blocking only new connections applies only if no cutoff
+mechanism works and requires a new owner decision; it cannot waive this target.
 若采用了拒绝 `Ping`，再验一次停掉 authz 时全部隧道的断开与恢复（§5）；
 enroll 流程里提示"确认拥有独立于本产品之外的带外访问手段"；
 若上了门禁：没在控制台点过"打开"的源 IP 连不上 8443。

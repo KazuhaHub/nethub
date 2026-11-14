@@ -17,8 +17,13 @@ def receipt():
     groups['enrollment']['native_cases_passed'] = ['test_enrollment_lock_interoperates_with_native_scheduler_lockf']
     groups['service']['native_cases_passed'] = ['test_native_lockf_excludes_both_python_operations',
         'test_rotation_observes_actual_scheduler_lock_without_losing_busy_response',
-        'test_external_lock_mode_is_hardened_without_replacing_its_inode']
-    groups['wire']['native_cases_passed'] = ['test_native_rotation_model_keeps_policy_and_confirms_single_save[journal]']
+        'test_rotation_waits_for_short_contention_without_replaying_native_work',
+        'test_external_lock_mode_is_hardened_without_replacing_its_inode',
+        'test_rotation_failure_keeps_only_closed_private_trust_metadata',
+        'test_private_diagnostic_write_failure_preserves_the_original_closed_error',
+        'test_periodic_trust_failure_does_not_overwrite_rotation_diagnostic']
+    groups['wire']['native_cases_passed'] = ['test_native_rotation_model_keeps_policy_and_confirms_single_save[journal]',
+        'test_actual_root_owned_diagnostic_is_bounded_and_refuses_links_and_permissions']
     return {'version': 1, 'source_head': HEAD, 'manifest_sha': SHA, 'system': 'FreeBSD',
             'release': '15.1-RELEASE-p4', 'machine': 'amd64', 'uid': 0,
             'groups': groups, 'passed': True, 'source_unchanged': True,
@@ -82,9 +87,10 @@ def test_source_bytes_and_manifest_identity_must_remain_bound(tmp_path, monkeypa
     assert not NATIVE.source_matches(tmp_path, {'../outside': SHA})
 
 
-def test_skipped_native_lockf_case_is_not_a_pass(tmp_path):
+@pytest.mark.parametrize('name', ['test_native_lockf_excludes_both_python_operations',
+                                'test_rotation_waits_for_short_contention_without_replaying_native_work'])
+def test_skipped_native_lockf_case_is_not_a_pass(tmp_path, name):
     report = tmp_path / 'tests.xml'
-    name = 'test_native_lockf_excludes_both_python_operations'
     report.write_text(f'<testsuite><testcase name="{name}"><skipped/></testcase><testcase name="test_plain"/></testsuite>')
     result = NATIVE.summarize_xml(report)
     assert result == {'tests': 2, 'passed': 1, 'native_cases_passed': [], 'nonpassing_cases': [name]}

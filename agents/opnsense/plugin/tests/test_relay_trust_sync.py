@@ -15,9 +15,83 @@ def test_native_read_failure_is_closed_before_network_or_trust_mutation(transact
         with pytest.raises(CLIENT.TrustSyncError) as failure:
             sync(transaction)
     assert str(failure.value) == 'Relay trust synchronization failed; inspect local trust and recovery status'
+    assert failure.value.diagnostic() == {'version': 1, 'stage': 'native_snapshot', 'kind': 'native'}
     network.assert_not_called()
     assert transaction.read() is None
     assert transaction.backend.operations == [] and transaction.calls == []
+
+
+@pytest.mark.parametrize('stage,kind', [('recover', 'transaction'), ('history', 'storage'),
+    ('request', 'protocol'), ('verify', 'value'), ('apply', 'transaction')])
+def test_failure_stage_is_retained_without_private_text_or_mutation_replay(transaction, stage, kind):
+    from contextlib import ExitStack
+    from relay_trust_transaction import TrustTransactionError
+    error = {'transaction': TrustTransactionError, 'storage': OSError,
+             'protocol': ProtocolError, 'value': ValueError}[kind]('private response and credential must not escape')
+    with ExitStack() as stack:
+        recover = stack.enter_context(mock.patch.object(transaction, 'recover', return_value=None))
+        history = stack.enter_context(mock.patch.object(transaction, 'read', return_value=None))
+        request = stack.enter_context(mock.patch.object(CLIENT, 'request_json', return_value=example()))
+        verify = stack.enter_context(mock.patch.object(CLIENT, 'verify_settings', return_value=example()))
+        apply = stack.enter_context(mock.patch.object(transaction, 'apply'))
+        {'recover': recover, 'history': history, 'request': request, 'verify': verify, 'apply': apply}[stage].side_effect = error
+        with pytest.raises(CLIENT.TrustSyncError) as failure:
+            sync(transaction)
+    assert failure.value.diagnostic() == {'version': 1, 'stage': stage, 'kind': kind}
+    assert 'private' not in str(failure.value) and 'credential' not in repr(failure.value.diagnostic())
+    assert request.call_count <= 1 and apply.call_count <= 1
+    assert transaction.backend.operations == [] and transaction.calls == []
+
+
+def test_mismatched_native_binding_has_a_closed_diagnostic_before_http(transaction):
+    transaction.backend.current['server_name'] = 'different.example.com'
+    with mock.patch.object(CLIENT, 'request_json') as request:
+        with pytest.raises(CLIENT.TrustSyncError) as failure:
+            sync(transaction)
+    assert failure.value.diagnostic() == {'version': 1, 'stage': 'binding', 'kind': 'value'}
+    request.assert_not_called()
+
+
+@pytest.mark.parametrize('value', ['private backend text', None, [], {}, True])
+def test_unrecognized_failure_metadata_never_copies_arbitrary_values(value):
+    failure = CLIENT.TrustSyncError(value, value)
+    assert failure.diagnostic() == {'version': 1, 'stage': 'unclassified', 'kind': 'unclassified'}
+    assert str(failure) == 'Relay trust synchronization failed; inspect local trust and recovery status'
+
+
+@pytest.mark.parametrize('cause,kind', [
+    (CLIENT.ssl.SSLCertVerificationError('private certificate'), 'protocol_tls_verify'),
+    (CLIENT.ssl.SSLError('private TLS details'), 'protocol_tls'),
+    (CLIENT.socket.gaierror('private hostname'), 'protocol_dns'),
+    (TimeoutError('private timeout'), 'protocol_timeout'),
+    (ConnectionRefusedError('private address'), 'protocol_connect'),
+    (ConnectionResetError('private address'), 'protocol_connect'),
+    (CLIENT.http.client.RemoteDisconnected('private response'), 'protocol_http'),
+    (ValueError('private response'), 'protocol'),
+])
+def test_real_exception_context_is_closed_without_another_request(transaction, cause, kind):
+    def request(*args, **kwargs):
+        try:
+            raise cause
+        except Exception:
+            raise ProtocolError('Console HTTPS request failed; verify connectivity and certificate trust') from None
+    with mock.patch.object(CLIENT, 'request_json', side_effect=request) as network:
+        with pytest.raises(CLIENT.TrustSyncError) as failure:
+            sync(transaction)
+    assert failure.value.diagnostic() == {'version': 1, 'stage': 'request', 'kind': kind}
+    assert 'private' not in repr(failure.value.diagnostic()) and 'private' not in str(failure.value)
+    network.assert_called_once()
+    assert transaction.backend.operations == [] and transaction.calls == []
+
+
+def test_fixed_response_refusal_is_distinct_from_unknown_protocol_text(transaction):
+    for text, kind in [('Console rejected the device request; check enrollment and connectivity', 'protocol_rejected'),
+                       ('private server content', 'protocol')]:
+        with mock.patch.object(CLIENT, 'request_json', side_effect=ProtocolError(text)) as network:
+            with pytest.raises(CLIENT.TrustSyncError) as failure:
+                sync(transaction)
+        assert failure.value.diagnostic() == {'version': 1, 'stage': 'request', 'kind': kind}
+        network.assert_called_once()
 
 
 def sync(transaction):

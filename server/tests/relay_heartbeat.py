@@ -1,5 +1,6 @@
 """Measure real control-session loss and recovery with the pinned official clients."""
 import base64
+from datetime import datetime, timezone
 import json
 import re
 import socket
@@ -16,7 +17,8 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
-                        check_tunnels, probe, source, hook_events, revocation_client):
+                        check_tunnels, probe, source, hook_events, revocation_client,
+                        stop_revocation_client, fresh_revoked_login):
     work = Path(stage) / 'heartbeat-test'
     work.mkdir(mode=0o700)
     secrets = Path(stage) / 'deployment/secrets/frps'
@@ -43,6 +45,8 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
             if observe is not None:
                 observe(active, active == wanted)
             if active == wanted:
+                if time.monotonic() > deadline:
+                    raise RuntimeError('official control-session state was observed after its deadline')
                 return
             if time.monotonic() >= deadline:
                 raise RuntimeError('official control-session state exceeded the heartbeat deadline')
@@ -54,14 +58,16 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
         assert result.returncode == 0, 'isolated authz lifecycle command failed'
 
     def control_sockets():
-        result = subprocess.run(['ss', '-tnpH'], capture_output=True, text=True, timeout=3)
+        result = subprocess.run(['ss', '-tnpeH'], capture_output=True, text=True, timeout=3)
         assert result.returncode == 0, 'isolated control socket inventory failed'
         peers = set()
         for line in result.stdout.splitlines():
             fields = line.split()
             if len(fields) >= 6 and fields[0] == 'ESTAB' and fields[4].endswith(':7000') and any(
                     re.search(r'pid=' + str(client.pid) + r'[,)]', line) for client in clients):
-                peers.add((fields[3], fields[4]))
+                inode = re.search(r'\bino:([0-9]+)\b', line)
+                assert inode is not None, 'original control socket identity unavailable'
+                peers.add((fields[3], fields[4], inode[1]))
         return peers
 
     def diagnose_outage(original, started):
@@ -151,50 +157,187 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
         'authz_outage_after_confirmed_stop_ms': after_stop_ms,
         'authz_restart_recovery_ms': recovery_ms}}), flush=True)
 
-    # Later authority tests retain the original two enrollments. Revocation is
-    # irreversible: create a separate authenticated identity for this control.
-    target = revocation_client()
-    target_name = 'nethub-' + target['device_id'] + '-web'
-    expected.add(target_name)
-    wait_online(expected, time.monotonic() + 15)
-    deadline = time.monotonic() + 10
-    while True:
-        ready = probe(target, source)
-        if ready.returncode == 0 and ready.stdout.decode() == target['subdomain'] + '.router.example.com':
-            break
-        assert time.monotonic() < deadline, 'dedicated revocation client never completed verified TLS'
-        time.sleep(0.1)
-    before = hook_events('before-revoked-heartbeat')
-    prior_ping = sum(event.get('operation') == 'Ping' and event.get('decision') == 'device_denied' for event in before)
-    prior_login = sum(event.get('operation') == 'Login' and event.get('decision') == 'device_denied' for event in before)
-    device = str(uuid.UUID(target['device_id']))
-    started = time.monotonic()
-    sql("UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id='" + device + "';")
-    wait_online(expected - {target_name}, started + 48)
-    revoked_ms = round((time.monotonic() - started) * 1000)
-    deadline = time.monotonic() + 20
-    while True:
-        events = hook_events('after-revoked-heartbeat')
-        pings = sum(event.get('operation') == 'Ping' and event.get('decision') == 'device_denied' for event in events)
-        logins = sum(event.get('operation') == 'Login' and event.get('decision') == 'device_denied' for event in events)
-        if pings > prior_ping and logins > prior_login:
-            break
-        if time.monotonic() >= deadline:
-            raise RuntimeError('revoked control session lacked actual Ping and reconnect Login denials')
-        time.sleep(0.2)
-    assert probe(target, source).returncode != 0
-    survivor = probe(assignments[1], source)
-    assert survivor.returncode == 0 and survivor.stdout.decode() == assignments[1]['subdomain'] + '.router.example.com'
-    assert online() == expected - {target_name}
+    # A stopped listener refuses callbacks quickly. Freeze the owned process as
+    # a separate case: a connected HTTP hook can hang without returning a Pong.
+    freeze_original = control_sockets()
+    assert len(freeze_original) == len(clients), 'original multiplexed controls required before authz freeze'
+    freeze_samples = []
+    frozen = False
+    freeze_started = time.monotonic()
+    try:
+        command(['pause', 'nethub-authz'], 'authz-pause')
+        frozen = True
+        while True:
+            remaining = len(freeze_original & control_sockets())
+            elapsed = time.monotonic() - freeze_started
+            freeze_samples.append({'elapsed_ms': round(elapsed * 1000), 'original_controls': remaining})
+            assert elapsed <= 5, 'original controls survived the five-second frozen-hook deadline'
+            if remaining == 0:
+                break
+            time.sleep(0.1)
+        freeze_gone_ms = round(elapsed * 1000)
+        # Proxy labels may lag while the callback is frozen. Report them rather
+        # than substituting their state for observed original TCP closure.
+        frozen_labels_online = len(online())
+        assert all(client.poll() is None for client in clients)
+    finally:
+        (work / 'frozen-authz-samples.json').write_text(json.dumps(freeze_samples, indent=2))
+        if frozen:
+            command(['unpause', 'nethub-authz'], 'authz-unpause')
+    resumed = time.monotonic()
     check_tunnels()
-    result = {'heartbeat_interval_seconds': 10, 'heartbeat_timeout_seconds': 30,
+    wait_online(expected, resumed + 20)
+    freeze_recovery_ms = round((time.monotonic() - resumed) * 1000)
+    assert all(client.poll() is None for client in clients)
+    # Live controls can recover before Docker's scheduled health probe catches
+    # up. The next host operation independently requires a healthy authz binding.
+    # Observe that restoration without restarting or changing the cutoff clock.
+    health_samples = []
+    while True:
+        status = subprocess.run(compose + ['ps', '--all', '--format', 'json', 'nethub-authz'],
+                                capture_output=True, timeout=3)
+        assert status.returncode == 0 and len(status.stdout) <= 65536
+        rows = json.loads(status.stdout)
+        if isinstance(rows, dict):
+            rows = [rows]
+        assert isinstance(rows, list) and len(rows) == 1
+        healthy = rows[0].get('Health') == 'healthy'
+        health_elapsed = time.monotonic() - resumed
+        health_samples.append({'elapsed_ms': round(health_elapsed * 1000), 'healthy': healthy})
+        assert health_elapsed <= 30, 'authz did not regain runtime-binding health after unpause'
+        if healthy:
+            break
+        time.sleep(0.2)
+    (work / 'frozen-authz-health-recovery.json').write_text(json.dumps(health_samples, indent=2))
+    freeze_health_ms = round(health_elapsed * 1000)
+    print(json.dumps({'official_frp_authz_freeze': {
+        'clock_start': 'owned compose pause dispatch', 'original_controls_gone_ms': freeze_gone_ms,
+        'deadline_ms': 5000, 'proxy_labels_still_online_after_original_TCP_loss': frozen_labels_online,
+        'same_clients_recovered_after_unpause_ms': freeze_recovery_ms,
+        'runtime_binding_health_after_unpause_ms': freeze_health_ms,
+        'revoked_device_or_public_network_acceptance': False}}), flush=True)
+
+    # Irreversible revocations use fresh authenticated identities. Offsets are
+    # fixed before observing any result; failed cases never get a favorable retry.
+    phase_results = []
+    phase_survivor_sockets = control_sockets()
+    assert len(phase_survivor_sockets) == len(clients), 'original phase-sweep survivor controls required'
+    for index, offset_ms in enumerate((0, 200, 400, 600, 800)):
+        sample = {'round': index, 'requested_after_observed_Pong_ms': offset_ms,
+                  'phase': 'prepare', 'passed': False,
+                  'clock_start': 'SQL update dispatch', 'deadline_ms': 5000,
+                  'heartbeat_log_poll_interval_ms': 10,
+                  'cache_refresh_phase_measured': False,
+                  'console_native_or_public_deadline_accepted': False}
+        phase_results.append(sample)
+        survivor_samples = []
+        try:
+            target, client_log, target_client = revocation_client(index)
+            target_name = 'nethub-' + target['device_id'] + '-web'
+            expected.add(target_name)
+            wait_online(expected, time.monotonic() + 15)
+            deadline = time.monotonic() + 10
+            while True:
+                ready = probe(target, source)
+                if ready.returncode == 0 and ready.stdout.decode() == target['subdomain'] + '.router.example.com':
+                    break
+                assert time.monotonic() < deadline, 'dedicated revocation client never completed verified TLS'
+                time.sleep(0.1)
+
+            def client_output():
+                assert client_log.is_file() and client_log.stat().st_size <= 4 * 1024**2
+                return client_log.read_bytes()
+
+            before = hook_events(f'before-revoked-heartbeat-{index}')
+            prior_ping = sum(event.get('operation') == 'Ping' and event.get('decision') == 'device_denied' for event in before)
+            prior_login = sum(event.get('operation') == 'Login' and event.get('decision') == 'device_denied' for event in before)
+            device = str(uuid.UUID(target['device_id']))
+            survivor_sockets = phase_survivor_sockets
+            assert survivor_sockets.issubset(control_sockets()), 'preparation interrupted an original phase-sweep survivor'
+
+            # The pinned client's fixed Debug message is emitted only after a
+            # successful Pong. Keep its complete log private, exporting counts
+            # and elapsed times rather than request metadata or credentials.
+            sample['phase'] = 'observe_successful_Pong'
+            previous_pongs = client_output().count(b'receive heartbeat from server')
+            deadline = time.monotonic() + 10
+            while client_output().count(b'receive heartbeat from server') <= previous_pongs:
+                assert target_client.poll() is None, 'phase client exited before its accepted heartbeat'
+                assert time.monotonic() < deadline, 'successful original-client Pong was not observed'
+                time.sleep(0.01)
+            pong_observed = time.monotonic()
+            time.sleep(offset_ms / 1000)
+            sample['phase'] = 'SQL_dispatch_and_cutoff'
+            started = time.monotonic()
+            sample['SQL_dispatch_utc'] = datetime.now(timezone.utc).isoformat(timespec='microseconds')
+            sample['observed_Pong_to_SQL_dispatch_ms'] = round((started - pong_observed) * 1000)
+
+            def observe_survivors(_active=None, _complete=False):
+                original = len(survivor_sockets & control_sockets())
+                survivor_samples.append({'elapsed_ms': round((time.monotonic() - started) * 1000),
+                                         'original_survivor_controls': original})
+                assert original == len(clients), 'revocation interrupted an unrelated original control'
+
+            sql("UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id='" + device + "';")
+            wait_online(expected - {target_name}, started + 5, observe_survivors)
+            sample['SQL_dispatch_to_proxy_offline_ms'] = round((time.monotonic() - started) * 1000)
+            sample['phase'] = 'Ping_and_reconnect_denial'
+            deadline = time.monotonic() + 20
+            while True:
+                observe_survivors()
+                events = hook_events(f'after-revoked-heartbeat-{index}')
+                pings = sum(event.get('operation') == 'Ping' and event.get('decision') == 'device_denied' for event in events)
+                logins = sum(event.get('operation') == 'Login' and event.get('decision') == 'device_denied' for event in events)
+                if (pings > prior_ping and logins > prior_login
+                        and b'pong message contains error: not_authorized' in client_output()):
+                    break
+                if time.monotonic() >= deadline:
+                    raise RuntimeError('revoked control session lacked its actual Pong error, Ping and reconnect Login denials')
+                time.sleep(0.2)
+            assert probe(target, source).returncode != 0
+            survivor = probe(assignments[1], source)
+            assert survivor.returncode == 0 and survivor.stdout.decode() == assignments[1]['subdomain'] + '.router.example.com'
+            assert online() == expected - {target_name}
+            check_tunnels()
+            observe_survivors()
+            assert target_client.poll() is None, 'original phase client exited instead of retrying its revoked Login'
+            fresh_revoked_login(target, index)
+            observe_survivors()
+            sample['observation_after_SQL_dispatch_ms'] = round((time.monotonic() - started) * 1000)
+            sample['actual_client_Pong_error_and_fresh_Login_denial'] = True
+            sample['original_unrelated_controls_retained'] = len(clients)
+            sample['phase'] = 'completed'
+            sample['passed'] = True
+            expected.remove(target_name)
+        finally:
+            # Stop this revoked client's retries before the next round so an old
+            # denial cannot satisfy the next identity's counters or evidence.
+            try:
+                stop_revocation_client(index)
+            finally:
+                (work / f'revocation-survivor-samples-{index}.json').write_text(json.dumps(survivor_samples, indent=2))
+                (work / 'phase-revocation-samples.json').write_text(json.dumps(phase_results, indent=2))
+                print(json.dumps({'official_frp_phase_revocation': sample}), flush=True)
+    assert len(phase_results) == 5 and all(sample['passed'] for sample in phase_results)
+    revoked_ms = phase_results[0]['SQL_dispatch_to_proxy_offline_ms']
+    result = {'heartbeat_interval_seconds': 1, 'heartbeat_timeout_seconds': 3,
+              'revocation_deadline_ms': 5000, 'revocation_measurement_start': 'SQL update dispatch',
+              'console_dispatch_or_public_mobile_deadline_accepted': False,
               'control_state_probe_timeout_seconds': 2,
               'authz_outage_controls_offline_ms': outage_ms, 'authz_restart_recovery_ms': recovery_ms,
               'authz_stop_command_ms': stop_command_ms, 'authz_stop_exit_code': stopped_state['ExitCode'],
               'stopped_authz_loopback_callback_refused_ms': callback_refusal_ms,
               'authz_outage_after_confirmed_stop_ms': after_stop_ms,
               'authz_outage_original_sockets_gone_ms': original_sockets_gone_ms,
+              'frozen_authz_original_controls_gone_ms': freeze_gone_ms,
+              'frozen_authz_proxy_labels_still_online_after_TCP_loss': frozen_labels_online,
+              'same_clients_recovered_after_unpause_ms': freeze_recovery_ms,
+              'frozen_authz_runtime_binding_health_recovery_ms': freeze_health_ms,
               'revoked_control_offline_ms': revoked_ms, 'unrevoked_control_and_verified_TLS_preserved': True,
+              'five_preselected_Pong_relative_samples': phase_results,
+              'maximum_phase_revocation_ms': max(sample['SQL_dispatch_to_proxy_offline_ms'] for sample in phase_results),
+              'unrevoked_original_control_sockets_preserved': True,
+              'original_survivor_control_count': len(survivor_sockets),
               'actual_Ping_and_fresh_Login_denials': True, 'passed': True}
     (work / 'result.json').write_text(json.dumps(result, indent=2))
     print(json.dumps({'official_frp_heartbeat_controls': result}))

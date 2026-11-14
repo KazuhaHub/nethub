@@ -20,4 +20,7 @@ def test_circuit_controller_requires_post_write_access_and_bounded_backend():
     assert evidence['rotation_failure_cases_passed'] == [
         'trust_sync', 'trust_recovery', 'trust_recovery', 'native_model', 'rotation_journal',
         'native_save', 'native_save', 'interrupted', 'unclassified', 'unclassified',
+        'rotation_request', 'rotation_protocol', 'rotation_response', 'rotation_binding',
+        'runtime_trust', 'mutation_lock', 'inactive', 'runtime_configuration', 'runtime_template',
+        'runtime_verify', 'service_action', 'service_exit', 'operation_timeout',
         'backend_response', 'backend_response', 'backend_response', 'backend_exception']

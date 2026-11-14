@@ -5,6 +5,7 @@ import ipaddress
 import json
 import os
 from pathlib import Path
+import re
 import socket
 import ssl
 import subprocess
@@ -15,6 +16,7 @@ import uuid
 
 from relay_maintenance import exercise
 from relay_heartbeat import exercise_heartbeats
+from relay_fleet import exercise_fleet
 from relay_traffic import exercise_traffic
 from relay_rotation import exercise_rotation
 from relay_token_probe import exercise_token_probe
@@ -107,7 +109,7 @@ class Backend(http.server.BaseHTTPRequestHandler):
         pass
 
 
-def start_client(assignment, name, backend_port, corrupt=False, subdomain=None):
+def start_client(assignment, name, backend_port, corrupt=False, subdomain=None, debug=False):
     claim = assignment["domain_claim"]
     if corrupt:
         # Change a signature byte without changing the claim's assigned identity.
@@ -116,9 +118,9 @@ def start_client(assignment, name, backend_port, corrupt=False, subdomain=None):
     config = {
         "serverAddr": "127.0.0.1", "serverPort": assignment["server_port"],
         "loginFailExit": True, "auth": {"method": "token", "token": assignment["frp_token"]},
-        "log": {"to": "console", "level": "warn"},
+        "log": {"to": "console", "level": "debug" if debug else "warn"},
         "metadatas": {"device_id": assignment["device_id"], "domain_claim": claim},
-        "transport": {"heartbeatInterval": 10, "heartbeatTimeout": 30,
+        "transport": {"heartbeatInterval": 1, "heartbeatTimeout": 3, "tcpMux": True,
                       "tls": {"enable": True, "serverName": assignment["server_name"],
                               "trustedCaFile": str(work / "relay-ca.pem")}},
         "proxies": [{"name": "nethub-" + assignment["device_id"] + "-web", "type": "https",
@@ -224,10 +226,27 @@ try:
     assert len(networks) == 1
     gateway = str(ipaddress.ip_address(next(iter(networks.values()))["Gateway"]))
 
-    def sql(query,role="postgres"):
-        assert role in {"postgres","nethub_web"}
-        result = subprocess.run(compose + ["exec","-T","postgres","psql","-X","--set","ON_ERROR_STOP=1","-U",role,"-d","nethub","-tAc",query],capture_output=True,timeout=10)
+    def sql(query,role="postgres",timeout=10,record=None):
+        assert role in {"postgres","nethub_web"} and 1 <= timeout <= 120
+        assert record in (None, 'fleet-pressure-seed')
+        options = ['--set', 'VERBOSITY=sqlstate'] if record else []
+        try:
+            result = subprocess.run(compose + ["exec","-T","postgres","psql","-X","--set","ON_ERROR_STOP=1"] +
+                options + ["-U",role,"-d","nethub","-tAc",query],capture_output=True,timeout=timeout)
+        except subprocess.TimeoutExpired as error:
+            if record is None:
+                raise
+            (work/(record+'.log')).write_bytes((error.stdout or b'')+(error.stderr or b''))
+            raise RuntimeError('isolated fleet-pressure seed exceeded its caller budget') from None
         (work/("source-sql-"+role+".log")).write_bytes(result.stdout+result.stderr)
+        if record:
+            (work/(record+'.log')).write_bytes(result.stdout+result.stderr)
+            if result.returncode:
+                found = re.search(rb'\b(?:ERROR|FATAL):\s+([0-9A-Z]{5})\b', result.stderr)
+                code = found[1].decode() if found else 'unclassified'
+                if code not in {'23503','23505','23514','42601','57014','53100','53200','53300','40P01'}:
+                    code = 'unclassified'
+                raise RuntimeError('isolated fleet-pressure seed failed: '+code)
         assert result.returncode == 0, "isolated source-grant inspection failed"
         return result.stdout.decode().strip()
 
@@ -337,27 +356,120 @@ try:
     exercise_traffic(stage, port, assignments, gateway, curl, check_tunnels, sql)
     exercise(stage, sys.argv[3], assignments, check_tunnels)
 
-    def revocation_client():
-        # First-start acceptance reserved this genuine, unused console token.
-        # Browser and relay cases already issue five tokens in the same minute;
-        # a faster outage test must not depend on that rate-limit window expiring.
-        token = json.loads((stage / "token.json").read_bytes())["token"]
+    revocation_clients = {}
+
+    def revocation_client(index):
+        # The fleet cases finish at least a minute after their last token batch.
+        # Use fresh ordinary tokens rather than letting the initial reservation
+        # age through pressure preparation; never retry a timed revocation.
+        if index == 1:
+            time.sleep(60)
+        token = curl("/api/v1/console/enroll-tokens", {}, authenticated=True)["token"]
         request = {"agent_protocol_version": "1.0.0", "enroll_token": token, "platform": "opnsense",
                    "platform_version": "26.7.7", "agent_version": "0.0.2", "capabilities": ["remote.web"],
-                   "hostname": "heartbeat-control.example.com", "cluster_hint": False}
+                   "hostname": f"heartbeat-control-{index}.example.com", "cluster_hint": False}
         assignment = curl("/api/v1/devices/enroll", request)
-        (work / "heartbeat-only-assignment.json").write_text(json.dumps(assignment), encoding="utf-8")
+        (work / f"heartbeat-only-assignment-{index}.json").write_text(json.dumps(assignment), encoding="utf-8")
         opened = curl("/api/v1/console/devices/" + assignment["device_id"] + "/open", {}, authenticated=True)
         assert opened["url"] == "https://" + assignment["subdomain"] + ".router.example.com:8443"
         grant_local_fixture_source(assignment)
-        start_client(assignment, "heartbeat-only-client", backend.server_port)
-        return assignment
+        name = f"heartbeat-only-client-{index}"
+        client = start_client(assignment, name, backend.server_port, debug=True)
+        revocation_clients[index] = client
+        return assignment, work / (name + ".log"), client
 
+    def stop_revocation_client(index):
+        if index in revocation_clients:
+            stop_client(revocation_clients.pop(index))
+
+    def fresh_revoked_login(assignment, index):
+        name = f"heartbeat-revoked-fresh-login-{index}"
+        fresh = start_client(assignment, name, backend.server_port)
+        try:
+            assert fresh.wait(timeout=10) != 0, 'revoked identity established a fresh official control'
+            assert b'not_authorized' in (work / (name + '.log')).read_bytes(), 'fresh official Login lacked authorization refusal'
+        except subprocess.TimeoutExpired:
+            raise RuntimeError('fresh revoked official Login did not exit on refusal') from None
+        finally:
+            stop_client(fresh)
+
+    def fleet_client(index):
+        token = curl("/api/v1/console/enroll-tokens", {}, authenticated=True)["token"]
+        assignment = curl("/api/v1/devices/enroll", {
+            "agent_protocol_version": "1.0.0", "enroll_token": token,
+            "platform": "opnsense", "platform_version": "26.7.7", "agent_version": "0.0.2",
+            "capabilities": ["remote.web"], "hostname": f"fleet-control-{index}.example.com", "cluster_hint": False,
+        })
+        opened = curl("/api/v1/console/devices/" + assignment["device_id"] + "/open", {}, authenticated=True)
+        assert opened["url"] == "https://" + assignment["subdomain"] + ".router.example.com:8443"
+        grant_local_fixture_source(assignment)
+        name = f"fleet-client-{index}"
+        client = start_client(assignment, name, backend.server_port, debug=True)
+        return assignment, work / (name + ".log"), client
+
+    def revoke_fleet(owned):
+        if owned:
+            identifiers = ','.join("'" + str(uuid.UUID(item["device_id"])) + "'" for item in owned)
+            sql("UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE id IN (" + identifiers + ");")
+            assert sql("SELECT count(*) FROM devices WHERE revoked AND id IN (" + identifiers + ");") == str(len(owned))
+
+    def seed_fleet_pressure():
+        # Only this owned database receives synthetic snapshot rows. Keep a
+        # single deployment tenant and no additional active identities, so later
+        # rotation/backup checks retain their original authority boundaries.
+        initial = json.loads(sql("SELECT json_build_object('tenants',(SELECT count(*) FROM tenants),"
+            "'revoked',(SELECT count(*) FROM devices WHERE revoked),"
+            "'floors',(SELECT count(DISTINCT (tenant_id,device_id)) FROM device_rotations));"))
+        assert initial['tenants'] == 1 and initial['revoked'] < 100 and initial['floors'] < 100
+        original = str(uuid.UUID(assignments[0]['device_id']))
+        marker = 'snapshot-' + uuid.uuid4().hex
+        # These canonical synthetic IDs sort after the genuinely enrolled v4
+        # identities. Do not displace the later ordinary UI fixtures from page1.
+        assert sql("SELECT count(*) FROM devices WHERE id::text LIKE 'ffffffff-ffff-ffff-ffff-%';") == '0'
+        started = time.monotonic()
+        # One DO statement bounds all three mutations together; reserve a
+        # separate ten-second commit bound inside the 120-second caller budget.
+        sql("BEGIN; SET LOCAL statement_timeout='90s'; DO $fleet$ BEGIN "
+            "INSERT INTO devices(id,tenant_id,owner_user_id,hostname,label,platform,device_secret_hash,subdomain,"
+            "agent_protocol_version,domain_claim_issued_at,enrolled_at) "
+            "SELECT ('ffffffff-ffff-ffff-ffff-'||lpad(to_hex(series.n),12,'0'))::uuid,"
+            "d.tenant_id,d.owner_user_id,'Snapshot pressure fixture','" + marker + "','opnsense',"
+            "'$argon2id$load-fixture-only-'||repeat('x',64),'snapshot-'||gen_random_uuid()::text,"
+            "'1.6.0',date_trunc('microseconds',statement_timestamp()),statement_timestamp()-interval '1 day' "
+            "FROM devices d CROSS JOIN generate_series(1,99000) AS series(n) WHERE d.id='" + original + "'; "
+            "INSERT INTO device_rotations(tenant_id,device_id,operation_id,candidate_digest,credential_hash,issued_at,relay_ca_pem) "
+            "SELECT tenant_id,id,gen_random_uuid(),decode(repeat('00',32),'hex'),device_secret_hash,domain_claim_issued_at,"
+            "'fixture public CA' FROM devices WHERE label='" + marker + "'; "
+            "UPDATE devices SET revoked=true,revoked_at=clock_timestamp() WHERE label='" + marker + "'; "
+            "END $fleet$; SET LOCAL statement_timeout='10s'; COMMIT;",
+            timeout=120, record='fleet-pressure-seed')
+        value = json.loads(sql("SELECT json_build_object("
+            "'synthetic_revoked_rows',(SELECT count(*) FROM devices WHERE label='" + marker + "' AND revoked),"
+            "'synthetic_rotation_floors',(SELECT count(DISTINCT r.device_id) FROM device_rotations r "
+            "JOIN devices d ON d.tenant_id=r.tenant_id AND d.id=r.device_id WHERE d.label='" + marker + "'),"
+            "'global_revoked_rows',(SELECT count(*) FROM devices WHERE revoked),"
+            "'global_rotation_floors',(SELECT count(DISTINCT (tenant_id,device_id)) FROM device_rotations),"
+            "'tenants',(SELECT count(*) FROM tenants));"))
+        assert value['synthetic_revoked_rows'] == value['synthetic_rotation_floors'] == 99000
+        assert value['tenants'] == 1
+        assert 99000 <= value['global_revoked_rows'] <= 100000 and 99000 <= value['global_rotation_floors'] <= 100000
+        value.update(seed_ms=round((time.monotonic()-started)*1000),
+                     signed_claims_or_enrollments_created=False, retained_until_owned_database_teardown=True)
+        return value
+
+    print('NETHUB_NATIVE_PHASE=relay_fleet', flush=True)
+    exercise_fleet(stage, compose, valid_clients, fleet_client, stop_client,
+                   revoke_fleet, check_tunnels, probe, local_source, seed_fleet_pressure)
+    print('NETHUB_NATIVE_PHASE=relay_heartbeat', flush=True)
     exercise_heartbeats(stage, compose, assignments, valid_clients, gateway, sql,
-                        check_tunnels, probe, local_source, hook_events, revocation_client)
+                        check_tunnels, probe, local_source, hook_events, revocation_client,
+                        stop_revocation_client, fresh_revoked_login)
+    print('NETHUB_NATIVE_PHASE=relay_token_probe', flush=True)
     exercise_token_probe(stage, assignments, valid_clients, check_tunnels)
+    print('NETHUB_NATIVE_PHASE=relay_rotation', flush=True)
     exercise_rotation(stage, port, assignments, valid_clients, start_client, stop_client,
                       backend.server_port, local_source, probe, check_tunnels, hook_events, sql)
+    print('NETHUB_NATIVE_PHASE=relay_token_runtime', flush=True)
     exercise_token_runtime(stage, port, sys.argv[3], assignments, valid_clients, start_client, stop_client,
                            backend.server_port, check_tunnels, sql)
 finally:

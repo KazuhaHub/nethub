@@ -13,7 +13,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT/'agents/opnsense/plugin/tests'))
 from test_relay_trust_transaction import transaction
-from relay_trust_sync import TrustSynchronizer
+from relay_trust_sync import TrustSynchronizer, TrustSyncError
 
 
 def example(name):
@@ -68,3 +68,18 @@ def test_real_https_trust_application_and_receipt_retry_are_separate(https_conso
     assert [call[0] for call in calls] == [settings, applied, settings, applied]
     assert state['authorizations'] == [['Bearer '+'A'*43]]*4
     assert transaction.backend.operations == ['install'] and transaction.calls == ['reload']
+
+
+@pytest.mark.parametrize('trusted', [False, True])
+def test_real_https_failure_keeps_fixed_trust_category_without_replay(https_console, transaction, trusted):
+    port, context, calls, state = https_console
+    state.update(status=401, body=b'{"error":"private response must not escape"}')
+    value = example('relay-trust-settings-response')
+    args = (f'https://localhost:{port}', 'A'*43, value['device_id'], value['desired']['server_name'])
+    with pytest.raises(TrustSyncError) as failure:
+        TrustSynchronizer(transaction).sync(*args, context=context if trusted else None)
+    assert failure.value.diagnostic() == {'version': 1, 'stage': 'request',
+        'kind': 'protocol_rejected' if trusted else 'protocol_tls_verify'}
+    assert 'private' not in str(failure.value) and 'private' not in json.dumps(failure.value.diagnostic())
+    assert len(calls) == (1 if trusted else 0)
+    assert transaction.backend.operations == [] and transaction.calls == [] and transaction.read() is None

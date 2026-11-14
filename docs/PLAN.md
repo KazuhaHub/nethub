@@ -197,7 +197,7 @@ and the stage validation records for current implementation evidence.
 | D3 | 测试资源由谁准备、费用谁出：一台公网 VPS、一个能配泛解析的域名、一台 OPNsense 测试机，以及测试机上要装好 `os-frp`（W2 共存测试用）；两家不同运营商的 4G/5G 网络（RUNBOOK ④ 要求至少两家） | W0 开始前 | W0 及以后 | 见第 5.2 节 | 部分决定（2026-10-17）：Local Windows OPNsense NAT client and remote LXC server/relay selected. OPNsense 26.7.7, dedicated SSH, outbound TLS, and bounded NAT transport preparation passed; complete mobile GUI ① and hook experiments ②/③ now pass. Windows restart and WHPX readiness passed. Native Hyper-V now passes complete local/public GUI diagnostics using a verified copy of the restored disk at 1 GiB; Kazuha approved the recorded 1 GiB resource exception; W0 accepted by Kazuha on 2026-10-18. A/B samples from two mobile carriers pass; Kazuha explicitly waived company/campus sampling. Relay SSH and wildcard DNS verified; temporary port windows authorized. The earlier packaging host retains its co-hosting exception |
 | D4 | frp 从 0.71.0 升到 0.71.1 的时机。要同时改打包仓库里 `os-frp` 的版本，那是 Kazuha 的仓库 | W2 开始前 | W2 | W2 之前三处一起升（DESIGN §5） | Confirmed 2026-10-18: upgrade os-frp, NetHub frpc, and frps together to 0.71.1 before W2 integration. |
 | D5 | 8443 端口在受限网络下不好用的话，要不要把浏览器入口也放到 443（DESIGN §14 Q2） | W0 第 ④ 项结果出来后 | W5、W7 | 按 Q2 的数据规则判断（DESIGN） | Confirmed 2026-10-18: retain 8443; measured A/B networks did not trigger Q2. |
-| D6 | 撤销设备时怎么断开它已在线的隧道（DESIGN §5 候选机制 1–4） | W0 第 ⑥ 项结果出来后、W5 之前 | W5 | 待 W0 数据（DESIGN） | Confirmed 2026-10-18: heartbeat 10s, timeout 30s; deny Ping/Login/NewProxy together. Accept backend-outage costs, stale admin status, and recovery instability; bound hook work internally. |
+| D6 | 撤销设备时怎么断开它已在线的隧道（DESIGN §5 候选机制 1–4） | W0 第 ⑥ 项结果出来后、W5 之前 | W5 | 待 W0 数据（DESIGN） | Updated 2026-11-12: Kazuha retained the five-second cutoff target and authorized heartbeat/revocation changes. The 1/3-second heartbeat and expiring-cache candidate requires actual acceptance. Preserve simultaneous Ping/Login/NewProxy denial, internal deadlines and explicit outage/recovery costs. Original 10/30 evidence remains historical. |
 | D7 | 设备登录页会暴露在公网上，要不要用 `NewUserConn` 做"点了打开才放行"的门禁；放行窗口要不要随访问顺延（DESIGN §14 Q7） | W0 第 ⑤ 项结果出来后、W5 之前 | W5 | 钩子可用就在 v1 做（DESIGN） | Confirmed 2026-10-18: v1 source-IP gating; authenticated Open grants 30 minutes, another explicit Open renews; traffic never extends the window. |
 | D8 | v1 功能清单的最终确认（DESIGN §1、§6） | W3 开始前 | W3 | 按 DESIGN v0.3 | Confirmed 2026-10-18: approve v1 scope, including SAML via authcore/saml. |
 | D9 | 控制台用哪个 React 组件库（DESIGN §14 Q8）。你先在 W3-0 做 2–3 个示例给他挑 | W3-0 做完后 | W3 | 无，看示例再定 | Confirmed: shadcn/ui with native dialog (2026-10-17) |
@@ -899,7 +899,7 @@ W0 cleanup removed its temporary relay. Prepare an isolated W2 relay using the
 confirmed D6/D7/D22 settings; do not reuse an unauthenticated W0 control channel.
 
 1. 在 VPS 上复制一份 `weekend0/frps.toml`，命名为 `frps-w2.toml`（放在 VPS 上，不进仓库）；
-2. Keep the D6 server heartbeat timeout at 30 seconds; configure the client with a 10-second interval and 30-second timeout.
+2. The original W2 measurements used a 30-second server timeout and a 10/30-second client interval/timeout. The 2026-11-12 D6 development candidate uses 1/3-second client timing and a three-second server timeout; do not apply that shorter server timeout to old clients. Follow the coordinated upgrade/rollback order in [the current timing proposal](w5-revocation-deadline.md).
 3. Keep `Login`, `NewProxy`, `NewUserConn`, and `Ping` subscribed with the isolated all-allow probe; product authorization remains later work.
 4. 配上 `auth.token`（顶层），把这个值记下来，W2-8 手填时要用；
 5. Generate a temporary deployment CA and a relay server certificate with the expected DNS SAN. Configure frps with the server certificate/key, and frpc with the CA PEM and matching serverName. Keep the CA private key outside the relay process working directory and runtime mounts. Validate both configurations with 0.71.1 before starting the probe and relay. Later negative tests must reject an unrelated CA and an incorrect serverName.
@@ -1598,8 +1598,10 @@ requirement with the earlier private-CA renewal/fault controls and the accepted
 
 Implementation checkpoint (2026-10-24): explicit Open, scoped certificate status,
 NewUserConn source admission and the 0.0.17 local circuit breaker are implemented.
-Heartbeat revocation uses a five-second memory-cache refresh within the planned
-5–10 second range; Login/NewProxy remain database-current. See the
+That checkpoint used a five-second memory-cache refresh; Login/NewProxy remained
+database-current. The 2026-11-12 development candidate instead refreshes every
+second and expires admission authority after 2.5 seconds from read start. It still
+requires load, fault and native/public timing acceptance. See the
 [callback boundaries](../server/internal/relayhook/README.md) and
 [circuit test scope](../agents/opnsense/plugin/tests/circuit-breaker-progress.md).
 The acceptance checklist below remains open until the combined native/public
@@ -1633,8 +1635,13 @@ measurements, anomaly handling and recovery cases are complete.
 
 - 控制台"撤销"：web 只写撤销标记（`revoked`、`revoked_at`、`revoked_by_user_id`），并写审计记录。
 - `Login` 和 `NewProxy` 照旧**查数据库**，拒绝已撤销的设备。它们不频繁，查库是对的；用内存里可能过时的数据，会把刚撤销的设备放回来。
-- 如果用到 `Ping`（见下），authz 另外在内存里维护一份已撤销设备的集合，**只给 `Ping` 用**。
-  定时从数据库刷新（刷新间隔和 Kazuha 定，建议 5–10 秒），刷新失败时继续用上一份。
+- `Ping` uses an in-memory denial set and claim floors without querying SQL.
+  The D6 development candidate refreshes every second with a shared one-second
+  read budget. Failed reads retain known denials, but a snapshot older than
+  2.5 seconds from read start cannot admit Ping. A stale or future-dated snapshot
+  fails closed; the freshness self-check stops authz for ordinary restart recovery.
+  This replaces the original indefinite last-good admission proposal. Preserve
+  the coordinated agent/relay upgrade order and actual acceptance requirements.
 - 如果【D6】选的是"拒绝 Ping"：
   - frps 的 `ops` 加上 `Ping`；
   - 插件模板里写上 W0 实测后定下的心跳参数；
@@ -1681,7 +1688,7 @@ Enroll 前提示用户：请确认你有**不依赖 NetHub** 的其他访问方�
 
 - [ ] 手机关 Wi-Fi、用 4G，从控制台点"打开"，能登录路由器 GUI（录屏，地址打码）
 - [x] 打开熔断开关后隧道立刻停下，`config.xml` 前后 sha256 一致；关掉后恢复 — native 0.0.17 and public TLS verified within the [recorded scope](../deploy/validation-native-w5-open-circuit.md).
-- [ ] 撤销后，隧道按【D6】机制断开，断开时间在 W0 测出的范围内（贴时间记录）；设备之后一直连不回来 — installed 0.0.18 cut off by 17.218 s and did not reconnect across 374.172 s; this exceeds W0's 2.136–4.958 s range, so the timing comparison remains open. [Measurement and limits](../deploy/validation-native-w5-heartbeat.md).
+- [ ] Revoke disconnects the tunnel within five seconds from console confirmation dispatch, with measured anchors and no reconnect. Kazuha retained this target on 2026-11-12. Installed 0.0.18 cut off by 17.218 s and did not reconnect across 374.172 s; that failed timing remains retained. A scoped 2026-11-13 public desktop sample on unsigned source `d5c0d5f` observed control/proxy cutoff at 788 ms, fresh TLS refusal at 856 ms and 30.113 s without reconnect, while the independent original control/TLS witness survived. This does not complete current-source installed, mobile or full W5 acceptance; source `71742b6` failed earlier at Rotate with `trust_sync`. [Current sample and limits](w5-revocation-deadline.md), [original measurement](../deploy/validation-native-w5-heartbeat.md).
 - [x] 撤销后，浏览器新开的连接也被拒绝 — a fresh default-trust public browser and TLS route were refused while the Open grant remained valid. [Native evidence](../deploy/validation-native-w5-heartbeat.md).
 - [ ] 如果 W0 发现没有哪种断线机制可用：已经按 DESIGN §5 的另一种取舍（只挡新访问，接受"已建立的隧道断不掉"），并且把这一点写进了文档
 - [x] 如果用了 `Ping` 机制：停掉 authz，确认在线隧道全部断开，再启动 authz，确认它们自动恢复（贴时间记录） — the installed client's original control/proxy disappeared by 9.906 s after confirmed stop; public GUI recovered by 17.766 s after restart dispatch with the same frpc PID. [Native evidence and single-device scope](../deploy/validation-native-w5-heartbeat.md).

@@ -999,8 +999,9 @@ Current implementation preserves these decisions:
   Web has no owner credential or first-admin HTTP endpoint.
 - D7 grants an exact server-resolved source IP for 30 minutes only after explicit
   Open. Reads and background traffic cannot renew that grant.
-- D6 rejects Ping/Login/NewProxy together after revocation. The heartbeat settings
-  are 10/30 seconds; measured failure/hang and installed revoke timing are not an
+- D6 rejects Ping/Login/NewProxy together after revocation. The development candidate
+  uses 1/3-second heartbeat settings and an expiring memory snapshot for the
+  five-second target retained on 2026-11-12. Earlier 10/30 measurements are not an
   instantaneous all-stream cutoff guarantee.
 - D19 uses an independent console HTTPS address input and token input.
 - Shared authcore handles OIDC and SAML protocol verification; durable flow,

@@ -150,6 +150,8 @@ jobs:
           NETHUB_TEST_OPENSSL: /usr/bin/openssl
         run: go test -race -v -count=1 ./internal/relaycert -run '^TestConstrainedRelayTrustOpenSSLInteroperability$'
       - name: Verify PostgreSQL security boundaries
+        env:
+          NETHUB_REVOCATION_LOAD: "1"
         run: sh tests/postgres.sh
       - name: Build foundation CLI
         run: CGO_ENABLED=0 go build -trimpath -o "$RUNNER_TEMP/nethub" ./cmd/nethub

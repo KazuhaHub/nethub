@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
 SCOPES = ['agents/opnsense/plugin', 'agents/opnsense/tests', 'proto',
+          'agents/opnsense/acceptance/native_model_probe.py',
           'agents/opnsense/native_contracts.py', '.github/workflows/native-contracts.yml']
 GROUPS = {
     'enrollment': (14, [
@@ -19,17 +20,23 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_scheduler.py::test_enrollment_handoff_has_no_credentials_or_cached_output',
         'agents/opnsense/tests/test_enrollment.py::test_php_controller_keeps_credentials_private_and_saves_under_native_lock',
     ]),
-    'service': (53, [
+    'service': (57, [
         'agents/opnsense/plugin/tests/test_circuit_breaker.py',
         'agents/opnsense/plugin/tests/test_service_controller.py',
         'agents/opnsense/plugin/tests/test_scheduler.py',
         'agents/opnsense/plugin/tests/test_watchdog.py',
         'agents/opnsense/plugin/tests/test_rotation_agent.py',
         'agents/opnsense/plugin/tests/test_lifecycle_agent.py::test_removal_after_unknown_rotation_commit_uses_saved_candidate',
+        'agents/opnsense/plugin/tests/test_relay_trust_agent.py::test_rotation_failure_keeps_only_closed_private_trust_metadata',
+        'agents/opnsense/plugin/tests/test_relay_trust_agent.py::test_private_diagnostic_write_failure_preserves_the_original_closed_error',
+        'agents/opnsense/plugin/tests/test_relay_trust_agent.py::test_periodic_trust_failure_does_not_overwrite_rotation_diagnostic',
     ]),
-    'wire': (149, [
+    'wire': (177, [
         'agents/opnsense/tests/test_protocol.py',
         'agents/opnsense/plugin/tests/test_relay_trust_backend.py',
+        'agents/opnsense/plugin/tests/test_relay_trust_sync.py',
+        'agents/opnsense/tests/test_native_model_probe.py::test_actual_root_owned_diagnostic_is_bounded_and_refuses_links_and_permissions',
+        'agents/opnsense/tests/test_native_model_probe.py::test_nested_rotation_receipt_cannot_bypass_trust_metadata_validation',
         'agents/opnsense/tests/test_rotation_journal.py',
         'agents/opnsense/tests/test_rotation_backend.py',
         'agents/opnsense/tests/test_rotation_native_store.py',
@@ -42,6 +49,11 @@ REQUIRED_NATIVE_CASES = {'test_enrollment_lock_interoperates_with_native_schedul
                          'test_native_lockf_excludes_both_python_operations',
                          'test_external_lock_mode_is_hardened_without_replacing_its_inode',
                          'test_rotation_observes_actual_scheduler_lock_without_losing_busy_response',
+                         'test_rotation_waits_for_short_contention_without_replaying_native_work',
+                         'test_rotation_failure_keeps_only_closed_private_trust_metadata',
+                         'test_private_diagnostic_write_failure_preserves_the_original_closed_error',
+                         'test_periodic_trust_failure_does_not_overwrite_rotation_diagnostic',
+                         'test_actual_root_owned_diagnostic_is_bounded_and_refuses_links_and_permissions',
                          'test_native_rotation_model_keeps_policy_and_confirms_single_save[journal]'}
 
 

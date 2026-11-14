@@ -25,7 +25,10 @@ for (const status of [true, 200.1, 99, 600, 'private']) {
   assert.equal(actionResponse(status, null).http_status, 0);
 }
 for (const reason of ['backend_response', 'backend_exception', 'trust_sync', 'trust_recovery',
-  'native_model', 'rotation_journal', 'native_save', 'interrupted', 'unclassified']) {
+  'native_model', 'rotation_journal', 'native_save', 'interrupted', 'unclassified',
+  'rotation_request', 'rotation_protocol', 'rotation_response', 'rotation_binding',
+  'runtime_trust', 'mutation_lock', 'inactive', 'runtime_configuration', 'runtime_template',
+  'runtime_verify', 'service_action', 'service_exit', 'operation_timeout']) {
   assert.deepEqual(actionResponse(200, { success: false, phase: 'error', failure_reason: reason,
     message: 'private response', device_secret: 'private credential' }),
     { http_status: 200, success: false, phase: 'error', failure_reason: reason });

@@ -120,6 +120,10 @@ jobs:
             ${{ runner.temp }}/native-enrolled-evidence/deployment-result.json
             ${{ runner.temp }}/native-enrolled-evidence/native/result.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotation.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-console-revoke.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-wan-recovery.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-route-failure.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-console-revoke.png
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-shared-token.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-trust-publication.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-committed-trust-replay.json

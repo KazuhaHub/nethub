@@ -9,16 +9,22 @@ import signal
 import subprocess
 import sys
 
-from guest import GuestError, invoke
+from guest import GuestError, invoke, validate_read_only_inspection_recoveries
 from compose_tail import read_phase
 from compose_setup import inspect as inspect_setup
 from compose_setup import project as project_setup
+from wan_recovery import validate as validate_wan_recovery
+from route_failure import validate as validate_route_failure
+from native_model_probe import validate_rotation_conditions
 
 
 ROOT = Path(__file__).resolve().parents[3]
 JOBS = {'workflow lint', 'Go vulnerability checks', 'weekend0 kit checks',
         'OPNsense plugin checks', 'Control plane checks', 'Deployment checks'}
 PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installed-rotation.json',
+                'native/installed-console-revoke.json', 'native/installed-console-revoke.png',
+                'native/installed-wan-recovery.json',
+                'native/installed-route-failure.json',
                 'native/installed-shared-token.json', 'native/installed-trust-publication.json',
                 'native/installed-committed-trust-replay.json',
                 'native/installed-rotate-publication-committed-lost-page.json',
@@ -62,6 +68,14 @@ def publish_evidence(directory):
         if path.exists():
             if path.is_symlink() or not path.is_file() or path.stat().st_nlink != 1:
                 raise GuestError('Linked native evidence refused')
+            if name == 'native/installed-route-failure.json':
+                if not 0 < path.stat().st_size <= 8192:
+                    raise GuestError('Failed route evidence exceeds bound')
+                validate_route_failure(json.loads(path.read_text(encoding='utf-8')))
+            if name == 'native/rotation-recovery-probe.json':
+                if not 0 < path.stat().st_size <= 8192:
+                    raise GuestError('Rotation recovery evidence exceeds bound')
+                validate_rotation_conditions(json.loads(path.read_text(encoding='utf-8')))
             files.append(path)
     for path in files:
         os.chown(path, uid, gid)
@@ -184,6 +198,13 @@ def main():
         native = json.loads((evidence / 'native/installed-rotation.json').read_text(encoding='utf-8'))
         if native.get('passed') is not True:
             raise GuestError('Installed native rotation proof missing')
+        wan = json.loads((evidence / 'native/installed-wan-recovery.json').read_text(encoding='utf-8'))
+        validate_wan_recovery(wan)
+        if wan['passed'] is not True or native.get('installed_wan_recovery') != wan:
+            raise GuestError('Installed native WAN recovery proof missing')
+        prepared = json.loads((evidence / 'native/result.json').read_text(encoding='utf-8'))
+        validate_read_only_inspection_recoveries(prepared['read_only_inspection_recoveries'], require_completed=True)
+        result['read_only_inspection_recoveries'] = prepared['read_only_inspection_recoveries']
         restored = native.get('clean_host_restoration')
         if not isinstance(restored, dict) or restored.get('passed') is not True:
             raise GuestError('Installed native clean-host restoration proof missing')

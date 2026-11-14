@@ -324,7 +324,15 @@ class Agent:
         try:
             result = TrustSynchronizer(self.trust_transaction()).sync(model.findtext('console_url'),
                 model.findtext('device_secret'), model.findtext('device_id'), model.findtext('server_name'))
-        except TrustSyncError:
+        except TrustSyncError as error:
+            if for_rotation:
+                # Keep only closed local metadata. Diagnostics must not replace
+                # the original failure or retry any trust/rotation mutation.
+                try:
+                    raw = json.dumps(error.diagnostic(), sort_keys=True, separators=(',', ':')) + '\n'
+                    self.atomic(self.state / 'rotation-trust-diagnostic.json', raw.encode())
+                except OSError:
+                    pass
             raise AgentError('Relay trust synchronization failed; inspect trust and recovery status') from None
         return self.trust_result(result)
 
@@ -502,7 +510,7 @@ class Agent:
         except (CertificateKeyError, CertificateTransactionError, TrustTransactionError, RotationError) as error:
             raise AgentError(str(error)) from None
         paths = [self.live, self.candidate, self.backup, self.config / 'relay-ca.pem']
-        paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'certificate.json', 'trust.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
+        paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'certificate.json', 'trust.json', 'rotation-trust-diagnostic.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
         for path in paths:
             if path.is_symlink():
                 raise AgentError('Runtime credential path needs local review')
@@ -564,11 +572,19 @@ class Agent:
             directory.chmod(0o700)
         os.umask(0o077)
         with self.open_mutation_lock() as lock:
-            try:
-                if not locked:
-                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
+            if not locked:
+                # Interactive rotation may wait briefly for scheduled work.
+                # Other actions keep their existing nonblocking admission.
+                deadline = time.monotonic() + (3 if action == 'rotate' else 0)
+                while True:
+                    try:
+                        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        break
+                    except BlockingIOError:
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
+                        time.sleep(min(0.1, remaining))
             try:
                 self.protect_mutation_lock(lock)
                 if action == 'disable':

@@ -8,7 +8,8 @@ import sys
 PHASES = ('preflight', 'build_inputs', 'http01', 'gui_issuer', 'gui_acme_build',
           'pebble_primitives', 'gui_host_source_checks', 'gui_host_runtime', 'gui_host_build', 'setup_build',
           'frps_smoke', 'initialization', 'stack_start', 'backup_fixture',
-          'provider_key', 'administrator', 'relay', 'native_guest')
+          'provider_key', 'administrator', 'relay', 'relay_fleet', 'relay_heartbeat',
+          'relay_token_probe', 'relay_rotation', 'relay_token_runtime', 'native_guest')
 ERRORS = {'dependency_timeout': (b'TLS handshake timeout', b'i/o timeout', b'context deadline exceeded'),
           'dependency_rate_limit': (b'429 Too Many Requests', b'toomanyrequests:'),
           'storage_full': (b'no space left on device',),
@@ -25,6 +26,15 @@ ERRORS.update({'host_' + name: (b'NETHUB_HOST_PROOF_MISSING=' + name.encode(),)
                for name in HOST_PROOFS})
 ERRORS['host_test_exit'] = (b'NETHUB_HOST_TEST_EXIT=nonzero',)
 SOURCES = {'gui-issuer-host.py': 'gui_issuer_host', 'test_gui_issuer_host.py': 'gui_host_source_checks'}
+SOURCES.update({name: name.removesuffix('.py').replace('-', '_') for name in (
+    'relay-deployment.py', 'relay_fleet.py', 'relay_heartbeat.py', 'relay_maintenance.py',
+    'relay_traffic.py', 'relay_rotation.py', 'relay_token_probe.py', 'relay_token_runtime.py')})
+ERRORS.update({
+    'relay_cutoff_late': (b'official control-session state was observed after its deadline',
+                          b'official control-session state exceeded the heartbeat deadline'),
+    'relay_revocation_denial_missing': (b'revoked control session lacked its actual Pong error, Ping and reconnect Login denials',),
+    'relay_snapshot_seed_timeout': (b'isolated fleet-pressure seed exceeded its caller budget',),
+})
 SOURCES.update({name: name.removesuffix('.go') for name in (
     'pebble_integration_test.go', 'pebble_http01_test.go', 'pebble_host_linux_test.go',
     'pebble_host_enrollment_linux_test.go', 'pebble_database_test.go', 'pebble_coordinator_test.go')})
