@@ -59,6 +59,41 @@ def test_unrecognized_failure_metadata_never_copies_arbitrary_values(value):
     assert str(failure) == 'Relay trust synchronization failed; inspect local trust and recovery status'
 
 
+@pytest.mark.parametrize('cause,kind', [
+    (CLIENT.ssl.SSLCertVerificationError('private certificate'), 'protocol_tls_verify'),
+    (CLIENT.ssl.SSLError('private TLS details'), 'protocol_tls'),
+    (CLIENT.socket.gaierror('private hostname'), 'protocol_dns'),
+    (TimeoutError('private timeout'), 'protocol_timeout'),
+    (ConnectionRefusedError('private address'), 'protocol_connect'),
+    (ConnectionResetError('private address'), 'protocol_connect'),
+    (CLIENT.http.client.RemoteDisconnected('private response'), 'protocol_http'),
+    (ValueError('private response'), 'protocol'),
+])
+def test_real_exception_context_is_closed_without_another_request(transaction, cause, kind):
+    def request(*args, **kwargs):
+        try:
+            raise cause
+        except Exception:
+            raise ProtocolError('Console HTTPS request failed; verify connectivity and certificate trust') from None
+    with mock.patch.object(CLIENT, 'request_json', side_effect=request) as network:
+        with pytest.raises(CLIENT.TrustSyncError) as failure:
+            sync(transaction)
+    assert failure.value.diagnostic() == {'version': 1, 'stage': 'request', 'kind': kind}
+    assert 'private' not in repr(failure.value.diagnostic()) and 'private' not in str(failure.value)
+    network.assert_called_once()
+    assert transaction.backend.operations == [] and transaction.calls == []
+
+
+def test_fixed_response_refusal_is_distinct_from_unknown_protocol_text(transaction):
+    for text, kind in [('Console rejected the device request; check enrollment and connectivity', 'protocol_rejected'),
+                       ('private server content', 'protocol')]:
+        with mock.patch.object(CLIENT, 'request_json', side_effect=ProtocolError(text)) as network:
+            with pytest.raises(CLIENT.TrustSyncError) as failure:
+                sync(transaction)
+        assert failure.value.diagnostic() == {'version': 1, 'stage': 'request', 'kind': kind}
+        network.assert_called_once()
+
+
 def sync(transaction):
     value = example()
     return CLIENT.TrustSynchronizer(transaction).sync('https://console.example.com', 'A'*43,

@@ -53,6 +53,16 @@ FreeBSD source contracts now require actual private-file and agent-dispatch chec
 This adds diagnosis; the original `trust_sync` cause and full installed result
 remain unproven until the new source executes.
 
+Source `9ecc914` subsequently passed all six CI jobs, 239 actual FreeBSD cases,
+package preparation and isolated cold recovery. Its installed run
+[43426605115](https://github.com/KazuhaHub/nethub/actions/runs/43426605115) still
+failed before the first rotation journal: the protected receipt identified
+`request` / `protocol` in trust synchronization. This narrows the failing boundary
+but does not distinguish connectivity, TLS or an HTTP/protocol rejection.
+The follow-up classifies only known local exception types and the fixed local
+rejection message into closed categories. It exports no child text, response
+status/body or address and does not issue an additional request or retry Rotate.
+
 Both public test enrollments were subsequently removed through their normal
 authenticated paths, including the native Remove UI and runtime cleanup. Only
 the original GUI certificate selection and alias text were restored; other XML

@@ -24,7 +24,9 @@ ROUTE_ACTIONS = ('start', 'restart', 'unchanged', 'stop', 'quarantined', 'unavai
 ROUTE_EVENTS = ('login_success', 'login_failure', 'proxy_success', 'proxy_failure',
                 'control_closed', 'reconnect')
 TRUST_STAGES = ('recover', 'native_snapshot', 'binding', 'history', 'request', 'verify', 'apply', 'report', 'unclassified')
-TRUST_KINDS = ('protocol', 'transaction', 'native', 'storage', 'value', 'type', 'key', 'unclassified')
+TRUST_KINDS = ('protocol', 'protocol_dns', 'protocol_connect', 'protocol_timeout', 'protocol_tls_verify',
+               'protocol_tls', 'protocol_http', 'protocol_rejected', 'transaction', 'native', 'storage',
+               'value', 'type', 'key', 'unclassified')
 
 
 def validate_trust_failure(value):

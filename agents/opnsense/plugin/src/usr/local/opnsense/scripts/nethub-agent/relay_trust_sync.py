@@ -1,5 +1,8 @@
 """Fetch authenticated desired trust and retry confirmation without reinstalling."""
 from datetime import datetime, timezone
+import http.client
+import socket
+import ssl
 
 from enrollment import request_json
 from protocol import ProtocolError
@@ -13,7 +16,9 @@ class TrustSyncError(Exception):
     """A fixed diagnostic independent of remote and native response content."""
 
     STAGES = ('recover', 'native_snapshot', 'binding', 'history', 'request', 'verify', 'apply', 'report', 'unclassified')
-    KINDS = ('protocol', 'transaction', 'native', 'storage', 'value', 'type', 'key', 'unclassified')
+    KINDS = ('protocol', 'protocol_dns', 'protocol_connect', 'protocol_timeout', 'protocol_tls_verify',
+             'protocol_tls', 'protocol_http', 'protocol_rejected', 'transaction', 'native', 'storage',
+             'value', 'type', 'key', 'unclassified')
 
     def __init__(self, stage='unclassified', kind='unclassified'):
         super().__init__('Relay trust synchronization failed; inspect local trust and recovery status')
@@ -24,6 +29,21 @@ class TrustSyncError(Exception):
         return {'version': 1,
                 'stage': self.stage if isinstance(self.stage, str) and self.stage in self.STAGES else 'unclassified',
                 'kind': self.kind if isinstance(self.kind, str) and self.kind in self.KINDS else 'unclassified'}
+
+
+def protocol_failure_kind(error):
+    """Classify fixed local exception types without copying remote text or data."""
+    cause = error.__context__
+    for kind, types in (
+            ('protocol_tls_verify', (ssl.SSLCertVerificationError,)),
+            ('protocol_tls', (ssl.SSLError,)), ('protocol_dns', (socket.gaierror,)),
+            ('protocol_timeout', (TimeoutError,)), ('protocol_http', (http.client.HTTPException,)),
+            ('protocol_connect', (ConnectionError,))):
+        if isinstance(cause, types):
+            return kind
+    if str(error) == 'Console rejected the device request; check enrollment and connectivity':
+        return 'protocol_rejected'
+    return 'protocol'
 
 
 class TrustSynchronizer:
@@ -81,4 +101,6 @@ class TrustSynchronizer:
                 (ProtocolError, 'protocol'), (TrustTransactionError, 'transaction'), (NativeTrustError, 'native'),
                 (OSError, 'storage'), (ValueError, 'value'), (TypeError, 'type'), (KeyError, 'key'))
                 if isinstance(error, error_type))
+            if kind == 'protocol':
+                kind = protocol_failure_kind(error)
             raise TrustSyncError(stage, kind) from None

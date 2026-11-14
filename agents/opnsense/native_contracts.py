@@ -31,7 +31,7 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_relay_trust_agent.py::test_private_diagnostic_write_failure_preserves_the_original_closed_error',
         'agents/opnsense/plugin/tests/test_relay_trust_agent.py::test_periodic_trust_failure_does_not_overwrite_rotation_diagnostic',
     ]),
-    'wire': (168, [
+    'wire': (177, [
         'agents/opnsense/tests/test_protocol.py',
         'agents/opnsense/plugin/tests/test_relay_trust_backend.py',
         'agents/opnsense/plugin/tests/test_relay_trust_sync.py',
