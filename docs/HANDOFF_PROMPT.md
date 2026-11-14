@@ -13,7 +13,23 @@
 这样你在任何地方都能打开在 NAT 或 CGNAT 后面的路由器的管理页面。
 项目负责人是 **Kazuha**。凡是要拍板的事都归他，你负责按计划执行，并拿出证据。
 
-### Current state (updated 2026-11-13 UTC)
+### Current state (updated 2026-11-14 UTC)
+
+Source `c0a0ee5` passed six-job CI, 248 actual FreeBSD cases/254 source blobs,
+package preparation, distinct empty target, PostgreSQL diagnosis and isolated
+cold recovery. Full logs, official archives and actual views were checked.
+Its installed run failed later, at private prepared-journal readback after normal
+Rotate and the expected lost-response page. The result does not identify the
+original Python error or establish native Revoke acceptance. The follow-up keeps
+only fixed readback stage/kind and allowlisted source locations, without retrying
+the read or any mutation. See [current timing scope](w5-revocation-deadline.md).
+
+A new independent reference fixture passed normal enrollment, genuine production
+certificate/application acknowledgement, console Open and three fresh public TLS
+nonce checks with the same control/process/socket. Independent cleanup passed;
+it remains inactive for the next guarded test. This is a baseline, not a new
+revocation timing result. Eight open dependency updates were observed, including
+a proposed frp 0.72.0 update that remains subject to D4; approved 0.71.1 is retained.
 
 Source `f08585d` passed six-job CI, 248 actual FreeBSD cases/254 source blobs and
 unsigned package preparation. Its later cold recovery failed at `native_baseline`

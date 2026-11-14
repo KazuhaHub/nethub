@@ -90,6 +90,25 @@ timing is inferred from them.
 
 ## Development candidate
 
+Source `c0a0ee5` passed CI, filesystem/package preparation and isolated cold
+recovery. Its installed run
+[43554477129](https://github.com/KazuhaHub/nethub/actions/runs/43554477129) passed
+normal Rotate and the expected lost-response page, then failed the private
+prepared-journal readback as `unclassified`. All three actual views, source,
+archive, complete logs and cleanup were checked. WAN change/restoration passed
+in 3.270/4.171 seconds; one existing read-only inspection preflight recovered the
+owned private SSH listener in 10.382 seconds. The run remains failed and did not
+reach Revoke.
+
+The follow-up performs the same single journal read, distinguishing fixed import,
+read and encode failure stages and closed exception categories. Only allowlisted
+module basenames/line numbers survive failure; the successful journal stays on
+the private SSH path. No exception message, child text, address or candidate is
+exported in the failure. This does not identify the earlier run's cause or retry
+Rotate, readback or native saves. A controlled read of the stopped local appliance's
+absent journal verified `read` / `missing` and preserved its configuration; that
+control is not an explanation of the failed hosted run.
+
 - Agent 0.0.19 sends a heartbeat every nominal second and uses a three-second
   timeout; generated relay configuration uses the same timeout. The unchanged
   pinned frp client includes heartbeat jitter and a separate one-second timeout

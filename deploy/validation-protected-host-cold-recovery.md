@@ -76,6 +76,17 @@ The same exact source also passed:
 
 ## Retained failures and limits
 
+The later source `c0a0ee5`
+[cold run 43554477104](https://github.com/KazuhaHub/nethub/actions/runs/43554477104)
+passed with six-job CI `43554477035`. The baseline route recovered in 90.225
+seconds from source stop. The original request's certificate issuance, native
+acknowledgement and issued-leaf route were verified in 119.063 seconds from that
+same stop, or 130.551 seconds from checkpoint start. Original identity/account/key/CSR/Open
+survived source removal and distinct-target restoration. Normal native Remove,
+revocation, route closure and owned cleanup passed. Both full logs, exact official
+three-entry archive bytes and both actual native views were checked. This retains
+the public operator, durable custody, renewal-clock and release limitations.
+
 Source `f08585d` failed a later independent
 [cold run 43549725074](https://github.com/KazuhaHub/nethub/actions/runs/43549725074)
 at `native_baseline`, before checkpoint or target restoration. Its closed trace
