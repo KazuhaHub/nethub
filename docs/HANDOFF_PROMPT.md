@@ -15,6 +15,21 @@
 
 ### Current state (updated 2026-11-14 UTC)
 
+Source `39501a0` passed six prerequisites, including isolated cold recovery, but
+its installed run failed at the first Rotate page with `request/protocol_dns`,
+before any pending journal or Revoke measurement. Enrollment and WAN recovery
+passed. The follow-up replaces the disposable fixture's generated hosts-file
+patch with a native Unbound override, plus default-CA HTTPS checks after native
+resolver regeneration and WAN recovery. Controlled native hosts regeneration
+removed the old mapping; exact resolver bytes were restored. Actual native-model
+validation passed in memory without saving configuration. These controls do not
+prove the original failed run's file contents or the earlier journal failure's
+cause. The new fixture still needs actual hosted activation and full acceptance.
+
+Seven non-frp dependency updates are isolated in draft PR #241 on main, with
+local Go/frontend/browser checks passed and five original hosted workflows in
+progress. Approved frp 0.71.1 remains unchanged; no dependency merge is accepted.
+
 Source `c0a0ee5` passed six-job CI, 248 actual FreeBSD cases/254 source blobs,
 package preparation, distinct empty target, PostgreSQL diagnosis and isolated
 cold recovery. Full logs, official archives and actual views were checked.

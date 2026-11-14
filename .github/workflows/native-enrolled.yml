@@ -131,6 +131,7 @@ jobs:
             ${{ runner.temp }}/native-enrolled-evidence/native/compose-tail.json
             ${{ runner.temp }}/native-enrolled-evidence/native/native-fixture-host.json
             ${{ runner.temp }}/native-enrolled-evidence/native/guest-console-probe.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/guest-console-after-wan-probe.json
             ${{ runner.temp }}/native-enrolled-evidence/native/native-model-probe.json
             ${{ runner.temp }}/native-enrolled-evidence/native/rotation-recovery-probe.json
             ${{ runner.temp }}/native-enrolled-evidence/native/native-storage-probe.json

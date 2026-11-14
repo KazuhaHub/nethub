@@ -90,6 +90,28 @@ timing is inferred from them.
 
 ## Development candidate
 
+Source `39501a0` passed CI, filesystem/package preparation, distinct-target and
+database checks, and isolated cold recovery. Its installed run
+[43597480811](https://github.com/KazuhaHub/nethub/actions/runs/43597480811) failed
+at the first Rotate page with `request` / `protocol_dns`, before a pending journal.
+Enrollment passed; WAN change/restoration passed in 4.560/4.501 seconds. The one
+available enrollment image, full logs/archive and cleanup were checked. It did
+not reach journal readback or Revoke, and does not identify the earlier journal
+failure's cause.
+
+A controlled test on the stopped local appliance verified that its stock hosts
+generator removes the fixture's temporary console mapping. Exact original hosts
+bytes, mode and owner were restored; native configuration and stopped intent
+were unchanged. This establishes a fixture weakness, not proof that the failed
+hosted run had the same file contents. The follow-up provisions the console A
+record through the native Unbound model before enrollment, rejects existing
+conflicting overrides or a disabled local resolver, and regenerates the native
+resolver files. The normal default-CA HTTPS probe must pass after regeneration
+and again after WAN recovery. No Rotate or failed action is replayed, and no TLS,
+Host, GUI security check, timing target or workload is relaxed. In-memory checks
+on the actual native model passed without saving it; full disposable-guest
+activation and the remaining installed workflow still require a new actual run.
+
 Source `c0a0ee5` passed CI, filesystem/package preparation and isolated cold
 recovery. Its installed run
 [43554477129](https://github.com/KazuhaHub/nethub/actions/runs/43554477129) passed

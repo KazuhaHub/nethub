@@ -49,7 +49,7 @@ class ColdNative:
         return self.write('input-' + str(self.counter) + '.json', (json.dumps(value) + '\n').encode())
 
     def fixture(self, action, **fields):
-        if action not in ('trust-cold', 'install-bound-key'):
+        if action not in ('trust-cold', 'install-bound-key', 'console-dns'):
             raise GuestError('Cold native fixture action refused')
         path = self.input(dict(action=action, nonce=self.nonce, **fields))
         self.guest.put(path, path.name)
@@ -84,8 +84,8 @@ class ColdNative:
         if getattr(self, 'enrollment_attempted', False):
             raise GuestError('Original native enrollment cannot be replayed')
         self.enrollment_attempted = True
-        self.guest.ssh("printf '\\n10.0.2.100 console.example.com\\n' >> /etc/hosts\n",
-                       'Original canonical console resolution')
+        from console_dns import provision as provision_console_dns
+        provision_console_dns(self.guest, self.fixture)
         self.page('enroll', token)
         self.guest.ssh('/usr/local/sbin/configctl nethub-agent trust\n', 'Original native trust preflight')
         value = json.loads(self.guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py\n',

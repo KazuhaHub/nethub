@@ -47,6 +47,7 @@ try {
     }
     $action = $request['action'] ?? '';
     $expected = match ($action) {
+        'console-dns' => ['action', 'nonce'],
         'trust', 'trust-cold' => ['action', 'ca_pem', 'nonce'],
         'csr', 'inspect' => ['action', 'host', 'nonce'],
         'install', 'install-bound-key' => ['action', 'ca_pem', 'certificate_pem', 'host', 'nonce'],
@@ -86,7 +87,19 @@ try {
         if (isset($gui->nodnsrebindcheck) || isset($gui->nohttpreferercheck)) {
             throw new RuntimeException('Native GUI checks must stay enabled');
         }
-        if ($action === 'trust' || $action === 'trust-cold') {
+        if ($action === 'console-dns') {
+            $phase = 'console_dns_model';
+            if (!empty((string)$root->system->dnslocalhost)) {
+                throw new RuntimeException('System local resolver required');
+            }
+            require_once(__DIR__ . '/native-dns.php');
+            $resolver = new \OPNsense\Unbound\Unbound();
+            configure_fixture_console_dns($resolver, $request['nonce']);
+            $phase = 'console_dns_save';
+            $resolver->serializeToConfig();
+            $configuration->save();
+            $result = ['configured' => true];
+        } elseif ($action === 'trust' || $action === 'trust-cold') {
             $phase = 'trust_ca_validation';
             $pem = $request['ca_pem'];
             $ca = is_string($pem) ? openssl_x509_read($pem) : false;

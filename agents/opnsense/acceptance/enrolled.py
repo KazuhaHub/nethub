@@ -126,8 +126,8 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     ca = (stage / 'console-ca.pem').read_text(encoding='ascii')
     if fixture('trust', ca_pem=ca) != {'trusted': True}:
         raise GuestError('Native console system trust unavailable')
-    guest.ssh("printf '\\n10.0.2.100 console.example.com\\n' >> /etc/hosts\n",
-              'owned canonical console name')
+    from console_dns import provision as provision_console_dns
+    provision_console_dns(guest, fixture)
     guest.put(Path(__file__).with_name('console_probe.py'), 'console_probe.py')
     from console_probe import validate_result
     probe = json.loads(guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/console_probe.py\n',
@@ -368,6 +368,12 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
 
     wan_recovery = exercise_wan_recovery(guest, evidence, nonce, native_read, route,
         lambda: fixture('inspect', host=host), check_wan_witness, check_wan_database)
+    probe = json.loads(guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/console_probe.py\n',
+                                 'closed guest console probe after WAN recovery'))
+    validate_result(probe)
+    private_json(evidence / 'guest-console-after-wan-probe.json', probe)
+    if probe['passed'] is not True:
+        raise GuestError('Guest console after WAN probe failed at ' + probe['phase'] + ': ' + probe['failure'])
     started = time.monotonic()
     page_action('rotate')
     after = native_read('native-after.json')

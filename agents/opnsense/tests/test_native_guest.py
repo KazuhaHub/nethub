@@ -110,6 +110,8 @@ def test_serial_command_echo_cannot_hide_a_failed_exit(monkeypatch):
 
 
 @pytest.mark.parametrize('value,category', [
+    ({'success': False, 'fixture_phase': 'console_dns_model'}, 'fixture_console_dns_model'),
+    ({'success': False, 'fixture_phase': 'console_dns_save'}, 'fixture_console_dns_save'),
     ({'success': False, 'fixture_phase': 'wan_route_missing'}, 'fixture_wan_route_missing'),
     ({'success': False, 'fixture_phase': 'wan_route_mismatch'}, 'fixture_wan_route_mismatch'),
     ({'success': False, 'fixture_phase': 'wan_route_table'}, 'fixture_wan_route_table'),

@@ -2,6 +2,7 @@
 import copy
 import fnmatch
 import importlib.util
+import json
 from pathlib import Path
 import sys
 
@@ -47,6 +48,22 @@ def test_native_upload_covers_every_public_outcome_and_image():
     assert set(patterns) <= set(SUITE.PUBLIC_FILES) | {'native/*-page.json'}
     missing = [name for name in SUITE.PUBLIC_FILES if not any(fnmatch.fnmatchcase(name, pattern) for pattern in patterns)]
     assert missing == [], 'Public native evidence is missing from the artifact upload contract'
+
+
+@pytest.mark.parametrize('name', ['guest-console-probe.json', 'guest-console-after-wan-probe.json'])
+def test_console_probe_with_private_extra_field_cannot_be_published(tmp_path, monkeypatch, name):
+    directory = tmp_path / 'native'
+    directory.mkdir()
+    (directory / name).write_text(json.dumps({'passed': True, 'phase': 'complete', 'failure': '',
+        'http_status': 200, 'verify_code': 0, 'default_CA_file_available': False,
+        'default_CA_directory_available': True, 'private': 'must-not-be-published'}))
+    changed = []
+    monkeypatch.setenv('SUDO_UID', '1000')
+    monkeypatch.setenv('SUDO_GID', '1000')
+    monkeypatch.setattr(SUITE.os, 'chown', lambda *args: changed.append(args), raising=False)
+    with pytest.raises(ValueError, match='Unexpected closed console probe result'):
+        SUITE.publish_evidence(tmp_path)
+    assert changed == []
 
 
 @pytest.mark.parametrize('mutation', ['missing', 'extra', 'duplicate', 'skipped', 'failed', 'live'])
