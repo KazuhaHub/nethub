@@ -32,8 +32,7 @@ def install_hook(tmp_path):
     service.write_text('#!/bin/sh\ntouch "$HOOK_TEST_STATE/configd-restarted"\nexit 0\n')
     service.chmod(0o755)
     lock = commands / 'lockf'
-    lock.write_text('''#!/usr/bin/env python3
-import fcntl, os, subprocess, sys, time
+    lock.write_text('#!' + sys.executable + '\n' + '''import fcntl, os, subprocess, sys, time
 from pathlib import Path
 args = sys.argv[1:]
 seconds = 0
