@@ -50,6 +50,20 @@ def test_native_upload_covers_every_public_outcome_and_image():
     assert missing == [], 'Public native evidence is missing from the artifact upload contract'
 
 
+def test_native_package_private_fields_are_rejected_before_publication(tmp_path, monkeypatch):
+    directory = tmp_path / 'native'
+    directory.mkdir()
+    (directory / 'installed-package-migration.json').write_text(json.dumps(
+        {'passed': True, 'device_secret': 'must-not-be-published'}))
+    changed = []
+    monkeypatch.setenv('SUDO_UID', '1000')
+    monkeypatch.setenv('SUDO_GID', '1000')
+    monkeypatch.setattr(SUITE.os, 'chown', lambda *args: changed.append(args), raising=False)
+    with pytest.raises(ValueError):
+        SUITE.publish_evidence(tmp_path)
+    assert changed == []
+
+
 @pytest.mark.parametrize('name', ['guest-console-probe.json', 'guest-console-after-wan-probe.json'])
 def test_console_probe_with_private_extra_field_cannot_be_published(tmp_path, monkeypatch, name):
     directory = tmp_path / 'native'

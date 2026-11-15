@@ -17,6 +17,7 @@ from wan_recovery import validate as validate_wan_recovery
 from route_failure import validate as validate_route_failure
 from native_model_probe import validate_rotation_conditions
 from console_probe import validate_result as validate_console_probe
+from package_migration import validate as validate_package_migration
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -25,6 +26,7 @@ JOBS = {'workflow lint', 'Go vulnerability checks', 'weekend0 kit checks',
 PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installed-rotation.json',
                 'native/installed-console-revoke.json', 'native/installed-console-revoke.png',
                 'native/installed-wan-recovery.json',
+                'native/installed-package-migration.json',
                 'native/installed-route-failure.json',
                 'native/installed-shared-token.json', 'native/installed-trust-publication.json',
                 'native/installed-committed-trust-replay.json',
@@ -74,6 +76,10 @@ def publish_evidence(directory):
                 if not 0 < path.stat().st_size <= 8192:
                     raise GuestError('Failed route evidence exceeds bound')
                 validate_route_failure(json.loads(path.read_text(encoding='utf-8')))
+            if name == 'native/installed-package-migration.json':
+                if not 0 < path.stat().st_size <= 16384:
+                    raise GuestError('Native package migration evidence exceeds bound')
+                validate_package_migration(json.loads(path.read_text(encoding='utf-8')))
             if name == 'native/rotation-recovery-probe.json':
                 if not 0 < path.stat().st_size <= 8192:
                     raise GuestError('Rotation recovery evidence exceeds bound')
@@ -173,7 +179,7 @@ def main():
             child = subprocess.Popen(['sh', str(ROOT / 'server/tests/compose.sh')], env=environment,
                                      stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
             try:
-                child.wait(timeout=2100)
+                child.wait(timeout=2700)
             except BaseException:
                 # Signal only the session created above, giving the owned shell's
                 # cleanup trap and its native guest a bounded termination window.

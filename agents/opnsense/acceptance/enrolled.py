@@ -22,6 +22,7 @@ from trust_publication_recovery import exercise_publication_conflict
 from shared_token import exercise_shared_token
 from console_revoke_result import validate as validate_console_revoke
 from wan_recovery import exercise as exercise_wan_recovery
+from package_migration import exercise as exercise_package_migration
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -32,12 +33,12 @@ def private_json(path, value):
     path.chmod(0o600)
 
 
-def exercise(guest, stage, port, project, evidence):
+def exercise(guest, stage, port, project, evidence, packages):
     with ExitStack() as cleanup:
-        return _exercise(guest, stage, port, project, evidence, cleanup)
+        return _exercise(guest, stage, port, project, evidence, packages, cleanup)
 
 
-def _exercise(guest, stage, port, project, evidence, cleanup):
+def _exercise(guest, stage, port, project, evidence, packages, cleanup):
     stage = Path(stage).resolve(strict=True)
     if (os.geteuid() != 0 or not re.fullmatch(r'nethub-stack-test-[a-z0-9-]+', project)
             or not 1 <= port <= 65535 or stage.parent not in (Path('/tmp'), Path('/var/tmp'))):
@@ -374,6 +375,14 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     private_json(evidence / 'guest-console-after-wan-probe.json', probe)
     if probe['passed'] is not True:
         raise GuestError('Guest console after WAN probe failed at ' + probe['phase'] + ': ' + probe['failure'])
+    package_migration = exercise_package_migration(guest, stage, compose, evidence, nonce, packages,
+        native_read, route, lambda: fixture('inspect', host=host), check_wan_database,
+        survivor, survivor_route, survivor_sockets)
+    # Planned relay outages replace controls, while the witness process survives.
+    # Bind later rotation/revocation checks to the recovered original process.
+    original_survivor = survivor_sockets()
+    if not original_survivor or not survivor_route():
+        raise GuestError('Package migration witness control was not restored')
     started = time.monotonic()
     page_action('rotate')
     after = native_read('native-after.json')
@@ -651,6 +660,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
               'clean_host_restoration': host_restore,
               'installed_console_revoke_deadline': console_revoke,
               'installed_wan_recovery': wan_recovery,
+              'installed_package_migration': package_migration,
               'fixture_removed_through_native_page': True,
               'removed_fixture_revoked_model_cleared_service_stopped_route_closed': True,
               'independent_device_preserved_after_fixture_removal': True,

@@ -317,6 +317,31 @@ budget. A missing or malformed snapshot remains diagnostic failure; the original
 route failure still fails the run. A later snapshot cannot prove the state at the
 instant of the failed route request.
 
+The installed fixture now also stages the immutable `c9e74abb1fb1` package source
+before enrollment and builds its unsigned 0.0.18 package with the same pinned Go
+toolchain as the current 0.0.19 package. During planned outages of the owned relay,
+it reinstalls the old package and then the current package through their normal
+package hooks. Relay timeout is widened before rollback and shortened only after
+the current native heartbeat profile is observed. Read-only probes require package
+checksums, saved enrollment, GUI certificate/key, relay trust, source grants and
+the other five service identities to remain intact. The old and current steady
+windows require 35 and 10 seconds respectively with their recovered original
+controls and verified routes.
+
+The witness process must survive these planned relay restarts; its TCP control
+connections deliberately reconnect. Later rotation/revocation checks bind to its
+recovered control. An unconfirmed package installation fails without replaying it.
+On failure the relay stays stopped with its original configuration restored until
+the enclosing fixture destroys the owned guest and services. Only a closed report
+of versions, hashes, phase timings and boolean results is published; native model
+values, private keys and command transcripts remain private.
+
+This new package scenario is pending actual hosted execution. Portable orchestration
+and publication-rejection tests do not establish native package compatibility.
+Both packages use frp 0.71.1 on the same firmware; this is neither firmware rollback
+nor a signed release, fleet/offline-device rollout or arbitrary network-loss test.
+The extended workflow budget does not change the five-second revocation target.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)

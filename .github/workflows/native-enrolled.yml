@@ -58,7 +58,7 @@ jobs:
     needs: accepted-images
     if: always() && (github.event_name == 'workflow_dispatch' || needs.accepted-images.result == 'success')
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 55
     permissions:
       actions: read
       contents: read
@@ -71,6 +71,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Fetch the immutable previous package source
+        run: git fetch --no-tags --depth=1 origin c9e74abb1fb1c060ab32ee880d20f32d8d7a653b
       - name: Check fresh hosted resources
         run: |
           test "$RUNNER_ENVIRONMENT" = github-hosted
@@ -123,6 +125,7 @@ jobs:
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotation.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-console-revoke.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-wan-recovery.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-package-migration.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-route-failure.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-console-revoke.png
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-shared-token.json

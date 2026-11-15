@@ -106,6 +106,10 @@ def main():
             result['image'] = guest.image_receipt
             result['guest_memory_mib'] = 3072
             install_current_package(guest, source, sdk, result)
+            if args.deployment_stage is not None:
+                from package_migration import prepare as prepare_package_baseline
+                result['phase'] = 'native_package_baseline_build'
+                result['package_baseline'] = prepare_package_baseline(guest, directory)
             result['phase'] = 'native_page'
             config = directory / 'browser-private.json'
             config.write_text(json.dumps({'origin': f'https://127.0.0.1:{guest.gui_port}',
@@ -122,7 +126,7 @@ def main():
                 from enrolled import exercise
                 result['phase'] = 'installed_enrollment_rotation'
                 result['installed_rotation'] = exercise(guest, args.deployment_stage, args.console_port,
-                                                       args.project, evidence)
+                                                       args.project, evidence, result['package_baseline'])
             result['passed'] = True
             result['phase'] = 'completed'
     except Exception as error:
