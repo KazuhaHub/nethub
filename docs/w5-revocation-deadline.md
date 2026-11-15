@@ -5,6 +5,67 @@ heartbeat and revocation processing. The original installed result, 17.218 secon
 from console confirmation dispatch, remains a failed timing comparison. Do not
 replace it with an easier threshold or restart the clock at database commit.
 
+## Current installed and public results, 2026-11-14
+
+Source `dd84da2` passed all seven original hosted workflows, including
+[installed native rotation 43602317217](https://github.com/KazuhaHub/nethub/actions/runs/43602317217).
+Normal console Revoke removed the target control/proxy in 1,638 ms from before
+confirmation; the HTTP response took 65 ms. Fresh verified TLS was refused while
+the source grant remained valid, and no reconnect occurred during 30,061 ms.
+The independent genuine reference retained its original control/process/socket.
+WAN change and restoration took 4,131/4,137 ms without replacing frpc or changing
+native model/runtime XML/GUI invariants. Full source-bound logs, the official
+41-entry archive and all fourteen image hashes were checked; nine unique actual
+views were reviewed. The fixture used an isolated console CA and a hosted
+OPNsense 26.7.9_1 guest with 3 GiB. These are not public-network measurements.
+
+A new genuine enrollment then passed one complete public desktop IPv4 sample:
+
+- The original verified GUI TLS socket closed in 1,747 ms, with five verified
+  responses on that one socket and no local cleanup before cutoff.
+- Actual control/proxy cutoff took 1,776 ms, and fresh TLS refusal took 1,811 ms.
+  The peer supplied the typed SNI routing rejection, not a local timeout or a
+  certificate-validation failure.
+- The target did not reconnect for 30,171 ms. Sixty fresh public nonce checks
+  passed; the independent reference's original process, control and socket stayed
+  unchanged throughout the observation.
+
+All clocks began before the normal CSRF-protected confirmation. The normal public
+GUI baseline passed login, eleven widgets, recurring API calls and dashboard
+reload, with normal roots and exact leaf/key checks. This sample used native
+build `f08585d` and server images `d5c0d5f`, whose product inputs are unchanged in
+`dd84da2`, on local OPNsense 26.7.7 with the approved 1 GiB deviation. All six actual
+views, raw results and executed harness hashes were checked. Independent cleanup
+normally stopped the target and all three owned units before restoring original
+services; container/image identities and unaffected process continuity passed.
+This does not establish mobile, all phases, production fleet capacity or the
+remaining migration/fault gates.
+
+An earlier public desktop trial used unsigned native build `f08585d` and retained
+server images `d5c0d5f`; their product inputs are unchanged in `dd84da2`. The
+original normal-root-verified TLS socket carried the real GUI asset, with exact
+body/hash checks. It closed 771 ms after the clock started before confirmation;
+actual control and proxy were offline at 816 ms. Native keepalive request/idle
+limits were not reached, and local cleanup did not close the measured socket.
+The independent genuine reference retained its original process/control/socket
+through the measured interval. This does not supply a 30-second witness result.
+
+The subsequent fresh probe received TLS alert 112 (`unrecognized_name`), outside
+the observer's then-accepted error classes. The overall trial remains failed:
+it did not record fresh-refusal timing or the no-reconnect interval. Its exact
+failed output and separately reviewed stream/control partial receipt remain
+retained. The classifier now recognizes this typed routing rejection; actual
+local TLS positive/negative controls still reject certificate, DNS, timeout and
+unrelated protocol failures. That correction is not a retrospective public pass.
+The earlier target was irreversibly revoked once, then normally removed before
+the new-cohort sample above. All owned test units
+stopped before original services were restored; current unaffected process
+continuity was checked. The approved local 1 GiB resource deviation remains.
+
+The original 17.218-second failure and all intermediate failures remain retained.
+Full W5 still needs the remaining public/mobile, fleet/fault and migration/rollback
+checks; no aggregate completion follows from these samples.
+
 ## Scoped public console measurement, 2026-11-13
 
 One normal public-console Revoke on the retained genuine OPNsense enrollment
@@ -109,8 +170,9 @@ conflicting overrides or a disabled local resolver, and regenerates the native
 resolver files. The normal default-CA HTTPS probe must pass after regeneration
 and again after WAN recovery. No Rotate or failed action is replayed, and no TLS,
 Host, GUI security check, timing target or workload is relaxed. In-memory checks
-on the actual native model passed without saving it; full disposable-guest
-activation and the remaining installed workflow still require a new actual run.
+on the actual native model passed without saving it. Source `dd84da2` subsequently
+passed actual disposable-guest activation and the complete installed workflow
+described above; this does not explain every earlier failure.
 
 Source `c0a0ee5` passed CI, filesystem/package preparation and isolated cold
 recovery. Its installed run

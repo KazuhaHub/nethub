@@ -15,6 +15,47 @@
 
 ### Current state (updated 2026-11-14 UTC)
 
+Source `dd84da2` passed all seven original hosted workflows: CI, 248 actual
+FreeBSD cases against 255 source blobs, unsigned package preparation, installed
+native rotation, distinct recovery target, PostgreSQL diagnosis and protected
+host cold recovery. Full logs, official archives and actual views were checked.
+The native Unbound fixture and default-CA HTTPS probes passed after resolver
+regeneration and WAN recovery. Normal native console Revoke cut off the target
+in 1.638 seconds, with fresh TLS refusal and 30.061 seconds without reconnect;
+the independent original reference control survived. This is hosted isolated
+acceptance, not public-network or complete W5 acceptance.
+
+A new genuine public enrollment subsequently passed a complete desktop sample:
+the original GUI TLS socket closed in 1.747 seconds, control/proxy disappeared
+in 1.776 seconds and fresh TLS was refused in 1.811 seconds, all measured from
+before normal console confirmation. No reconnect occurred during 30.171 seconds;
+sixty fresh public witness checks passed with its original process/control/socket.
+Normal public-root TLS, GUI login, eleven widgets, API activity and reload passed.
+This used native build `f08585d` and server images `d5c0d5f`, whose product inputs
+are unchanged in `dd84da2`, with the approved local 1 GiB deviation. Owned units
+stopped before original services were restored; container/image identities and
+unaffected processes were preserved. This is one desktop sample, not full W5.
+
+An earlier separate public desktop trial on native build `f08585d` and server images
+`d5c0d5f` closed the original verified GUI TLS connection in 771 ms and removed
+the actual control/proxy in 816 ms, measured before normal confirmation. The
+subsequent fresh probe encountered a real SNI rejection that its classifier did
+not recognize. The overall trial remains failed: it recorded neither a fresh
+refusal duration nor a 30-second no-reconnect observation. Its stream/control
+results are accepted only as a partial sample. The classifier correction passed
+local positive and negative TLS controls before the new-cohort sample above.
+The earlier identity was normally removed and its original GUI selection/alias
+restored before the new enrollment. Never replay Revoke on a revoked identity.
+Original services were restored, and private evidence remains outside Git.
+
+Draft PR #241 isolates seven non-frp dependency updates. Four prerequisites
+passed; its original installed workflow failed at a later Rotate with an
+explicit `busy` response. A later empty lock snapshot does not identify the
+original holder. No dependency merge or frp 0.72.0 upgrade is accepted.
+
+The entries below retain earlier checkpoints and failures. A later successful
+run does not establish the cause of an earlier failure.
+
 Source `39501a0` passed six prerequisites, including isolated cold recovery, but
 its installed run failed at the first Rotate page with `request/protocol_dns`,
 before any pending journal or Revoke measurement. Enrollment and WAN recovery
@@ -24,11 +65,11 @@ resolver regeneration and WAN recovery. Controlled native hosts regeneration
 removed the old mapping; exact resolver bytes were restored. Actual native-model
 validation passed in memory without saving configuration. These controls do not
 prove the original failed run's file contents or the earlier journal failure's
-cause. The new fixture still needs actual hosted activation and full acceptance.
+cause. The fixture subsequently passed the `dd84da2` hosted run described above.
 
 Seven non-frp dependency updates are isolated in draft PR #241 on main, with
-local Go/frontend/browser checks passed and five original hosted workflows in
-progress. Approved frp 0.71.1 remains unchanged; no dependency merge is accepted.
+local Go/frontend/browser checks passed. Its five original workflows are terminal;
+the installed failure above remains open. Approved frp 0.71.1 remains unchanged.
 
 Source `c0a0ee5` passed six-job CI, 248 actual FreeBSD cases/254 source blobs,
 package preparation, distinct empty target, PostgreSQL diagnosis and isolated

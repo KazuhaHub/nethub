@@ -76,6 +76,18 @@ The same exact source also passed:
 
 ## Retained failures and limits
 
+Source `dd84da2` passed
+[cold run 43602317091](https://github.com/KazuhaHub/nethub/actions/runs/43602317091)
+with all seven original prerequisites accepted. Baseline routing recovered in
+127.542 seconds from source stop. The original request's issuance, native
+acknowledgement and issued-leaf route completed in 182.571 seconds from the same
+stop, or 196.475 seconds from checkpoint start. These are recovery intervals,
+not standalone certificate-generation durations. Original identity/account/key/
+CSR/Open survived; normal native Remove, route closure and owned cleanup passed.
+Both full logs, exact official three-entry archive and both actual native views
+were checked. This isolated drill retains the public-operator, independently
+durable encrypted custody, real renewal-clock and formal-release limitations.
+
 The later source `c0a0ee5`
 [cold run 43554477104](https://github.com/KazuhaHub/nethub/actions/runs/43554477104)
 passed with six-job CI `43554477035`. The baseline route recovered in 90.225
