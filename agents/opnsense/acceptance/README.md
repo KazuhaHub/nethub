@@ -380,6 +380,22 @@ Malformed commands and host-key failures cannot trigger recovery. No input
 transfer or package mutation is retried. This transport correction still requires
 actual installed acceptance and does not change the five-second revoke target.
 
+The handoff source `a29fbfe` progressed through old-package rollback, recovery,
+the legacy steady window and the second planned outage, then failed the upgrade
+invariant. The aggregate error did not identify the differing comparison; its
+cause remains unknown. See the source-bound [handoff validation](../../../docs/handoff/validation.md).
+
+Version-3 migration reports add `invariant_failures`, an ordered list restricted
+to the five existing package-probe fingerprint category names plus
+`lifecycle_markers`, `gui_readback` and `witness_process`. A mismatch saves those
+categories before failing, without exporting either compared value, a new hash,
+marker details or exception text. All original comparisons, timing bounds and
+failure cleanup remain enforced; installation is never replayed. Empty diagnosis
+does not establish success: a command, probe, database or service check can fail
+separately. Portable injected failures cover each category during both rollback
+and upgrade, but a fresh exact-source hosted run is required to diagnose the
+original native failure. Historical version-2 reports remain unchanged.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)

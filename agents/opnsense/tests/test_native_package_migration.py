@@ -158,7 +158,7 @@ def test_outage_observes_guest_tcp_settlement_without_replaying_mutations(tmp_pa
     arguments, context, guest, *_ = setup(tmp_path, monkeypatch)
     context['linger_probes'] = 2
     result = MIGRATION._exercise(*arguments)
-    assert result['passed'] is True and result['version'] == 2
+    assert result['passed'] is True and result['version'] == 3
     outage, legacy = result['outages']
     assert outage['first']['native_control_present'] is True
     assert outage['last']['native_control_present'] is False
@@ -208,6 +208,44 @@ def test_private_model_values_and_inconsistent_process_state_are_not_publishable
             PROBE.validate(changed)
 
 
+@pytest.mark.parametrize('phase,version', [('rollback', '0.0.18'), ('upgrade', '0.0.19')])
+@pytest.mark.parametrize('category', MIGRATION.INVARIANTS)
+def test_invariant_diagnosis_is_closed_and_keeps_failed_install_terminal(tmp_path, monkeypatch, phase, version, category):
+    arguments, context, guest, config, original, evidence = setup(tmp_path, monkeypatch)
+    observation = guest.observation
+
+    def changed():
+        return bool(guest.installations) and guest.version == version
+
+    def probe():
+        value = observation()
+        if changed():
+            if category in PROBE.HASHES:
+                value[category] = 'f' * 64
+            elif category == 'lifecycle_markers':
+                value['markers']['stopped'] = True
+        return value
+
+    monkeypatch.setattr(guest, 'observation', probe)
+    arguments = list(arguments)
+    if category == 'gui_readback':
+        arguments[8] = lambda: {'private': 'must-not-be-published'} if changed() else {'same': 'GUI'}
+    elif category == 'witness_process':
+        arguments[10] = SimpleNamespace(poll=lambda: 1 if changed() else None)
+    with pytest.raises(MIGRATION.GuestError, match=category) as error:
+        MIGRATION._exercise(*arguments)
+    raw = (evidence / 'installed-package-migration.json').read_text()
+    result = json.loads(raw)
+    MIGRATION.validate(result)
+    assert result['invariant_failures'] == [category]
+    assert result['phase'] == phase and result['passed'] is False
+    assert guest.installations == (['0.0.18'] if phase == 'rollback' else ['0.0.18', '0.0.19'])
+    assert context['online'] is False and result['cleanup_stopped_failed_relay'] is True
+    assert config.read_bytes() == original
+    assert 'must-not-be-published' not in raw + str(error.value)
+    assert 'f' * 64 not in raw + str(error.value)
+
+
 def test_report_rejects_missing_rollback_short_windows_and_public_claims(tmp_path, monkeypatch):
     arguments, *_ = setup(tmp_path, monkeypatch)
     valid = MIGRATION._exercise(*arguments)
@@ -216,6 +254,11 @@ def test_report_rejects_missing_rollback_short_windows_and_public_claims(tmp_pat
                        ('original_relay_configuration_restored', False)]:
         changed = copy.deepcopy(valid)
         changed[key] = value
+        cases.append(changed)
+    for diagnosis in [['model_values_sha256'], ['private-value'], ['gui_readback', 'gui_readback'],
+                      ['witness_process', 'gui_readback'], {'private': 'must-not-be-published'}, [None], None]:
+        changed = copy.deepcopy(valid)
+        changed['invariant_failures'] = diagnosis
         cases.append(changed)
     changed = copy.deepcopy(valid)
     changed['steps'][3]['package_version'] = '0.0.19'
