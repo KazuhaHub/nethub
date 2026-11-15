@@ -231,6 +231,28 @@ compatible relay timeout before reverting agents to their old interval. Mixed
 versions, short outages and rollback still require actual validation; this order
 is an operational requirement, not a completed compatibility result.
 
+The rollout fixture now exercises the actual pinned official clients after the
+existing shared-token cutover checks. It first widens the real relay timeout,
+observes a mixed 10/30-second and 1/3-second pair for 45 seconds, upgrades the old
+client while retaining the unrelated original TCP control, and only then lowers
+the relay timeout through a planned restart. Rollback widens the relay timeout
+before restoring the old client profile and repeats the 45-second observation.
+The fixture then restores the new client profile and exact original relay config.
+Runtime guards refuse an old profile against the short relay timeout before
+mutating either side. Each steady window requires actual successful Pongs,
+original socket inodes and verified TLS routes; planned relay restarts must
+recover the same client processes with new controls. Identity, claims, credentials,
+source grants and the original authz process must remain unchanged. Every attempted
+phase is retained; a failed migration is not retried. Failure cleanup stops owned
+clients before restoring the original relay config for stack teardown.
+
+These are implemented checks, not accepted migration evidence until the new
+source executes successfully. Their configuration compatibility scope uses an
+isolated deployment and fixture CA, not native package upgrades, public rollout,
+offline-device recovery or larger online fleets. The existing pressure rows
+remain in that disposable database. Native package/version and operator migration
+acceptance remain separate requirements.
+
 ## Required validation before acceptance
 
 1. Preserve every original signature, tenant, peer, claim-floor and disconnect

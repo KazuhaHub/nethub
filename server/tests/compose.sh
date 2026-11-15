@@ -27,6 +27,7 @@ PY
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 python3 "$root/server/tests/test_compose_boundaries.py"
 python3 "$root/server/tests/test_trust_report_fault.py"
+python3 "$root/server/tests/test_relay_migration.py"
 stage=$(mktemp -d)
 project="nethub-stack-test-$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"
 image=${NETHUB_RUNTIME_TEST_IMAGE:-"nethub-stack-test:$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"}

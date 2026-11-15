@@ -15,6 +15,7 @@ on:
       - server/internal/store/migrations/00029*
       - proto/**
       - server/tests/compose.sh
+      - server/tests/relay*.py
       - server/tests/recovery/**
   workflow_dispatch:
     inputs:

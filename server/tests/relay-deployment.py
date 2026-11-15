@@ -21,6 +21,7 @@ from relay_traffic import exercise_traffic
 from relay_rotation import exercise_rotation
 from relay_token_probe import exercise_token_probe
 from relay_token_runtime import exercise_token_runtime
+from relay_migration import exercise_migration
 
 
 stage, port = Path(sys.argv[1]), int(sys.argv[2])
@@ -109,7 +110,9 @@ class Backend(http.server.BaseHTTPRequestHandler):
         pass
 
 
-def start_client(assignment, name, backend_port, corrupt=False, subdomain=None, debug=False):
+def start_client(assignment, name, backend_port, corrupt=False, subdomain=None, debug=False, heartbeat=(1, 3)):
+    assert (isinstance(heartbeat, tuple) and len(heartbeat) == 2
+            and all(type(value) is int for value in heartbeat) and heartbeat in ((1, 3), (10, 30)))
     claim = assignment["domain_claim"]
     if corrupt:
         # Change a signature byte without changing the claim's assigned identity.
@@ -120,7 +123,7 @@ def start_client(assignment, name, backend_port, corrupt=False, subdomain=None, 
         "loginFailExit": True, "auth": {"method": "token", "token": assignment["frp_token"]},
         "log": {"to": "console", "level": "debug" if debug else "warn"},
         "metadatas": {"device_id": assignment["device_id"], "domain_claim": claim},
-        "transport": {"heartbeatInterval": 1, "heartbeatTimeout": 3, "tcpMux": True,
+        "transport": {"heartbeatInterval": heartbeat[0], "heartbeatTimeout": heartbeat[1], "tcpMux": True,
                       "tls": {"enable": True, "serverName": assignment["server_name"],
                               "trustedCaFile": str(work / "relay-ca.pem")}},
         "proxies": [{"name": "nethub-" + assignment["device_id"] + "-web", "type": "https",
@@ -472,6 +475,9 @@ try:
     print('NETHUB_NATIVE_PHASE=relay_token_runtime', flush=True)
     exercise_token_runtime(stage, port, sys.argv[3], assignments, valid_clients, start_client, stop_client,
                            backend.server_port, check_tunnels, sql)
+    print('NETHUB_NATIVE_PHASE=relay_migration', flush=True)
+    exercise_migration(stage, compose, assignments, valid_clients, start_client, stop_client,
+                       backend.server_port, check_tunnels, sql)
 finally:
     for client in clients:
         stop_client(client)
