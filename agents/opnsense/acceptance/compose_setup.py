@@ -31,6 +31,14 @@ SOURCES.update({name: name.removesuffix('.py').replace('-', '_') for name in (
     'relay-deployment.py', 'relay_fleet.py', 'relay_heartbeat.py', 'relay_maintenance.py',
     'relay_traffic.py', 'relay_rotation.py', 'relay_token_probe.py', 'relay_token_runtime.py', 'relay_migration.py',
     'relay_cache_phase.py', 'relay_network_blip.py')})
+SOURCES['relay_log.py'] = 'relay_log'
+ERRORS.update({name: () for name in (
+    'relay_hook_log_json_prefix', 'relay_hook_log_plain_prefix', 'relay_hook_log_runtime_fault',
+    'relay_hook_log_client_warning', 'relay_hook_log_service_failure',
+    'relay_hook_log_invalid_record', 'relay_hook_log_invalid_shape',
+    'relay_hook_log_invalid_size', 'relay_hook_log_history_changed', 'relay_hook_log_read_failed',
+    'relay_hook_log_budget_expired', 'relay_hook_log_pending_tail_observed',
+    'relay_hook_log_pending_tail_completed')})
 ERRORS.update({
     'relay_cutoff_late': (b'official control-session state was observed after its deadline',
                           b'official control-session state exceeded the heartbeat deadline'),

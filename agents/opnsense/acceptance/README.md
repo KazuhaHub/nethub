@@ -436,6 +436,27 @@ succeed or diagnostic storage fails. The new bounded report is validated before
 publication; private values, fingerprints, commands and exception messages are
 excluded. These observations do not establish causality or upgrade acceptance.
 
+Installed run `43766613555` at `359bf94` failed before creating the guest: the
+heartbeat scenario could not parse an authz log record as JSON. The retained
+source location identifies the parser but does not establish whether the record
+was malformed, a partial tail, a runtime fault or a client warning. That run
+remains failed with owned-image cleanup confirmed; its package/post-WAN
+diagnostics were not reached.
+
+A separate local Docker experiment demonstrated a framing defect in the reader's
+atomic-snapshot assumption: an unfinished 20043-byte JSON record was first
+returned as 16384 bytes without its newline. The complete later record retained
+the entire prefix. The reader now permits at most one second to finish only an
+unterminated, unparsable final record, using the same container ID and retaining
+every observed byte. A terminated bad record, changed history, invalid shape,
+oversized output, read error or expired completion budget still fails. All records
+are parsed again from the preserved prefix, so events are neither lost nor
+duplicated. Original cutoff clocks and five-second requirements are unchanged;
+any observation wait within a timed scenario consumes its existing budget.
+Only fixed log-shape/runtime/client/failure hints leave the private fixture.
+The local reproduction and framing fix do not prove the old native failure's
+cause or qualify the installed appliance.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)

@@ -22,6 +22,20 @@ def test_only_closed_phase_and_hints_survive_private_output():
     assert secret not in str(result)
 
 
+def test_every_relay_log_hint_survives_without_unknown_values():
+    path = SOURCE.parents[3] / 'server/tests/relay_log.py'
+    spec = importlib.util.spec_from_file_location('relay_log_projection_source', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    expected = {'relay_hook_log_' + kind for kind in module.HINT_KINDS}
+    raw = b'\n'.join(('NETHUB_NATIVE_HINT=' + value).encode() for value in sorted(expected))
+    raw += b'\nNETHUB_NATIVE_HINT=relay_hook_log_private-value\n'
+    result = SETUP.project(raw, 1)
+    assert set(result['hints']) == expected
+    assert 'private-value' not in str(result)
+    assert SETUP.project(SETUP.emit(result).encode(), 1)['hints'] == result['hints']
+
+
 @pytest.mark.parametrize('raw,code', [(b'x' * (4 * 1024**2 + 1), 1), ('private', 1), (b'', True)],
                          ids=['oversized', 'text', 'boolean-exit'])
 def test_unbounded_or_wrong_typed_input_refused(raw, code):

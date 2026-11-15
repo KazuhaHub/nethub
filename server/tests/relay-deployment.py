@@ -26,6 +26,7 @@ from relay_migration import exercise_migration
 from relay_cache_phase import exercise_cache_phases
 from relay_network_blip import exercise_network_blip
 from relay_combined_fault import exercise_combined_fault
+from relay_log import hook_events as complete_hook_events
 
 
 stage, port = Path(sys.argv[1]), int(sys.argv[2])
@@ -39,29 +40,27 @@ compose = ["docker", "compose", "--project-name", sys.argv[3],
            "--file", str(stage / "test.yml")]
 
 
-def service_log(service, label):
+def service_identity(service):
     result = subprocess.run(compose + ["ps", "--quiet", service], capture_output=True, timeout=10)
     container = result.stdout.decode().strip()
     assert result.returncode == 0 and len(container) == 64 and all(c in "0123456789abcdef" for c in container)
+    return container
+
+
+def service_log(service, label, *, container=None, timeout=10):
+    container = service_identity(service) if container is None else container
+    assert len(container) == 64 and all(c in "0123456789abcdef" for c in container)
     result = subprocess.run(["docker", "logs", container], stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, timeout=10)
+                            stderr=subprocess.STDOUT, timeout=timeout)
     assert result.returncode == 0 and len(result.stdout) < 8 * 1024 * 1024
     (work / (label + ".log")).write_bytes(result.stdout)
     return result.stdout
 
 
 def hook_events(label):
-    startup = {b"Read-only relay observation enabled", b"Relay observation and anomaly confirmation enabled",
-               b"Device enrollment API and internal relay hooks started"}
-    events = []
-    for line in service_log("nethub-authz", label).splitlines():
-        if not line.strip() or line in startup:
-            continue
-        record = json.loads(line)
-        assert isinstance(record, dict)
-        if record.get("msg") == "Relay hook decision":
-            events.append(record)
-    return events
+    container = service_identity("nethub-authz")
+    return complete_hook_events(lambda remaining: service_log("nethub-authz", label,
+        container=container, timeout=10 if remaining is None else remaining))
 
 
 def stop_client(client):
