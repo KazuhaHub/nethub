@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "passed": true,
+  "phase": "complete",
+  "deadline_ms": 5000,
+  "clock_start": "before SQL revocation dispatch while actual control packets are dropping",
+  "genuine_reference_clients": 12,
+  "snapshot_pressure": {
+    "synthetic_revoked_rows": 99000,
+    "synthetic_rotation_floors": 99000,
+    "global_revoked_rows": 99000,
+    "global_rotation_floors": 99000,
+    "tenants": 1
+  },
+  "public_native_large_fleet_or_full_W5_acceptance": false,
+  "original_reference_controls_retained": true,
+  "fresh_official_Login_refused": true,
+  "identity_and_valid_source_grants_unchanged": true,
+  "service_identities_retained": true,
+  "normal_reference_routes_verified": true,
+  "owned_rules_restored": true,
+  "pressure_immediately_before_fault": {
+    "synthetic_revoked_rows": 99000,
+    "synthetic_rotation_floors": 99000,
+    "global_revoked_rows": 99000,
+    "global_rotation_floors": 99000,
+    "tenants": 1
+  },
+  "SQL_dispatch_to_commit_ms": 129,
+  "actual_drop_packets": 6,
+  "actual_drop_bytes": 782,
+  "packet_loss_dispatch_to_restored_ms": 1304,
+  "SQL_dispatch_to_original_control_and_proxy_offline_ms": 1490,
+  "SQL_dispatch_to_fresh_TLS_refusal_ms": 1499,
+  "no_reconnect_observation_ms": 30135,
+  "minimum_reference_Pongs_during_fault_and_denial_observation": 33,
+  "identity_fields_sha256": "d88252218609ca831eb7194453b3859867c2afd87f801f23789a3bf1633a00d9"
+}

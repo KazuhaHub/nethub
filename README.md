@@ -1,5 +1,8 @@
 # NetHub
 
+Current transfer to an Ubuntu maintainer: [HANDOFF.md](HANDOFF.md). It records
+the latest completed validation, known native upgrade failure and remaining work.
+
 Self-hosted remote access and fleet management for open-source routers and
 firewalls. Starts with OPNsense; the architecture leaves room for OpenWrt and
 VyOS.

@@ -15,6 +15,13 @@
 
 ### Current state (updated 2026-11-15 UTC)
 
+The owner requested a stop after the current validation review and a repository-only
+Ubuntu handoff. [HANDOFF.md](../HANDOFF.md) and its linked evidence/remaining-work
+documents supersede the historical live-run wording below. Final a29 CI and cold
+recovery passed, but installed upgrade invariants failed after successful rollback
+and the second outage. No further product correction or runtime trial was started
+after that request. Do not rely on previous workstation files to continue.
+
 Source `d7c0c4e` passed complete six-job CI and four independent prerequisites;
 their complete logs, archive digests and required views were reviewed. Its
 genuine combined-fault scenario retained 99,000 revoked rows, 99,000 rotation
