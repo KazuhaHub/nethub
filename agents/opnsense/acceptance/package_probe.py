@@ -17,6 +17,14 @@ HASHES = ('model_values_sha256', 'runtime_identity_sha256', 'gui_identity_sha256
 FIELDS = set(HASHES) | {'version', 'package_version', 'profile', 'markers', 'running', 'pid',
                        'process_sha256', 'control_sha256'}
 PHASE = 'native_package_probe'
+BOUNDARY_PHASES = ('host', 'nonce', 'marker', 'interfaces', 'lan', 'route', 'wan')
+
+
+def boundary_phase(name):
+    global PHASE
+    if name not in BOUNDARY_PHASES:
+        raise ValueError('Unexpected native package boundary checkpoint')
+    PHASE = 'native_package_boundary_' + name
 
 
 def fingerprint(value):
@@ -133,13 +141,20 @@ def inspect():
     return result
 
 
-if __name__ == '__main__':
+def main(arguments):
+    global PHASE
+    PHASE = 'native_package_probe'
     try:
-        if len(sys.argv) != 2:
+        if len(arguments) != 1:
             raise ValueError('Owned package nonce required')
         PHASE = 'native_package_boundary'
-        boundary(sys.argv[1])
+        boundary(arguments[0], observe=boundary_phase)
         print(json.dumps(inspect(), sort_keys=True))
+        return 0
     except (OSError, ValueError, KeyError, subprocess.SubprocessError, ET.ParseError):
         print(json.dumps({'success': False, 'fixture_phase': PHASE}))
-        raise SystemExit(1)
+        return 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main(sys.argv[1:]))

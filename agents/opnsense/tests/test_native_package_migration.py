@@ -30,6 +30,33 @@ def packages():
             'package_sha256': {'0.0.18': 'b' * 64, '0.0.19': 'c' * 64}, 'formal_release': False}
 
 
+@pytest.mark.parametrize('phase', PROBE.BOUNDARY_PHASES)
+def test_package_boundary_failure_projects_only_the_checkpoint(phase, monkeypatch, capsys):
+    def refused(_nonce, *, observe):
+        observe(phase)
+        raise OSError('private nonce, configuration and command response must stay private')
+
+    monkeypatch.setattr(PROBE, 'boundary', refused)
+    monkeypatch.setattr(PROBE, 'inspect', lambda: pytest.fail('Failed boundary must stop inspection'))
+    assert PROBE.main(['a' * 32]) == 1
+    captured = capsys.readouterr()
+    assert captured.err == ''
+    value = json.loads(captured.out)
+    assert value == {'success': False, 'fixture_phase': 'native_package_boundary_' + phase}
+    code = 'fixture_' + value['fixture_phase']
+    assert sys.modules['guest'].validate_ssh_failure_kind(code) == code
+
+
+def test_package_boundary_unknown_checkpoint_cannot_export_input(monkeypatch, capsys):
+    def refused(_nonce, *, observe):
+        observe('private-value')
+
+    monkeypatch.setattr(PROBE, 'boundary', refused)
+    assert PROBE.main(['a' * 32]) == 1
+    assert json.loads(capsys.readouterr().out) == {
+        'success': False, 'fixture_phase': 'native_package_boundary'}
+
+
 class Clock:
     def __init__(self):
         self.value = 1000

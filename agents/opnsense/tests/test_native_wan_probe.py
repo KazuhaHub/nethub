@@ -1,8 +1,11 @@
 """Reject ambiguous guest addressing and unrelated or unestablished controls."""
 import importlib.util
 from pathlib import Path
+import stat
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+import xml.etree.ElementTree as ET
 
 SPEC = importlib.util.spec_from_file_location('native_wan_probe_test',
     Path(__file__).resolve().parents[1] / 'acceptance/wan_probe.py')
@@ -11,6 +14,29 @@ SPEC.loader.exec_module(probe)
 
 
 class WANProbeTests(unittest.TestCase):
+    def test_boundary_checkpoints_retain_all_checks_and_stop_at_failed_route(self):
+        marker = Mock()
+        marker.resolve.return_value = marker
+        marker.lstat.return_value = SimpleNamespace(
+            st_mode=stat.S_IFREG | 0o600, st_uid=0, st_nlink=1, st_size=33)
+        marker.read_text.return_value = 'a' * 32 + '\n'
+        marker.is_file.return_value = True
+        root = ET.fromstring('<opnsense><interfaces><lan><if>em0</if></lan>'
+                             '<wan><if>em1</if></wan></interfaces></opnsense>')
+        checkpoints = []
+        with (patch.object(probe.os, 'uname', return_value=SimpleNamespace(sysname='FreeBSD')),
+              patch.object(probe.os, 'geteuid', return_value=0),
+              patch.object(probe, 'Path', return_value=marker),
+              patch.object(probe.ET, 'parse', return_value=ET.ElementTree(root)),
+              patch.object(probe, 'run', return_value='em0: flags=8843\n'
+                  '\tinet 192.168.1.1 netmask 0xffffff00 broadcast 192.168.1.255\n') as run,
+              patch.object(probe, 'gateway', side_effect=probe.ProbeError('wan_route_missing')) as gateway):
+            with self.assertRaisesRegex(probe.ProbeError, '^wan_route_missing$'):
+                probe.boundary('a' * 32, observe=checkpoints.append)
+            self.assertEqual(checkpoints, ['host', 'nonce', 'marker', 'interfaces', 'lan', 'route'])
+            run.assert_called_once_with(['/sbin/ifconfig', 'em0', 'inet'])
+            gateway.assert_called_once_with(allow_missing=False)
+
     def test_only_fixed_single_address_and_subnet(self):
         text = 'em1: flags=8843\n\tinet 10.0.2.15 netmask 0xffffff00 broadcast 10.0.2.255\n'
         self.assertEqual(probe.address(text, 'em1', probe.ADDRESSES), '10.0.2.15')

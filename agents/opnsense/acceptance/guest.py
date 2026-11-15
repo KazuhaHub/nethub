@@ -19,6 +19,9 @@ KEY_SHA256 = '9f3b76ffef38fb6405595038b324b61043c9a2c375ae5c151d628508e9a845ce'
 BASE = 'https://pkg.opnsense.org/releases/26.7/'
 NATIVE_FIXTURE_PHASES = frozenset(('wan_route_table', 'wan_route_missing', 'wan_route_mismatch', 'wan_probe', 'native_package_probe',
     'native_package_boundary', 'native_package_model', 'native_package_gui', 'native_package_runtime',
+    'native_package_boundary_host', 'native_package_boundary_nonce', 'native_package_boundary_marker',
+    'native_package_boundary_interfaces', 'native_package_boundary_lan',
+    'native_package_boundary_route', 'native_package_boundary_wan',
     'native_package_markers', 'native_package_manifest', 'native_package_process',
     'native_package_files', 'native_package_validation',
     'host_boundary', 'private_nonce', 'native_config_load',

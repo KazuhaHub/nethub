@@ -407,6 +407,17 @@ probe result and reads the existing process/log once, without repeating a probe,
 enrollment, Open, SQL, client start or revocation. The preparation and five-second
 revocation budgets are unchanged.
 
+Later installed runs `43727962910` (`38bec4d`) and `43730193174` (`b2bfb50`)
+passed their WAN recovery substeps but failed before a package migration baseline
+step. The former failed a private input transfer; the latter failed the package
+probe's environment boundary. Neither executed rollback or upgrade, so neither
+diagnoses the historical upgrade invariant. Both failures and their cleanup
+remain failed records. The package probe now projects the failing boundary
+checkpoint: host, nonce, marker, interface configuration, LAN address, default
+route or WAN address. These are fixed names only; all original boundary checks
+remain mandatory and no failed read, transfer or mutation is replayed by this
+diagnostic change.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)

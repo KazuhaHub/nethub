@@ -85,11 +85,20 @@ def controls(raw, pid):
     return found
 
 
-def boundary(nonce, *, require_route=True):
+def boundary(nonce, *, require_route=True, observe=None):
+    # The optional observer records only fixed checkpoint names. It does not
+    # alter the boundary or recover/replay any guest operation.
+    def checkpoint(name):
+        if observe is not None:
+            observe(name)
+
+    checkpoint('host')
     if os.name != 'posix' or os.uname().sysname != 'FreeBSD' or os.geteuid() != 0:
         raise ValueError('Owned FreeBSD root fixture required')
+    checkpoint('nonce')
     if re.fullmatch('[a-f0-9]{32}', nonce) is None:
         raise ValueError('Owned nonce required')
+    checkpoint('marker')
     marker = Path('/root/nethub-ci/native-fixture-nonce')
     info = marker.lstat()
     if (marker.resolve(strict=True) != marker or not stat.S_ISREG(info.st_mode)
@@ -97,11 +106,15 @@ def boundary(nonce, *, require_route=True):
             or info.st_size > 64 or not Path('/root/nethub-ci/sshd.conf').is_file()
             or not hmac.compare_digest(marker.read_text().strip(), nonce)):
         raise ValueError('Owned guest nonce binding refused')
+    checkpoint('interfaces')
     root = ET.parse('/conf/config.xml').getroot()
     if root.findtext('interfaces/lan/if') != 'em0' or root.findtext('interfaces/wan/if') != 'em1':
         raise ValueError('Owned LAN and WAN binding changed')
+    checkpoint('lan')
     address(run(['/sbin/ifconfig', 'em0', 'inet']), 'em0', ('192.168.1.1',))
+    checkpoint('route')
     gateway(allow_missing=not require_route)
+    checkpoint('wan')
     return address(run(['/sbin/ifconfig', 'em1', 'inet']), 'em1', ADDRESSES)
 
 
