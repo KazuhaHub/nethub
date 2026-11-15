@@ -437,3 +437,40 @@ Its five SQL-dispatch cutoffs were 2,102, 1,975, 1,692, 1,545 and 1,275 ms.
 The same scope limits apply. Its installed run passed the standalone WAN change
 and restoration checks but later failed at a read-only SSH inspection following
 Rotate; it does not complete native or public console revocation acceptance.
+
+### Source `c0cc0f7`: observed cache phases and owned short loss
+
+All seven original hosted prerequisites passed with complete logs, exact official
+archives and actual views reviewed, including [CI 43669918180](https://github.com/KazuhaHub/nethub/actions/runs/43669918180)
+and [installed-native 43669918188](https://github.com/KazuhaHub/nethub/actions/runs/43669918188).
+The installed native console sample cut off
+its proxy in 919 ms from before normal confirmation, refused fresh verified TLS
+while the source grant remained valid, and did not reconnect across 30,065 ms.
+The independent original reference control and verified route remained intact.
+Its isolated console CA exception remains explicit; this is not a public-browser
+or complete W5 result. Native WAN source change and restoration recovered in
+3,473/4,311 ms with the same client process, model, runtime XML and GUI settings.
+
+The separate cache-phase fixture observed a genuine canary's admission transition
+through the existing private memory-only Ping hook. Last-allow/first-deny brackets
+were 11.764–12.148 ms wide. Five genuine official-client targets were revoked at
+preselected 0/200/400/600/800 ms offsets after observed denial, with at most
+0.667 ms dispatch lateness. From before SQL dispatch, fresh verified TLS refusal
+took 1,518/1,132/718/1,328/1,919 ms. Each sample also required an actual denial Pong,
+loss of the original target control and proxy, fresh official Login refusal,
+at least 30 seconds without reconnect, and retained original reference controls,
+identity fields and routes. The raw elapsed bound is checked before rounding.
+These brackets do not measure an exact internal publication timestamp or a
+console-dispatch, public-network, native-package or fleet deadline.
+
+The owned loopback packet-loss sample dropped three packets (324 bytes) during
+a 658 ms rule-installation-dispatch-to-unlink interval. Its successful Pong gap
+was 1,595 ms, followed by 10,377 ms of recovery observation. Both original client
+controls, processes, service identities and verified routes survived. Cleanup
+removed only the owned rules/chain and verified the exact original OUTPUT rules.
+This does not establish behavior under arbitrary public-network loss.
+
+Native package/offline migration, larger combined faults, mobile console Open
+and revoke, public operator recovery, durable off-host custody and real renewal
+clocks remain open. Earlier failed timings and incomplete observations remain
+failed; this checkpoint does not replace them or complete the project.

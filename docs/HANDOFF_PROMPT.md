@@ -52,14 +52,26 @@ archive, actual views and owned cleanup were checked. All seven original runs
 are now terminal and accepted; native package/public/operator compatibility,
 durable off-host custody and real renewal clocks remain separate requirements.
 
-The next local fixture brackets a canary's memory-admission transition through
-the existing private Ping hook, then checks five preselected phases with fresh
-genuine official-client targets. It has boundary checks but no deployed execution
-yet. Unavailable responses cannot count as publication; exact internal timestamps,
-console clocks and public/native/fleet behavior remain outside that fixture's scope.
-The additional short-loss fixture targets only one owned loopback control tuple,
-requires actual packet drops and retained original controls, and removes its exact
-temporary rules. It also awaits hosted execution; no network-loss result exists yet.
+Source `c0cc0f7` passed all seven original hosted prerequisites with complete logs,
+official archive digests, closed inventories and actual views reviewed. Its
+installed normal console Revoke cut off the proxy in 0.919 seconds from before
+confirmation, followed by fresh verified TLS refusal and 30.065 seconds without
+reconnect. Native WAN change/recovery took 3.473/4.311 seconds with the same client.
+Cold baseline recovery took 106.761 seconds from source stop; the same original
+request's issuance, native acknowledgement and served route took 167.020 seconds
+from that stop, or 181.757 seconds from checkpoint start. These are isolated
+recovery intervals, not standalone certificate-generation times.
+
+Its new genuine-client cache fixture observed five preselected phases through
+the existing private Ping hook. Memory-admission transition brackets were at most
+12.148 milliseconds wide; SQL-dispatch-to-fresh-TLS refusal was at most 1.919
+seconds, followed by at least 30 seconds without reconnect. Exact internal
+publication timestamps, console clocks and public/native/fleet behavior remain
+outside that fixture's scope. The separate owned loopback short-loss sample
+dropped three packets over a 658-millisecond rule window, retained both original
+controls and verified routes, and restored the exact prior OUTPUT rules. These
+measurements do not complete mobile, larger combined faults, native package or
+offline migration, public operator, durable custody or real renewal acceptance.
 
 Source `dd84da2` passed all seven original hosted workflows: CI, 248 actual
 FreeBSD cases against 255 source blobs, unsigned package preparation, installed
