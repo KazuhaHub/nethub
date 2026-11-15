@@ -232,9 +232,9 @@ def _exercise(guest, stage, compose, evidence, nonce, packages, native_read, rou
         failures = [key for key in HASHES if value[key] != before[key]]
         if value['markers'] != before['markers']:
             failures.append('lifecycle_markers')
-        if gui_read() != gui:
+        if not failures and gui_read() != gui:
             failures.append('gui_readback')
-        if witness.poll() is not None:
+        if not failures and witness.poll() is not None:
             failures.append('witness_process')
         if failures:
             result['invariant_failures'] = failures

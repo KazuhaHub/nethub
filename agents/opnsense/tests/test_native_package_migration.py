@@ -208,6 +208,22 @@ def test_private_model_values_and_inconsistent_process_state_are_not_publishable
             PROBE.validate(changed)
 
 
+def test_known_fingerprint_failure_is_saved_without_another_GUI_inspection(tmp_path, monkeypatch):
+    arguments, _, guest, _, _, evidence = setup(tmp_path, monkeypatch, changed_model=True)
+    arguments = list(arguments)
+    def gui():
+        if guest.installations:
+            raise AssertionError('A known invariant failure must stop before another SSH/GUI operation')
+        return {'same': 'GUI'}
+    arguments[8] = gui
+    with pytest.raises(MIGRATION.GuestError, match='model_values_sha256'):
+        MIGRATION._exercise(*arguments)
+    report = json.loads((evidence / 'installed-package-migration.json').read_text())
+    MIGRATION.validate(report)
+    assert report['invariant_failures'] == ['model_values_sha256']
+    assert report['passed'] is False and guest.installations == ['0.0.18']
+
+
 @pytest.mark.parametrize('phase,version', [('rollback', '0.0.18'), ('upgrade', '0.0.19')])
 @pytest.mark.parametrize('category', MIGRATION.INVARIANTS)
 def test_invariant_diagnosis_is_closed_and_keeps_failed_install_terminal(tmp_path, monkeypatch, phase, version, category):
