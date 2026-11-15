@@ -31,6 +31,8 @@ python3 "$root/server/tests/test_trust_report_fault.py"
 python3 "$root/server/tests/test_relay_migration.py"
 python3 "$root/server/tests/test_relay_cache_phase.py"
 python3 "$root/server/tests/test_relay_network_blip.py"
+python3 "$root/server/tests/test_relay_control_drop.py"
+python3 "$root/server/tests/test_relay_combined_fault.py"
 stage=$(mktemp -d)
 project="nethub-stack-test-$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"
 image=${NETHUB_RUNTIME_TEST_IMAGE:-"nethub-stack-test:$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"}

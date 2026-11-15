@@ -474,3 +474,34 @@ Native package/offline migration, larger combined faults, mobile console Open
 and revoke, public operator recovery, durable off-host custody and real renewal
 clocks remain open. Earlier failed timings and incomplete observations remain
 failed; this checkpoint does not replace them or complete the project.
+
+### Combined-fault fixture awaiting execution
+
+The next isolated fixture retains the two original controls and ten genuine
+load clients after the existing 99,000-revocation/99,000-floor pressure window.
+It clears the normal enrollment rate window without retrying an enrollment,
+then creates one additional ordinary device and verifies its TLS route and
+explicit source grant. Only that device's established ephemeral loopback control
+tuple receives an owned OUTPUT drop rule.
+
+The fixture requires nonzero actual dropped-packet counters before dispatching
+one irreversible SQL revocation. Its preselected loss window is 1.25 seconds,
+with a 1.8-second observation bound. The five-second cutoff clock starts before
+SQL dispatch while the drop rule is active. Original control/proxy disappearance
+and fresh verified TLS refusal must both fall inside that same raw elapsed bound.
+Fresh official Login must be refused, followed by at least 30 seconds without
+an authenticated proxy reconnect. The valid source grant and immutable identity
+must remain unchanged; all twelve original reference controls, genuine Pongs,
+verified routes and all six service identities must survive.
+
+Cleanup removes only the exact owned tuple link and chain, then compares the
+entire prior OUTPUT rule listing. Unconfirmed rule insertion is inspected before
+cleanup; it is not blindly replayed. An unexpected chain entry is preserved after
+the fixture removes its own link, and cleanup remains failed. Unconfirmed SQL
+commit is never retried. Results contain only fixed phases, counts, hashes and
+bounded timing fields; credentials and raw command output stay private.
+
+Portable orchestration, negative-result and cleanup tests have passed. The real
+combined scenario has not run yet and is not accepted. Twelve reference clients
+and synthetic authority rows do not establish a large online fleet, arbitrary
+network-loss tolerance, native/public behavior or complete W5 acceptance.

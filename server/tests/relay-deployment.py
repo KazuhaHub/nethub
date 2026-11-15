@@ -25,6 +25,7 @@ from relay_token_runtime import exercise_token_runtime
 from relay_migration import exercise_migration
 from relay_cache_phase import exercise_cache_phases
 from relay_network_blip import exercise_network_blip
+from relay_combined_fault import exercise_combined_fault
 
 
 stage, port = Path(sys.argv[1]), int(sys.argv[2])
@@ -465,7 +466,10 @@ try:
 
     print('NETHUB_NATIVE_PHASE=relay_fleet', flush=True)
     exercise_fleet(stage, compose, valid_clients, fleet_client, stop_client,
-                   revoke_fleet, check_tunnels, probe, local_source, seed_fleet_pressure)
+                   revoke_fleet, check_tunnels, probe, local_source, seed_fleet_pressure,
+                   lambda references, pressure, check_all: exercise_combined_fault(
+                       stage, compose, references, pressure, lambda: fleet_client(10), stop_client,
+                       probe, local_source, gateway, sql, fresh_revoked_login, check_all))
     print('NETHUB_NATIVE_PHASE=relay_heartbeat', flush=True)
     exercise_heartbeats(stage, compose, assignments, valid_clients, gateway, sql,
                         check_tunnels, probe, local_source, hook_events, revocation_client,

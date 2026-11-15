@@ -8,7 +8,7 @@ import time
 
 
 def exercise_fleet(stage, compose, originals, create_client, stop_client,
-                   revoke_clients, check_tunnels, probe, source, seed_pressure):
+                   revoke_clients, check_tunnels, probe, source, seed_pressure, combined_fault):
     work = Path(stage) / 'fleet-test'
     work.mkdir(mode=0o700)
     owned, attempts = [], []
@@ -186,6 +186,14 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
                               container_scope='dedicated cgroup-v2 tasks and descendants; memory.current includes charged cache; excludes clients and observer',
                               CPU_scope='authz and frps process only; excludes PostgreSQL, clients and observer',
                               Pong_scope='successful pinned-client debug log observations, 200ms requested polling; not HTTP callback latency')
+                if stage_index == 2:
+                    def check_all_routes():
+                        check_tunnels()
+                        for assignment, _, _ in owned:
+                            response = probe(assignment, source)
+                            assert response.returncode == 0 and response.stdout.decode() == assignment['subdomain'] + '.router.example.com'
+                    combined_fault(clients, sample['snapshot_fixture'], check_all_routes)
+                    assert sockets(clients) == baseline, 'combined faults replaced a fleet reference control'
             finally:
                 (work / 'attempts.json').write_text(json.dumps(attempts, indent=2))
                 key = 'official_frp_snapshot_pressure' if stage_index == 2 else 'official_frp_small_fleet'
