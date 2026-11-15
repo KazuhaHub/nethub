@@ -4,10 +4,22 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).parent))
-from relay_cache_phase import ping_decision, publication_bracket
+from relay_cache_phase import cutoff_ms, ping_decision, publication_bracket
 
 
 class CachePhaseEvidenceTests(unittest.TestCase):
+    def test_rounding_cannot_turn_a_late_observation_into_a_pass(self):
+        self.assertEqual(cutoff_ms(10., 15.), 5000)
+        self.assertEqual(round((15.0004 - 10.) * 1000), 5000)
+        with self.assertRaises(ValueError):
+            cutoff_ms(10., 15.0004)
+
+    def test_invalid_or_reversed_clocks_cannot_supply_a_cutoff(self):
+        for started, observed in [(0, 1), (10, 9), (True, 2), (1, float('inf')),
+                (1, float('nan')), (float('inf'), float('inf'))]:
+            with self.subTest(started=started, observed=observed), self.assertRaises(ValueError):
+                cutoff_ms(started, observed)
+
     def test_only_exact_allow_and_authorization_denial_are_anchors(self):
         self.assertEqual(ping_decision(200, b'{"reject":false,"unchange":true}'), 'allowed')
         self.assertEqual(ping_decision(200, b'{"reject":true,"reject_reason":"not_authorized"}'), 'denied')

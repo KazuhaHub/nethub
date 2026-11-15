@@ -2,6 +2,7 @@
 import base64
 import hashlib
 import json
+import math
 from pathlib import Path
 import subprocess
 import threading
@@ -11,6 +12,13 @@ import uuid
 
 from relay_heartbeat import NoRedirect
 from relay_migration import control_bindings
+
+
+def cutoff_ms(started, observed):
+    if (any(type(value) not in (int, float) or not math.isfinite(value) for value in (started, observed))
+            or not 0 < started <= observed or observed - started > 5):
+        raise ValueError('actual observation exceeded the five-second cutoff deadline')
+    return round((observed - started) * 1000)
 
 
 def ping_decision(status, raw):
@@ -194,8 +202,7 @@ def exercise_cache_phases(stage, assignments, clients, fresh_pair, start_client,
                     break
                 assert time.monotonic() < deadline, 'cache-phase official client did not receive revocation Pong within five seconds'
                 time.sleep(.01)
-            row['SQL_dispatch_to_actual_Pong_denial_ms'] = round((time.monotonic() - started) * 1000)
-            assert 0 <= row['SQL_dispatch_to_actual_Pong_denial_ms'] <= 5000
+            row['SQL_dispatch_to_actual_Pong_denial_ms'] = cutoff_ms(started, time.monotonic())
             while True:
                 observed_controls = controls(target_client)
                 assert {client.pid: observed_controls[client.pid] for client in clients} == reference
@@ -203,11 +210,9 @@ def exercise_cache_phases(stage, assignments, clients, fresh_pair, start_client,
                     break
                 assert time.monotonic() < deadline, 'cache-phase original control or proxy remained online beyond five seconds'
                 time.sleep(.01)
-            row['SQL_dispatch_to_proxy_and_original_control_offline_ms'] = round((time.monotonic() - started) * 1000)
-            assert row['SQL_dispatch_to_proxy_and_original_control_offline_ms'] <= 5000
+            row['SQL_dispatch_to_proxy_and_original_control_offline_ms'] = cutoff_ms(started, time.monotonic())
             assert probe(target, source).returncode != 0
-            row['SQL_dispatch_to_fresh_TLS_refusal_ms'] = round((time.monotonic() - started) * 1000)
-            assert row['SQL_dispatch_to_fresh_TLS_refusal_ms'] <= 5000
+            row['SQL_dispatch_to_fresh_TLS_refusal_ms'] = cutoff_ms(started, time.monotonic())
             observation_started = time.monotonic()
             # Keep these names separate from the earlier five Pong-phase clients.
             fresh_revoked_login(target, index + 5)
