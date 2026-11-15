@@ -40,15 +40,26 @@ recovery took at most 2.461 seconds. Identity, claims, credentials, TLS trust,
 source grants and the original authz process were preserved, and the exact relay
 configuration was restored. Complete logs, five official browser archives and
 thirteen image hashes/views were checked. Its FreeBSD, unsigned preparation,
-fresh-target and database prerequisites also passed. Its original installed
-native and cold-recovery runs remain in progress; no new result is inferred.
-Native package and public/operator compatibility remain separate requirements.
+fresh-target and database prerequisites also passed. Its installed-native run
+passed with a 1.341-second cutoff from before confirmation, fresh TLS refusal,
+30.066 seconds without reconnect and WAN recovery of 3.653/4.584 seconds. Full
+logs, the exact 41-entry archive and fourteen image hashes over nine unique views
+were reviewed. Its isolated cold recovery passed at 91.920 seconds for baseline
+routing and 148.998 seconds for the original request's issuance, native
+acknowledgement and served route, both from source stop; the latter interval is
+159.551 seconds from checkpoint start. Both complete logs, the exact three-entry
+archive, actual views and owned cleanup were checked. All seven original runs
+are now terminal and accepted; native package/public/operator compatibility,
+durable off-host custody and real renewal clocks remain separate requirements.
 
 The next local fixture brackets a canary's memory-admission transition through
 the existing private Ping hook, then checks five preselected phases with fresh
 genuine official-client targets. It has boundary checks but no deployed execution
 yet. Unavailable responses cannot count as publication; exact internal timestamps,
 console clocks and public/native/fleet behavior remain outside that fixture's scope.
+The additional short-loss fixture targets only one owned loopback control tuple,
+requires actual packet drops and retained original controls, and removes its exact
+temporary rules. It also awaits hosted execution; no network-loss result exists yet.
 
 Source `dd84da2` passed all seven original hosted workflows: CI, 248 actual
 FreeBSD cases against 255 source blobs, unsigned package preparation, installed

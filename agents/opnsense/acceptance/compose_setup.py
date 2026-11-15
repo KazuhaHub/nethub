@@ -9,7 +9,8 @@ PHASES = ('preflight', 'build_inputs', 'http01', 'gui_issuer', 'gui_acme_build',
           'pebble_primitives', 'gui_host_source_checks', 'gui_host_runtime', 'gui_host_build', 'setup_build',
           'frps_smoke', 'initialization', 'stack_start', 'backup_fixture',
           'provider_key', 'administrator', 'relay', 'relay_fleet', 'relay_heartbeat',
-          'relay_token_probe', 'relay_rotation', 'relay_token_runtime', 'relay_migration', 'relay_cache_phase', 'native_guest')
+          'relay_token_probe', 'relay_rotation', 'relay_token_runtime', 'relay_migration', 'relay_network_blip',
+          'relay_cache_phase', 'native_guest')
 ERRORS = {'dependency_timeout': (b'TLS handshake timeout', b'i/o timeout', b'context deadline exceeded'),
           'dependency_rate_limit': (b'429 Too Many Requests', b'toomanyrequests:'),
           'storage_full': (b'no space left on device',),
@@ -29,7 +30,7 @@ SOURCES = {'gui-issuer-host.py': 'gui_issuer_host', 'test_gui_issuer_host.py': '
 SOURCES.update({name: name.removesuffix('.py').replace('-', '_') for name in (
     'relay-deployment.py', 'relay_fleet.py', 'relay_heartbeat.py', 'relay_maintenance.py',
     'relay_traffic.py', 'relay_rotation.py', 'relay_token_probe.py', 'relay_token_runtime.py', 'relay_migration.py',
-    'relay_cache_phase.py')})
+    'relay_cache_phase.py', 'relay_network_blip.py')})
 ERRORS.update({
     'relay_cutoff_late': (b'official control-session state was observed after its deadline',
                           b'official control-session state exceeded the heartbeat deadline'),

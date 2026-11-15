@@ -14,7 +14,8 @@ if [ "$(id -u)" != 0 ]; then
     exit 2
 fi
 python3 - <<'PY'
-import socket,subprocess
+import shutil,socket,subprocess
+assert shutil.which('iptables'), 'The owned loopback packet-loss fixture requires iptables'
 engine=subprocess.check_output(['docker','version','--format','{{.Server.Version}}'],text=True,timeout=15).strip()
 assert int(engine.split('.')[0])>=28, 'Loopback callback isolation requires Docker Engine 28 or newer'
 for address,port in (('0.0.0.0',7000),('0.0.0.0',8443),('127.0.0.1',9000)):
@@ -29,6 +30,7 @@ python3 "$root/server/tests/test_compose_boundaries.py"
 python3 "$root/server/tests/test_trust_report_fault.py"
 python3 "$root/server/tests/test_relay_migration.py"
 python3 "$root/server/tests/test_relay_cache_phase.py"
+python3 "$root/server/tests/test_relay_network_blip.py"
 stage=$(mktemp -d)
 project="nethub-stack-test-$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"
 image=${NETHUB_RUNTIME_TEST_IMAGE:-"nethub-stack-test:$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"}

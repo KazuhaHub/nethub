@@ -103,7 +103,7 @@ def test_relay_failure_phase_location_and_deadline_hint_survive_without_child_te
 
 
 @pytest.mark.parametrize('phase', ['relay_fleet', 'relay_heartbeat', 'relay_token_probe',
-                                  'relay_rotation', 'relay_token_runtime', 'relay_migration', 'relay_cache_phase'])
+                                  'relay_rotation', 'relay_token_runtime', 'relay_migration', 'relay_network_blip', 'relay_cache_phase'])
 def test_relay_components_have_distinct_fixed_failure_phases(phase):
     value = SETUP.project(('NETHUB_NATIVE_PHASE=' + phase + '\n').encode(), 1)
     assert value['phase'] == phase

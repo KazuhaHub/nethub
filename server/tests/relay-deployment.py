@@ -24,6 +24,7 @@ from relay_token_probe import exercise_token_probe
 from relay_token_runtime import exercise_token_runtime
 from relay_migration import exercise_migration
 from relay_cache_phase import exercise_cache_phases
+from relay_network_blip import exercise_network_blip
 
 
 stage, port = Path(sys.argv[1]), int(sys.argv[2])
@@ -480,6 +481,8 @@ try:
     print('NETHUB_NATIVE_PHASE=relay_migration', flush=True)
     exercise_migration(stage, compose, assignments, valid_clients, start_client, stop_client,
                        backend.server_port, check_tunnels, sql)
+    print('NETHUB_NATIVE_PHASE=relay_network_blip', flush=True)
+    exercise_network_blip(stage, compose, valid_clients, check_tunnels)
     # Reserve at most four fresh token attempts per 61-second window. This
     # preparation delay never resets an irreversible measurement or rate limit.
     cache_token_attempts = deque()

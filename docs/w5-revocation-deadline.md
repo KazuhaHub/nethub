@@ -7,13 +7,13 @@ replace it with an easier threshold or restart the clock at database commit.
 
 ## Current installed and public results, 2026-11-15 UTC
 
-Source `dd84da2` passed all seven original hosted workflows, including
-[installed native rotation 43602317217](https://github.com/KazuhaHub/nethub/actions/runs/43602317217).
-Normal console Revoke removed the target control/proxy in 1,638 ms from before
-confirmation; the HTTP response took 65 ms. Fresh verified TLS was refused while
-the source grant remained valid, and no reconnect occurred during 30,061 ms.
+Source `fd5638e` passed all seven original hosted workflows, including
+[installed native rotation 43665110994](https://github.com/KazuhaHub/nethub/actions/runs/43665110994).
+Normal console Revoke removed the target control/proxy in 1,341 ms from before
+confirmation. Fresh verified TLS was refused while the source grant remained
+valid, and no reconnect occurred during 30,066 ms.
 The independent genuine reference retained its original control/process/socket.
-WAN change and restoration took 4,131/4,137 ms without replacing frpc or changing
+WAN change and restoration took 3,653/4,584 ms without replacing frpc or changing
 native model/runtime XML/GUI invariants. Full source-bound logs, the official
 41-entry archive and all fourteen image hashes were checked; nine unique actual
 views were reviewed. The fixture used an isolated console CA and a hosted
@@ -264,6 +264,17 @@ existing pressure rows remained in that disposable database. Native package and
 operator migration acceptance remain separate requirements.
 
 ## Required validation before acceptance
+
+The next short-loss fixture drops only one owned official client's exact
+ephemeral IPv4 loopback TCP tuple to frps. A separate temporary filter chain must
+record real packet/byte drops during a requested 650 ms window, bounded to one
+second. The next successful Pong must be withheld during that window and then
+observed after it. Both original client processes/control inodes, frps/authz
+processes and verified routes must survive, with another ten seconds of Pongs.
+The exact prior OUTPUT rules and absent temporary chain are verified after cleanup;
+the fixture does not flush shared chains or affect public/management endpoints.
+This is implemented but unexecuted, and cannot establish general network-loss,
+mobile, public or fleet tolerance.
 
 The next cache-phase fixture observes memory admission through the existing
 private Ping hook, using an unchanged, genuinely enrolled canary claim. A
