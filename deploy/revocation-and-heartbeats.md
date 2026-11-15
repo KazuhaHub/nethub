@@ -3,8 +3,9 @@
 The generated frps callback list includes Login, NewProxy, NewUserConn and Ping.
 The development candidate uses a one-second heartbeat and three-second
 client/server timeout, replacing the original 10/30 configuration. Kazuha retained
-the five-second revocation target on 2026-11-12; these settings are an implementation
-candidate, not completed native/public deadline acceptance. Existing
+the five-second revocation target on 2026-11-12. Scoped native and public desktop
+samples have passed; [current measurements and limits](../docs/w5-revocation-deadline.md)
+retain the original failures and the remaining W5 gates. Existing
 bundles need a reviewed configuration migration; replacing the web/authz binary
 alone does not enable the added operations. Preserve the immutable setup backup
 and rollback material rather than rerunning initialization over an existing stack.
@@ -72,6 +73,7 @@ device's verified TLS. SQL integration tests cover two tenants and real lock-wai
 failure; memory tests cover last-good retention and refresh/self-check liveness.
 [Console Revoke](console-revocation.md), [disconnect requests](disconnect-requests.md)
 and the [installed heartbeat measurement](validation-native-w5-heartbeat.md)
-have separate evidence. The installed record retains its unresolved W0 timing
-comparison; these fixtures do not complete public/mobile W5 acceptance.
+have separate evidence. The installed record retains the original failed
+17.218-second timing comparison; later native/public samples remain separately
+scoped. These fixtures do not complete mobile, fleet, fault or migration acceptance.
 See [callback details](../server/internal/relayhook/README.md).

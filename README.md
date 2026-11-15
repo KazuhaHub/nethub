@@ -314,7 +314,11 @@ The [native public-certificate record](deploy/validation-native-public-certifica
 covers issuance, scheduled application, authenticated public GUI access and
 restoration in the approved isolated environment. The
 [installed heartbeat/Revoke record](deploy/validation-native-w5-heartbeat.md)
-retains the slower Revoke measurement and the missing mobile Open sample.
+retains the original slower Revoke measurement. The
+[current candidate measurements](docs/w5-revocation-deadline.md) include a
+1.638-second installed cutoff and a separate 1.811-second fresh public TLS
+refusal. These scoped samples do not close mobile Open, fleet, fault or migration
+acceptance.
 
 Two deployed Dex issuers have [accepted OIDC evidence](deploy/validation-two-dex.md).
 SAML backend/pages and an independent [Keycloak deployment](deploy/validation-keycloak-saml.md)

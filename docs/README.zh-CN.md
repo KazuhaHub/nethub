@@ -195,7 +195,7 @@ SNI 透传保留设备自己的登录。正常运行时，新连接还需要匹�
 
 [交接记录](HANDOFF_PROMPT.md)将验收结果绑定到源代码、CI 和原生／公网测量。W0、W2 是历史基础，不代表后续产品流程全部完成。
 
-[原生公共证书记录](../deploy/validation-native-public-certificate.md)覆盖隔离环境的签发、定时安装、认证公网 GUI 访问和恢复。[心跳与撤销记录](../deploy/validation-native-w5-heartbeat.md)保留撤销速度偏差，以及尚未完成的手机 Open 样本。
+[原生公共证书记录](../deploy/validation-native-public-certificate.md)覆盖隔离环境的签发、定时安装、认证公网 GUI 访问和恢复。[心跳与撤销记录](../deploy/validation-native-w5-heartbeat.md)保留原先较慢的失败测量。[当前候选方案的测量](w5-revocation-deadline.md)包括 1.638 秒的原生撤销和另一次 1.811 秒的公网新 TLS 连接拒绝；这些样本不能代替手机 Open、设备群、故障及迁移验收。
 
 两家 Dex 已有 [OIDC 部署验收](../deploy/validation-two-dex.md)。SAML 后端、页面及独立 [Keycloak 部署](../deploy/validation-keycloak-saml.md)已有范围明确的验收；公开 IdP 和 W6 整体验收尚未完成。
 

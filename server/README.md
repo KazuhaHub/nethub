@@ -65,20 +65,27 @@ polling do not renew it. The gate identifies network position, not a person:
 shared NAT, IPv4/IPv6 differences and existing streams remain limitations.
 Router authentication and normal GUI certificate verification remain required.
 
-Ping checks an initialized in-memory revocation/rotated-claim snapshot, refreshed
-every five seconds. Ordinary database failure retains the last good state; new
-connection admission still checks SQL. Unresponsive refresh or failed self-check
+Ping checks initialized in-memory revocations and rotated-claim floors, refreshed
+every second within a shared one-second budget. Known denials/floors remain
+monotonic, but a snapshot can admit Ping only for 2.5 seconds from its read start.
+Database failure cannot extend that authority indefinitely. New connection
+admission still checks SQL. Unresponsive refresh or failed freshness self-check
 stops authz rather than leaving a partially live API.
 
-The 10-second heartbeat and 30-second timeout make authz an availability dependency
-for existing tunnels. Restart/outage interrupts access; suspended processes and
+The current development candidate uses a one-second heartbeat and three-second
+client/server timeout. Old agents need the coordinated upgrade/rollback order;
+replacing only the server does not migrate their timing. Authz remains an
+availability dependency for existing tunnels. Restart/outage interrupts access;
+suspended processes and
 stale snapshots can delay observations. There is no instantaneous browser-stream
 cutoff guarantee. Display polling runs every five seconds; anomaly confirmation
 separately requires three 15-second observations. See
 [hooks](internal/relayhook/README.md),
 [availability](../deploy/revocation-and-heartbeats.md),
 [anomalies](../deploy/relay-anomalies.md) and the
-[installed timing discrepancy](../deploy/validation-native-w5-heartbeat.md).
+[original installed timing discrepancy](../deploy/validation-native-w5-heartbeat.md)
+and [current scoped measurements](../docs/w5-revocation-deadline.md). Native/public
+samples do not complete mobile, fleet, fault or migration acceptance.
 
 ## Ports
 
