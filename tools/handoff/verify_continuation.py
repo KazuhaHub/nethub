@@ -172,6 +172,39 @@ def verify_preflight(root=ROOT):
     print(f'Verified {len(names)} later closed files and six source-separated runs; both native preflight failures remain failed.')
 
 
+def verify_local_load(root=ROOT):
+    directory = root / 'docs/handoff/evidence/ubuntu-52e3362-local'
+    index = json.loads((directory / 'index.json').read_text())
+    head = '52e3362625b1de18399bb7ff6a68aeaca516aabb'
+    assert index['source_head'] == head and index['full_project_complete'] is False
+    assert index['kind'] == 'local-actual-SQL' and len(index['files']) == 1
+    item = index['files'][0]
+    assert item['path'] == 'snapshot-load.json'
+    raw = checked_path(directory, item['path']).read_bytes()
+    assert len(raw) == item['bytes'] and hashlib.sha256(raw).hexdigest() == item['sha256']
+    value = json.loads(raw)
+    assert value['source_head'] == head and value['passed'] is True and value['exit_code'] == 0
+    assert value['revocation_load_enabled'] is True and value['ordinary_top_level_passed'] == 8
+    assert all(value[k] is True for k in ('explicit_load_passed', 'tenant_overflow_denial_retained',
+                                         'owned_container_cleanup_confirmed'))
+    assert value['public_or_native_acceptance'] is value['online_fleet_capacity_accepted'] is False
+    assert value['compiler'] == 'go1.26.11'
+    assert value['compiled_cli_build'] == {'CGO_ENABLED': '0', 'GOARCH': 'amd64', 'GOOS': 'linux',
+        'vcs.revision': head, 'vcs.modified': 'false'}
+    assert len(value['metrics']) == 4
+    for record, size in zip(value['metrics'], (1000, 10000, 100000, 100000)):
+        assert record['revoked_rows'] == record['rotation_floors'] == size
+        assert record['refresh_succeeded'] is True and record['live_client_capacity_accepted'] is False
+        assert record['refresh_budget_ms'] == 1000 and 0 < record['refresh_us'] <= 1000000
+        assert record['memory_predicate_triplets'] == 10000 and 1 <= record['tenants'] <= 1024
+    assert value['metrics'][-1]['tenants'] == 1024
+    for name, digest in value['source_files'].items():
+        source = subprocess.check_output(['git', '-C', str(root), 'show', head + ':' + name])
+        assert hashlib.sha256(source).hexdigest() == digest
+    print('Verified local SQL/load record and exact source hashes; no online-fleet, native or public acceptance.')
+
+
 if __name__ == '__main__':
     verify()
     verify_preflight()
+    verify_local_load()

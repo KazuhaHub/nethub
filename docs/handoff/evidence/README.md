@@ -61,3 +61,13 @@ the earlier upgrade invariant. Original small closed artifact ZIPs and run
 origins are retained. `python3 tools/handoff/verify_continuation.py` verifies
 these records as well as the first Ubuntu checkpoint. No failed run is relabeled
 and no public, mobile, formal-package or release scope is accepted.
+
+## Local SQL snapshot load
+
+[`ubuntu-52e3362-local/index.json`](ubuntu-52e3362-local/index.json) retains the
+closed local actual-SQL record at source `52e3362`, including the explicitly
+enabled row/tenant-bound load and overflow refusal. Its source, compiler and
+binary/log hashes are distinct from hosted CI images. The continuation verifier
+checks the retained metrics and original harness source hashes; it does not
+re-execute the database, attest an online fleet or accept native/public cutoff.
+Raw SQL logs and ephemeral credentials remain outside Git.

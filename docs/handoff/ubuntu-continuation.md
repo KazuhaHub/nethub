@@ -72,6 +72,22 @@ participation be recorded and skipped temporarily while independent work continu
   any guard, operation or replay policy. Its 151 focused tests passed; fresh
   exact-source CI and installed acceptance are pending. This does not identify
   the historical upgrade cause or accept either earlier failed installed run.
+  Preparation `43760255136` and FreeBSD `43760255102` subsequently passed; 252
+  contract cases, all 257 Git blobs, the preparation archive and four screenshot
+  hashes were verified. Three distinct preparation views were reviewed. Those
+  preparation/contract checks do not establish enrolled upgrade acceptance.
+
+Local actual PostgreSQL checks at source `52e3362` also passed eight ordinary
+top-level cases and the explicitly enabled bounded snapshot-load case. At 100000
+revoked rows, 100000 rotation floors and 1024 tenants, the observed refresh was
+460288 microseconds against the unchanged 1000 ms budget. Tenant overflow at
+1025 was refused with the prior known denial retained; the owned isolated test
+container was removed. The compiled CLI reports Go 1.26.11 and clean source
+`52e3362`. The [closed local record](evidence/ubuntu-52e3362-local/index.json)
+includes source/binary/log hashes and the four observed row-scaling cases.
+These observations do not establish signed Ping throughput, online fleet
+capacity, native/public cutoff, or complete W5 acceptance. Allocated-byte figures
+describe allocations during a refresh, not steady resident memory.
 
 The documentation branch's source `59dedf0` CI `43731180948` failed an unchanged
 combined-fault reference-route check after revocation. Its observed cutoff timing
