@@ -35,6 +35,8 @@ SOURCES['relay_log.py'] = 'relay_log'
 ERRORS.update({name: () for name in (
     'relay_hook_log_json_prefix', 'relay_hook_log_plain_prefix', 'relay_hook_log_runtime_fault',
     'relay_hook_log_client_warning', 'relay_hook_log_service_failure',
+    'relay_hook_log_runtime_exit', 'relay_hook_log_initial_snapshot_failure',
+    'relay_hook_log_initial_database_failure', 'relay_hook_log_revocation_liveness',
     'relay_hook_log_invalid_record', 'relay_hook_log_invalid_shape',
     'relay_hook_log_invalid_size', 'relay_hook_log_history_changed', 'relay_hook_log_read_failed',
     'relay_hook_log_budget_expired', 'relay_hook_log_pending_tail_observed',

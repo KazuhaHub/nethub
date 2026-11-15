@@ -457,6 +457,24 @@ Only fixed log-shape/runtime/client/failure hints leave the private fixture.
 The local reproduction and framing fix do not prove the old native failure's
 cause or qualify the installed appliance.
 
+Run `43772146507` at `2523ab9` subsequently failed before guest creation with
+`relay_hook_log_plain_prefix`, `relay_hook_log_service_failure` and
+`relay_hook_log_invalid_record`. The new reader therefore refused a complete
+fixed service-failure line; it did not accept or identify an incomplete tail.
+That category combines initial database failure, initial snapshot failure and
+unexpected runtime exit, so its exact service-exit reason remains unknown.
+
+Unexpected runtime exits now use the existing structured JSON logger, with only
+`service_failure` or `revocation_liveness` as the reason. The process still
+returns nonzero and both listeners still close through the unchanged supervisor.
+The observer retains fixed hints when it reads that event and continues counting
+only actual hook decisions, as with other structured non-hook records. Legacy
+plain startup/runtime failures still fail parsing, with distinct closed hints.
+No bad JSON record is discarded or added to the startup exception list. Worker
+liveness, original control continuity, route recovery and cutoff assertions are
+unchanged. This format correction does not establish why the earlier service
+failed or qualify package migration.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)

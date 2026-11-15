@@ -7,6 +7,7 @@ STARTUP = {b'Read-only relay observation enabled', b'Relay observation and anoma
            b'Device enrollment API and internal relay hooks started'}
 LIMIT = 8 * 1024 * 1024
 HINT_KINDS = frozenset(('json_prefix', 'plain_prefix', 'runtime_fault', 'client_warning', 'service_failure',
+    'runtime_exit', 'initial_snapshot_failure', 'initial_database_failure', 'revocation_liveness',
     'invalid_record', 'invalid_shape', 'invalid_size', 'history_changed', 'read_failed',
     'budget_expired', 'pending_tail_observed', 'pending_tail_completed'))
 
@@ -28,9 +29,12 @@ def invalid_record(line):
         hint('runtime_fault')
     if line.startswith(b'WARNING:'):
         hint('client_warning')
-    if line in (b'Authz HTTP service stopped unexpectedly', b'Initial relay revocation snapshot is unavailable',
-                b'Authz database connection failed; check settings and the authz password file'):
+    failures = {b'Authz HTTP service stopped unexpectedly': 'runtime_exit',
+                b'Initial relay revocation snapshot is unavailable': 'initial_snapshot_failure',
+                b'Authz database connection failed; check settings and the authz password file': 'initial_database_failure'}
+    if line in failures:
         hint('service_failure')
+        hint(failures[line])
     refuse('invalid_record')
 
 
@@ -72,6 +76,10 @@ def hook_events(read, *, now=time.monotonic, pause=time.sleep):
                 invalid_record(line)
             if not isinstance(record, dict):
                 refuse('invalid_shape')
+            if record.get('msg') == 'Authz HTTP service stopped unexpectedly':
+                hint('runtime_exit')
+                if record.get('reason') == 'revocation_liveness':
+                    hint('revocation_liveness')
             if record.get('msg') == 'Relay hook decision':
                 events.append(record)
         else:

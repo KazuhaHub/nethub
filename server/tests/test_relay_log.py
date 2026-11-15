@@ -106,6 +106,27 @@ class RelayLogTests(unittest.TestCase):
             relay_log.hint('private-value')
         self.assertEqual(output.getvalue(), '')
 
+    def test_runtime_exit_json_remains_visible_without_changing_hook_counts(self):
+        raw = b'{"level":"ERROR","msg":"Authz HTTP service stopped unexpectedly","reason":"revocation_liveness"}\n'
+        raw += b'{"msg":"Relay hook decision","operation":"Ping","decision":"device_denied"}\n'
+        output = io.StringIO()
+        with redirect_stdout(output):
+            events = relay_log.hook_events(lambda remaining: raw)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]['decision'], 'device_denied')
+        self.assertEqual(output.getvalue().splitlines(), [
+            'NETHUB_NATIVE_HINT=relay_hook_log_runtime_exit',
+            'NETHUB_NATIVE_HINT=relay_hook_log_revocation_liveness'])
+
+    def test_legacy_plain_service_failures_still_fail_with_distinct_hints(self):
+        for line, kind in ((b'Authz HTTP service stopped unexpectedly', 'runtime_exit'),
+                           (b'Initial relay revocation snapshot is unavailable', 'initial_snapshot_failure'),
+                           (b'Authz database connection failed; check settings and the authz password file', 'initial_database_failure')):
+            output = io.StringIO()
+            with self.subTest(kind=kind), redirect_stdout(output), self.assertRaises(AssertionError):
+                relay_log.hook_events(lambda remaining: line + b'\n')
+            self.assertIn('NETHUB_NATIVE_HINT=relay_hook_log_' + kind, output.getvalue())
+
 
 if __name__ == '__main__':
     unittest.main()

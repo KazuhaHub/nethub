@@ -238,10 +238,20 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 		worker = revocations.Run
 	}
 	if err := serveAuthzMonitored(ctx, server, listener, hooks, hookListener, worker); err != nil {
-		fmt.Fprintln(stderr, "Authz HTTP service stopped unexpectedly")
+		logAuthzExit(logger, err)
 		return 1
 	}
 	return 0
+}
+
+// Keep runtime failures in the same JSON stream as hook decisions. Export only
+// a fixed classification, never the listener, database or worker error text.
+func logAuthzExit(logger *slog.Logger, err error) {
+	reason := "service_failure"
+	if errors.Is(err, relayhook.ErrRevocationLiveness) {
+		reason = "revocation_liveness"
+	}
+	logger.Error("Authz HTTP service stopped unexpectedly", "reason", reason)
 }
 
 // A stuck database driver must not prevent a failed authz process from exiting.
