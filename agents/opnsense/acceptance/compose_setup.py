@@ -37,6 +37,14 @@ ERRORS.update({
     'relay_revocation_denial_missing': (b'revoked control session lacked its actual Pong error, Ping and reconnect Login denials',),
     'relay_snapshot_seed_timeout': (b'isolated fleet-pressure seed exceeded its caller budget',),
 })
+# These markers carry only closed curl/process/body/Pong observations. Empty
+# needles require exact marker lines rather than substring matches (e.g. 3/35).
+ERRORS.update({name: () for name in (
+    'relay_preparation_observation_unavailable',
+    'relay_preparation_body_matched', 'relay_preparation_body_unmatched',
+    'relay_preparation_client_running', 'relay_preparation_client_exited',
+    'relay_preparation_Pong_observed', 'relay_preparation_Pong_unobserved',
+    *('relay_preparation_curl_exit_' + str(code) for code in range(256)))})
 SOURCES.update({name: name.removesuffix('.go') for name in (
     'pebble_integration_test.go', 'pebble_http01_test.go', 'pebble_host_linux_test.go',
     'pebble_host_enrollment_linux_test.go', 'pebble_database_test.go', 'pebble_coordinator_test.go')})

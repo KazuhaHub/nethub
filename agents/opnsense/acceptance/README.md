@@ -396,6 +396,17 @@ separately. Portable injected failures cover each category during both rollback
 and upgrade, but a fresh exact-source hosted run is required to diagnose the
 original native failure. Historical version-2 reports remain unchanged.
 
+The first diagnostic source, `870eb57`, passed six-job CI and isolated cold
+recovery, but installed run `43723295382` failed during the dedicated heartbeat
+client's verified-TLS preparation, before native package migration. No migration
+category was observed in that run. Its failure and owned-image cleanup remain
+recorded; it is not an upgrade result. A failed heartbeat preparation now emits
+only allowlisted curl exit, exact-body-match, process-alive and successful-Pong
+presence hints through the existing closed setup projection. It reuses the last
+probe result and reads the existing process/log once, without repeating a probe,
+enrollment, Open, SQL, client start or revocation. The preparation and five-second
+revocation budgets are unchanged.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)

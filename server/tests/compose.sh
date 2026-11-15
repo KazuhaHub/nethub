@@ -29,6 +29,7 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 python3 "$root/server/tests/test_compose_boundaries.py"
 python3 "$root/server/tests/test_trust_report_fault.py"
 python3 "$root/server/tests/test_relay_migration.py"
+python3 "$root/server/tests/test_relay_heartbeat.py"
 python3 "$root/server/tests/test_relay_cache_phase.py"
 python3 "$root/server/tests/test_relay_network_blip.py"
 python3 "$root/server/tests/test_relay_control_drop.py"

@@ -16,6 +16,17 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise RuntimeError('unexpected private frps admin redirect')
 
 
+def preparation_failure_hints(curl_exit, body_matches, client_running, successful_pong):
+    """Project only fixed local observations; never include endpoints or output."""
+    if (type(curl_exit) is not int or not 0 <= curl_exit <= 255
+            or any(type(flag) is not bool for flag in (body_matches, client_running, successful_pong))):
+        raise ValueError('Invalid relay preparation observation')
+    return ('relay_preparation_curl_exit_' + str(curl_exit),
+            'relay_preparation_body_' + ('matched' if body_matches else 'unmatched'),
+            'relay_preparation_client_' + ('running' if client_running else 'exited'),
+            'relay_preparation_Pong_' + ('observed' if successful_pong else 'unobserved'))
+
+
 def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
                         check_tunnels, probe, source, hook_events, revocation_client,
                         stop_revocation_client, fresh_revoked_login):
@@ -236,12 +247,27 @@ def exercise_heartbeats(stage, compose, assignments, clients, gateway, sql,
             target_name = 'nethub-' + target['device_id'] + '-web'
             expected.add(target_name)
             wait_online(expected, time.monotonic() + 15)
+            sample['phase'] = 'verified_TLS_preparation'
             deadline = time.monotonic() + 10
             while True:
                 ready = probe(target, source)
-                if ready.returncode == 0 and ready.stdout.decode() == target['subdomain'] + '.router.example.com':
+                body_matches = ready.stdout == (target['subdomain'] + '.router.example.com').encode('ascii')
+                if ready.returncode == 0 and body_matches:
                     break
-                assert time.monotonic() < deadline, 'dedicated revocation client never completed verified TLS'
+                if time.monotonic() >= deadline:
+                    # Keep the failed preparation failed. Observe the existing
+                    # result/process/log once; do not probe again or replay Open,
+                    # enrollment, SQL, client start or a timed revocation.
+                    try:
+                        if not client_log.is_file() or client_log.stat().st_size > 4 * 1024**2:
+                            raise ValueError('Private client log unavailable')
+                        hints = preparation_failure_hints(ready.returncode, body_matches,
+                            target_client.poll() is None, b'receive heartbeat from server' in client_log.read_bytes())
+                    except (OSError, ValueError):
+                        hints = ('relay_preparation_observation_unavailable',)
+                    for hint in hints:
+                        print('NETHUB_NATIVE_HINT=' + hint, flush=True)
+                    raise AssertionError('dedicated revocation client never completed verified TLS')
                 time.sleep(0.1)
 
             def client_output():
