@@ -231,7 +231,8 @@ jobs:
   deployment:
     name: Deployment checks
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Include fresh-identity pacing and five bounded memory-admission samples.
+    timeout-minutes: 35
     permissions:
       contents: read
     steps:

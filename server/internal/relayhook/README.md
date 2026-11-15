@@ -5,8 +5,10 @@ W4 implements `Login` and `NewProxy`, and W5 adds `NewUserConn` and `Ping` on
 device listener does not serve this route. Enable the separate listener with
 `--hook-listen` and repeatable `--hook-peer` flags. The bind must be an exact
 private or loopback IP; peers are exact socket addresses without CIDRs or DNS.
-Do not publish this port or proxy public requests to it. Forwarding headers do
-not establish relay authority.
+Do not expose this port publicly or proxy public requests to it. Generated
+Compose publishes it only on host loopback for host-network frps; the authz
+listener still binds its private bridge address and checks the configured peer.
+Forwarding headers do not establish relay authority.
 
 The adapter follows frp 0.71.1's [request types](https://github.com/fatedier/frp/blob/v0.71.1/pkg/plugin/server/types.go)
 and [HTTP caller](https://github.com/fatedier/frp/blob/v0.71.1/pkg/plugin/server/http.go).
@@ -95,8 +97,10 @@ process can delay callbacks, and refusing a heartbeat does not promise immediate
 closure of every established browser stream. Newly revoked IDs wait for a
 successful refresh and their next heartbeat; expired-cache refusal is independent
 of a successful read. New Login/proxy/user connections check current SQL. These
-settings target the owner-retained five-second cutoff, whose native/public
-end-to-end measurement remains required; nominal timer values are not acceptance.
+settings target the owner-retained five-second cutoff. Scoped installed and public
+desktop samples have passed; complete W5 acceptance still requires the remaining
+mobile, phase, fleet, fault and migration checks. Nominal timer values are not
+acceptance. See [current measurements and limits](../../../docs/w5-revocation-deadline.md).
 
 The official-client deployment fixture checks actual frps proxy control states
 through its private admin API, not only TLS failures (which could instead be
@@ -113,8 +117,8 @@ shutdown. These native cases passed in run 39219581415 on 3c24e5e; that historic
 suite sends callback HTTP directly. The additional W5 suite exercises current source grants, role
 isolation, expiry during an unchanged row-lock wait, and two actual official
 clients through generated frps. Later [installed heartbeat measurements](../../../deploy/validation-native-w5-heartbeat.md)
-record actual outage/recovery and console revocation, including the unresolved
-W0 timing comparison. [Device rotation](../../../deploy/device-rotation.md) records
+record actual outage/recovery and console revocation, preserving the original
+failed 17.218-second timing comparison. [Device rotation](../../../deploy/device-rotation.md) records
 the installed credential-cutover scope. These later records do not complete
 the remaining combined public/operator W5 acceptance.
 

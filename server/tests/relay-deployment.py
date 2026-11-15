@@ -1,6 +1,7 @@
 """Use actual HTTPS enrollment, two official frpc clients and the deployed relay."""
 
 import http.server
+from collections import deque
 import ipaddress
 import json
 import os
@@ -22,6 +23,7 @@ from relay_rotation import exercise_rotation
 from relay_token_probe import exercise_token_probe
 from relay_token_runtime import exercise_token_runtime
 from relay_migration import exercise_migration
+from relay_cache_phase import exercise_cache_phases
 
 
 stage, port = Path(sys.argv[1]), int(sys.argv[2])
@@ -478,6 +480,46 @@ try:
     print('NETHUB_NATIVE_PHASE=relay_migration', flush=True)
     exercise_migration(stage, compose, assignments, valid_clients, start_client, stop_client,
                        backend.server_port, check_tunnels, sql)
+    # Reserve at most four fresh token attempts per 61-second window. This
+    # preparation delay never resets an irreversible measurement or rate limit.
+    cache_token_attempts = deque()
+
+    def cache_pair(index):
+        if index == 0:
+            time.sleep(61)
+        pair = []
+        for kind in ('anchor', 'target'):
+            now = time.monotonic()
+            while cache_token_attempts and now - cache_token_attempts[0] >= 61:
+                cache_token_attempts.popleft()
+            if len(cache_token_attempts) >= 4:
+                time.sleep(61 - (now - cache_token_attempts[0]))
+                now = time.monotonic()
+                while cache_token_attempts and now - cache_token_attempts[0] >= 61:
+                    cache_token_attempts.popleft()
+            assert len(cache_token_attempts) < 4
+            cache_token_attempts.append(time.monotonic())
+            token = curl('/api/v1/console/enroll-tokens', {}, authenticated=True)['token']
+            assignment = curl('/api/v1/devices/enroll', {'agent_protocol_version': '1.0.0',
+                'enroll_token': token, 'platform': 'opnsense', 'platform_version': '26.7.7',
+                'agent_version': '0.0.2', 'capabilities': ['remote.web'],
+                'hostname': f'cache-{kind}-{index}.example.com', 'cluster_hint': False})
+            (work / f'cache-{kind}-{index}-private.json').write_text(json.dumps(assignment), encoding='utf-8')
+            if kind == 'target':
+                opened = curl('/api/v1/console/devices/' + assignment['device_id'] + '/open', {}, authenticated=True)
+                assert opened['url'] == 'https://' + assignment['subdomain'] + '.router.example.com:8443'
+                grant_local_fixture_source(assignment)
+            pair.append(assignment)
+        return pair
+
+    for assignment in assignments:
+        opened = curl('/api/v1/console/devices/' + assignment['device_id'] + '/open', {}, authenticated=True)
+        assert opened['url'] == 'https://' + assignment['subdomain'] + '.router.example.com:8443'
+        grant_local_fixture_source(assignment)
+    print('NETHUB_NATIVE_PHASE=relay_cache_phase', flush=True)
+    exercise_cache_phases(stage, assignments, valid_clients, cache_pair, start_client, stop_client,
+                          backend.server_port, check_tunnels, sql, probe, local_source, gateway,
+                          fresh_revoked_login)
 finally:
     for client in clients:
         stop_client(client)

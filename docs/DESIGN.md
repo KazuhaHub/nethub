@@ -411,8 +411,13 @@ Console HTTPS is owned by the reverse proxy: bundled Caddy or an administrator-m
   订阅之后，它就成了**全部远程访问**的单点。计划内的 authz 重启或升级同样会断掉恰好在那几秒里发心跳的设备。
 
   采用机制 1 时，下面三条缓解都是硬要求：
-  - `Ping` 处理器只查 authz 内存里的撤销状态，**不碰数据库**。这份状态由后台定时从库里刷新，刷新失败时沿用上一份，
-    不能因此把所有 `Ping` 都拒掉。何况每台设备每个心跳间隔都会来一次 `Ping`，这个量本来也不该每次查库；
+  - `Ping` uses only authz memory; it never queries the database. Background
+    refresh retains known denials and claim floors after failure. The original
+    W0 proposal retained the last good state for admission; the 2026-11-12 D6
+    candidate below supersedes that policy: admission expires 2.5 seconds after
+    read start, and stale state refuses Ping. Neither failed reads nor slow
+    completion extend that authority. This deliberately trades availability
+    during a database outage for bounded revocation exposure;
   - authz 的插件处理器设严格的内部超时：`Login` / `NewProxy` 查库超时就明确返回拒绝，不让 HTTP 请求一直挂着
     （frps 不会替你超时）；`Ping` 的处理路径上不应有任何会阻塞的调用；
   - 健康检查 + 自动重启：docker 的 `restart` 策略只在进程退出时生效，容器被标成 `unhealthy` 并不会触发重启，

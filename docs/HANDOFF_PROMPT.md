@@ -33,11 +33,22 @@ This remains isolated acceptance, not public-network or complete W5 acceptance.
 Earlier failures remain failed; the new FreeBSD result does not identify the
 old loaded library.
 
-The next test fixture exercises mixed heartbeat configurations, ordered rollout
-and rollback with actual pinned official clients. It preserves identity, claims,
-TLS trust and source grants, retaining original witness sockets and every failed
-attempt. It has local boundary checks but no actual migration acceptance yet;
-native package and public/operator compatibility remain separate requirements.
+Source `fd5638e` passed six-job CI and its actual fourteen-phase heartbeat
+configuration rollout/rollback. The two mixed-profile windows retained original
+controls for 45.081/45.167 seconds with genuine Pongs; planned relay restart
+recovery took at most 2.461 seconds. Identity, claims, credentials, TLS trust,
+source grants and the original authz process were preserved, and the exact relay
+configuration was restored. Complete logs, five official browser archives and
+thirteen image hashes/views were checked. Its FreeBSD, unsigned preparation,
+fresh-target and database prerequisites also passed. Its original installed
+native and cold-recovery runs remain in progress; no new result is inferred.
+Native package and public/operator compatibility remain separate requirements.
+
+The next local fixture brackets a canary's memory-admission transition through
+the existing private Ping hook, then checks five preselected phases with fresh
+genuine official-client targets. It has boundary checks but no deployed execution
+yet. Unavailable responses cannot count as publication; exact internal timestamps,
+console clocks and public/native/fleet behavior remain outside that fixture's scope.
 
 Source `dd84da2` passed all seven original hosted workflows: CI, 248 actual
 FreeBSD cases against 255 source blobs, unsigned package preparation, installed

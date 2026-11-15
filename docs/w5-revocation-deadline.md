@@ -246,14 +246,50 @@ source grants and the original authz process must remain unchanged. Every attemp
 phase is retained; a failed migration is not retried. Failure cleanup stops owned
 clients before restoring the original relay config for stack teardown.
 
-These are implemented checks, not accepted migration evidence until the new
-source executes successfully. Their configuration compatibility scope uses an
-isolated deployment and fixture CA, not native package upgrades, public rollout,
-offline-device recovery or larger online fleets. The existing pressure rows
-remain in that disposable database. Native package/version and operator migration
-acceptance remain separate requirements.
+Source `fd5638e` passed all fourteen actual phases in
+[CI 43665111042](https://github.com/KazuhaHub/nethub/actions/runs/43665111042).
+Both mixed windows retained the original controls for 45.081 and 45.167 seconds,
+with four successful old-profile Pongs and forty-five new-profile Pongs each.
+The four planned relay restarts recovered the same client processes and verified
+routes in 2.423, 2.440, 0.526 and 2.461 seconds from restart dispatch. Target
+configuration replacement preserved the witness's original socket. Identity,
+credentials, signed claims, source grants, the original authz process and the
+exact final relay configuration remained unchanged. Complete official logs and
+the ordered phase results were checked; no failed phase was replayed.
+
+This accepts configuration migration with two pinned official frp 0.71.1 clients
+in an isolated deployment and fixture CA. It does not establish native package
+upgrades, public rollout, offline-device recovery or larger online fleets. The
+existing pressure rows remained in that disposable database. Native package and
+operator migration acceptance remain separate requirements.
 
 ## Required validation before acceptance
+
+The next cache-phase fixture observes memory admission through the existing
+private Ping hook, using an unchanged, genuinely enrolled canary claim. A
+concurrent observer brackets its last allow and first authorization denial;
+unavailable, malformed, redirected and over-wide responses fail the attempt.
+The bracket must be at most 150 ms wide. This observes a cache-state transition;
+it does not expose the exact internal publication timestamp or add a test API.
+
+Five fresh official-client targets are revoked at preselected 0/200/400/600/800 ms
+offsets after that observation, with less than 50 ms dispatch lateness; a missed
+phase fails rather than being relabeled. Each must receive its real denial Pong, lose its
+original TCP control and actual frps proxy, and refuse fresh TLS within five
+seconds from SQL dispatch. The two original reference controls, identity fields,
+claims and verified routes must survive. A fresh official Login must fail, and
+the original revoked client must not recover its route during a subsequent
+30-second observation. This is not a console-dispatch clock.
+Every attempt and observation error is retained; irreversible revocations are
+not replayed. Fresh token attempts are paced below the ordinary limit, outside
+measurement windows. Explicit normal Open preparation renews the references'
+grants; traffic never renews grants implicitly.
+
+These checks are implemented locally and have boundary tests, but have not run
+against a deployment yet. They do not establish native/public acceptance,
+short-network behavior, production capacity or full W5 completion. The additional
+bounded preparation raises the CI producer budget to 35 minutes and its image
+observer to 37 minutes; neither change relaxes the five-second cutoff deadline.
 
 1. Preserve every original signature, tenant, peer, claim-floor and disconnect
    completion guard. Test concurrent publication, stalled/cooperative database
