@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/KazuhaHub/nethub/server/internal/externalprobe"
 	"github.com/KazuhaHub/nethub/server/internal/relayprobe"
 	"github.com/KazuhaHub/nethub/server/internal/setup"
 	"github.com/KazuhaHub/nethub/server/internal/store"
@@ -25,6 +26,7 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	directory := flags.String("directory", ".", "Initialized deployment directory")
 	healthURL := flags.String("health-url", "", "Check a private loopback HTTP health endpoint only")
 	expected := flags.String("expected-address", "", "Also check console/wildcard DNS against this address")
+	externalTCP := flags.Bool("external-tcp-check-host", false, "Ask Check-Host to test public TCP 443/7000/8443; target IP and reports may be public")
 	publicTLS := flags.Bool("public-tls", false, "Verify the initialized console hostname on TCP 443 with system certificate trust")
 	audit := flags.Bool("audit", false, "Verify the deployment audit chain in a read-only database snapshot")
 	roles := flags.Bool("database-roles", false, "Check runtime role and device identity privileges through the Web database identity")
@@ -54,6 +56,31 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	}
 	selected := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { selected[f.Name] = true })
+	if *externalTCP {
+		for name := range selected {
+			if name != "external-tcp-check-host" && name != "expected-address" {
+				fmt.Fprintln(stderr, "Run external TCP checks separately with only --expected-address; Check-Host receives the public IP and ports")
+				return 2
+			}
+		}
+		address, err := netip.ParseAddr(*expected)
+		if err != nil || address.Zone() != "" || !address.IsGlobalUnicast() || address.IsPrivate() || address.IsLoopback() || address.IsLinkLocalUnicast() {
+			fmt.Fprintln(stderr, "External TCP checks require --expected-address with the public ingress IP")
+			return 2
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		defer cancel()
+		ports, err := externalprobe.Check(ctx, address)
+		if err != nil {
+			fmt.Fprintf(stderr, "External TCP check failed: %v. Verify listeners, public firewall/NAT rules for 443/7000/8443 and Check-Host availability; retry explicitly after fixing the cause\n", err)
+			return 1
+		}
+		for _, port := range ports {
+			fmt.Fprintf(stdout, "TCP %d: all %d external observers connected to the expected public IP\n", port.Number, port.Nodes)
+		}
+		fmt.Fprintln(stdout, "TCP reachability only; run DNS, public TLS, relay admission and published appliance version checks separately")
+		return 0
+	}
 	if *recentBackup {
 		allowed := map[string]bool{"recent-backup": true, "backup-directory": true, "backup-max-age": true, "backup-timeout": true, "host": true, "port": true, "database": true, "password-file": true, "sslmode": true}
 		for name := range selected {
