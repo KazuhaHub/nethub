@@ -140,9 +140,15 @@ def exercise_migration(stage, compose, assignments, clients, start_client, stop_
         path = Path(os.fsdecode(args[2]))
         assert path.parent == stage / 'relay-test' and path.resolve() == path and not path.is_symlink()
         value = json.loads(path.read_bytes())
+        assert value['serverAddr'] == '127.0.0.1' and value['serverPort'] == assignments[index]['server_port']
+        assert value['auth']['method'] == 'token'
         assert value['auth']['token'] == assignments[index]['frp_token']
         assert value['metadatas'] == {key: assignments[index][key] for key in ('device_id', 'domain_claim')}
-        assert value['transport']['tcpMux'] is True and value['transport']['tls']['enable'] is True
+        assert value['transport']['tcpMux'] is True
+        assert value['transport']['tls'] == {'enable': True, 'serverName': assignments[index]['server_name'],
+            'trustedCaFile': str(stage / 'relay-test/relay-ca.pem')}
+        assert value['proxies'] == [{'name': 'nethub-' + assignments[index]['device_id'] + '-web', 'type': 'https',
+            'localIP': '127.0.0.1', 'localPort': backend_port, 'subdomain': assignments[index]['subdomain']}]
         return (value['transport']['heartbeatInterval'], value['transport']['heartbeatTimeout'])
 
     timings = [client_timing(index) for index in range(2)]
