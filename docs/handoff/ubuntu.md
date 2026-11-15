@@ -45,6 +45,12 @@ The portable helper below uses the exact Node/Go container digests already in
 The guest's Python 3.13 is installed by the appliance fixture, not copied from
 the workstation.
 
+The helper checks host PHP/OpenSSL before running the Python contracts. It
+extracts the pinned Node executable into `.handoff-build/bin` for the Python
+JavaScript projection test, and adds OpenSSL to a derived console-check image
+for the ephemeral-certificate negative control. Neither operation installs
+software on the host or changes the production build image.
+
 Allow roughly 12 GiB free for the portable build's images/caches/output and
 reserve, and more for full integration. A disposable integration machine with
 16 GiB RAM and 40 GiB free storage is a reasonable planning allocation; check

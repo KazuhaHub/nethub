@@ -9,7 +9,7 @@ if [[ $(uname -s) != Linux || $(uname -m) != x86_64 ]]; then
   echo 'Use this helper on Linux x86_64; the handoff documents the Ubuntu environment.' >&2
   exit 2
 fi
-for command in docker python3 git; do
+for command in docker python3 git php openssl; do
   command -v "$command" >/dev/null || { echo "Install $command first." >&2; exit 2; }
 done
 docker info >/dev/null
@@ -26,6 +26,25 @@ go_image=$(awk '$1 == "FROM" && $NF == "build" {print $2}' deploy/Dockerfile)
   exit 2
 }
 mkdir -p .handoff-build
+# The Python action-response contract invokes Node even when the console checks
+# run in Docker. Supply that executable from the same pinned runtime rather than
+# silently depending on an optional host installation.
+mkdir -p .handoff-build/bin
+docker run --rm --entrypoint cat "$node_image" /usr/local/bin/node > .handoff-build/bin/node.new
+chmod 0755 .handoff-build/bin/node.new
+mv .handoff-build/bin/node.new .handoff-build/bin/node
+export PATH="$root/.handoff-build/bin:$PATH"
+test "$(node --version)" = v24.14.0
+
+# The production console builder does not need OpenSSL, but the TLS negative
+# control creates an ephemeral certificate. Install it in a derived check image;
+# keep both the production image and the host unchanged.
+docker build --build-arg "NODE_IMAGE=$node_image" --iidfile .handoff-build/node-check-image - <<'DOCKERFILE'
+ARG NODE_IMAGE
+FROM ${NODE_IMAGE}
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
+DOCKERFILE
+node_check_image=$(cat .handoff-build/node-check-image)
 python3 -m venv .handoff-build/venv
 .handoff-build/venv/bin/python -m pip install --disable-pip-version-check \
   pytest==8.3.5 jinja2==3.1.6 jsonschema==4.25.1
@@ -33,7 +52,7 @@ python3 -m venv .handoff-build/venv
 
 docker run --rm --user "$(id -u):$(id -g)" \
   --env HOME=/tmp --env npm_config_cache=/tmp/npm-cache \
-  --volume "$root:/src" --workdir /src/server/web "$node_image" \
+  --volume "$root:/src" --workdir /src/server/web "$node_check_image" \
   sh -eu -c 'npm ci --ignore-scripts; npm run format:check; npm test; npm run build'
 docker run --rm --user "$(id -u):$(id -g)" \
   --env HOME=/tmp --env GOWORK=off --env GOTOOLCHAIN=local \
