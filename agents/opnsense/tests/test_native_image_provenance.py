@@ -64,6 +64,20 @@ def test_native_package_private_fields_are_rejected_before_publication(tmp_path,
     assert changed == []
 
 
+def test_post_wan_private_fields_are_rejected_before_publication(tmp_path, monkeypatch):
+    directory = tmp_path / 'native'
+    directory.mkdir()
+    (directory / 'post-wan-console-failure.json').write_text(json.dumps(
+        {'diagnostic_only': True, 'private': 'must-not-be-published'}))
+    changed = []
+    monkeypatch.setenv('SUDO_UID', '1000')
+    monkeypatch.setenv('SUDO_GID', '1000')
+    monkeypatch.setattr(SUITE.os, 'chown', lambda *args: changed.append(args), raising=False)
+    with pytest.raises(ValueError, match='Unexpected post-WAN diagnostic'):
+        SUITE.publish_evidence(tmp_path)
+    assert changed == []
+
+
 @pytest.mark.parametrize('name', ['guest-console-probe.json', 'guest-console-after-wan-probe.json'])
 def test_console_probe_with_private_extra_field_cannot_be_published(tmp_path, monkeypatch, name):
     directory = tmp_path / 'native'

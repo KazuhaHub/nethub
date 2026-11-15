@@ -377,7 +377,8 @@ def _exercise(guest, stage, port, project, evidence, packages, cleanup):
     validate_result(probe)
     private_json(evidence / 'guest-console-after-wan-probe.json', probe)
     if probe['passed'] is not True:
-        raise GuestError('Guest console after WAN probe failed at ' + probe['phase'] + ': ' + probe['failure'])
+        from post_wan_failure import refuse
+        refuse(probe, guest, stage, port, evidence, nonce, os.environ.get('NETHUB_SOURCE_HEAD', ''))
     package_migration = exercise_package_migration(guest, stage, compose, evidence, nonce, packages,
         native_read, route, lambda: fixture('inspect', host=host), check_wan_database,
         survivor, survivor_route, survivor_sockets)

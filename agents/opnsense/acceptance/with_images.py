@@ -18,6 +18,7 @@ from route_failure import validate as validate_route_failure
 from native_model_probe import validate_rotation_conditions
 from console_probe import validate_result as validate_console_probe
 from package_migration import validate as validate_package_migration
+from post_wan_failure import validate as validate_post_wan_failure
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -46,6 +47,7 @@ PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installe
                 'native/compose-tail.json', 'native/installed-remove-page.json', 'native/installed-remove.png',
                 'native/guest-console-probe.json',
                 'native/guest-console-after-wan-probe.json',
+                'native/post-wan-console-failure.json',
                 'native/native-model-probe.json',
                 'native/rotation-recovery-probe.json',
                 'native/native-storage-probe.json',
@@ -88,6 +90,10 @@ def publish_evidence(directory):
                 if not 0 < path.stat().st_size <= 1024:
                     raise GuestError('Console probe evidence exceeds bound')
                 validate_console_probe(json.loads(path.read_text(encoding='utf-8')))
+            if name == 'native/post-wan-console-failure.json':
+                if not 0 < path.stat().st_size <= 2048:
+                    raise GuestError('Post-WAN diagnostic exceeds bound')
+                validate_post_wan_failure(json.loads(path.read_text(encoding='utf-8')))
             files.append(path)
     for path in files:
         os.chown(path, uid, gid)

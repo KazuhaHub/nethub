@@ -418,6 +418,24 @@ route or WAN address. These are fixed names only; all original boundary checks
 remain mandatory and no failed read, transfer or mutation is replayed by this
 diagnostic change.
 
+Installed run `43760255139` at `52e3362` failed still earlier, at its separate
+console probe after the successful WAN-recovery substep. Its reported phase was
+`tls` with failure `http_failure`; no migration baseline or package switch ran.
+That old projection conflated TLS timeout/I/O with HTTP failure, and labeled the
+second TCP connect as TLS before the connection was established. The observer
+now distinguishes those failures without changing its three connections, normal
+system trust, five-second socket bounds, ten-second HTTP bound or success rule.
+
+On that same refusal path, one read-only package snapshot and one credential-free
+host console GET retain only closed process/control-presence flags, known probe
+failure kinds, curl exit/HTTP status and elapsed time. The package read uses the
+existing narrow SSH transport-recovery allowance; its four-event budget does not
+change. No enrollment, Open, package operation or original console probe is
+replayed. The original console failure is raised even when both diagnostic reads
+succeed or diagnostic storage fails. The new bounded report is validated before
+publication; private values, fingerprints, commands and exception messages are
+excluded. These observations do not establish causality or upgrade acceptance.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)
