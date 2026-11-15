@@ -15,6 +15,30 @@
 
 ### Current state (updated 2026-11-15 UTC)
 
+Source `1065999` passed actual FreeBSD execution: Python 3.12.16 and 3.13.18 both
+parsed XML using Expat 2.10.0, followed by 248 native cases over 255 bound source
+blobs. Its exact two-entry official archive and complete log were checked.
+CI, unsigned preparation, distinct target, PostgreSQL diagnosis and isolated cold
+recovery also passed with their logs, official archive digests and actual views
+reviewed. Cold baseline routing recovered in 125.432 seconds from source stop;
+the original request's issuance, native acknowledgement and served-leaf route
+completed in 258.967 seconds from that stop, or 276.371 seconds from checkpoint
+start. These are recovery intervals, not standalone CA-generation durations.
+The installed-native run also passed: normal console Revoke removed its proxy
+in 1.233 seconds from before confirmation, followed by 30.072 seconds without
+reconnect and fresh verified TLS refusal. WAN recovery took 4.123 and 4.741
+seconds with the same client process. Its complete logs, exact 41-entry official
+archive and fourteen image hashes covering eight unique views were reviewed.
+This remains isolated acceptance, not public-network or complete W5 acceptance.
+Earlier failures remain failed; the new FreeBSD result does not identify the
+old loaded library.
+
+The next test fixture exercises mixed heartbeat configurations, ordered rollout
+and rollback with actual pinned official clients. It preserves identity, claims,
+TLS trust and source grants, retaining original witness sockets and every failed
+attempt. It has local boundary checks but no actual migration acceptance yet;
+native package and public/operator compatibility remain separate requirements.
+
 Source `dd84da2` passed all seven original hosted workflows: CI, 248 actual
 FreeBSD cases against 255 source blobs, unsigned package preparation, installed
 native rotation, distinct recovery target, PostgreSQL diagnosis and protected
@@ -42,8 +66,8 @@ Python 3.13.18 could not import `pyexpat`, reporting the missing dynamic symbol
 `XML_GetCurrentLineNumber64`. Full logs and the official source archive were
 retained; no native contract result exists for that run. The follow-up explicitly
 selects Expat and both interpreters, records linked libraries/package versions
-and requires actual XML imports/parsing before pip. It needs a new real FreeBSD
-execution; the earlier guest's exact loaded library version remains unknown.
+and requires actual XML imports/parsing before pip. The `1065999` execution above
+passed; the earlier guest's exact loaded library version remains unknown.
 
 An earlier separate public desktop trial on native build `f08585d` and server images
 `d5c0d5f` closed the original verified GUI TLS connection in 771 ms and removed

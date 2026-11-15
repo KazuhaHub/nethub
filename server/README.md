@@ -91,9 +91,10 @@ samples do not complete mobile, fleet, fault or migration acceptance.
 
 - Public TCP 80/443: reverse proxy and reviewed HTTP-01 device-certificate route.
 - Public TCP 7000: relay TLS control; 8443: relayed device GUI TLS.
-- PostgreSQL and application HTTP origins remain private. Generated hook/admin
-  publications bind only to host loopback for host-network frps; authz also
-  validates its configured peer. These are not public APIs.
+- PostgreSQL and application HTTP origins remain private. The generated hook
+  publication binds to host loopback for host-network frps. Its admin API binds
+  the deployment's private edge gateway; authz uses that address and checks its
+  configured hook peer. Neither interface is a public API.
 
 [External-proxy mode](../deploy/external-proxy.md) must preserve reviewed routing
 and forwarding policy. GUI issuance additionally requires a separately provisioned
