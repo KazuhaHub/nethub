@@ -113,6 +113,30 @@ participation be recorded and skipped temporarily while independent work continu
   installed acceptance remain pending. This does not prove the prior native
   failure was caused by log framing.
 
+  Source `2523ab9` subsequently passed six-job CI `43772146655` and its
+  independently verified exact-source image gate, FreeBSD `43772146565`
+  (252 cases, 258 source blobs) and preparation `43772146624`. Installed
+  `43772146507` failed before guest creation with fixed plain-prefix,
+  service-failure and invalid-record hints; owned-image cleanup passed.
+  The reader refused a complete service-failure record, rather than accepting
+  an incomplete tail. The old aggregate category does not identify which of
+  its three known service-failure messages occurred. Cold `43772146549` passed
+  isolated recovery and cleanup: baseline 126637 ms and original-request
+  issuance 178305 ms from source stop. These distinct outcomes and all 13
+  reviewed console images are retained in the
+  [source-bound checkpoint](evidence/ubuntu-2523ab9/index.json).
+- [PR 251](https://github.com/KazuhaHub/nethub/pull/251), source
+  `d33302f5420f6d90cc04b7e5142bc9660569d987`, makes unexpected authz runtime
+  exits use its JSON logger with only fixed service/liveness reasons. Nonzero
+  exit, supervisor, listener closure, restart policy and cutoff clocks remain
+  unchanged. Runtime-exit events remain visible through fixed hints; legacy
+  plain service failures still fail with distinct categories. No malformed
+  record is discarded or added to startup exceptions. Targeted Go 1.26.11
+  tests and vet, 12 log tests, three heartbeat tests and 37 related checks
+  passed. Fresh CI `43776402103` and installed run `43776401967` are pending.
+  The earlier service-exit cause and original package-upgrade cause remain
+  unproven; no installed upgrade is accepted.
+
 The [local framing record](evidence/local-relay-log-framing/index.json) is
 reproducible from a full clone using a local Docker endpoint and its cached
 pinned build image:

@@ -255,11 +255,16 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage)
         assert native['failure'] == 'Guest console after WAN probe failed at tls: http_failure'
         assert read('native', 'native/installed-wan-recovery.json')['passed'] is True
         assert read('native', 'native/guest-console-after-wan-probe.json')['passed'] is False
-    elif failure_stage == 'authz_log':
+    elif failure_stage in ('authz_log', 'plain_service_failure'):
         assert deployment['compose_setup']['phase'] == 'relay_heartbeat'
         assert deployment['failure'] == 'Owned native deployment failed at relay_heartbeat'
-        assert deployment['compose_setup']['hints'] == []
-        assert {'source': 'relay_deployment', 'line': 60} in deployment['compose_setup']['locations']
+        if failure_stage == 'authz_log':
+            assert deployment['compose_setup']['hints'] == []
+            assert {'source': 'relay_deployment', 'line': 60} in deployment['compose_setup']['locations']
+        else:
+            assert deployment['compose_setup']['hints'] == [
+                'relay_hook_log_invalid_record', 'relay_hook_log_plain_prefix', 'relay_hook_log_service_failure']
+            assert {'source': 'relay_log', 'line': 34} in deployment['compose_setup']['locations']
         with zipfile.ZipFile(directory / 'native/original.zip') as archive:
             assert archive.namelist() == ['deployment-result.json']
     else:
@@ -344,4 +349,7 @@ if __name__ == '__main__':
     verify_runtime_checkpoint(ROOT, '359bf94eab8c3339671fb1b0af1a6c4133f26ad1',
         {'CI': 43766613173, 'native': 43766613555, 'cold': 43766613544,
          'preparation': 43766613091, 'filesystem': 43766613099}, 258, 'authz_log')
+    verify_runtime_checkpoint(ROOT, '2523ab981f953e0a4d5dce994fbdff593d09d8fe',
+        {'CI': 43772146655, 'native': 43772146507, 'cold': 43772146549,
+         'preparation': 43772146624, 'filesystem': 43772146565}, 258, 'plain_service_failure')
     verify_local_framing()

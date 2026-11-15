@@ -99,3 +99,14 @@ cached pinned image to repeat it. This demonstrates an incomplete log tail and
 its bounded, byte-preserving read; it does not attribute the prior native failure
 or qualify installed upgrades. The verifier checks the source/helper/reproducer
 hashes and the retained closed result, without executing Docker.
+
+## Closed service-failure checkpoint
+
+[`ubuntu-2523ab9/index.json`](ubuntu-2523ab9/index.json) retains five exact-source
+runs and 33 closed files. Installed execution failed before guest creation with
+plain-prefix/service-failure/invalid-record hints. This observed refusal is
+distinct from the separately reproduced incomplete-tail mechanism. CI,
+preparation, FreeBSD contracts and isolated recovery passed separately; the
+continuation verifier checks all source bindings, original ZIPs, 258 source
+blobs and screenshots. The exact earlier service failure remains unproven;
+the aggregate category does not establish which of three fixed messages occurred.
