@@ -1,6 +1,7 @@
 # NetHub threat model
 
 > Implementation review: 2026-10-29 UTC; recovery evidence updated 2026-11-06 UTC.
+> Revocation evidence and the waived network sample clarified 2026-11-15 UTC.
 > NetHub is pre-alpha, without a signed
 > production release. This review reconciles the original 2026-10-16 design
 > draft with current sources and accepted records. It is not an independent
@@ -266,10 +267,15 @@ offline fleet and complete restoration gates remain open.
 
 One-way database revocation, combined Ping/Login/NewProxy denial and fresh
 connection denial provide observed cutoff for the tested normal clients. The
-installed measurement was 17.218 seconds from console confirmation dispatch;
-its 374.172-second no-reconnect observation is bounded evidence. It exceeds W0's
-2.136-4.958-second probe range, so the PLAN comparison remains open. It is not a
-guarantee for modified clients, existing streams or a frozen dependency.
+original installed measurement took 17.218 seconds from console confirmation
+dispatch and failed the retained five-second target; its 374.172-second
+no-reconnect observation remains separately bounded evidence. The owner retained
+that target on 2026-11-12. The current 1/3-second heartbeat and expiring-cache
+candidate has later scoped measurements, including a 1.638-second installed
+cutoff and a separate 1.811-second public fresh-TLS refusal. See the
+[source-bound measurements and failures](w5-revocation-deadline.md).
+Mobile, migration, fault and final-source gates remain open. These results do
+not guarantee modified-client, old-stream or arbitrary frozen-dependency cutoff.
 
 ### 4.11 Supply chain
 
@@ -327,11 +333,14 @@ be substituted for that release process.
 
 ### F3. Revocation timing and public/mobile coverage remain open
 
-The stock/native measurements prove cutoff in their recorded cases. The W5
-product sample is slower than the W0 probe range. Mobile console Open,
-company/campus filtering and broader dual-stack/modified-client coverage remain
-unmeasured or incomplete. Preserve the actual limits rather than declaring all
-networks or a universal deadline covered.
+The five-second requirement remains in force. The original slower installed
+failure and later scoped native/public successes are retained separately;
+neither isolated SQL measurements nor green CI closes full W5. Mobile console
+Open, complete native package migration and broader fault/fleet acceptance
+remain open. The owner waived the third company/campus sample; it remains
+unmeasured and is not a required replacement gate. Broader dual-stack and
+modified-client behavior remains unverified. Preserve these limits rather than
+claiming every network or an unconditional deadline is covered.
 
 ### F4. Complete restore and remaining operational checks
 
