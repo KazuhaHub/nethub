@@ -364,6 +364,13 @@ failed at the combined-fault reference-log precondition, so the installed-native
 consumer was skipped. Its revised outage observer has no native acceptance from
 that run. The failed producer and skipped consumer are recorded separately.
 
+The corrected producer, source `d7c0c4e`, passed complete CI, including genuine
+combined packet loss and revocation with twelve original reference controls.
+Its installed-native consumer and protected-host recovery are running. Producer
+success does not establish either native package migration or cold recovery;
+both still require their original completed logs, source-bound reports, archive
+digests, actual views and owned cleanup checks.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)

@@ -15,6 +15,19 @@
 
 ### Current state (updated 2026-11-15 UTC)
 
+Source `d7c0c4e` passed complete six-job CI and four independent prerequisites;
+their complete logs, archive digests and required views were reviewed. Its
+genuine combined-fault scenario retained 99,000 revoked rows, 99,000 rotation
+floors and twelve original reference controls. During measured target packet
+loss, SQL revocation closed the original control/proxy in 1.436 seconds and
+refused fresh verified TLS in 1.446 seconds. No authenticated reconnect occurred
+for 30.050 seconds; every reference retained its route and at least 33 genuine
+Pongs. Service identities, valid source grants and original OUTPUT rules survived.
+This accepts the isolated combined scenario, not arbitrary public-network loss,
+a large online fleet, native package migration, mobile or complete W5 acceptance.
+Its original installed-native and protected-host cold recovery jobs remain live;
+do not rerun them or claim their results before reviewing actual evidence.
+
 Source `ecdb305` passed the database, distinct-target, unsigned preparation and
 actual FreeBSD prerequisites, with their logs, archive digests and native views
 reviewed. Its deployment CI failed before applying real packet loss or dispatching
@@ -27,8 +40,9 @@ cold-recovery consumers were skipped by their failed producer gate.
 The correction enables heartbeat logging when those original clients first
 start, preserving their processes and the twelve-client observation requirement.
 Synthetic unit failure summaries stay captured inside their tests. The revised
-package-outage observer and genuine combined fault scenario still require actual
-hosted acceptance; no new cutoff or package migration is claimed for `ecdb305`.
+package-outage observer still requires actual installed acceptance. The later
+combined result above does not turn this earlier failure into a pass; no new
+cutoff or package migration is claimed for `ecdb305`.
 
 Source `da5da34` passed six original prerequisites: complete CI, actual FreeBSD
 contracts, unsigned appliance preparation, distinct recovery target, PostgreSQL

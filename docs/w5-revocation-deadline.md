@@ -475,9 +475,9 @@ and revoke, public operator recovery, durable off-host custody and real renewal
 clocks remain open. Earlier failed timings and incomplete observations remain
 failed; this checkpoint does not replace them or complete the project.
 
-### Combined-fault fixture awaiting execution
+### Isolated combined-fault validation
 
-The next isolated fixture retains the two original controls and ten genuine
+This isolated fixture retains the two original controls and ten genuine
 load clients after the existing 99,000-revocation/99,000-floor pressure window.
 It clears the normal enrollment rate window without retrying an enrollment,
 then creates one additional ordinary device and verifies its TLS route and
@@ -507,9 +507,20 @@ does not replay the delete. If the object still exists or observation fails,
 cleanup remains failed. The packet-loss clock uses the later observed removal
 time; successful cleanup does not turn an over-budget loss interval into a pass.
 
-Portable orchestration, negative-result and cleanup tests have passed. The real
-combined scenario has not run yet and is not accepted. Twelve reference clients
-and synthetic authority rows do not establish a large online fleet, arbitrary
+Portable orchestration, negative-result and cleanup tests passed. The genuine
+scenario then passed in [source `d7c0c4e` CI](https://github.com/KazuhaHub/nethub/actions/runs/43692996933).
+The exact-source closed runtime record, selected after the real fleet-phase
+marker, was checked against the complete original job log. Actual loss dropped
+six packets (782 bytes) over 1.279 seconds. From before SQL revocation dispatch,
+commit took 107 ms, original control/proxy closure 1,436 ms and fresh verified TLS
+refusal 1,446 ms. The original retry process could not authenticate a proxy for
+30,050 ms. All twelve original references retained their controls and verified
+routes, each with at least 33 genuine Pongs during the observation. All six
+service identities, target identity, valid source grants and exact prior OUTPUT
+rules were preserved; the 99,000 revoked rows and 99,000 floors remained present.
+The full CI, five official browser archives, thirteen required image hashes and
+actual changed views were reviewed separately. Twelve reference clients and
+synthetic authority rows do not establish a large online fleet, arbitrary
 network-loss tolerance, native/public behavior or complete W5 acceptance.
 
 The first hosted attempt, source `ecdb305`, stopped at its reference-log
