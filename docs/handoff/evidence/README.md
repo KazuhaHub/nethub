@@ -27,3 +27,26 @@ domains, with the browser masks supplied by the original tests. Native footer
 clipping and mobile preformatted horizontal overflow are recorded in
 `../validation.md`. The checks do not imply full native/package/public-provider,
 operator, canary or release acceptance.
+
+## First Ubuntu diagnostic checkpoint
+
+The separate [Ubuntu index](ubuntu-870eb57/index.json) retains 33 closed files
+for source `870eb575cec13f4869e7848aac2cdc9b7c93307a`: five original run/job
+records, four original small artifact ZIPs, selected closed reports and the
+thirteen reviewed console images. CI, FreeBSD contracts, appliance preparation
+and isolated cold recovery passed. Installed run `43723295382` failed at the
+dedicated heartbeat client's verified-TLS preparation before native migration;
+there is no new package-upgrade diagnosis or acceptance from that run.
+
+Run both checks from a complete clone:
+
+```sh
+python3 tools/handoff/verify.py
+python3 tools/handoff/verify_continuation.py
+```
+
+The continuation verifier checks official ZIP digests, recorded source/attempt
+identities, the original source archive, 256 Git blobs, screenshot hashes and
+the distinct failed/native versus passed/isolated outcomes. Raw logs remain
+private; only their hashes are retained. These records do not qualify a changed
+source, an operator network, formal packaging or release.
