@@ -359,6 +359,11 @@ and reconcile are not replayed. This planned-outage preparation budget is
 separate from the unchanged five-second console revocation requirement. The
 revised scenario still needs its own actual installed execution.
 
+Source `ecdb305` did not reach this package scenario: its image-producing CI
+failed at the combined-fault reference-log precondition, so the installed-native
+consumer was skipped. Its revised outage observer has no native acceptance from
+that run. The failed producer and skipped consumer are recorded separately.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)

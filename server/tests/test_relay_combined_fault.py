@@ -189,7 +189,9 @@ class CombinedObservationTests(unittest.TestCase):
     def failed_case(self, failure):
         with ExitStack() as stack:
             arguments, state, report = self.scenario(stack, failure)
-            with self.assertRaises((TimeoutError, ValueError)):
+            # Synthetic failure records must not resemble genuine runtime
+            # observations in the enclosing deployment log.
+            with redirect_stdout(io.StringIO()), self.assertRaises((TimeoutError, ValueError)):
                 combined._exercise_combined_fault(*arguments)
             result = json.loads(report.read_text())
             self.assertFalse(result['passed'])

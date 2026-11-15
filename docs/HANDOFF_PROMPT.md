@@ -15,6 +15,21 @@
 
 ### Current state (updated 2026-11-15 UTC)
 
+Source `ecdb305` passed the database, distinct-target, unsigned preparation and
+actual FreeBSD prerequisites, with their logs, archive digests and native views
+reviewed. Its deployment CI failed before applying real packet loss or dispatching
+the combined target revocation: the two original references used warning-level
+logs, while the new scenario correctly required observable Pongs on all twelve
+references. The real failure was selected after its runtime phase marker;
+synthetic unit-test failure records were excluded. Both installed-native and
+cold-recovery consumers were skipped by their failed producer gate.
+
+The correction enables heartbeat logging when those original clients first
+start, preserving their processes and the twelve-client observation requirement.
+Synthetic unit failure summaries stay captured inside their tests. The revised
+package-outage observer and genuine combined fault scenario still require actual
+hosted acceptance; no new cutoff or package migration is claimed for `ecdb305`.
+
 Source `da5da34` passed six original prerequisites: complete CI, actual FreeBSD
 contracts, unsigned appliance preparation, distinct recovery target, PostgreSQL
 diagnosis and isolated protected-host cold recovery. Their full logs, exact

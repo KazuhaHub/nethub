@@ -222,7 +222,7 @@ try:
 
     valid_clients = []
     for index, assignment in enumerate(assignments):
-        valid_clients.append(start_client(assignment, f"client{index}", backend.server_port))
+        valid_clients.append(start_client(assignment, f"client{index}", backend.server_port, debug=True))
     # Console ingress crosses the fixture bridge; host-local relay probes can
     # undergo an additional source translation. Keep both observations explicit.
     caddy = subprocess.run(compose + ["ps", "--quiet", "caddy"],capture_output=True,timeout=10)

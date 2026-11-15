@@ -511,3 +511,12 @@ Portable orchestration, negative-result and cleanup tests have passed. The real
 combined scenario has not run yet and is not accepted. Twelve reference clients
 and synthetic authority rows do not establish a large online fleet, arbitrary
 network-loss tolerance, native/public behavior or complete W5 acceptance.
+
+The first hosted attempt, source `ecdb305`, stopped at its reference-log
+precondition: the original two clients lacked debug-level Pong observations.
+It reached neither real packet loss nor target revocation. Its failed original
+log and source-bound closed record are retained, and dependent native/recovery
+jobs were skipped. The correction enables private debug logs from the original
+clients' initial start; it does not restart them or weaken the requirement to
+observe all twelve references. Synthetic failure summaries are captured by the
+unit tests and are not runtime measurements.
