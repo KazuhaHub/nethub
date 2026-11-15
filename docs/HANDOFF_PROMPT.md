@@ -13,7 +13,7 @@
 这样你在任何地方都能打开在 NAT 或 CGNAT 后面的路由器的管理页面。
 项目负责人是 **Kazuha**。凡是要拍板的事都归他，你负责按计划执行，并拿出证据。
 
-### Current state (updated 2026-11-14 UTC)
+### Current state (updated 2026-11-15 UTC)
 
 Source `dd84da2` passed all seven original hosted workflows: CI, 248 actual
 FreeBSD cases against 255 source blobs, unsigned package preparation, installed
@@ -25,7 +25,7 @@ in 1.638 seconds, with fresh TLS refusal and 30.061 seconds without reconnect;
 the independent original reference control survived. This is hosted isolated
 acceptance, not public-network or complete W5 acceptance.
 
-A new genuine public enrollment subsequently passed a complete desktop sample:
+A new genuine public enrollment passed a complete desktop sample on 2026-11-15 UTC:
 the original GUI TLS socket closed in 1.747 seconds, control/proxy disappeared
 in 1.776 seconds and fresh TLS was refused in 1.811 seconds, all measured from
 before normal console confirmation. No reconnect occurred during 30.171 seconds;
@@ -35,6 +35,15 @@ This used native build `f08585d` and server images `d5c0d5f`, whose product inpu
 are unchanged in `dd84da2`, with the approved local 1 GiB deviation. Owned units
 stopped before original services were restored; container/image identities and
 unaffected processes were preserved. This is one desktop sample, not full W5.
+
+Documentation-only source `50557f2` retained these product inputs. Its FreeBSD
+workflow failed before project tests while installing test dependencies:
+Python 3.13.18 could not import `pyexpat`, reporting the missing dynamic symbol
+`XML_GetCurrentLineNumber64`. Full logs and the official source archive were
+retained; no native contract result exists for that run. The follow-up explicitly
+selects Expat and both interpreters, records linked libraries/package versions
+and requires actual XML imports/parsing before pip. It needs a new real FreeBSD
+execution; the earlier guest's exact loaded library version remains unknown.
 
 An earlier separate public desktop trial on native build `f08585d` and server images
 `d5c0d5f` closed the original verified GUI TLS connection in 771 ms and removed

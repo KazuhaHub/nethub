@@ -5,7 +5,7 @@ heartbeat and revocation processing. The original installed result, 17.218 secon
 from console confirmation dispatch, remains a failed timing comparison. Do not
 replace it with an easier threshold or restart the clock at database commit.
 
-## Current installed and public results, 2026-11-14
+## Current installed and public results, 2026-11-15 UTC
 
 Source `dd84da2` passed all seven original hosted workflows, including
 [installed native rotation 43602317217](https://github.com/KazuhaHub/nethub/actions/runs/43602317217).
@@ -19,7 +19,8 @@ native model/runtime XML/GUI invariants. Full source-bound logs, the official
 views were reviewed. The fixture used an isolated console CA and a hosted
 OPNsense 26.7.9_1 guest with 3 GiB. These are not public-network measurements.
 
-A new genuine enrollment then passed one complete public desktop IPv4 sample:
+A new genuine enrollment passed one complete public desktop IPv4 sample on
+2026-11-15 UTC, with confirmation dispatch at 00:01:39.879Z:
 
 - The original verified GUI TLS socket closed in 1,747 ms, with five verified
   responses on that one socket and no local cleanup before cutoff.
