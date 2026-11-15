@@ -97,5 +97,81 @@ def verify(root=ROOT):
     print('Verified 256 original source blobs, preparation archive and native/cold screenshot hashes. No upgrade or release acceptance.')
 
 
+def verify_preflight(root=ROOT):
+    directory = root / 'docs/handoff/evidence/ubuntu-native-preflight'
+    index = json.loads((directory / 'index.json').read_text())
+    assert index['version'] == 1 and index['full_project_complete'] is False
+    assert index['native_upgrade_cause_proven'] is False
+    names = set()
+    for item in index['files']:
+        assert item['path'] not in names
+        names.add(item['path'])
+        raw = checked_path(directory, item['path']).read_bytes()
+        assert 0 < len(raw) == item['bytes'] <= 16 * 1024**2
+        assert hashlib.sha256(raw).hexdigest() == item['sha256']
+    expected = {
+        '38bec4dd17f7d63f330f958f163f5c61e43e8a64': (43727962907, 43727962910, 43727962999,
+            'private guest input transfer failed: guest_ssh_connect_timeout'),
+        'b2bfb5070832fcc7deae202e197c43f22bcfb77f': (43730193170, 43730193174, 43730193155,
+            'native package snapshot failed: fixture_native_package_boundary'),
+    }
+    assert {c['source_head'] for c in index['checkpoints']} == set(expected)
+    assert len(index['checkpoints']) == 2
+    for checkpoint in index['checkpoints']:
+        head = checkpoint['source_head']
+        ci, native, cold, failure = expected[head]
+        runs = {r['kind']: r for r in checkpoint['runs']}
+        assert len(checkpoint['runs']) == 3 and set(runs) == {'CI', 'native', 'cold'}
+        for kind, run_id in [('CI', ci), ('native', native), ('cold', cold)]:
+            run = runs[kind]
+            assert run['run_id'] == run_id and run['attempt'] == 1
+            path = checked_path(directory, run['directory'] + '/run.json').parent
+            metadata = json.loads((path / 'run.json').read_text())
+            origin = json.loads((path / 'run-origin.json').read_text())
+            conclusion = 'failure' if kind == 'native' else 'success'
+            assert run['conclusion'] == metadata['conclusion'] == origin['conclusion'] == conclusion
+            assert metadata['status'] == origin['status'] == 'completed'
+            assert metadata['headSha'] == origin['head_sha'] == head
+            assert origin['id'] == run_id and origin['run_attempt'] == 1
+            if kind == 'CI':
+                assert len(metadata['jobs']) == 6 and {j['name'] for j in metadata['jobs']} == JOBS
+                assert all(j['status'] == 'completed' and j['conclusion'] == 'success' for j in metadata['jobs'])
+                continue
+            raw = (path / 'original.zip').read_bytes()
+            assert len(raw) == run['artifact']['bytes']
+            assert 'sha256:' + hashlib.sha256(raw).hexdigest() == run['artifact']['digest']
+            with zipfile.ZipFile(path / 'original.zip') as archive:
+                inventory = archive.namelist()
+                assert inventory and len(inventory) == len(set(inventory))
+                assert sum(i.file_size for i in archive.infolist()) <= 16 * 1024**2
+                assert all(not Path(n).is_absolute() and '..' not in Path(n).parts and '\\' not in n for n in inventory)
+                if kind == 'native':
+                    value = json.loads(archive.read('native/result.json'))
+                    deployment = json.loads(archive.read('deployment-result.json'))
+                    wan = json.loads(archive.read('native/installed-wan-recovery.json'))
+                    assert value['source_head'] == deployment['source_head'] == head
+                    assert value['passed'] is False and value['failure'] == failure
+                    assert deployment['passed'] is False and deployment['accepted_image_run'] == str(ci)
+                    assert deployment['owned_image_cleanup_confirmed'] is True
+                    assert wan['passed'] is True and wan['full_W5_acceptance'] is False
+                    if run_id == 43727962910:
+                        migration = json.loads(archive.read('native/installed-package-migration.json'))
+                        assert migration['passed'] is False and migration['phase'] == 'baseline'
+                        assert migration['steps'] == migration['outages'] == migration['invariant_failures'] == []
+                    else:
+                        assert 'native/installed-package-migration.json' not in inventory
+                else:
+                    value = json.loads(archive.read('result.json'))
+                    assert value['source_head'] == head and value['accepted_ci_run'] == ci
+                    assert value['passed'] is True and value['full_goal_complete'] is False
+                    assert value['cleanup']['operation_cgroup_reaped'] is True
+                    assert value['cleanup']['owned_private_VM_disks_keys_and_logs_removed'] is True
+                    assert value['operation']['public_operator_durable_custody_renewal_clock_or_full_goal_accepted'] is False
+                    for name, digest in value['screenshots'].items():
+                        assert hashlib.sha256(archive.read(name)).hexdigest() == digest
+    print(f'Verified {len(names)} later closed files and six source-separated runs; both native preflight failures remain failed.')
+
+
 if __name__ == '__main__':
     verify()
+    verify_preflight()

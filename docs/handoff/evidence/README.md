@@ -50,3 +50,14 @@ identities, the original source archive, 256 Git blobs, screenshot hashes and
 the distinct failed/native versus passed/isolated outcomes. Raw logs remain
 private; only their hashes are retained. These records do not qualify a changed
 source, an operator network, formal packaging or release.
+
+## Later Ubuntu preflight evidence
+
+[`ubuntu-native-preflight/index.json`](ubuntu-native-preflight/index.json)
+separates sources `38bec4d` and `b2bfb50`, each with its own successful six-job CI,
+failed installed-native run and successful isolated cold-recovery run. The
+installed runs failed before any package migration step; they do not diagnose
+the earlier upgrade invariant. Original small closed artifact ZIPs and run
+origins are retained. `python3 tools/handoff/verify_continuation.py` verifies
+these records as well as the first Ubuntu checkpoint. No failed run is relabeled
+and no public, mobile, formal-package or release scope is accepted.

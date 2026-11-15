@@ -42,23 +42,53 @@ participation be recorded and skipped temporarily while independent work continu
   TLS preparation failure. Regression tests fail against the old hook; the fixed
   hook passed a complete ordinary-user Ubuntu container suite (1254 passed,
   18 environment/privilege skips). A real FreeBSD lock case is now required by
-  the native receipt. New CI `43727962907`, installed-native `43727962910`,
-  and cold recovery `43727962999` are in progress. Preparation `43727963052`
-  passed. FreeBSD `43727962948` failed two portable shim cases while its required
+  the native receipt. All six CI jobs in `43727962907` passed. Installed-native
+  `43727962910` passed WAN recovery, then failed a private input transfer before
+  any migration baseline step. Cold recovery `43727962999` passed its isolated
+  scope: baseline route recovery 89899 ms and initial issuance recovery 173116 ms
+  from source stop, with cleanup confirmed. Preparation `43727963052` passed.
+  FreeBSD `43727962948` failed two portable shim cases while its required
   actual lockf case passed; that failed receipt remains failed. Original upgrade
   attribution and actual new-hook installation acceptance remain pending; this
   source has no acceptance from the earlier source's images or results.
 - [PR 246](https://github.com/KazuhaHub/nethub/pull/246), source
   `257828a70ec04a5298c87a32b033d2ff8c706043`, binds the temporary test shim to
   the selected Python interpreter. No production hook or assertion changes.
-  Local focused tests passed (28, with one native skip); CI `43728881313` and
-  native contracts `43728881308` are in progress. PR 245's installed run continues
-  at its original immutable source.
+  Local focused tests passed (28, with one native skip); all six CI jobs in
+  `43728881313` and native contracts `43728881308` passed. The latter passed 252
+  cases with 257 exact Git blobs verified. It is not installed upgrade acceptance.
+- [PR 248](https://github.com/KazuhaHub/nethub/pull/248), source
+  `b2bfb5070832fcc7deae202e197c43f22bcfb77f`, retains the original short-circuit
+  order so a known fingerprint mismatch is saved before a later GUI read could
+  mask it. All six CI jobs in `43730193170`, FreeBSD `43730193179` and preparation
+  `43730193161` passed. Installed-native `43730193174` passed WAN recovery, then
+  failed the package probe environment boundary before a migration report or
+  package switch. Cold recovery `43730193155` passed its isolated scope, with
+  baseline route recovery 128348 ms and initial issuance recovery 172474 ms from
+  source stop; cleanup passed. Both installed preflight failures remain failed.
+- [PR 249](https://github.com/KazuhaHub/nethub/pull/249), source
+  `52e3362625b1de18399bb7ff6a68aeaca516aabb`, separates the package boundary into
+  fixed host/nonce/marker/interface/LAN/route/WAN checkpoints without changing
+  any guard, operation or replay policy. Its 151 focused tests passed; fresh
+  exact-source CI and installed acceptance are pending. This does not identify
+  the historical upgrade cause or accept either earlier failed installed run.
+
+The documentation branch's source `59dedf0` CI `43731180948` failed an unchanged
+combined-fault reference-route check after revocation. Its observed cutoff timing
+does not turn that failed scenario into a pass. No tested-image archive was
+accepted from that run. The Docker-only quickstart also needed an explicit base
+doctor invocation using the same image and read-only absolute state/backup mounts;
+the host CLI is not installed by running the initializer container.
 
 The [first Ubuntu evidence index](evidence/ubuntu-870eb57/index.json) is durable
 and independently checkable with `python3 tools/handoff/verify_continuation.py`.
 The original handoff verifier remains required and all 29 original rows remain
 unchanged. These offline integrity checks do not execute a runtime acceptance.
+The [later preflight evidence index](evidence/ubuntu-native-preflight/index.json)
+retains 16 closed files for six runs, explicitly separated between sources
+`38bec4d` and `b2bfb50`. The same continuation verifier checks the native failure
+stages, source-specific CI bindings, original ZIP digests and isolated recovery
+cleanup. Private logs and credentials are not included.
 
 ## Temporarily skipped owner-dependent actions
 
