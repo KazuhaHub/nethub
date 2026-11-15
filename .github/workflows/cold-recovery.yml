@@ -9,6 +9,7 @@ on:
       - server/tests/recovery/**
       - server/internal/guiacme/**
       - agents/opnsense/acceptance/**
+      - agents/opnsense/plugin/packaging/**
   workflow_dispatch:
     inputs:
       accepted_ci_run:

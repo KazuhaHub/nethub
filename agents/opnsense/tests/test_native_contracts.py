@@ -16,6 +16,7 @@ def receipt():
               for name, spec in NATIVE.GROUPS.items()}
     groups['enrollment']['native_cases_passed'] = ['test_enrollment_lock_interoperates_with_native_scheduler_lockf']
     groups['service']['native_cases_passed'] = ['test_native_lockf_excludes_both_python_operations',
+        'test_native_install_guard_and_reconcile_share_the_original_lock',
         'test_rotation_observes_actual_scheduler_lock_without_losing_busy_response',
         'test_rotation_waits_for_short_contention_without_replaying_native_work',
         'test_external_lock_mode_is_hardened_without_replacing_its_inode',
@@ -88,6 +89,7 @@ def test_source_bytes_and_manifest_identity_must_remain_bound(tmp_path, monkeypa
 
 
 @pytest.mark.parametrize('name', ['test_native_lockf_excludes_both_python_operations',
+                                'test_native_install_guard_and_reconcile_share_the_original_lock',
                                 'test_rotation_waits_for_short_contention_without_replaying_native_work'])
 def test_skipped_native_lockf_case_is_not_a_pass(tmp_path, name):
     report = tmp_path / 'tests.xml'

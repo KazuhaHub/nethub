@@ -20,11 +20,12 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_scheduler.py::test_enrollment_handoff_has_no_credentials_or_cached_output',
         'agents/opnsense/tests/test_enrollment.py::test_php_controller_keeps_credentials_private_and_saves_under_native_lock',
     ]),
-    'service': (57, [
+    'service': (61, [
         'agents/opnsense/plugin/tests/test_circuit_breaker.py',
         'agents/opnsense/plugin/tests/test_service_controller.py',
         'agents/opnsense/plugin/tests/test_scheduler.py',
         'agents/opnsense/plugin/tests/test_watchdog.py',
+        'agents/opnsense/plugin/tests/test_install_hook_lock.py',
         'agents/opnsense/plugin/tests/test_rotation_agent.py',
         'agents/opnsense/plugin/tests/test_lifecycle_agent.py::test_removal_after_unknown_rotation_commit_uses_saved_candidate',
         'agents/opnsense/plugin/tests/test_relay_trust_agent.py::test_rotation_failure_keeps_only_closed_private_trust_metadata',
@@ -46,6 +47,7 @@ GROUPS = {
     ]),
 }
 REQUIRED_NATIVE_CASES = {'test_enrollment_lock_interoperates_with_native_scheduler_lockf',
+                         'test_native_install_guard_and_reconcile_share_the_original_lock',
                          'test_native_lockf_excludes_both_python_operations',
                          'test_external_lock_mode_is_hardened_without_replacing_its_inode',
                          'test_rotation_observes_actual_scheduler_lock_without_losing_busy_response',

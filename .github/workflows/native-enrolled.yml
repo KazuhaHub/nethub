@@ -8,6 +8,7 @@ on:
       - server/web/package-lock.json
       - agents/opnsense/acceptance/**
       - agents/opnsense/plugin/src/**
+      - agents/opnsense/plugin/packaging/**
       - server/internal/device/**
       - server/internal/protocol/**
       - server/internal/relayhook/**

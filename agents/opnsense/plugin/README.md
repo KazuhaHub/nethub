@@ -52,6 +52,17 @@ The local `revoked` marker blocks scheduler recovery and explicit Start.
 Authenticated revocation reporting stops the owned tunnel. pkg owns and removes
 the cron file.
 
+Package installation keeps the `uninstalling` guard through configd restart
+and waits up to 30 seconds for the existing reconcile lock. It clears the guard
+and invokes reconcile while still holding that same lock, so watchdog recovery
+cannot treat the deliberately stopped client as a crash between those actions.
+Failure to acquire the lock fails the package hook with the guard retained.
+A rejected reconcile retains the previous package-install policy; its structured
+failure and watchdog quarantine still require operator review. Scheduler jobs
+continue to skip contention with `lockf -t 0`. This ordering fix has portable
+regression coverage; original upgrade failure attribution and installed acceptance
+remain dependent on fresh exact-source native evidence.
+
 An existing device ID makes enrollment idempotent without requesting another
 server token. A failed tunnel start retains the saved enrollment for Apply/retry.
 If the response or local save is lost after the console consumed a token, inspect
