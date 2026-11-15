@@ -71,13 +71,27 @@ participation be recorded and skipped temporarily while independent work continu
   fixed host/nonce/marker/interface/LAN/route/WAN checkpoints without changing
   any guard, operation or replay policy. Its 151 focused tests and all six CI
   jobs in `43760255115` passed. The exact-source tested-image gate was
-  independently validated; installed run `43760255139` and cold recovery
-  `43760255138` are in progress using that producer. This does not identify
+  independently validated. Installed run `43760255139` failed after its WAN
+  recovery substep at the separate console check (`tls` / `http_failure`),
+  before any migration baseline or package switch. Owned-image cleanup passed.
+  Cold recovery `43760255138` passed within isolated scope: baseline route
+  recovery 129162 ms and original-request issuance recovery 161030 ms from
+  source stop (175710 ms from checkpoint), with cleanup confirmed. This does not identify
   the historical upgrade cause or accept either earlier failed installed run.
   Preparation `43760255136` and FreeBSD `43760255102` subsequently passed; 252
   contract cases, all 257 Git blobs, the preparation archive and four screenshot
   hashes were verified. Three distinct preparation views were reviewed. Those
   preparation/contract checks do not establish enrolled upgrade acceptance.
+- PR 249's later source `359bf94eab8c3339671fb1b0af1a6c4133f26ad1` corrects the
+  console probe's TCP/TLS error-stage classification and retains a bounded
+  read-only guest package snapshot plus credential-free host HTTPS observation
+  on the existing post-WAN refusal path. The original failure is always raised,
+  including when diagnostics succeed or fail. No original probe, enrollment,
+  Open, package or SQL mutation is replayed. All original deadlines and guards
+  remain unchanged. A controlled old/new comparison reproduced the diagnostic
+  distinction with both outcomes still failed; 194 focused tests passed.
+  Fresh source-specific CI `43766613173` and installed `43766613555` are pending;
+  the earlier source's images and scoped results are not substituted.
 
 Local actual PostgreSQL checks at source `52e3362` also passed eight ordinary
 top-level cases and the explicitly enabled bounded snapshot-load case. At 100000
@@ -90,6 +104,15 @@ includes source/binary/log hashes and the four observed row-scaling cases.
 These observations do not establish signed Ping throughput, online fleet
 capacity, native/public cutoff, or complete W5 acceptance. Allocated-byte figures
 describe allocations during a refresh, not steady resident memory.
+
+The [complete `52e3362` checkpoint](evidence/ubuntu-52e3362/index.json) retains
+33 closed files for all five runs, including the failed preflight, successful
+source-bound producer/preparation/contracts/recovery and the 13 required console
+images. Six images match already reviewed bytes; seven changed views were
+reviewed. The continuation verifier checks original archive digests, run
+identities, all 257 contract source blobs and the distinct failed/native versus
+passed/isolated outcomes. It does not reinterpret the old ambiguous `tls` label
+as proof that the failed operation was a TLS handshake.
 
 The documentation branch's source `59dedf0` CI `43731180948` failed an unchanged
 combined-fault reference-route check after revocation. Its observed cutoff timing

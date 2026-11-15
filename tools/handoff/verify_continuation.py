@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify the first Ubuntu checkpoint without relabeling its failed native run."""
+import ast
 import hashlib
 import json
 from pathlib import Path
@@ -204,7 +205,106 @@ def verify_local_load(root=ROOT):
     print('Verified local SQL/load record and exact source hashes; no online-fleet, native or public acceptance.')
 
 
+def verify_post_wan_checkpoint(root=ROOT):
+    head = '52e3362625b1de18399bb7ff6a68aeaca516aabb'
+    directory = root / 'docs/handoff/evidence/ubuntu-52e3362'
+    index = json.loads((directory / 'index.json').read_text())
+    assert index['source_head'] == head and index['version'] == 1
+    assert index['full_project_complete'] is index['native_upgrade_cause_proven'] is False
+    names = set()
+    for item in index['files']:
+        assert item['path'] not in names
+        names.add(item['path'])
+        raw = checked_path(directory, item['path']).read_bytes()
+        assert 0 < len(raw) == item['bytes'] <= 16 * 1024**2
+        assert hashlib.sha256(raw).hexdigest() == item['sha256']
+    runs = {r['kind']: r for r in index['runs']}
+    expected = {'CI': 43760255115, 'native': 43760255139, 'cold': 43760255138,
+                'preparation': 43760255136, 'filesystem': 43760255102}
+    assert len(index['runs']) == len(expected) and set(runs) == set(expected)
+    for kind, identifier in expected.items():
+        run = runs[kind]
+        assert run['run_id'] == identifier and run['attempt'] == 1 and run['source_head'] == head
+        metadata = json.loads((directory / kind / 'run.json').read_text())
+        origin = json.loads((directory / kind / 'run-origin.json').read_text())
+        conclusion = 'failure' if kind == 'native' else 'success'
+        assert run['conclusion'] == metadata['conclusion'] == origin['conclusion'] == conclusion
+        assert metadata['headSha'] == origin['head_sha'] == head and origin['id'] == identifier
+        assert origin['run_attempt'] == 1 and metadata['status'] == origin['status'] == 'completed'
+        if kind == 'CI':
+            assert len(metadata['jobs']) == 6 and {j['name'] for j in metadata['jobs']} == JOBS
+            assert all(j['status'] == 'completed' and j['conclusion'] == 'success' for j in metadata['jobs'])
+        else:
+            assert len(run['artifacts']) == 1
+            artifact = run['artifacts'][0]
+            raw = checked_path(directory, artifact['path']).read_bytes()
+            assert len(raw) == artifact['bytes'] and 'sha256:' + hashlib.sha256(raw).hexdigest() == artifact['digest']
+
+    def read(kind, name):
+        with zipfile.ZipFile(directory / kind / 'original.zip') as archive:
+            inventory = archive.namelist()
+            assert len(inventory) == len(set(inventory))
+            assert sum(i.file_size for i in archive.infolist()) <= 16 * 1024**2
+            assert all(not Path(n).is_absolute() and '..' not in Path(n).parts and '\\' not in n for n in inventory)
+            return json.loads(archive.read(name))
+
+    native = read('native', 'native/result.json')
+    deployment = read('native', 'deployment-result.json')
+    assert native['source_head'] == deployment['source_head'] == head and native['passed'] is False
+    assert native['failure'] == 'Guest console after WAN probe failed at tls: http_failure'
+    assert deployment['accepted_image_run'] == str(expected['CI']) and deployment['image_phase'] == 'verified'
+    assert deployment['passed'] is False and deployment['owned_image_cleanup_confirmed'] is True
+    assert read('native', 'native/installed-wan-recovery.json')['passed'] is True
+    assert read('native', 'native/guest-console-after-wan-probe.json')['passed'] is False
+    with zipfile.ZipFile(directory / 'native/original.zip') as archive:
+        assert 'native/installed-package-migration.json' not in archive.namelist()
+    cold = read('cold', 'result.json')
+    assert cold['source_head'] == head and cold['accepted_ci_run'] == expected['CI'] and cold['passed'] is True
+    assert cold['full_goal_complete'] is False and cold['cleanup']['operation_cgroup_reaped'] is True
+    assert cold['cleanup']['owned_private_VM_disks_keys_and_logs_removed'] is True
+    assert cold['operation']['public_operator_durable_custody_renewal_clock_or_full_goal_accepted'] is False
+    prep = read('preparation', 'result.json')
+    assert prep['source_head'] == head and prep['passed'] is True and prep['formal_release'] is False
+    assert prep['installed']['frpc_compiler'] == 'go1.26.11' and prep['installed']['frp_version'] == '0.71.1'
+    source = subprocess.check_output(['git', '-C', str(root), '-c', 'core.autocrlf=false', 'archive', '--format=tar', head])
+    assert hashlib.sha256(source).hexdigest() == prep['source_archive_sha256']
+    for kind, value in [('cold', cold), ('preparation', prep['page'])]:
+        with zipfile.ZipFile(directory / kind / 'original.zip') as archive:
+            for name, digest in value['screenshots'].items():
+                assert hashlib.sha256(archive.read(name)).hexdigest() == digest
+    manifest, receipt = read('filesystem', 'source.json'), read('filesystem', 'result.json')
+    assert manifest['source_head'] == receipt['source_head'] == head and len(manifest['files']) == 257
+    contract_source = subprocess.check_output(['git', '-C', str(root), 'show', head + ':agents/opnsense/native_contracts.py'])
+    settings = {}
+    for node in ast.parse(contract_source).body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            if node.targets[0].id in ('GROUPS', 'REQUIRED_NATIVE_CASES'):
+                settings[node.targets[0].id] = ast.literal_eval(node.value)
+    assert set(settings) == {'GROUPS', 'REQUIRED_NATIVE_CASES'}
+    with zipfile.ZipFile(directory / 'filesystem/original.zip') as archive:
+        assert receipt['manifest_sha'] == hashlib.sha256(archive.read('source.json')).hexdigest()
+    assert receipt['passed'] is receipt['source_unchanged'] is True
+    assert receipt['installed_opnsense_acceptance'] is receipt['frpc_installed_and_retested'] is False
+    assert set(receipt['groups']) == set(settings['GROUPS'])
+    native_cases = set()
+    for name, group in receipt['groups'].items():
+        assert group['tests'] == group['passed'] >= settings['GROUPS'][name][0]
+        assert group['exit_code'] == 0 and group['nonpassing_cases'] == []
+        native_cases.update(group['native_cases_passed'])
+    assert native_cases == settings['REQUIRED_NATIVE_CASES']
+    assert sum(g['passed'] for g in receipt['groups'].values()) == 252
+    for name, digest in manifest['files'].items():
+        assert hashlib.sha256(subprocess.check_output(['git', '-C', str(root), 'show', head + ':' + name])).hexdigest() == digest
+    images = list((directory / 'CI').glob('*.png'))
+    old = root / 'docs/handoff/evidence/ubuntu-870eb57/CI'
+    assert len(images) == 13 and {p.name for p in images} == {p.name for p in old.glob('*.png')}
+    assert sum(p.read_bytes() == (old / p.name).read_bytes() for p in images) == 6
+    assert index['required_image_review'] == {'images': 13, 'identical_to_reviewed_870eb57': 6, 'changed_views_reviewed': 7}
+    print(f'Verified {len(names)} later checkpoint files, five exact-source runs and 257 source blobs; post-WAN failure remains failed.')
+
+
 if __name__ == '__main__':
     verify()
     verify_preflight()
     verify_local_load()
+    verify_post_wan_checkpoint()

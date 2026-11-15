@@ -71,3 +71,15 @@ binary/log hashes are distinct from hosted CI images. The continuation verifier
 checks the retained metrics and original harness source hashes; it does not
 re-execute the database, attest an online fleet or accept native/public cutoff.
 Raw SQL logs and ephemeral credentials remain outside Git.
+
+## Post-WAN preflight checkpoint
+
+[`ubuntu-52e3362/index.json`](ubuntu-52e3362/index.json) retains 33 closed files
+for five exact-source runs. Six-job CI, appliance preparation, FreeBSD contracts
+and isolated cold recovery passed. Installed-native execution failed its console
+probe after WAN recovery, before any package migration step. The reported old
+`tls` / `http_failure` classification is preserved without claiming which socket
+operation failed. Original small ZIPs and all 13 required console images are
+retained; the continuation verifier checks run identities, archive and image
+hashes, source archive and all 257 contract source blobs. Raw logs and credentials
+remain outside Git. The later diagnostic source requires its own evidence.
