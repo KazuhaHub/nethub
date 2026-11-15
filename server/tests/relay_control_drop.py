@@ -42,6 +42,27 @@ class ControlDrop:
         # Finish an in-flight atomic command before inspecting its actual result.
         self.interrupted = True
 
+    def absent(self, arguments, name):
+        result = self.command(arguments, name, required=False)
+        if result.returncode not in (0, 1):
+            raise ValueError('Owned cleanup observation failed')
+        return result.returncode == 1
+
+    def drop_absent(self):
+        result = self.command(['-S', self.chain], 'observe-drop-removal', required=False)
+        if result.returncode == 1:
+            return True
+        return result.returncode == 0 and result.stdout.decode('ascii').splitlines() == ['-N ' + self.chain]
+
+    def remove(self, arguments, name, confirmed_absent):
+        try:
+            self.command(arguments, name)
+        except subprocess.TimeoutExpired:
+            # An acknowledged read may establish completion after a lost reply.
+            # Do not replay a timed-out mutation or infer its earlier finish time.
+            if not confirmed_absent():
+                raise
+
     def __enter__(self):
         self.original = self.command(['-S', 'OUTPUT'], 'original-output').stdout
         if self.command(['-S', self.chain], 'absent-chain', required=False).returncode != 1:
@@ -72,14 +93,16 @@ class ControlDrop:
                     if link.returncode not in (0, 1):
                         raise ValueError('Owned fault link inspection failed')
                     if link.returncode == 0:
-                        self.command(['-D', 'OUTPUT', *self.rule], 'unlink-owned-rule')
+                        self.remove(['-D', 'OUTPUT', *self.rule], 'unlink-owned-rule',
+                            lambda: self.absent(['-C', 'OUTPUT', *self.rule], 'observe-link-removal'))
                         self.removed = time.monotonic()
                     lines = actual.stdout.decode('ascii').splitlines()
                     if not lines or not set(lines) <= {'-N ' + self.chain, '-A ' + self.chain + ' -j DROP'}:
                         raise ValueError('Owned fault chain changed unexpectedly')
                     if '-A ' + self.chain + ' -j DROP' in lines:
-                        self.command(['-D', self.chain, '-j', 'DROP'], 'remove-drop')
-                    self.command(['-X', self.chain], 'delete-chain')
+                        self.remove(['-D', self.chain, '-j', 'DROP'], 'remove-drop', self.drop_absent)
+                    self.remove(['-X', self.chain], 'delete-chain',
+                        lambda: self.absent(['-S', self.chain], 'observe-chain-removal'))
             if (self.command(['-S', 'OUTPUT'], 'restored-output').stdout != self.original
                     or self.command(['-S', self.chain], 'removed-chain', required=False).returncode != 1):
                 raise ValueError('Original OUTPUT rules were not restored exactly')

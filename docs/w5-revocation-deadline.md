@@ -501,6 +501,12 @@ the fixture removes its own link, and cleanup remains failed. Unconfirmed SQL
 commit is never retried. Results contain only fixed phases, counts, hashes and
 bounded timing fields; credentials and raw command output stay private.
 
+If a cleanup command times out after deleting its object, the fixture performs
+an acknowledged read to confirm absence and finish the remaining cleanup. It
+does not replay the delete. If the object still exists or observation fails,
+cleanup remains failed. The packet-loss clock uses the later observed removal
+time; successful cleanup does not turn an over-budget loss interval into a pass.
+
 Portable orchestration, negative-result and cleanup tests have passed. The real
 combined scenario has not run yet and is not accepted. Twelve reference clients
 and synthetic authority rows do not establish a large online fleet, arbitrary

@@ -27,6 +27,9 @@ class Rules:
         args = arguments[3:]
         self.calls.append(args)
         action = args[0]
+        if self.failure == 'unlink_not_completed' and action == '-D' and args[1] == 'OUTPUT':
+            self.failure = None
+            raise subprocess.TimeoutExpired(arguments, 3)
         output, status = b'', 0
         if action == '-S' and args[1] == 'OUTPUT':
             output = b'-P OUTPUT ACCEPT\n' + (b'owned tuple\n' if self.link else b'')
@@ -54,7 +57,7 @@ class Rules:
             output = b'2 152 DROP all -- * * 0.0.0.0/0 0.0.0.0/0\n' if self.link else b'0 0 DROP all -- * * 0.0.0.0/0 0.0.0.0/0\n'
         else:
             raise AssertionError('Unexpected rule operation')
-        if action == self.failure:
+        if action == self.failure or self.failure == 'drop_delete' and action == '-D' and args[1] != 'OUTPUT':
             self.failure = None
             raise subprocess.TimeoutExpired(arguments, 3)
         return SimpleNamespace(returncode=status, stdout=output, stderr=b'')
@@ -111,6 +114,30 @@ class ControlDropTests(unittest.TestCase):
                     raise ValueError('original failure')
             self.assertTrue(context.restored)
             self.assertFalse(rules.link or rules.chain)
+
+    def test_completed_cleanup_with_lost_ack_is_observed_without_replaying_delete(self):
+        for operation in ('-D', 'drop_delete', '-X'):
+            with self.subTest(operation=operation), tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+                rules = Rules(operation)
+                context, _ = self.setup_context(directory, rules, stack)
+                with context:
+                    self.assertTrue(rules.link)
+                self.assertTrue(context.restored)
+                self.assertFalse(rules.link or rules.entry or rules.chain)
+                self.assertEqual(sum(args[0] == '-D' and args[1] == 'OUTPUT' for args in rules.calls), 1)
+                self.assertEqual(sum(args[0] == '-D' and args[1] != 'OUTPUT' for args in rules.calls), 1)
+                self.assertEqual(sum(args[0] == '-X' for args in rules.calls), 1)
+
+    def test_uncompleted_delete_is_not_promoted_by_an_acknowledged_read(self):
+        with tempfile.TemporaryDirectory() as directory:
+            rules = Rules('unlink_not_completed')
+            context, _ = self.setup_context(directory, rules)
+            with self.assertRaises(subprocess.TimeoutExpired):
+                with context:
+                    self.assertTrue(rules.link)
+            self.assertFalse(context.restored)
+            self.assertTrue(rules.link and rules.chain)
+            self.assertEqual(sum(args[0] == '-D' and args[1] == 'OUTPUT' for args in rules.calls), 1)
 
     def test_interruption_is_delayed_until_atomic_command_finishes(self):
         with tempfile.TemporaryDirectory() as directory:
