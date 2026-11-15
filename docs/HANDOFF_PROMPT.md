@@ -25,8 +25,22 @@ for 30.050 seconds; every reference retained its route and at least 33 genuine
 Pongs. Service identities, valid source grants and original OUTPUT rules survived.
 This accepts the isolated combined scenario, not arbitrary public-network loss,
 a large online fleet, native package migration, mobile or complete W5 acceptance.
-Its original installed-native and protected-host cold recovery jobs remain live;
-do not rerun them or claim their results before reviewing actual evidence.
+Its protected-host cold recovery also passed: baseline routing recovered in
+128.216 seconds from source stop; original-request issuance, native acknowledgement
+and the served route took 172.033 seconds from that stop, or 186.100 seconds from
+checkpoint start. This remains isolated recovery, with public operator recovery,
+durable off-host custody, real renewal clocks and formal release still open.
+
+All seven original runs are terminal: six passed and one installed-native run
+failed. That failure occurred uploading the package probe after enrollment and
+WAN recovery: SSH reported a connect timeout despite its successful preceding
+read-only preflight. No migration baseline step, planned outage, old-package
+installation or new console Revoke was reached. Complete logs, the ten-entry
+official archive, actual enrollment view, exact source and cleanup were reviewed.
+The underlying timeout cause is unproven. The correction stages the immutable
+read-only probe before enrollment/WAN changes and routes its observations through
+the existing four-event SSH recovery budget. Transfers and package mutations are
+not replayed. This correction still needs genuine installed acceptance.
 
 Source `ecdb305` passed the database, distinct-target, unsigned preparation and
 actual FreeBSD prerequisites, with their logs, archive digests and native views

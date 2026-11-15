@@ -79,7 +79,7 @@ def validate_read_only_inspection_recoveries(value, *, require_completed=False):
         if (not isinstance(item, dict) or set(item) != {
                 'operation', 'first_transport_failure', 'phase', 'listener_recovery', 'read_completed', 'elapsed_ms'}
                 or item['operation'] not in ('GUI_inspection', 'model_readback', 'inspection_preflight',
-                                              'lock_snapshot', 'rotation_conditions')
+                                              'lock_snapshot', 'rotation_conditions', 'package_snapshot')
                 or item['first_transport_failure'] not in (
                     'guest_ssh_connection_refused', 'guest_ssh_connect_timeout', 'guest_ssh_connection_reset')
                 or item['phase'] not in ('listener_probe', 'readback', 'failed', 'completed')
@@ -462,6 +462,9 @@ cat /root/nethub-ci/host-key.pub
             '/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py rotation\n':
                 ('native rotation conditions', 'rotation_conditions'),
         }
+        if isinstance(script, str) and re.fullmatch(
+                r'/usr/local/bin/python3\.13 /root/nethub-ci/package_probe\.py [a-f0-9]{32}\n', script):
+            commands[script] = ('native package snapshot', 'package_snapshot')
         if not isinstance(script, str) or script not in commands:
             raise GuestError('Only the fixed read-only native inspection may recover transport')
         label, operation = commands[script]

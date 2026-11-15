@@ -85,6 +85,9 @@ def _exercise(guest, stage, port, project, evidence, packages, cleanup):
     marker.chmod(0o600)
     guest.put(marker, marker.name)
     guest.put(Path(__file__).with_name('native-fixture.php'), 'native-fixture.php')
+    # Stage the read-only observer before enrollment and WAN changes. Package
+    # observations must not depend on a later file transfer succeeding.
+    guest.put(Path(__file__).with_name('package_probe.py'), 'package_probe.py')
     guest.ssh('chmod 0600 /root/nethub-ci/native-fixture-nonce\n', 'private native fixture identity')
     host_probe = guest.ssh("/usr/local/bin/php -r 'echo json_encode(["
         "\"argument_count_available\"=>isset($argc),"

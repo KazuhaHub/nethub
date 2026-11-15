@@ -208,11 +208,9 @@ def _exercise(guest, stage, compose, evidence, nonce, packages, native_read, rou
     services = {role: service(role) for role in ('postgres', 'nethub-web', 'nethub-authz', 'caddy', 'backup', 'frps')}
     if not all(item['running'] for item in services.values()):
         raise GuestError('All six migration services must start online')
-    guest.put(Path(__file__).with_name('package_probe.py'), 'package_probe.py')
-
     def probe():
-        value = json.loads(guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/package_probe.py ' + nonce + '\n',
-                                     'owned native package observation'))
+        value = json.loads(guest.ssh_read_only_inspection(
+            '/usr/local/bin/python3.13 /root/nethub-ci/package_probe.py ' + nonce + '\n'))
         validate_probe(value)
         return value
 

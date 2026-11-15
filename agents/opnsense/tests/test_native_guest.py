@@ -272,6 +272,7 @@ def test_read_only_recovery_projection_rejects_private_or_inconsistent_fields():
     ('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py\n', 'native model readback', 'model_readback'),
     ('/usr/local/bin/python3.13 /root/nethub-ci/native_lock_probe.py\n', 'native lock snapshot', 'lock_snapshot'),
     ('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py rotation\n', 'native rotation conditions', 'rotation_conditions'),
+    ('/usr/local/bin/python3.13 /root/nethub-ci/package_probe.py ' + 'a' * 32 + '\n', 'native package snapshot', 'package_snapshot'),
 ])
 def test_readback_and_preflight_share_the_bounded_recovery_inventory(script, label, operation):
     guest = inspection_guest()
@@ -280,6 +281,35 @@ def test_readback_and_preflight_share_the_bounded_recovery_inventory(script, lab
     assert guest.ssh.call_count == 2
     assert guest.read_only_inspection_recoveries[0]['operation'] == operation
     GUEST.validate_read_only_inspection_recoveries(guest.read_only_inspection_recoveries, require_completed=True)
+
+
+@pytest.mark.parametrize('script', [
+    '/usr/local/bin/python3.13 /root/nethub-ci/package_probe.py ' + 'a' * 31 + '\n',
+    '/usr/local/bin/python3.13 /root/nethub-ci/package_probe.py ' + 'a' * 33 + '\n',
+    '/usr/local/bin/python3.13 /root/nethub-ci/package_probe.py ' + 'A' * 32 + '\n',
+    '/usr/local/bin/python3.13 /root/nethub-ci/package_probe.py ' + 'a' * 32,
+    '/usr/local/bin/python3.13 /root/nethub-ci/package_probe.py ' + 'a' * 32 + '\ntouch /tmp/foreign\n',
+    '/usr/local/bin/python3.13 /root/nethub-ci/package_probe.py ' + 'a' * 32 + ' extra\n',
+    '/usr/local/bin/python3.13 /root/nethub-ci/../package_probe.py ' + 'a' * 32 + '\n',
+])
+def test_package_snapshot_boundary_rejects_extra_input_without_transport(script):
+    guest = inspection_guest()
+    guest.ssh = Mock()
+    with pytest.raises(GUEST.GuestError, match='Only the fixed read-only'):
+        guest.ssh_read_only_inspection(script)
+    guest.ssh.assert_not_called()
+    guest.ensure_ssh.assert_not_called()
+    assert guest.read_only_inspection_recoveries == []
+
+
+def test_package_snapshot_host_key_failure_never_recovers_or_replays():
+    guest = inspection_guest()
+    guest.ssh = Mock(side_effect=GUEST.GuestError('native package snapshot failed: guest_ssh_host_key'))
+    with pytest.raises(GUEST.GuestError, match='guest_ssh_host_key'):
+        guest.ssh_read_only_inspection('/usr/local/bin/python3.13 /root/nethub-ci/package_probe.py ' + 'a' * 32 + '\n')
+    assert guest.ssh.call_count == 1
+    guest.ensure_ssh.assert_not_called()
+    assert guest.read_only_inspection_recoveries == []
 
 
 @pytest.mark.parametrize('stderr,category', [

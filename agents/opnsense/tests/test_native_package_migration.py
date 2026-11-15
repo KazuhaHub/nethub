@@ -55,7 +55,7 @@ class Guest:
         self.console = SimpleNamespace(command=self.command)
 
     def put(self, *_args):
-        pass
+        raise AssertionError('Package observations must use the previously staged read-only probe')
 
     def ensure_ssh(self):
         return False
@@ -84,8 +84,8 @@ class Guest:
             model_values_sha256=self.model_hash)
         return result
 
-    def ssh(self, script, label, **_kwargs):
-        assert label == 'owned native package observation'
+    def ssh_read_only_inspection(self, script):
+        assert script.startswith('/usr/local/bin/python3.13 /root/nethub-ci/package_probe.py ')
         assert script.endswith(' ' + 'a' * 32 + '\n')
         return json.dumps(self.observation()).encode()
 

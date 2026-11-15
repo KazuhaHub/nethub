@@ -531,3 +531,13 @@ jobs were skipped. The correction enables private debug logs from the original
 clients' initial start; it does not restart them or weaken the requirement to
 observe all twelve references. Synthetic failure summaries are captured by the
 unit tests and are not runtime measurements.
+
+The same source's installed package run failed separately at a late probe-file
+transfer, after enrollment and WAN recovery. Its preceding read-only SSH preflight
+passed, but the subsequent transfer reported a connect timeout. The baseline
+package observation and planned outages had not begun. Complete original failure
+evidence and owned cleanup were reviewed; the underlying transport cause remains
+unproven. The fixture now stages its immutable observer before enrollment/WAN
+changes and uses bounded, nonce-specific read-only recovery for later observations.
+It does not replay a transfer, package install or product operation. Native package
+migration remains unaccepted until the corrected installed scenario passes.

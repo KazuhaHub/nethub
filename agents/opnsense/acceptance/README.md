@@ -366,10 +366,19 @@ that run. The failed producer and skipped consumer are recorded separately.
 
 The corrected producer, source `d7c0c4e`, passed complete CI, including genuine
 combined packet loss and revocation with twelve original reference controls.
-Its installed-native consumer and protected-host recovery are running. Producer
-success does not establish either native package migration or cold recovery;
-both still require their original completed logs, source-bound reports, archive
-digests, actual views and owned cleanup checks.
+Its protected-host recovery passed complete source-bound log/archive/view and
+cleanup review. The installed-native run failed transferring the package probe
+after enrollment/WAN recovery, before any migration baseline step or outage.
+Its complete failure evidence and clean teardown remain retained; no package
+switch or later console Revoke was reached. The underlying SSH timeout cause
+is unproven.
+
+The fixture now stages that immutable observer before enrollment and WAN changes.
+Later package observations perform only nonce-bound reads, using the same narrow
+SSH recovery boundary and shared four-event budget as other read-only probes.
+Malformed commands and host-key failures cannot trigger recovery. No input
+transfer or package mutation is retried. This transport correction still requires
+actual installed acceptance and does not change the five-second revoke target.
 
 Pinned upstream sources:
 
