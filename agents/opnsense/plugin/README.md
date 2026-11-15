@@ -14,8 +14,9 @@ and [heartbeat/revocation](../../../deploy/validation-native-w5-heartbeat.md).
 Those results do not automatically cover a newly built client or changed source.
 Per-device rotation and online shared-token recovery also have scoped
 [installed acceptance](../../../deploy/validation-shared-token.md), including
-their recorded rebuilt client. Public/operator and complete clean-host recovery
-gates remain open; no signed production release is accepted.
+their recorded rebuilt client. [Isolated clean-host recovery](../../../deploy/validation-protected-host-cold-recovery.md)
+has separate scoped evidence. Public/operator recovery and durable off-host
+custody gates remain open; no signed production release is accepted.
 
 Enter the separate console HTTPS address and one-use token in Enrollment.
 The client uses system trust, refuses redirects and environment proxies, validates

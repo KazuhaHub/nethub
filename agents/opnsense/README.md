@@ -45,10 +45,10 @@ point of view, NetHub is simply another upstream.
 
 Keeping the source here buys three things:
 
-1. **One copyright, one license.** Every line of NetHub is Apache-2.0 and owned
-   by its authors. The packaging repository is MIT and has other copyright
-   holders in its history; mixing a new project into it would leave ownership
-   permanently ambiguous.
+1. **Separate source and packaging licenses.** NetHub source remains under
+   Apache-2.0, while the packaging repository uses MIT. The recipe fetches the
+   identified NetHub release without duplicating its source. Packaged third-party
+   software retains its own license and notice files.
 2. **No protocol drift.** `proto/`, the agent, and the server are in the same
    repository, so a protocol change is a single pull request with contract
    tests that run against both sides. A cross-repository split is where this
