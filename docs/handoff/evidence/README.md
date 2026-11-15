@@ -83,3 +83,19 @@ operation failed. Original small ZIPs and all 13 required console images are
 retained; the continuation verifier checks run identities, archive and image
 hashes, source archive and all 257 contract source blobs. Raw logs and credentials
 remain outside Git. The later diagnostic source requires its own evidence.
+
+## Authz log checkpoint and local framing reproduction
+
+[`ubuntu-359bf94/index.json`](ubuntu-359bf94/index.json) retains five exact-source
+runs and 33 closed files. Installed execution failed before guest creation at
+authz log decoding; CI, preparation, FreeBSD contracts and isolated recovery
+passed separately. The verifier checks all 258 original source blobs and keeps
+that failure failed.
+
+[`local-relay-log-framing/index.json`](local-relay-log-framing/index.json) records
+a distinct local Docker mechanism reproduction using the pinned source helper.
+Run `python3 tools/handoff/reproduce_relay_log.py` with local Docker and its
+cached pinned image to repeat it. This demonstrates an incomplete log tail and
+its bounded, byte-preserving read; it does not attribute the prior native failure
+or qualify installed upgrades. The verifier checks the source/helper/reproducer
+hashes and the retained closed result, without executing Docker.

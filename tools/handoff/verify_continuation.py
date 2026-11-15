@@ -205,9 +205,8 @@ def verify_local_load(root=ROOT):
     print('Verified local SQL/load record and exact source hashes; no online-fleet, native or public acceptance.')
 
 
-def verify_post_wan_checkpoint(root=ROOT):
-    head = '52e3362625b1de18399bb7ff6a68aeaca516aabb'
-    directory = root / 'docs/handoff/evidence/ubuntu-52e3362'
+def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage):
+    directory = root / ('docs/handoff/evidence/ubuntu-' + head[:7])
     index = json.loads((directory / 'index.json').read_text())
     assert index['source_head'] == head and index['version'] == 1
     assert index['full_project_complete'] is index['native_upgrade_cause_proven'] is False
@@ -219,8 +218,6 @@ def verify_post_wan_checkpoint(root=ROOT):
         assert 0 < len(raw) == item['bytes'] <= 16 * 1024**2
         assert hashlib.sha256(raw).hexdigest() == item['sha256']
     runs = {r['kind']: r for r in index['runs']}
-    expected = {'CI': 43760255115, 'native': 43760255139, 'cold': 43760255138,
-                'preparation': 43760255136, 'filesystem': 43760255102}
     assert len(index['runs']) == len(expected) and set(runs) == set(expected)
     for kind, identifier in expected.items():
         run = runs[kind]
@@ -248,14 +245,25 @@ def verify_post_wan_checkpoint(root=ROOT):
             assert all(not Path(n).is_absolute() and '..' not in Path(n).parts and '\\' not in n for n in inventory)
             return json.loads(archive.read(name))
 
-    native = read('native', 'native/result.json')
     deployment = read('native', 'deployment-result.json')
-    assert native['source_head'] == deployment['source_head'] == head and native['passed'] is False
-    assert native['failure'] == 'Guest console after WAN probe failed at tls: http_failure'
+    assert deployment['source_head'] == head
     assert deployment['accepted_image_run'] == str(expected['CI']) and deployment['image_phase'] == 'verified'
     assert deployment['passed'] is False and deployment['owned_image_cleanup_confirmed'] is True
-    assert read('native', 'native/installed-wan-recovery.json')['passed'] is True
-    assert read('native', 'native/guest-console-after-wan-probe.json')['passed'] is False
+    if failure_stage == 'post_WAN':
+        native = read('native', 'native/result.json')
+        assert native['source_head'] == head and native['passed'] is False
+        assert native['failure'] == 'Guest console after WAN probe failed at tls: http_failure'
+        assert read('native', 'native/installed-wan-recovery.json')['passed'] is True
+        assert read('native', 'native/guest-console-after-wan-probe.json')['passed'] is False
+    elif failure_stage == 'authz_log':
+        assert deployment['compose_setup']['phase'] == 'relay_heartbeat'
+        assert deployment['failure'] == 'Owned native deployment failed at relay_heartbeat'
+        assert deployment['compose_setup']['hints'] == []
+        assert {'source': 'relay_deployment', 'line': 60} in deployment['compose_setup']['locations']
+        with zipfile.ZipFile(directory / 'native/original.zip') as archive:
+            assert archive.namelist() == ['deployment-result.json']
+    else:
+        raise ValueError('Unknown recorded failure stage')
     with zipfile.ZipFile(directory / 'native/original.zip') as archive:
         assert 'native/installed-package-migration.json' not in archive.namelist()
     cold = read('cold', 'result.json')
@@ -273,7 +281,7 @@ def verify_post_wan_checkpoint(root=ROOT):
             for name, digest in value['screenshots'].items():
                 assert hashlib.sha256(archive.read(name)).hexdigest() == digest
     manifest, receipt = read('filesystem', 'source.json'), read('filesystem', 'result.json')
-    assert manifest['source_head'] == receipt['source_head'] == head and len(manifest['files']) == 257
+    assert manifest['source_head'] == receipt['source_head'] == head and len(manifest['files']) == source_count
     contract_source = subprocess.check_output(['git', '-C', str(root), 'show', head + ':agents/opnsense/native_contracts.py'])
     settings = {}
     for node in ast.parse(contract_source).body:
@@ -300,11 +308,40 @@ def verify_post_wan_checkpoint(root=ROOT):
     assert len(images) == 13 and {p.name for p in images} == {p.name for p in old.glob('*.png')}
     assert sum(p.read_bytes() == (old / p.name).read_bytes() for p in images) == 6
     assert index['required_image_review'] == {'images': 13, 'identical_to_reviewed_870eb57': 6, 'changed_views_reviewed': 7}
-    print(f'Verified {len(names)} later checkpoint files, five exact-source runs and 257 source blobs; post-WAN failure remains failed.')
+    print(f'Verified {len(names)} checkpoint files for {head[:7]}, five exact-source runs and {source_count} source blobs; {failure_stage} failure remains failed.')
+
+
+def verify_local_framing(root=ROOT):
+    directory = root / 'docs/handoff/evidence/local-relay-log-framing'
+    index = json.loads((directory / 'index.json').read_text())
+    assert index['version'] == 1 and index['native_failure_cause_proven'] is False
+    assert index['source_head'] == '2523ab981f953e0a4d5dce994fbdff593d09d8fe'
+    assert hashlib.sha256((root / 'tools/handoff/reproduce_relay_log.py').read_bytes()).hexdigest() == index['reproducer_sha256']
+    assert len(index['files']) == 1
+    item = index['files'][0]
+    raw = checked_path(directory, item['path']).read_bytes()
+    assert item['path'] == 'result.json' and len(raw) == item['bytes']
+    assert hashlib.sha256(raw).hexdigest() == item['sha256']
+    value = json.loads(raw)
+    assert value['helper_source_commit'] == index['source_head']
+    source = subprocess.check_output(['git', '-C', str(root), 'show', index['source_head'] + ':server/tests/relay_log.py'])
+    assert hashlib.sha256(source).hexdigest() == value['helper_sha256']
+    assert value['framing_reproduction_passed'] is value['owned_container_cleanup_confirmed'] is True
+    assert value['all_padding_preserved'] is value['completed_json_valid'] is True
+    assert value['first_json_valid'] is value['first_ends_newline'] is value['product_native_or_public_accepted'] is False
+    assert value['first_bytes'] == 16384 and value['completed_bytes'] == 20043
+    assert value['reader_calls'] == 2 and value['parsed_events'] == 1 and value['log_driver'] == 'json-file'
+    print('Verified local Docker framing reproduction; native failure attribution remains unproven.')
 
 
 if __name__ == '__main__':
     verify()
     verify_preflight()
     verify_local_load()
-    verify_post_wan_checkpoint()
+    verify_runtime_checkpoint(ROOT, '52e3362625b1de18399bb7ff6a68aeaca516aabb',
+        {'CI': 43760255115, 'native': 43760255139, 'cold': 43760255138,
+         'preparation': 43760255136, 'filesystem': 43760255102}, 257, 'post_WAN')
+    verify_runtime_checkpoint(ROOT, '359bf94eab8c3339671fb1b0af1a6c4133f26ad1',
+        {'CI': 43766613173, 'native': 43766613555, 'cold': 43766613544,
+         'preparation': 43766613091, 'filesystem': 43766613099}, 258, 'authz_log')
+    verify_local_framing()

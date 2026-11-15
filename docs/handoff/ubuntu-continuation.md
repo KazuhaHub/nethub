@@ -93,6 +93,42 @@ participation be recorded and skipped temporarily while independent work continu
   Fresh source-specific CI `43766613173` and installed `43766613555` are pending;
   the earlier source's images and scoped results are not substituted.
 
+  Source `359bf94` subsequently passed all six CI jobs in `43766613173`,
+  FreeBSD `43766613099` (252 cases, 258 source blobs) and preparation
+  `43766613091`. Installed `43766613555` failed before creating the guest,
+  at authz log JSON decoding during heartbeat preparation. No package or
+  post-WAN diagnostic was reached. Its failed outcome and owned-image cleanup
+  remain retained in the [source-specific checkpoint](evidence/ubuntu-359bf94/index.json).
+  Cold recovery `43766613544` passed isolated scope with cleanup confirmed;
+  baseline recovery was 108825 ms and original-request issuance recovery was
+  141275 ms from source stop. The producer's 13 required console image hashes
+  were checked: six matched reviewed bytes and seven changed views were reviewed.
+- [PR 250](https://github.com/KazuhaHub/nethub/pull/250), source
+  `2523ab981f953e0a4d5dce994fbdff593d09d8fe`, addresses a separately reproduced
+  Docker log framing defect. An unterminated final JSON fragment may receive
+  at most one second to complete, with the same container and every original
+  byte preserved. Complete invalid records, changed history and timeouts still
+  fail; observation waits consume existing cutoff clocks. Ten log tests, three
+  heartbeat tests and 214 related tests passed. Fresh source-specific CI and
+  installed acceptance remain pending. This does not prove the prior native
+  failure was caused by log framing.
+
+The [local framing record](evidence/local-relay-log-framing/index.json) is
+reproducible from a full clone using a local Docker endpoint and its cached
+pinned build image:
+
+```sh
+python3 tools/handoff/reproduce_relay_log.py
+```
+
+It creates only one named, network-isolated, one-CPU/64-MiB container with no
+published ports and removes that owned container. It does not install packages,
+change host services or require sudo. The observed first fragment was 16384
+bytes; two reads preserved the complete 20043-byte event. This local mechanism
+experiment is not installed-appliance or public acceptance. Keep runtime tests
+and result collectors in tmux; collectors must verify and skip completed local
+receipts when restarted rather than redownload finished artifacts.
+
 Local actual PostgreSQL checks at source `52e3362` also passed eight ordinary
 top-level cases and the explicitly enabled bounded snapshot-load case. At 100000
 revoked rows, 100000 rotation floors and 1024 tenants, the observed refresh was
