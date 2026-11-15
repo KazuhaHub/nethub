@@ -69,8 +69,10 @@ participation be recorded and skipped temporarily while independent work continu
 - [PR 249](https://github.com/KazuhaHub/nethub/pull/249), source
   `52e3362625b1de18399bb7ff6a68aeaca516aabb`, separates the package boundary into
   fixed host/nonce/marker/interface/LAN/route/WAN checkpoints without changing
-  any guard, operation or replay policy. Its 151 focused tests passed; fresh
-  exact-source CI and installed acceptance are pending. This does not identify
+  any guard, operation or replay policy. Its 151 focused tests and all six CI
+  jobs in `43760255115` passed. The exact-source tested-image gate was
+  independently validated; installed run `43760255139` and cold recovery
+  `43760255138` are in progress using that producer. This does not identify
   the historical upgrade cause or accept either earlier failed installed run.
   Preparation `43760255136` and FreeBSD `43760255102` subsequently passed; 252
   contract cases, all 257 Git blobs, the preparation archive and four screenshot
@@ -95,6 +97,10 @@ does not turn that failed scenario into a pass. No tested-image archive was
 accepted from that run. The Docker-only quickstart also needed an explicit base
 doctor invocation using the same image and read-only absolute state/backup mounts;
 the host CLI is not installed by running the initializer container.
+Later documentation source `0420594` passed all six jobs in CI `43760561493`
+and its separate FreeBSD check. That separate success does not diagnose or
+relabel the earlier combined-fault failure, and its images are not used for
+the `52e3362` native run.
 
 The [first Ubuntu evidence index](evidence/ubuntu-870eb57/index.json) is durable
 and independently checkable with `python3 tools/handoff/verify_continuation.py`.
