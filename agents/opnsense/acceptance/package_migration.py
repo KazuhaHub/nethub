@@ -28,6 +28,8 @@ LIMITS = ('manual_agent_start_or_reconcile', 'arbitrary_network_loss_accepted',
           'public_network_or_formal_package_accepted', 'full_W5_acceptance')
 PHASE_VERSIONS = {name: ('0.0.18' if name in ('rollback', 'legacy_recovered', 'legacy_steady', 'offline_upgrade')
                          else '0.0.19') for name in PHASES[:-1]}
+OUTAGE_PHASES = ('offline_rollback', 'offline_upgrade')
+OUTAGE_FLAGS = ('relay_running', 'native_control_present', 'native_route_verified', 'witness_route_verified')
 
 
 def validate_packages(value):
@@ -90,8 +92,8 @@ def prepare(guest, directory):
 
 def validate(value):
     fields = set(FLAGS + LIMITS) | {'version', 'passed', 'phase', 'baseline_source', 'current_source',
-        'package_sha256', 'relay_config_sha256', 'steps', 'cleanup_stopped_failed_relay'}
-    if (not isinstance(value, dict) or set(value) != fields or type(value['version']) is not int or value['version'] != 1
+        'package_sha256', 'relay_config_sha256', 'steps', 'outages', 'cleanup_stopped_failed_relay'}
+    if (not isinstance(value, dict) or set(value) != fields or type(value['version']) is not int or value['version'] != 2
             or type(value['passed']) is not bool or value['phase'] not in PHASES
             or value['baseline_source'] != BASELINE or not isinstance(value['current_source'], str)
             or not re.fullmatch('[a-f0-9]{40}', value['current_source'])
@@ -101,8 +103,25 @@ def validate(value):
             or any(not isinstance(v, str) or not re.fullmatch('[a-f0-9]{64}', v) for v in value['package_sha256'].values())
             or len(set(value['package_sha256'].values())) != 2
             or not isinstance(value['relay_config_sha256'], str) or not re.fullmatch('[a-f0-9]{64}', value['relay_config_sha256'])
-            or not isinstance(value['steps'], list) or len(value['steps']) > 10):
+            or not isinstance(value['steps'], list) or len(value['steps']) > 10
+            or not isinstance(value['outages'], list) or len(value['outages']) > 2):
         raise ValueError('Unexpected native package migration outcome')
+    for index, outage in enumerate(value['outages']):
+        if (not isinstance(outage, dict) or set(outage) != {'phase', 'profile', 'budget_ms', 'first', 'last'}
+                or outage['phase'] != OUTAGE_PHASES[index]
+                or not isinstance(outage['profile'], list) or len(outage['profile']) != 2
+                or any(type(number) is not int for number in outage['profile'])
+                or outage['profile'] != PROFILES[PHASE_VERSIONS[outage['phase']]]
+                or type(outage['budget_ms']) is not int or outage['budget_ms'] != (outage['profile'][1] + 10) * 1000):
+            raise ValueError('Unexpected planned package outage')
+        for name in ('first', 'last'):
+            observation = outage[name]
+            if (not isinstance(observation, dict) or set(observation) != set(OUTAGE_FLAGS) | {'elapsed_ms'}
+                    or any(type(observation[key]) is not bool for key in OUTAGE_FLAGS)
+                    or type(observation['elapsed_ms']) is not int or not 0 <= observation['elapsed_ms'] <= 300000):
+                raise ValueError('Unexpected planned outage observation')
+        if outage['last']['elapsed_ms'] < outage['first']['elapsed_ms']:
+            raise ValueError('Planned outage observation clock moved backwards')
     seen = []
     for row in value['steps']:
         if (not isinstance(row, dict) or set(row) != {'phase', 'passed', 'elapsed_ms', 'package_version',
@@ -120,7 +139,9 @@ def validate(value):
         raise ValueError('Native package migration phases changed order')
     if value['passed']:
         if (value['phase'] != 'completed' or seen != list(PHASES[:-1]) or not all(value[key] for key in FLAGS)
-                or not all(row['passed'] for row in value['steps']) or value['cleanup_stopped_failed_relay']):
+                or not all(row['passed'] for row in value['steps']) or value['cleanup_stopped_failed_relay']
+                or len(value['outages']) != 2 or any(outage['last']['elapsed_ms'] > outage['budget_ms']
+                    or any(outage['last'][key] for key in OUTAGE_FLAGS) for outage in value['outages'])):
             raise ValueError('Incomplete native package migration success')
         for row in value['steps']:
             offline = row['phase'] in ('offline_rollback', 'rollback', 'offline_upgrade', 'upgrade')
@@ -164,9 +185,9 @@ def _exercise(guest, stage, compose, evidence, nonce, packages, native_read, rou
         raise GuestError('Current relay heartbeat baseline required')
     candidate = config.with_name('frps-native-package-candidate.toml')
     result = {key: False for key in FLAGS + LIMITS}
-    result.update(version=1, passed=False, phase='baseline', baseline_source=BASELINE,
+    result.update(version=2, passed=False, phase='baseline', baseline_source=BASELINE,
         current_source=os.environ['NETHUB_SOURCE_HEAD'], package_sha256=packages['package_sha256'],
-        relay_config_sha256=hashlib.sha256(original).hexdigest(), steps=[], cleanup_stopped_failed_relay=False)
+        relay_config_sha256=hashlib.sha256(original).hexdigest(), steps=[], outages=[], cleanup_stopped_failed_relay=False)
     path = evidence / 'installed-package-migration.json'
 
     def save():
@@ -239,12 +260,36 @@ def _exercise(guest, stage, compose, evidence, nonce, packages, native_read, rou
     def offline(phase):
         result['phase'] = phase
         save()
+        initial = probe()
         started = time.monotonic()
+        budget = initial['profile'][1] + 10
         invoke(compose + ['stop', '--timeout', '3', 'frps'], 'planned owned relay outage', timeout=20)
-        value = probe()
-        if service('frps')['running'] or route() or witness_route() or value['control_sha256'] is not None:
-            raise GuestError('Planned relay outage was not observed')
-        append(phase, started, value, False)
+        outage = None
+        while True:
+            value = probe()
+            invariants(value)
+            if value['profile'] != initial['profile']:
+                raise GuestError('Native heartbeat profile changed during planned outage')
+            observation = {'relay_running': service('frps')['running'],
+                'native_control_present': value['control_sha256'] is not None,
+                'native_route_verified': bool(route()), 'witness_route_verified': bool(witness_route())}
+            elapsed = time.monotonic() - started
+            observation['elapsed_ms'] = round(elapsed * 1000)
+            if outage is None:
+                outage = {'phase': phase, 'profile': initial['profile'], 'budget_ms': budget * 1000,
+                          'first': dict(observation), 'last': observation}
+                result['outages'].append(outage)
+            else:
+                outage['last'] = observation
+            save()
+            # A stopped relay does not synchronously close the guest's TCP view.
+            # Observe only; never replay stop, installation or reconciliation.
+            if elapsed > budget:
+                raise GuestError('Planned relay outage did not settle within its heartbeat observation bound')
+            if not any(observation[key] for key in OUTAGE_FLAGS):
+                append(phase, started, value, False)
+                return
+            time.sleep(.25)
 
     def install(version, phase):
         result['phase'] = phase

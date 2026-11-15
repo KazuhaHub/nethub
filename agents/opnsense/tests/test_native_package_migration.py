@@ -74,10 +74,13 @@ class Guest:
 
     def observation(self):
         result = {key: 'a' * 64 for key in PROBE.HASHES}
+        present = self.context['online'] or self.context.get('linger_remaining', 0) > 0
+        if not self.context['online'] and self.context.get('linger_remaining', 0) > 0:
+            self.context['linger_remaining'] -= 1
         result.update(version=1, package_version=self.version, profile=MIGRATION.PROFILES[self.version],
             markers={name: False for name in PROBE.MARKERS}, running=True, pid=self.pid,
             process_sha256=hashed(str(self.pid)),
-            control_sha256=hashed(str(self.pid) + ':' + str(self.context['epoch'])) if self.context['online'] else None,
+            control_sha256=hashed(str(self.pid) + ':' + str(self.context['epoch'])) if present else None,
             model_values_sha256=self.model_hash)
         return result
 
@@ -110,6 +113,8 @@ def setup(tmp_path, monkeypatch, *, lost_install=False, changed_model=False):
                 return hashed(args[-1]).encode()
             if action == 'stop':
                 context['online'] = False
+                if context['calls'].count('stop') == 2:
+                    context['linger_remaining'] = context.get('linger_probes', 0)
             elif action == 'start':
                 timeout = 30 if b'heartbeatTimeout = 30' in config.read_bytes() else 3
                 assert guest.version != '0.0.18' or timeout == 30, 'old package was started behind a short relay timeout'
@@ -147,6 +152,35 @@ def test_real_phase_engine_preserves_order_and_restores_current_profile(tmp_path
     assert context['online'] is True and config.read_bytes() == original
     assert [row['phase'] for row in result['steps']] == list(MIGRATION.PHASES[:-1])
     assert json.loads((evidence / 'installed-package-migration.json').read_text()) == result
+
+
+def test_outage_observes_guest_tcp_settlement_without_replaying_mutations(tmp_path, monkeypatch):
+    arguments, context, guest, *_ = setup(tmp_path, monkeypatch)
+    context['linger_probes'] = 2
+    result = MIGRATION._exercise(*arguments)
+    assert result['passed'] is True and result['version'] == 2
+    outage, legacy = result['outages']
+    assert outage['first']['native_control_present'] is True
+    assert outage['last']['native_control_present'] is False
+    assert outage['last']['elapsed_ms'] > outage['first']['elapsed_ms']
+    assert outage['budget_ms'] == 13000 and legacy['budget_ms'] == 40000
+    assert guest.installations == ['0.0.18', '0.0.19']
+    assert context['calls'].count('stop') == 3
+
+
+def test_unsettled_outage_fails_before_any_package_installation(tmp_path, monkeypatch):
+    arguments, context, guest, config, original, evidence = setup(tmp_path, monkeypatch)
+    context['linger_probes'] = 1000
+    with pytest.raises(MIGRATION.GuestError, match='observation bound'):
+        MIGRATION._exercise(*arguments)
+    result = json.loads((evidence / 'installed-package-migration.json').read_text())
+    MIGRATION.validate(result)
+    assert result['passed'] is False and result['phase'] == 'offline_rollback'
+    assert result['outages'][0]['last']['native_control_present'] is True
+    assert result['outages'][0]['last']['elapsed_ms'] > result['outages'][0]['budget_ms']
+    assert guest.installations == [] and context['online'] is False
+    assert config.read_bytes() == original and result['cleanup_stopped_failed_relay'] is True
+    assert context['calls'].count('stop') == 3
 
 
 @pytest.mark.parametrize('failure', ['unconfirmed_install', 'changed_model'])
@@ -189,6 +223,21 @@ def test_report_rejects_missing_rollback_short_windows_and_public_claims(tmp_pat
     cases.append(changed)
     changed = copy.deepcopy(valid)
     changed['steps'][5]['elapsed_ms'] = 34999
+    cases.append(changed)
+    changed = copy.deepcopy(valid)
+    changed['outages'][0]['first']['source_address'] = 'must-not-be-published'
+    cases.append(changed)
+    changed = copy.deepcopy(valid)
+    changed['outages'][0]['last']['native_control_present'] = True
+    cases.append(changed)
+    changed = copy.deepcopy(valid)
+    changed['outages'][0]['budget_ms'] = 300000
+    cases.append(changed)
+    changed = copy.deepcopy(valid)
+    changed['outages'] = []
+    cases.append(changed)
+    changed = copy.deepcopy(valid)
+    changed['outages'][1]['last']['elapsed_ms'] = 40001
     cases.append(changed)
     for case in cases:
         with pytest.raises(ValueError):

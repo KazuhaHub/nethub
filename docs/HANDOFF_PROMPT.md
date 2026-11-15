@@ -15,6 +15,31 @@
 
 ### Current state (updated 2026-11-15 UTC)
 
+Source `da5da34` passed six original prerequisites: complete CI, actual FreeBSD
+contracts, unsigned appliance preparation, distinct recovery target, PostgreSQL
+diagnosis and isolated protected-host cold recovery. Their full logs, exact
+official archive digests and actual views were reviewed. Cold baseline routing
+recovered in 90.183 seconds from source stop; the original request's issuance,
+native acknowledgement and served route took 147.654 seconds from that stop,
+or 158.801 seconds from checkpoint start. Public operator recovery, durable
+off-host custody, real renewal clocks and formal release remain separate.
+
+Its installed-native run failed at the immediate planned-outage check after
+successful enrollment, WAN recovery and relay widening. No old-package
+installation, subsequent rotation or new console Revoke measurement was reached.
+The failed ten-entry official archive, both full logs, actual enrollment view,
+exact source and owned cleanup were checked. The original test did not record
+which outage condition remained true; do not infer its cause or count the run
+as accepted. Earlier successful native/public samples retain their own scope.
+
+The revised package fixture observes all four outage conditions within the
+installed heartbeat timeout plus ten seconds before attempting installation.
+Its first/last closed observations distinguish relay state, native control and
+both routes. Pending combined-fault coverage also retains twelve actual reference
+clients and snapshot pressure while dropping one new target's control packets
+and revoking that target once. Neither revised fixture has actual hosted
+acceptance yet; the five-second revocation requirement remains unchanged.
+
 Source `1065999` passed actual FreeBSD execution: Python 3.12.16 and 3.13.18 both
 parsed XML using Expat 2.10.0, followed by 248 native cases over 255 bound source
 blobs. Its exact two-entry official archive and complete log were checked.

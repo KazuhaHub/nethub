@@ -342,6 +342,23 @@ Both packages use frp 0.71.1 on the same firmware; this is neither firmware roll
 nor a signed release, fleet/offline-device rollout or arbitrary network-loss test.
 The extended workflow budget does not change the five-second revocation target.
 
+The first installed package attempt, source `da5da34`, failed at its immediate
+planned-outage check after successful enrollment and WAN recovery. Only baseline
+and relay widening completed; no old-package installation or new console Revoke
+measurement was reached. Its failed report, official archive, complete logs and
+cleanup remain retained. The combined boolean check did not identify which
+outage condition remained true.
+
+The revised version-2 package report records the first and last closed outage
+observations: relay running, native control present, native route and witness
+route. A single relay-stop operation is followed by read-only observations for
+the installed client's heartbeat timeout plus ten seconds (13 seconds for the
+current profile, 40 for the legacy profile). All four conditions must become
+false within that bound before any package installation. The stop, package hooks
+and reconcile are not replayed. This planned-outage preparation budget is
+separate from the unchanged five-second console revocation requirement. The
+revised scenario still needs its own actual installed execution.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)
