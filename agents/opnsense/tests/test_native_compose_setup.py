@@ -47,6 +47,19 @@ def test_fleet_control_failure_hints_are_exact_and_private_values_are_ignored():
     assert 'private-secret' not in str(value)
 
 
+def test_combined_reference_failure_retains_only_source_and_existing_hints():
+    value = SETUP.project(b'NETHUB_NATIVE_PHASE=relay_fleet\n'
+        b'  File "/private-secret/relay_combined_fault.py", line 193, in retained\n'
+        b'NETHUB_NATIVE_HINT=relay_fleet_original_control_changed\n'
+        b'NETHUB_NATIVE_HINT=relay_fleet_changed_client_heartbeat_timeout\n'
+        b'private-secret endpoint and log\n', 1)
+    assert value['phase'] == 'relay_fleet'
+    assert value['locations'] == [{'source': 'relay_combined_fault', 'line': 193}]
+    assert value['hints'] == ['relay_fleet_changed_client_heartbeat_timeout', 'relay_fleet_original_control_changed']
+    assert SETUP.project(SETUP.emit(value).encode(), 1) == value
+    assert 'private-secret' not in str(value)
+
+
 @pytest.mark.parametrize('raw,code', [(b'x' * (4 * 1024**2 + 1), 1), ('private', 1), (b'', True)],
                          ids=['oversized', 'text', 'boolean-exit'])
 def test_unbounded_or_wrong_typed_input_refused(raw, code):

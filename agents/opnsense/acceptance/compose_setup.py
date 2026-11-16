@@ -30,7 +30,7 @@ SOURCES = {'gui-issuer-host.py': 'gui_issuer_host', 'test_gui_issuer_host.py': '
 SOURCES.update({name: name.removesuffix('.py').replace('-', '_') for name in (
     'relay-deployment.py', 'relay_fleet.py', 'relay_heartbeat.py', 'relay_maintenance.py',
     'relay_traffic.py', 'relay_rotation.py', 'relay_token_probe.py', 'relay_token_runtime.py', 'relay_migration.py',
-    'relay_cache_phase.py', 'relay_network_blip.py')})
+    'relay_cache_phase.py', 'relay_network_blip.py', 'relay_combined_fault.py')})
 SOURCES['relay_log.py'] = 'relay_log'
 ERRORS.update({name: () for name in (
     'relay_hook_log_json_prefix', 'relay_hook_log_plain_prefix', 'relay_hook_log_runtime_fault',

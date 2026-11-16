@@ -25,7 +25,7 @@ def require_original_controls(actual, baseline, originals, owned, stage_index):
         if client.pid not in changed:
             continue
         try:
-            if log.is_symlink() or not log.is_file() or log.stat().st_size > 4 * 1024**2:
+            if log is None or log.is_symlink() or not log.is_file() or log.stat().st_size > 4 * 1024**2:
                 raise ValueError('Bounded private fleet log required')
             with log.open('rb') as stream:
                 raw = stream.read(4 * 1024**2 + 1)

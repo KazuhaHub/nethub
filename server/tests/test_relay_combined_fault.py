@@ -15,6 +15,55 @@ sys.path.insert(0, str(Path(__file__).parent))
 import relay_combined_fault as combined
 
 
+class ReferenceDiagnosisTests(unittest.TestCase):
+    def test_unchanged_controls_never_read_private_processes_or_logs(self):
+        baseline = {101: ('private-source', 'private-peer', 'private-inode')}
+        with patch.object(combined, 'reference_log', side_effect=AssertionError('unexpected read')):
+            output = io.StringIO()
+            with redirect_stdout(output):
+                combined.require_reference_controls(dict(baseline), baseline, [SimpleNamespace(pid=101)], Path('/fixture'))
+        self.assertEqual(output.getvalue(), '')
+
+    def test_replaced_control_stays_failed_and_exports_only_existing_categories(self):
+        baseline = {101: ('private-source', 'private-peer', 'private-inode')}
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / 'private-reference.log'
+            log.write_bytes(b'private-unexported-value\nheartbeat timeout\nreceive heartbeat from server\n')
+            with patch.object(combined, 'reference_log', return_value=log):
+                output = io.StringIO()
+                with redirect_stdout(output), self.assertRaisesRegex(ValueError, 'reference control changed'):
+                    combined.require_reference_controls({101: ('new', 'peer', 'inode')}, baseline,
+                        [SimpleNamespace(pid=101)], Path(directory))
+            self.assertEqual(set(output.getvalue().splitlines()), {
+                'NETHUB_NATIVE_HINT=relay_fleet_stage_pressure',
+                'NETHUB_NATIVE_HINT=relay_fleet_original_control_changed',
+                'NETHUB_NATIVE_HINT=relay_fleet_changed_client_heartbeat_timeout',
+                'NETHUB_NATIVE_HINT=relay_fleet_changed_client_Pong_observed'})
+            self.assertNotIn('private', output.getvalue())
+            self.assertNotIn('101', output.getvalue())
+
+    def test_missing_log_does_not_mask_original_missing_control_failure(self):
+        with patch.object(combined, 'reference_log', return_value=None):
+            output = io.StringIO()
+            with redirect_stdout(output), self.assertRaisesRegex(ValueError, 'reference control changed'):
+                combined.require_reference_controls({}, {101: ('source', 'peer', 'inode')},
+                    [SimpleNamespace(pid=101)], Path('/fixture'))
+        self.assertEqual(set(output.getvalue().splitlines()), {
+            'NETHUB_NATIVE_HINT=relay_fleet_stage_pressure',
+            'NETHUB_NATIVE_HINT=relay_fleet_original_control_changed',
+            'NETHUB_NATIVE_HINT=relay_fleet_inventory_changed',
+            'NETHUB_NATIVE_HINT=relay_fleet_failure_log_unavailable'})
+
+    def test_reference_log_refuses_unknown_binary_and_paths(self):
+        stage = Path('/owned-fixture')
+        client = SimpleNamespace(pid=101)
+        for raw in [b'/private/wrong\0-c\0/owned-fixture/relay-test/reference.json\0',
+                    b'/owned-fixture/official/frpc\0-c\0/private/reference.json\0',
+                    b'x' * 16385]:
+            with self.subTest(raw_length=len(raw)), patch.object(Path, 'read_bytes', return_value=raw):
+                self.assertIsNone(combined.reference_log(stage, client))
+
+
 class Clock:
     def __init__(self):
         self.value = 1000.0
