@@ -518,6 +518,34 @@ def verify_external_tcp_report(root=ROOT):
     print('Verified strict TCP report correction, retained mismatch/403 refusals and owned-port negative sample; positive/public-release scope remains open.')
 
 
+def verify_local_opnsense_baseline():
+    value = json.loads((ROOT / 'docs/handoff/evidence/local-opnsense-baseline/result.json').read_text())
+    assert value['version'] == 1
+    assert value['verification_source_head'] == 'f98e8ceba3b85c485a3f63b76054430eb59be22e'
+    assert value['verification_source_path'] == 'agents/opnsense/acceptance/guest.py'
+    source = subprocess.check_output(['git', '-C', str(ROOT), 'show',
+        value['verification_source_head'] + ':' + value['verification_source_path']])
+    assert hashlib.sha256(source).hexdigest() == value['verification_source_sha256']
+    image, baseline = value['image'], value['baseline']
+    assert image['signature_verified'] is True
+    assert image['compressed_sha256'] == '28d5e2f37e40d87468a924e3006ef10e2ddc6de485b85333d9e3958c84d0cb9d'
+    assert image['raw_sha256'] == 'c376b498338e9e0ddd785ac447f933e940f7d556810779475eecef30d37fcb98'
+    assert re.fullmatch('[a-f0-9]{64}', image['converted_disk_sha256'])
+    assert baseline['guest_system'] == 'FreeBSD' and baseline['guest_version'] == 'OPNsense 26.7 (amd64)'
+    assert baseline['memory_MiB'] == 3072 and baseline['vCPU'] == 2
+    for key in ('official_image_signature_verified', 'disk_transfer_hash_verified',
+                'independent_serial_console_boot_verified', 'both_network_links_disconnected', 'gracefully_powered_off'):
+        assert baseline[key] is True
+    for key in ('public_ports_exposed', 'host_network_definition_changed',
+                'installed_NetHub_or_native_migration_or_release_accepted'):
+        assert baseline[key] is False
+    assert value['earlier_readback_wrapper_refusals_retained'] == 3 and value['host_start_requests'] == 1
+    for key in ('guest_pkg_install_or_SQL_replay', 'host_sudo_or_firewall_or_default_network_change',
+                'hosted_acceptance_guard_changed_or_forged', 'public_mobile_independent_operator_or_release_accepted'):
+        assert value[key] is False
+    print('Verified closed local disconnected appliance baseline; no installed NetHub, native migration or release acceptance.')
+
+
 def verify_semantic_review(root=ROOT):
     value = json.loads((root / 'docs/handoff/evidence/semantic-review-109aab5.json').read_text())
     assert value['source_head'] == '109aab5063dc056f794ef2c98f8ba2d6ca0717a9'
@@ -561,4 +589,5 @@ if __name__ == '__main__':
         {'CI': 43801873400, 'native': 43801873221, 'cold': 43805004536,
          'preparation': 43802001135, 'filesystem': 43801873348}, 258, 'package_route_boundary')
 
+    verify_local_opnsense_baseline()
     verify_semantic_review()

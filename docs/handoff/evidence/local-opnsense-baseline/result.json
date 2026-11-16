@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "verification_source_head": "f98e8ceba3b85c485a3f63b76054430eb59be22e",
+  "verification_source_path": "agents/opnsense/acceptance/guest.py",
+  "verification_source_sha256": "d25fe840b97e6ed1463b9439ee42a616209438fcf52895e5c082bc630c1ffe8d",
+  "image": {
+    "compressed_sha256": "28d5e2f37e40d87468a924e3006ef10e2ddc6de485b85333d9e3958c84d0cb9d",
+    "raw_sha256": "c376b498338e9e0ddd785ac447f933e940f7d556810779475eecef30d37fcb98",
+    "signature_verified": true,
+    "converted_disk_sha256": "a8196763fddf2e75319058ac7c5a4d6c9c390ea9f12583e5dc9dbb0244a948f4",
+    "scope": "Signed official base image preparation only; no installed package, enrollment, native or release acceptance"
+  },
+  "baseline": {
+    "official_image_signature_verified": true,
+    "disk_transfer_hash_verified": true,
+    "independent_serial_console_boot_verified": true,
+    "guest_system": "FreeBSD",
+    "guest_version": "OPNsense 26.7 (amd64)",
+    "both_network_links_disconnected": true,
+    "gracefully_powered_off": true,
+    "memory_MiB": 3072,
+    "vCPU": 2,
+    "public_ports_exposed": false,
+    "host_network_definition_changed": false,
+    "installed_NetHub_or_native_migration_or_release_accepted": false
+  },
+  "earlier_readback_wrapper_refusals_retained": 3,
+  "host_start_requests": 1,
+  "guest_pkg_install_or_SQL_replay": false,
+  "host_sudo_or_firewall_or_default_network_change": false,
+  "hosted_acceptance_guard_changed_or_forged": false,
+  "public_mobile_independent_operator_or_release_accepted": false,
+  "scope": "Owned disconnected local appliance baseline only. Initial signed image and transferred disk were verified before first boot; no post-boot disk attestation, updated firmware, NetHub package installation or native migration acceptance."
+}

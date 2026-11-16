@@ -417,6 +417,26 @@ material. No old Windows file is a prerequisite for source checks or hosted gues
 
 ## Scope retained
 
+### Own local appliance baseline
+
+An owned Ubuntu/libvirt test appliance now has a
+[closed baseline receipt](evidence/local-opnsense-baseline/result.json).
+The official Nano image's checksum, independently published signing key and
+signature were verified. The disk transferred into the default storage pool
+matched the converted source. The VM uses 3072 MiB and two vCPUs, with both
+network links disconnected until its actual interface roles and DHCP state are
+reviewed. Its independent serial console returned FreeBSD and OPNsense 26.7
+(amd64), then the guest shut down normally. It is currently off, without
+autostart, public forwarding or a changed host network definition.
+
+Three early readback-wrapper refusals remain retained privately. Framed output
+collection completed on the existing boot; no package install, SQL mutation or
+second host start was replayed. This is base-image/console preparation only:
+firmware updates, private administration, NetHub installation and public/mobile
+qualification remain unaccepted. The hosted native/cold fixture guards remain
+unchanged and were not forged. This VM is an own test resource, not a separate
+human deployment participant or formal-package acceptance.
+
 ### Consolidated source 109aab5: failed native boundary, scoped cold success
 
 Source `109aab5063dc056f794ef2c98f8ba2d6ca0717a9` completed its five original
