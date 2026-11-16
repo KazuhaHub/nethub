@@ -1,0 +1,62 @@
+{
+  "source_head": "898c3e0e474aaf03c294c78c37d9e6c96630b6fb",
+  "parent_source": "16708e35443fbbe93344bd897f8d5ab3ef6749d0",
+  "parent_parser_genuine_shape_reproduction_failed": true,
+  "fixed_local_tests_passed": true,
+  "top_level_Go_tests_passed": 41,
+  "new_target_denial_subcases": 5,
+  "Go_version": "1.26.11",
+  "network": "none",
+  "CPU_limit": 2,
+  "gofmt_vet_build_passed": true,
+  "parent_reproduction_log_sha256": "bc30f44f175f9c2726c6f0edb3da94b5d5094cdcd16c0257dcc257ff7cdf3811",
+  "fixed_local_log_sha256": "2e552839d028a63a1d83735910c3e076b99275d1fc391cb6968c8e1fae86d418",
+  "feature_blobs": {
+    "server/internal/externalprobe/probe.go": "3d9bedb835ded14f71f5312e69ded9a914cbcbe7c0f179e78007e745b1dba3ce",
+    "server/internal/externalprobe/probe_test.go": "de6673eee9107221ebcb7fcc586698e92494d1c4d9f823b6d6ec6a9c8fcfe072",
+    "server/internal/externalprobe/README.md": "1b0dfd514c1d0aabc0fa3d66fae97919768588633b793b876bbfa00ab15229e0"
+  },
+  "native_files_unchanged_from_ea173c6": [
+    {
+      "path": "agents/opnsense/acceptance/package_migration.py",
+      "sha256": "f06fd3f36c1864383ffac16663acae58c1dd8b12beb242f0b319d774c16dba96"
+    },
+    {
+      "path": "agents/opnsense/acceptance/package_probe.py",
+      "sha256": "6d431ab0b41d4ff39afaccf74a238485862cf40a5e68dd3d7a9c646d2bc63f6c"
+    },
+    {
+      "path": "agents/opnsense/plugin/packaging/freebsd/+POST_INSTALL",
+      "sha256": "c59d9308770c37eb20166204104a99bb54642f59b06581bf2573a1c0ce1db228"
+    },
+    {
+      "path": "agents/opnsense/plugin/FRP_VERSION",
+      "sha256": "6b547f978572cedebe264765ca56d71e1e23e37e2ad90f491de182872a61b9c6"
+    },
+    {
+      "path": "server/.go-version",
+      "sha256": "8c17d6c935046cbac3e214b44956b226d1662ad18f0e7182b3e2f5ab2bbf6e65"
+    },
+    {
+      "path": "server/cmd/nethub/authz.go",
+      "sha256": "b5feb5ed96802b9b893567fa646432fd45e50e687fa5850ba914521048f04476"
+    },
+    {
+      "path": "server/tests/relay_log.py",
+      "sha256": "09830f13a583d4aa7e529f09083f82b5f2f48cdc7e4413ffc1aeb0f4859f2184"
+    },
+    {
+      "path": "server/tests/relay_fleet.py",
+      "sha256": "bff253bf02a5fc1fbb8d91495f19e3ac747b664a017c10cbd7c338e27a891267"
+    },
+    {
+      "path": "deploy/frp/FRP_VERSION",
+      "sha256": "6b547f978572cedebe264765ca56d71e1e23e37e2ad90f491de182872a61b9c6"
+    },
+    {
+      "path": "deploy/Dockerfile",
+      "sha256": "e592f18771028b61696fba1adb06b9de2de4b0e520fd96d38f559b712cd1584b"
+    }
+  ],
+  "native_or_full_public_acceptance": false
+}

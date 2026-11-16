@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "source_head": "52e3362625b1de18399bb7ff6a68aeaca516aabb",
+  "kind": "local-actual-SQL",
+  "full_project_complete": false,
+  "files": [
+    {
+      "path": "snapshot-load.json",
+      "bytes": 3338,
+      "sha256": "e7f8a59895a38ebf22e3fb18c4b188e0fa8a3ad50194144dab99a1e13f62c160"
+    }
+  ]
+}

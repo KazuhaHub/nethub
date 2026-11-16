@@ -2,6 +2,10 @@
 
 > 本文是 [`README.md`](../README.md) 的中文版。两者不一致时，以英文版为准。
 
+Ubuntu 交接快照见 [HANDOFF.md](../HANDOFF.md)，其中记录交接时的验证结果、
+已知原生升级失败和剩余范围。后续按源码版本记录的结果及暂时跳过的负责人操作，
+见[续接记录](handoff/ubuntu-continuation.md)。
+
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Stars](https://img.shields.io/github/stars/KazuhaHub/nethub?style=social)
 

@@ -4,6 +4,10 @@ Updated: 2026-11-15 UTC. Work stopped at the owner's request after reviewing the
 current validation runs. The project is **pre-alpha and incomplete**. No pending
 product PR was merged, and no release was tagged, signed or published.
 
+This dated snapshot remains unchanged in scope. Subsequent Ubuntu work,
+source-bound outcomes and temporarily skipped owner-dependent gates are tracked
+in the [continuation ledger](docs/handoff/ubuntu-continuation.md).
+
 ## Start here
 
 ```sh

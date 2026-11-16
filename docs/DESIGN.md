@@ -558,7 +558,9 @@ frp XTCP P2P 打洞（成功率不可控，做不了"点一下就开"的 UX）�
   - 改变某个子域名归谁。
 - 这正是决策 #4 需要的性质：控制台被打穿 ≠ 能冒充已有设备去钓鱼。
 - authz 被攻破 = 中继身份层被攻破。这和 v0.2 的"内部授权组件"是同一个信任点，只是现在它的暴露面小而明确：
-  不提供控制台、没有用户会话、不碰用户表。它对 `devices` 有写权限，所以也能取消撤销、改设备归属。
+  不提供控制台、没有用户会话、不碰用户表。它对 `devices` 有写权限，可以滥用设备分配和签发权限。
+  当前数据库触发器仍拒绝对同一行取消撤销；这不使被攻破的签名者安全，也不阻止它滥用其他分配权限。
+  见[当前威胁模型](threat-model.md#45-a-compromised-nethub-authz)。
   frps 进程被攻破的效果类似（它能不调插件、把任意子域名的流量转走，并且能读到每台设备 `Login` 里的声明）；
   Caddy 被攻破则能看到控制台密码与会话、enroll token，以及 enroll / rotate 响应里的设备凭证。见 `docs/threat-model.md` §4.6。
 - web 角色还需要对 `enroll_tokens` 的少数列有 `SELECT`（`id`、`created_by_user_id`、`created_at`、`expires_at`、`used_at`），
@@ -833,9 +835,13 @@ OIDC 提供方不在 init 里配：init 完成后由管理员在控制台里添�
 
 ### 首次使用的 10 分钟路径
 
-`nethub init`（生成密钥、写配置、创建首个管理员）→ `docker compose up -d` → 用管理员登录控制台 →
+`nethub init`（生成密钥、写配置、核验独立备份并确认）→ 构建并启动生成的 Compose 栈、完成迁移 →
+单独运行 `admin-bootstrap`，通过隐藏提示创建首个管理员（D15）→ 用管理员登录控制台 →
 点"添加设备"拿到一次性 token → 在路由器 GUI 里 Services → NetHub Agent 粘贴 token 点 Enroll →
 15 秒内设备列表显示在线 → 点"打开"，新标签页打开这台 OPNsense 的 GUI
+
+这是目标路径，尚无独立部署者的完整十分钟计时验收。当前命令和备份边界见
+[部署步骤](../deploy/QUICKSTART.md)，完整独立部署仍属于 W7 验收。
 
 The read-only display poll uses a five-second period so a newly registered proxy
 can meet this target even when it just missed the previous snapshot. It updates

@@ -1,7 +1,9 @@
 # NetHub
 
-Current transfer to an Ubuntu maintainer: [HANDOFF.md](HANDOFF.md). It records
-the latest completed validation, known native upgrade failure and remaining work.
+Ubuntu handoff snapshot: [HANDOFF.md](HANDOFF.md). It records the validation,
+known native upgrade failure and remaining scope at transfer. Subsequent
+source-bound results and temporarily skipped operator actions are in the
+[continuation ledger](docs/handoff/ubuntu-continuation.md).
 
 Self-hosted remote access and fleet management for open-source routers and
 firewalls. Starts with OPNsense; the architecture leaves room for OpenWrt and

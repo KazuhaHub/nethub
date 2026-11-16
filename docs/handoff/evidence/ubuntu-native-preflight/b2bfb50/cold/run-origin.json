@@ -1,0 +1,11 @@
+{
+  "id": 43730193155,
+  "run_attempt": 1,
+  "head_sha": "b2bfb5070832fcc7deae202e197c43f22bcfb77f",
+  "path": ".github/workflows/cold-recovery.yml",
+  "event": "pull_request",
+  "status": "completed",
+  "conclusion": "success",
+  "created_at": "2026-11-15T15:29:55Z",
+  "updated_at": "2026-11-15T16:10:55Z"
+}

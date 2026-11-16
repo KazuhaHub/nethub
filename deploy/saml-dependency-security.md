@@ -6,7 +6,7 @@ admission and a missing-Subject panic with genuine signed/encrypted fixtures in
 the shared authcore package. This is a dependency repair, separate from the
 recovery harness and its acceptance.
 
-The candidate server graph uses authcore commit
+The current [server graph](../server/go.mod) uses authcore commit
 `c1447857d71bdfc9b93e7d1efca7f771d0eff4c8` and repeats its replacement:
 
 ```go
@@ -33,10 +33,13 @@ not been reproduced.
 Authcore PR #36 merged after exact-source Linux CI `42211692260` passed build,
 vet, formatting, full tests, source vulnerability scan and API compatibility;
 the complete official logs were checked. NetHub's local SSO/Web tests also passed.
-NetHub PR #215 was closed and replaced by draft #223. Source `908acb4` passed all
+NetHub PR #215 was closed and replaced by the then-draft #223. Source `908acb4` passed all
 six CI jobs in `42534592560`, including five assembled-image scans and actual
-Keycloak/Dex browser admission. Complete protected-host cold recovery remains
-unaccepted. Those scoped results do not make the interim pin an official release.
+Keycloak/Dex browser admission. That checkpoint did not yet accept protected-host
+cold recovery. PR #223 later merged as `16c4f458f80dbeae7752984f62f978d26dda25b5`
+after its separate [isolated cold-recovery acceptance](validation-protected-host-cold-recovery.md).
+Public operator recovery, durable off-host custody and real renewal remain open.
+Those scoped results do not make the interim pin an official release.
 The upstream package suite under the interim graph has two
 exact-error-message failures for XSW-7/8 with the selected signature library;
 the original dependency has the same failures and rejects both attack fixtures.

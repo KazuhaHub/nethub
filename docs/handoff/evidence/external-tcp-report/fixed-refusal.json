@@ -1,0 +1,16 @@
+{
+  "source_head": "898c3e0e474aaf03c294c78c37d9e6c96630b6fb",
+  "binary_sha256": "8eba57de4048aa318db5103aed4efdc00b06ee367b213443365b78adc237745b",
+  "target_is_own_host": true,
+  "host_ports_listening": false,
+  "public_forward_mutated": false,
+  "provider_submission_attempts": 1,
+  "exit_status": 1,
+  "elapsed_ms": 3682,
+  "no_partial_success": true,
+  "verified_closed_observer_refusal": true,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "0f91538569800d0b15860fab6824077038fdc404e226d22c9ff6b691677f0a30",
+  "public_positive_sample_accepted": false,
+  "full_W7_or_release_accepted": false
+}
