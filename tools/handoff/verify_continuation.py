@@ -276,6 +276,21 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage)
         assert {'source': 'relay_fleet', 'line': 133} in deployment['compose_setup']['locations']
         with zipfile.ZipFile(directory / 'native/original.zip') as archive:
             assert archive.namelist() == ['deployment-result.json']
+    elif failure_stage == 'package_route_boundary':
+        native = read('native', 'native/result.json')
+        assert native['source_head'] == head and native['passed'] is False
+        assert native['failure'] == 'native package snapshot failed: fixture_native_package_boundary_route'
+        assert native['read_only_inspection_recoveries'] == []
+        assert native['guest_diagnostic']['guest_exit_status_after_cleanup'] == 0
+        assert deployment['compose_setup']['phase'] == 'native_guest'
+        assert deployment['compose_tail'] is None
+        assert read('native', 'native/installed-wan-recovery.json')['passed'] is True
+        assert read('native', 'native/guest-console-after-wan-probe.json')['passed'] is True
+        with zipfile.ZipFile(directory / 'native/original.zip') as archive:
+            page = read('native', 'native/installed-enroll-page.json')
+            assert page['passed'] is page['actual_native_write_API'] is True
+            for name, digest in page['screenshots'].items():
+                assert hashlib.sha256(archive.read('native/' + name)).hexdigest() == digest
     elif failure_stage == 'native_pass':
         verify_installed_success(root, directory, head, index, deployment, read)
     else:
@@ -541,5 +556,9 @@ if __name__ == '__main__':
     verify_runtime_checkpoint(ROOT, '16708e35443fbbe93344bd897f8d5ab3ef6749d0',
         {'CI': 43791395178, 'native': 43799096360, 'cold': 43799098898,
          'preparation': 43791538230, 'filesystem': 43791394959}, 258, 'native_pass')
+
+    verify_runtime_checkpoint(ROOT, '109aab5063dc056f794ef2c98f8ba2d6ca0717a9',
+        {'CI': 43801873400, 'native': 43801873221, 'cold': 43805004536,
+         'preparation': 43802001135, 'filesystem': 43801873348}, 258, 'package_route_boundary')
 
     verify_semantic_review()

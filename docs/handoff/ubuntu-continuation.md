@@ -417,6 +417,39 @@ material. No old Windows file is a prerequisite for source checks or hosted gues
 
 ## Scope retained
 
+### Consolidated source 109aab5: failed native boundary, scoped cold success
+
+Source `109aab5063dc056f794ef2c98f8ba2d6ca0717a9` completed its five original
+runs. [The durable checkpoint](evidence/ubuntu-109aab5/index.json) retains 33
+closed files, original small ZIPs and run identities. CI `43801873400`, FreeBSD
+`43801873348` (252 cases/258 source blobs), preparation `43802001135` and cold
+recovery `43805004536` passed within their scopes. The 13 required producer
+views were accounted for: six identical to reviewed pixels and seven changed
+views inspected. Preparation's two changed views and cold enrollment were also
+inspected; their other required views matched already reviewed images.
+
+Installed run `43801873221` **failed before package migration**. WAN recovery
+and the post-WAN console HTTPS probe passed; the first package snapshot refused
+`fixture_native_package_boundary_route`. No migration report was produced.
+The original artifact `14197983894` matched SHA256
+`a89b8918b644921b4c0db83178850326ab287efe8ec96555df6e0fc89910b5f1`.
+Guest cleanup exited zero and owned-image cleanup passed. The route subtype and
+original a29 upgrade cause remain unknown. PR #257 retains the route verifier's
+three fixed refusal categories without changing its assertions or adding repair
+or installation replay. It requires its own exact-source evidence.
+
+Cold recovery used this source's own producer artifact `14197299501`. Its
+original ZIP `14198501912` matched SHA256
+`70ab2a230730b18043f436f9e41504e58f145c853a95816a15015ca64664ab8c`.
+The baseline route recovered in 91,538 ms; the original initial request reached
+issuance/native application in 148,484 ms from source stop (159,244 ms from
+checkpoint start). Original identity, account, key, CSR, process and normal Open
+grant were retained, with no reenrollment, SQL-created grant or grant renewal.
+Normal Remove and cleanup passed. The changed enrollment image was inspected;
+the removal image matched an already reviewed view. This does not qualify the
+failed installed migration, public operator recovery, durable encrypted custody,
+real renewal clocks, formal packaging or the full project.
+
 All 29 original requirements and their acceptance ranges remain open or scoped
 exactly as recorded until new evidence closes them. Keep the five-second revoke
 target, frp 0.71.1 alignment, Go 1.26.11, authcore reuse and the confirmed security
