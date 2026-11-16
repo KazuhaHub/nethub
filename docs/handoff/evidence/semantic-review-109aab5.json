@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of sixty-five guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Partial semantic review of seventy-one guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -14,7 +14,8 @@
     "English/Chinese entry points, SAML dependency/admission/provider guides and current console/deployment API boundaries retain source-specific acceptance, no email-only binding, immutable grants/revocation and public/mobile/release gaps.",
     "The full deadline/recovery history distinguishes SQL and console/public clocks, scheduled reboot delay, real recovery, irreversible operations and scoped later success without relabeling failed trials.",
     "Image guidance now identifies old Alpine3.23 advisory/index links as historical context, distinct from the documented current Caddy3.24 base; actual Dockerfile/module pins and required scans are unchanged.",
-    "Authentication defaults and bounded verification/limiter policy agree with the inspected current constants. Backup scheduling, receipt/hash versus actual recovery, host lease ownership and bootstrap non-replay boundaries remain distinct. HTTP-01 publication guidance now links the implemented host worker rather than saying its startup is future work; public custody and renewal-clock acceptance remain open."
+    "Authentication defaults and bounded verification/limiter policy agree with the inspected current constants. Backup scheduling, receipt/hash versus actual recovery, host lease ownership and bootstrap non-replay boundaries remain distinct. HTTP-01 publication guidance now links the implemented host worker rather than saying its startup is future work; public custody and renewal-clock acceptance remain open.",
+    "Agent/capability/plugin guides retain remote.web-only authority, separate os-frp state, current guard/lock ordering and unsigned-versus-formal package boundaries. The control-plane command table incorrectly named the admin-bootstrap Compose service as a CLI command; it now names the implemented admin create command and its service. Historical browser and FreeBSD contract scope remain separate from installed/public acceptance."
   ],
   "files": [
     {
@@ -276,6 +277,30 @@
     {
       "path": "server/cmd/nethub/admin-bootstrap.md",
       "sha256": "cf86f7ac861e92a43baa1b3166c394550cddada65a497886e90d67eb4a9a89fa"
+    },
+    {
+      "path": "agents/opnsense/README.md",
+      "sha256": "e876e0170f95c2d5afba654bfa90b02f61299a538c6a3e8137807047958c9648"
+    },
+    {
+      "path": "agents/opnsense/capabilities.md",
+      "sha256": "c4349bd9ebc1f55a7231a96958f6e570a398b18e45a9b94882f51ee6a355c50f"
+    },
+    {
+      "path": "agents/opnsense/plugin/README.md",
+      "sha256": "c8839596a126df2cc9a81f7dc2244ea252d81c8719cc0ecbc9a70a5196eb8701"
+    },
+    {
+      "path": "agents/opnsense/tests/native-contracts.md",
+      "sha256": "d633aceca8dad5204b086f62a127847b383594ab1f92851a96904e2a51cf218e"
+    },
+    {
+      "path": "server/README.md",
+      "sha256": "bc76af1a69f2f20d463bfbb9eaf5418594bf68da1b1979ca7cf0d488395ca078"
+    },
+    {
+      "path": "server/web/validation.md",
+      "sha256": "2125677d42a6afee340ce64ba91c9f0e9f46f68ef98307f9b4c044901268b4fc"
     }
   ]
 }
