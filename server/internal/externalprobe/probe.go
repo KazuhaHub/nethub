@@ -113,12 +113,13 @@ func check(ctx context.Context, address netip.Addr, client *http.Client, now fun
 				Command string                     `json:"command"`
 				Created int64                      `json:"created"`
 				Host    string                     `json:"host"`
+				Port    string                     `json:"port"`
 				Results map[string]json.RawMessage `json:"results"`
 			}
 			if err := read(ctx, client, "/check-result-extended/"+created.ID, &observed); err != nil {
 				return nil, fmt.Errorf("TCP %d: %w", port, err)
 			}
-			if observed.Command != "tcp" || observed.Host != target || observed.Created < started.Unix()-10 || observed.Created > now().Unix()+10 || len(observed.Results) != len(created.Nodes) {
+			if observed.Command != "tcp" || observed.Host != address.String() || observed.Port != strconv.Itoa(int(port)) || observed.Created < started.Unix()-10 || observed.Created > now().Unix()+10 || len(observed.Results) != len(created.Nodes) {
 				return nil, fmt.Errorf("TCP %d: external report does not match this request", port)
 			}
 			pending := false

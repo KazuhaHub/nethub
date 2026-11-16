@@ -8,7 +8,10 @@ sent. Other doctor modes do not call this service.
 
 All three provider-selected observers must connect to the exact expected IP on
 each port. Responses are bounded and checked against the new request's protocol,
-target, observer identities and creation time. Pending results have a finite
+target, observer identities and creation time. The genuine TCP extended report
+returns the IP in `host` and a separate decimal-string `port`; both must match
+the submitted target exactly. A host-only match or a different/missing port is
+refused. Pending results have a finite
 poll budget and the complete check has a 45-second context deadline. Submission
 is not retried; provider failures, rate limits, incomplete observations, wrong
 addresses and closed ports fail without partial success or raw provider errors.

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -41,7 +42,11 @@ func fixture(t *testing.T, change func(string, map[string]any)) (*http.Client, *
 			for name := range nodes {
 				results[name] = []any{map[string]any{"address": "203.0.113.10", "time": .025}}
 			}
-			value = map[string]any{"command": "tcp", "created": int64(1700000000), "host": current, "results": results}
+			host, port, err := net.SplitHostPort(current)
+			if err != nil {
+				t.Fatal("fixture target was not an explicit host and port", err)
+			}
+			value = map[string]any{"command": "tcp", "created": int64(1700000000), "host": host, "port": port, "results": results}
 		}
 		if change != nil {
 			change(r.URL.Path, value)
@@ -74,6 +79,31 @@ func TestExternalFailuresCannotBecomePartialSuccess(t *testing.T) {
 		"wrong target": func(path string, v map[string]any) {
 			if path != "/check-tcp" {
 				v["host"] = "203.0.113.10:22"
+			}
+		},
+		"different host": func(path string, v map[string]any) {
+			if path != "/check-tcp" {
+				v["host"] = "203.0.113.11"
+			}
+		},
+		"wrong port": func(path string, v map[string]any) {
+			if path != "/check-tcp" {
+				v["port"] = "22"
+			}
+		},
+		"missing port": func(path string, v map[string]any) {
+			if path != "/check-tcp" {
+				delete(v, "port")
+			}
+		},
+		"numeric port": func(path string, v map[string]any) {
+			if path != "/check-tcp" {
+				v["port"] = 443
+			}
+		},
+		"noncanonical port": func(path string, v map[string]any) {
+			if path != "/check-tcp" {
+				v["port"] = "0443"
 			}
 		},
 		"old report": func(path string, v map[string]any) {
@@ -235,7 +265,7 @@ func TestPendingObservationsHaveFiniteBudget(t *testing.T) {
 
 func TestFinalPortFailureDiscardsEarlierSuccess(t *testing.T) {
 	client, calls := fixture(t, func(path string, value map[string]any) {
-		if path != "/check-tcp" && value["host"] == "203.0.113.10:8443" {
+		if path != "/check-tcp" && value["port"] == "8443" {
 			value["results"].(map[string]any)["ch1.node.check-host.net"] = []any{map[string]any{"error": "secret"}}
 		}
 	})
