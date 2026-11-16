@@ -323,5 +323,30 @@
     "path": "invalid/rotate-noncanonical-secret.json",
     "schema": "rotate-request.schema.json",
     "valid": false
+  },
+  {
+    "path": "valid/reconcile-audit-request.json",
+    "schema": "reconcile-audit-request.schema.json",
+    "valid": true
+  },
+  {
+    "path": "valid/reconcile-audit-response.json",
+    "schema": "reconcile-audit-response.schema.json",
+    "valid": true
+  },
+  {
+    "path": "invalid/reconcile-old-minor.json",
+    "schema": "reconcile-audit-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/reconcile-raw-diagnostic.json",
+    "schema": "reconcile-audit-request.schema.json",
+    "valid": false
+  },
+  {
+    "path": "invalid/reconcile-count-overflow.json",
+    "schema": "reconcile-audit-request.schema.json",
+    "valid": false
   }
 ]

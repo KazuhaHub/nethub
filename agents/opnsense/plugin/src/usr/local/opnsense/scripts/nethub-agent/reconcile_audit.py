@@ -52,7 +52,7 @@ def object_pairs(pairs):
 def event(value):
     if not isinstance(value, dict) or set(value) != {'event_id', 'kind', 'count', 'first_at', 'last_at'}:
         raise AuditOutboxError('Invalid reconcile audit state')
-    if (not canonical_id(value['event_id']) or value['kind'] not in ('reconcile_failed', 'reconcile_failure_overflow')
+    if (not canonical_id(value['event_id']) or uuid.UUID(value['event_id']).version != 4 or value['kind'] not in ('reconcile_failed', 'reconcile_failure_overflow')
             or type(value['count']) is not int or not 1 <= value['count'] <= MAX_COUNT
             or value['kind'] == 'reconcile_failed' and value['count'] != 1):
         raise AuditOutboxError('Invalid reconcile audit state')
@@ -73,6 +73,8 @@ class Outbox:
     def opened(self):
         descriptor = None
         try:
+            if self.directory.absolute() != self.directory.resolve():
+                raise AuditOutboxError('Unsafe reconcile audit storage')
             descriptor = os.open(self.directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
             metadata = os.fstat(descriptor)
             if metadata.st_uid != os.geteuid() or metadata.st_mode & 0o077:
@@ -173,6 +175,17 @@ class Outbox:
                 self.save(directory, value)
             return value['events'][:MAX_BATCH]
 
+    def clear_confirmed_removal(self):
+        with self.opened() as directory:
+            value = self.load(directory)
+            if value['events'] or value['overflow'] is not None:
+                raise AuditOutboxError('Retain pending reconcile audit events before removal')
+            try:
+                os.unlink(FILE, dir_fd=directory)
+            except FileNotFoundError:
+                pass
+            os.fsync(directory)
+
     def acknowledge(self, identifiers):
         if (not isinstance(identifiers, list) or not 1 <= len(identifiers) <= MAX_BATCH
                 or any(not canonical_id(item) for item in identifiers) or len(set(identifiers)) != len(identifiers)):
@@ -184,3 +197,33 @@ class Outbox:
             del value['events'][:len(identifiers)]
             self.promote(value)
             self.save(directory, value)
+
+
+def supported(version):
+    from enrollment import _SEMVER
+    return (isinstance(version, str) and len(version) <= 64 and _SEMVER.fullmatch(version) is not None
+            and version.split('.')[0] == '1' and int(version.split('.')[1]) >= 7)
+
+
+def report_events(origin, secret, device_id, events):
+    from enrollment import request_json
+    from protocol import ProtocolError, VERSION
+    if not canonical_id(device_id) or not isinstance(events, list) or not 1 <= len(events) <= MAX_BATCH:
+        raise ProtocolError('Invalid reconcile audit request')
+    try:
+        for item in events:
+            event(item)
+    except AuditOutboxError:
+        raise ProtocolError('Invalid reconcile audit request') from None
+    identifiers = [item['event_id'] for item in events]
+    if len(set(identifiers)) != len(identifiers):
+        raise ProtocolError('Invalid reconcile audit request')
+    reply = request_json(origin, '/api/v1/devices/reconcile-events',
+                         {'agent_protocol_version': VERSION, 'device_id': device_id, 'events': events}, secret=secret)
+    required = {'agent_protocol_version', 'device_id', 'accepted', 'revoked', 'event_ids'}
+    if (not isinstance(reply, dict) or not required <= reply.keys() or len(reply) > len(required) + 16
+            or not supported(reply['agent_protocol_version']) or reply['device_id'] != device_id
+            or reply['accepted'] is not True or type(reply['revoked']) is not bool
+            or reply['event_ids'] != identifiers):
+        raise ProtocolError('Invalid reconcile audit acknowledgement')
+    return reply['revoked']

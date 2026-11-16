@@ -26,6 +26,16 @@ func (s *EnrollmentStore) Health(ctx context.Context) error {
 	err := s.DB.QueryRowContext(ctx, `SELECT current_user='nethub_authz' AND NOT rolsuper AND NOT rolbypassrls
  AND has_function_privilege(current_user,'public.consume_enroll_token(bytea)','EXECUTE')
  AND has_function_privilege(current_user,'public.lookup_device_credential(uuid)','EXECUTE')
+ AND has_table_privilege(current_user,'public.device_reconcile_events','SELECT')
+ AND has_column_privilege(current_user,'public.device_reconcile_events','event_id','INSERT')
+ AND NOT has_column_privilege(current_user,'public.device_reconcile_events','received_at','INSERT')
+ AND NOT has_table_privilege(current_user,'public.device_reconcile_events','UPDATE,DELETE')
+ AND (SELECT count(*)=3 FROM pg_trigger WHERE tgrelid='public.device_reconcile_events'::regclass
+  AND NOT tgisinternal AND tgenabled IN ('O','A') AND (
+    (tgname='device_reconcile_audit' AND tgfoid='public.append_device_reconcile_audit()'::regprocedure) OR
+    (tgname='device_reconcile_events_budget' AND tgfoid='public.bound_device_reconcile_events()'::regprocedure) OR
+    (tgname='device_reconcile_events_immutable' AND tgfoid='public.keep_device_reconcile_events()'::regprocedure)))
+ AND EXISTS (SELECT FROM pg_class WHERE oid='public.device_reconcile_events'::regclass AND relrowsecurity AND relforcerowsecurity)
  AND has_function_privilege(current_user,'public.lock_relay_trust_head()','EXECUTE')
  AND has_function_privilege(current_user,'public.read_current_relay_trust(text)','EXECUTE')
  AND has_function_privilege(current_user,'public.relay_authority_switch_fence_ready()','EXECUTE')

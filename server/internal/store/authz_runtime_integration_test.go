@@ -208,6 +208,7 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, webRole *sql.DB, tenan
 	if err := f.owner.QueryRowContext(f.ctx, `SELECT owner_user_id FROM devices WHERE id=$1 AND tenant_id=$2`, result.DeviceID, tenant).Scan(&storedActor); err != nil || storedActor != actor {
 		t.Fatal("runtime did not register with the token's owner and tenant")
 	}
+	testRuntimeReconcileAudit(t, f, client, address, result)
 	certificatePost := testRuntimeCertificateRequest(t, f, client, address, result, certificateKey)
 	observation, err := json.Marshal(map[string]any{"proxies": []map[string]any{{"name": relayhook.ProxyName(result.DeviceID), "status": "online",
 		"conf": map[string]string{"name": relayhook.ProxyName(result.DeviceID), "type": "https", "subdomain": result.Subdomain}}}})

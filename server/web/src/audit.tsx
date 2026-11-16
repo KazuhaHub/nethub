@@ -186,7 +186,11 @@ export function Audit({
                       <div key={key}>
                         <dt>{key.replaceAll("_", " ")}</dt>
                         <dd>
-                          {key === "expires_at"
+                          {[
+                            "expires_at",
+                            "first_reported_at",
+                            "last_reported_at",
+                          ].includes(key)
                             ? new Date(String(value)).toLocaleString()
                             : String(value)}
                         </dd>

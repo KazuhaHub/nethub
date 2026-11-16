@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/netip"
+	"strconv"
 	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/auth"
@@ -109,6 +110,22 @@ func auditDetails(raw []byte) web.AuditDetails {
 	var result web.AuditDetails
 	if len(raw) > 1024 || json.Unmarshal(raw, &fields) != nil {
 		return result
+	}
+	var count int64
+	var reported bool
+	var firstText, lastText string
+	if json.Unmarshal(fields["failure_count"], &count) == nil && count > 0 && string(fields["device_reported"]) == "true" && json.Unmarshal(fields["device_reported"], &reported) == nil && reported && json.Unmarshal(fields["first_reported_at"], &firstText) == nil && json.Unmarshal(fields["last_reported_at"], &lastText) == nil {
+		first, e1 := time.Parse(time.RFC3339Nano, firstText)
+		last, e2 := time.Parse(time.RFC3339Nano, lastText)
+		if e1 == nil && e2 == nil && first.Year() >= 1 && last.Year() <= 9999 && !last.Before(first) {
+			decimal := strconv.FormatInt(count, 10)
+			first = first.UTC()
+			last = last.UTC()
+			result.FailureCount = &decimal
+			result.DeviceReported = &reported
+			result.FirstReportedAt = &first
+			result.LastReportedAt = &last
+		}
 	}
 	var target, role string
 	if json.Unmarshal(fields["target_user_id"], &target) == nil && (web.AuditQuery{UserID: target, Limit: 1}).Valid() && target != "" {

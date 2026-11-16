@@ -212,3 +212,35 @@ def test_deeply_nested_corruption_keeps_fixed_diagnostic_and_original_bytes(outb
     with pytest.raises(audit.AuditOutboxError, match='^Invalid reconcile audit state$'):
         outbox.batch()
     assert path.read_bytes() == raw
+
+
+def test_wire_sends_only_retained_events_and_requires_exact_confirmation(outbox):
+    outbox.record_failure()
+    batch = outbox.batch()
+    response = {'agent_protocol_version': '1.7.0', 'device_id': DEVICE,
+                'accepted': True, 'revoked': False, 'event_ids': [batch[0]['event_id']]}
+    with mock.patch('enrollment.request_json', return_value=response) as network:
+        assert audit.report_events('https://console.example.com', 'A' * 43, DEVICE, batch) is False
+    args, kwargs = network.call_args
+    assert args[1] == '/api/v1/devices/reconcile-events' and args[2]['events'] == batch
+    assert kwargs['secret'] == 'A' * 43 and 'A' * 43 not in json.dumps(args[2])
+    assert outbox.batch() == batch  # The caller separately confirms durable deletion.
+    from protocol import ProtocolError
+    for patch in ({'event_ids': []}, {'device_id': OTHER}, {'accepted': 1}, {'revoked': 'true'}, {'agent_protocol_version': '1.6.0'}):
+        with mock.patch('enrollment.request_json', return_value=dict(response, **patch)):
+            with pytest.raises(ProtocolError, match='^Invalid reconcile audit acknowledgement$'):
+                audit.report_events('https://console.example.com', 'A' * 43, DEVICE, batch)
+    assert outbox.batch() == batch
+
+
+def test_removal_cannot_clear_pending_or_changed_identity(outbox):
+    outbox.record_failure()
+    before = (outbox.directory / audit.FILE).read_bytes()
+    with pytest.raises(audit.AuditOutboxError):
+        outbox.clear_confirmed_removal()
+    with pytest.raises(audit.AuditOutboxError):
+        audit.Outbox(outbox.directory, OTHER).clear_confirmed_removal()
+    assert (outbox.directory / audit.FILE).read_bytes() == before
+    outbox.acknowledge([outbox.batch()[0]['event_id']])
+    outbox.clear_confirmed_removal()
+    assert not (outbox.directory / audit.FILE).exists()

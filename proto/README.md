@@ -1,6 +1,6 @@
 # Device protocol
 
-The shared device protocol is version **1.6.0**, recorded in `VERSION`.
+The shared device protocol is version **1.7.0**, recorded in `VERSION`.
 `v1/*.schema.json` are JSON Schema draft 2020-12 documents used by Go and Python
 contract tests. Enrollment, signed claims and native OPNsense enrollment are
 implemented. Authenticated status/removal and native appliance lifecycle behavior
@@ -20,6 +20,7 @@ see the [shared-token validation and limits](../deploy/validation-shared-token.m
 | enroll-request | One-use enrollment token, agent/protocol versions, platform, capabilities, hostname and boolean cluster hint |
 | enroll-response | Assigned device identity, device secret, signed claim, relay token/address/port, server name and public CA bundle |
 | domain-claim | Strict five-field payload covered by the domain signature |
+| reconcile-audit-request / reconcile-audit-response | Bounded authenticated durable failure events and exact ordered-ID acknowledgement; protocol 1.7 |
 | status-request / status-response | Bounded health report and acknowledgement; online state comes from relay observation |
 | rotate-request / rotate-response | Operation-bound journal candidate and replacement credentials/trust; scoped native recovery accepted, shared-token incident work separate |
 | unenroll-request / unenroll-response | Authenticated removal request and confirmed revocation |
@@ -206,3 +207,5 @@ than treating fixture round-trips as endpoint evidence.
 
 The historical [frp 0.71.0 hook observations](frp-hooks-0.71.0.md) are W0 evidence,
 not NetHub message schemas. Stock frp remains pinned to 0.71.1 across components.
+
+Protocol 1.7 adds [durable reconcile failure reporting](RECONCILE-AUDIT.md), with strict bounded batches, immutable replay and explicit overflow disclosure. Its current validation does not establish native/public/release acceptance.

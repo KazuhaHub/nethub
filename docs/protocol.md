@@ -1,7 +1,7 @@
 # Device protocol walkthrough
 
 This guide describes the current major-1 device contract. The protocol version is
-[`proto/VERSION`](../proto/VERSION), currently `1.6.0`; the authoritative wire
+[`proto/VERSION`](../proto/VERSION), currently `1.7.0`; the authoritative wire
 shapes are the [schemas](../proto/v1/) and shared
 [example manifest](../proto/examples/manifest.json). Protocol compatibility does
 not establish a supported platform, native installation or a stable release.
@@ -162,3 +162,5 @@ PostgreSQL/HTTP tests and [native public-certificate record](../deploy/validatio
 cover different boundaries. Keep those scopes separate. Public/network samples,
 signed packaging, restore and operational rotation remain independent gates.
 This walkthrough does not complete W7 or replace the schemas and runtime checks.
+
+Protocol 1.7 failure events use the separate authenticated [reconcile audit contract](../proto/RECONCILE-AUDIT.md). Status remains a latest-value health projection; it does not deliver a durable backlog by itself. Device-reported counts and times do not establish truthful execution.

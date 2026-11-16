@@ -90,3 +90,28 @@ test("audit filter reads preserve explicit timezone, opaque cursor and encoded f
     globalThis.fetch = original;
   }
 });
+
+test("reconcile audit count remains an exact decimal and never a rounded number", () => {
+  const details = {
+    failure_count: "9223372036854775807",
+    device_reported: true,
+    first_reported_at: "2026-11-16T00:00:00.000001Z",
+    last_reported_at: "2026-11-16T00:00:00.000002Z",
+  };
+  const candidate = (patch) => ({
+    ...page,
+    items: [{ ...page.items[0], details: { ...details, ...patch } }],
+  });
+  assert.equal(validAuditPage(candidate({})), true);
+  for (const patch of [
+    { failure_count: 9223372036854775807 },
+    { failure_count: "9223372036854775808" },
+    { failure_count: "01" },
+    { failure_count: "0" },
+    { device_reported: false },
+    { first_reported_at: "private" },
+    { raw: "private" },
+  ]) {
+    assert.equal(validAuditPage(candidate(patch)), false);
+  }
+});
