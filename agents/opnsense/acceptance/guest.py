@@ -22,6 +22,8 @@ NATIVE_FIXTURE_PHASES = frozenset(('wan_route_table', 'wan_route_missing', 'wan_
     'native_package_boundary_host', 'native_package_boundary_nonce', 'native_package_boundary_marker',
     'native_package_boundary_interfaces', 'native_package_boundary_lan',
     'native_package_boundary_route', 'native_package_boundary_wan',
+    'native_package_boundary_route_table', 'native_package_boundary_route_missing',
+    'native_package_boundary_route_mismatch',
     'native_package_markers', 'native_package_manifest', 'native_package_process',
     'native_package_files', 'native_package_validation',
     'host_boundary', 'private_nonce', 'native_config_load',

@@ -9,7 +9,7 @@ import sys
 import tomllib
 import xml.etree.ElementTree as ET
 
-from wan_probe import boundary, controls
+from wan_probe import ProbeError, boundary, controls
 
 
 MARKERS = ('disabled', 'stopped', 'revoked', 'uninstalling', 'rotation.json', 'recovery.json', 'rollback-attempt')
@@ -18,6 +18,7 @@ FIELDS = set(HASHES) | {'version', 'package_version', 'profile', 'markers', 'run
                        'process_sha256', 'control_sha256'}
 PHASE = 'native_package_probe'
 BOUNDARY_PHASES = ('host', 'nonce', 'marker', 'interfaces', 'lan', 'route', 'wan')
+ROUTE_FAILURES = ('wan_route_table', 'wan_route_missing', 'wan_route_mismatch')
 
 
 def boundary_phase(name):
@@ -151,7 +152,12 @@ def main(arguments):
         boundary(arguments[0], observe=boundary_phase)
         print(json.dumps(inspect(), sort_keys=True))
         return 0
-    except (OSError, ValueError, KeyError, subprocess.SubprocessError, ET.ParseError):
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError, ET.ParseError) as error:
+        # Preserve only the route verifier's closed codes, never its input or
+        # command output. A failed boundary still stops before inspection.
+        if (PHASE == 'native_package_boundary_route' and isinstance(error, ProbeError)
+                and str(error) in ROUTE_FAILURES):
+            PHASE += '_' + str(error).removeprefix('wan_route_')
         print(json.dumps({'success': False, 'fixture_phase': PHASE}))
         return 1
 

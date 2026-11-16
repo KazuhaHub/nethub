@@ -57,6 +57,39 @@ def test_package_boundary_unknown_checkpoint_cannot_export_input(monkeypatch, ca
         'success': False, 'fixture_phase': 'native_package_boundary'}
 
 
+@pytest.mark.parametrize('reason', ('wan_route_table', 'wan_route_missing', 'wan_route_mismatch'))
+def test_package_route_refusal_preserves_closed_reason_without_inspection(reason, monkeypatch, capsys):
+    def refused(_nonce, *, observe):
+        observe('route')
+        raise PROBE.ProbeError(reason)
+
+    monkeypatch.setattr(PROBE, 'boundary', refused)
+    monkeypatch.setattr(PROBE, 'inspect', lambda: pytest.fail('Route refusal must stop inspection'))
+    assert PROBE.main(['a' * 32]) == 1
+    captured = capsys.readouterr()
+    assert captured.err == ''
+    phase = 'native_package_boundary_route_' + reason.removeprefix('wan_route_')
+    assert json.loads(captured.out) == {'success': False, 'fixture_phase': phase}
+    assert sys.modules['guest'].validate_ssh_failure_kind('fixture_' + phase) == 'fixture_' + phase
+
+
+@pytest.mark.parametrize('phase,exception', [
+    ('route', PROBE.ProbeError('wan_route_missing private configuration')),
+    ('route', ValueError('wan_route_missing')),
+    ('wan', PROBE.ProbeError('wan_route_missing')),
+])
+def test_package_route_detail_requires_exact_verifier_code_and_checkpoint(phase, exception, monkeypatch, capsys):
+    def refused(_nonce, *, observe):
+        observe(phase)
+        raise exception
+
+    monkeypatch.setattr(PROBE, 'boundary', refused)
+    assert PROBE.main(['a' * 32]) == 1
+    captured = capsys.readouterr()
+    assert captured.err == ''
+    assert json.loads(captured.out) == {'success': False, 'fixture_phase': 'native_package_boundary_' + phase}
+
+
 class Clock:
     def __init__(self):
         self.value = 1000
