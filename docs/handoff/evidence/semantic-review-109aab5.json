@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of 130 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Partial semantic review of 134 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -21,7 +21,8 @@
     "Thirteen original plugin progress records describe staged development package versions. Source-only key/CSR/journal controls, Core application and daemon/boot recovery, enrollment/lifecycle, local breaker and WAN/coexistence observations remain distinct. Their earlier future-work statements and old 10/30 heartbeat/compiler records are historical checkpoint scope, not instructions to downgrade the current 1/3 profile, compiler or authority boundaries. Key export, native backup history and cleanup limits remain explicit.",
     "W3/W4 milestone records state their accepted old host/public-forwarding scope and preserve earlier failed observations. Those owner-approved historical environments do not authorize this shared host to expose ports. Restricted dump restoration, original six-service/client recovery and shared-token incident checks retain distinct sources and archive/upload limitations; later protected-host restoration does not retroactively broaden them. Normal Open with a measured source, unchanged grants and independently verified routes remains required.",
     "The W3 decision brief mixed original 10s/30s heartbeat language with present instructions. It now explicitly marks that profile historical and links the current owner-retained five-second target and 1s/3s profile; migration/rollback coverage remains. W4 history, UI comparison and lost-report fixture retain their bounded evidence and do not authorize repeating old listener/SQL changes. External TCP instructions bind both genuine provider host and canonical port and still require public positive acceptance.",
-    "Protocol rotation/trust contracts preserve current cache freshness, original-operation replay, native CAS/journals and no private material in public replies. Ubuntu instructions retain fresh hosted-runner admission and exact-source image requirements. The original Check-Host-only-in-PR242 sentence now points to subsequent integration/correction and separately states the remaining all-port positive and late-port negative samples. Historical evidence and patch registries remain snapshots rather than permission to replay mutations."
+    "Protocol rotation/trust contracts preserve current cache freshness, original-operation replay, native CAS/journals and no private material in public replies. Ubuntu instructions retain fresh hosted-runner admission and exact-source image requirements. The original Check-Host-only-in-PR242 sentence now points to subsequent integration/correction and separately states the remaining all-port positive and late-port negative samples. Historical evidence and patch registries remain snapshots rather than permission to replay mutations.",
+    "W0 mobile network and NewUserConn records are historical 0.71.0 experiments, not current signed-package/mobile console evidence. Two carrier samples and the explicitly waived company/campus sample remain distinct. Existing streams surviving source-gate denial, backend-hang stale observations and failed/interrupted trials retain their measured limits. Blank result templates request private collection; filled raw credentials, hook payloads and addresses must not be published. No current five-second or full W5 claim follows from the historical 10s/30s observations."
   ],
   "files": [
     {
@@ -543,6 +544,22 @@
     {
       "path": "docs/handoff/evidence/README.md",
       "sha256": "3a68a8afb4cf77abea66b30f7eb1b9390703b710ffa332b52f15277e6ea2ad4d"
+    },
+    {
+      "path": "weekend0/network-results.md",
+      "sha256": "a9167bef2f309620f5649d10bf175e5c024c04b646c1d60069c636461b88ab49"
+    },
+    {
+      "path": "weekend0/results-2026-10-17.md",
+      "sha256": "383807ab951eb011c2e3d746a0611d111035fe56d5b34e36c3f5c0b5a0425af9"
+    },
+    {
+      "path": "weekend0/results-template.md",
+      "sha256": "36c23e89b6bf8c39c1c2ba513f9aac5d93646ceb56b9c90001301579c0606737"
+    },
+    {
+      "path": "weekend0/userconn-results.md",
+      "sha256": "8b92a690435673aac8bc7f1aaec0a60837abe5ca371cccf9aa4fe49bd3c27a26"
     }
   ]
 }
