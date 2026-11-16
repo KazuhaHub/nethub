@@ -344,10 +344,29 @@ changed neither the default NAT definition nor public forwarding. Its readiness
 is not a public sample or hosted native acceptance. Public port-forward root
 commands remain skipped for the owner; the fixture is powered off meanwhile.
 
+## Consolidated Ubuntu candidate
+
+The `chore/ubuntu-continuation-integration` branch combines PR 254's strict
+provider correction, the continuation documentation/evidence and PR 244's portable
+runtime prerequisites. The merge brought documentation, closed evidence and
+verification/reproduction tools only; native/transport fixes remain intact.
+The portable helper now defaults its console/Go test containers to two CPUs,
+bounds Go build parallelism and retains private build/module caches. No accepted
+image archive from another source qualifies this candidate. Collect fresh
+exact-source producer, FreeBSD, preparation, installed and cold-recovery gates
+before accepting its applicable runtime scope.
+
+The local portable-helper attempt stopped at prerequisite admission with exit 2:
+PHP is absent. No tests or deployment were started by that attempt, and it is not
+a successful local suite. Host package installation needs the owner under the
+shared-server rules. Continue other read-only, container and hosted work while
+that prerequisite is skipped; do not remove the admission check.
+
 ## Temporarily skipped owner-dependent actions
 
 | Requirement | Missing input or participation | Resume condition |
 | --- | --- | --- |
+| Local complete portable helper | Host PHP CLI/XML are absent; prerequisite admission returned exit 2 before tests. Host installation needs owner `sudo`. | Owner runs `sudo apt-get install --no-install-recommends php-cli php-xml`, then rerun the unchanged full helper on the selected source. Scoped component/hosted results do not relabel this stopped attempt. |
 | Public ingress, W7-3 external TCP, W7-5 public recovery | Historical LXC/DNS access remains undelivered. The current owned-host TCP-443 negative sample passed after the report-shape fix; a NAT-only fixture is ready and powered off. No public forwarding was added. | Owner runs reviewed `sudo vm-forward` additions/removals for the positive TCP sample in a controlled window, or privately delivers another owned endpoint. Separate DNS/public TLS and full public operator recovery still require their own resources and evidence. |
 | W5/W7 mobile and source grants | Two historical carrier samples do not cover the new flow; a real phone and operator session are needed. | Arrange fresh mobile Open/login/refresh/revoke observations after the integrated native source qualifies. The third company/campus sample remains explicitly waived. |
 | W6-6 public provider | No registered public IdP test application or operator-controlled credentials have been delivered. | Register a suitable public test app and privately provide its credentials; retain invitation, identity-binding and denial/replay cases. |
