@@ -111,3 +111,20 @@ def test_precommit_trust_conflict_exposes_retry_phase_without_save_or_reconcile(
     assert model.nodes == nodes and model.saves == 0 and not journal.path.exists()
     assert 'private' not in str(result)
     reconcile.assert_not_called()
+
+
+def test_compatible_helper_upgrade_recovers_original_received_journal_without_replay(nodes, journal):
+    import rotation_backend
+    model = Model(nodes)
+    model.fail_after_save = True
+    calls = []
+    reconcile = mock.Mock(return_value={'success': True})
+    with mock.patch.object(rotation_backend, 'VERSION', '1.6.0'):
+        with pytest.raises(RotationError):
+            rotate(journal, model, reconcile, transport=network_for(assignment(nodes), journal, calls))
+    retained = journal.path.read_bytes()
+    model.fail_after_save = False
+    with mock.patch.object(rotation_backend, 'VERSION', '1.7.0'):
+        assert rotate(journal, model, reconcile, transport=mock.Mock(side_effect=AssertionError('network replay')))['success']
+    assert model.saves == 1 and len(calls) == 1 and not journal.path.exists()
+    assert b'1.6.0' in retained
