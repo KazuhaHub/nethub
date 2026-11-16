@@ -17,13 +17,21 @@ Verify the hashes with `python3 tools/handoff/verify.py`. Read each PR's status
 and remaining gate before applying. No dependency-refresh, authcore or formal
 packaging acceptance is implied.
 
-For example, after addressing the native failure, try the doctor change on a
-new work branch based on this handoff's product source:
+After the native package rollback/upgrade actually passes, select that exact
+validated fix commit and retain its installed run and accepted image-producer
+references. Use it as the doctor integration base; do not reset to the historical
+`a29` source and discard later fixes. No Ubuntu continuation source is qualified
+merely by passing CI, preparation or isolated recovery. Until the installed
+upgrade has passed, do not apply the patch.
+
+Replace the placeholder with the validated commit before running this example:
 
 ```sh
 HANDOFF_ROOT="$PWD"
+VALIDATED_NATIVE_SOURCE=replace_with_exact_validated_fix_commit
+git rev-parse --verify "$VALIDATED_NATIVE_SOURCE^{commit}"
 git worktree add -b feat/doctor-integration ../nethub-doctor \
-  a29fbfe52a1a7774a538a33081277be2a253ab97
+  "$VALIDATED_NATIVE_SOURCE"
 cd ../nethub-doctor
 git apply --check "$HANDOFF_ROOT/docs/handoff/patches/external-tcp-doctor.patch"
 git apply "$HANDOFF_ROOT/docs/handoff/patches/external-tcp-doctor.patch"
