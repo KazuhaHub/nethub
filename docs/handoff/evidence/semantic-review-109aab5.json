@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of twenty-seven component and deployment guides at source 109aab5; not exhaustive source validation or independent deployment",
+  "scope": "Partial semantic review of thirty-two component and deployment/acceptance guides at source 109aab5; not exhaustive source validation or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -9,7 +9,8 @@
     "Explicit consent, original candidate/account identity, no raw secret logging, retained ambiguous outcomes and fail-closed boundary statements remain stated.",
     "Relay authority preparation/custody assertions, publication barriers, retained-operation recovery, served-TLS verification and offline quarantine remain separate; no automatic offline bypass is documented.",
     "Protected issuer host documentation separately states privileged host trust, narrow SQL identities, cleanup gates, original job/order/CSR retention and the actual fixture limitations. The public policy example still has the documented nine fields.",
-    "Quickstart omitted the explicit --network-subnet argument despite asking the operator to select a subnet. Both init examples now pass the selected value; doctor examples are unchanged. This correction is a documentation follow-up, not a mutation of the frozen candidate."
+    "Quickstart omitted the explicit --network-subnet argument despite asking the operator to select a subnet. Both init examples now pass the selected value; doctor examples are unchanged. This correction is a documentation follow-up, not a mutation of the frozen candidate.",
+    "Certificate automation overview ended with a stale blanket protected-host-restoration gap. The follow-up now links merged isolated recovery while retaining public operator, real renewal-clock and durable encrypted off-host custody requirements. Original staged preparation/recovery failures remain historical failures."
   ],
   "files": [
     {
@@ -119,6 +120,26 @@
     {
       "path": "server/internal/web/README.md",
       "sha256": "c13528ab43874966f3a3e1cfdc6573770c98d05801b3215aaf27f086505f151d"
+    },
+    {
+      "path": "docs/certificate-automation.md",
+      "sha256": "4ad3cc99d8d46aa1672aa148e004aa4a3256d2140bce3dbb35150da45fb780a0"
+    },
+    {
+      "path": "agents/opnsense/acceptance/README.md",
+      "sha256": "1fab56a5baed87159ee5a16f2830053f7466545a1f836a1f5d7b0b4ebcbd1872"
+    },
+    {
+      "path": "server/tests/recovery/README.md",
+      "sha256": "8ced3ca19d84f94b8d29920cc26f256ed30a59dd6a87f59ccaabdaded763e5e9"
+    },
+    {
+      "path": "server/internal/store/README.md",
+      "sha256": "7bd3e09c06b7bf5bcf153305fbf000dc2330159b26cb3602baa7a18b798ec2b3"
+    },
+    {
+      "path": "server/internal/store/validation.md",
+      "sha256": "4f7c66342f591526646b906e18518283aad6995c9b41a963159bd86d6689f580"
     }
   ]
 }
