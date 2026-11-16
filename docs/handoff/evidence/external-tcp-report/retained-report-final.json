@@ -1,0 +1,13 @@
+{
+  "all_three_failed": true,
+  "exact_host_and_port_matched": true,
+  "failed_observers_without_success_time": 3,
+  "new_submission_performed": false,
+  "original_creation_timestamp_retained": true,
+  "pending_observers": 0,
+  "public_positive_or_full_acceptance": false,
+  "raw_report_sha256": "c0a5f02d488b2fd9fa685cb622e6a5a6609d248db01416d0d35b1ab4aac30652",
+  "same_retained_request_identity": true,
+  "scheduled_and_reported_observers": 3,
+  "target_is_own_host": true
+}

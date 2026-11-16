@@ -41,6 +41,11 @@
       "path": "report-shape.json",
       "bytes": 666,
       "sha256": "7d6a32aa186e8b36df1900d54449a512b93570c36b52e2b48e649025828c4e55"
+    },
+    {
+      "path": "retained-report-final.json",
+      "bytes": 477,
+      "sha256": "f1fd0a76181fda2ae6a0278669f394cde12438066e272b2bad0cac471c7448b9"
     }
   ]
 }

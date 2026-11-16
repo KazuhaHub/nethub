@@ -440,7 +440,7 @@ def verify_external_tcp_report(root=ROOT):
     assert index['public_positive_sample_accepted'] is index['full_project_complete'] is False
     expected = {'parent-refusal.json', 'report-shape.json', 'fixed-refusal.json',
                 'local-checks.json', 'clean-build.json', 'NAT-fixture-ready.json',
-                'python-diagnostic-refusal.json'}
+                'python-diagnostic-refusal.json', 'retained-report-final.json'}
     assert len(index['files']) == len(expected) and {v['path'] for v in index['files']} == expected
     values = {}
     for item in index['files']:
@@ -484,6 +484,13 @@ def verify_external_tcp_report(root=ROOT):
         assert hashlib.sha256(raw).hexdigest() == row['sha256']
         assert raw == subprocess.check_output(['git', '-C', str(root), 'show',
             'ea173c660a38bd6c61f37f013e58761da4f337ae:' + row['path']])
+    final = values['retained-report-final.json']
+    for key in ('same_retained_request_identity', 'target_is_own_host',
+                'exact_host_and_port_matched', 'original_creation_timestamp_retained', 'all_three_failed'):
+        assert final[key] is True
+    assert final['new_submission_performed'] is final['public_positive_or_full_acceptance'] is False
+    assert final['scheduled_and_reported_observers'] == final['failed_observers_without_success_time'] == 3
+    assert final['pending_observers'] == 0
     refusal = values['python-diagnostic-refusal.json']
     assert refusal['HTTP_status'] == 403 and refusal['provider_result_received'] is refusal['public_sample_accepted'] is False
     fixture = values['NAT-fixture-ready.json']

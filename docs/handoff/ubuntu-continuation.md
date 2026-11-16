@@ -332,7 +332,11 @@ and refused TCP 443 because an external observer could not connect: exit 1,
 7000/8443 were not reached; no all-port positive, TLS, published-package, public
 W5 or full W7 result follows. The [closed diagnostic checkpoint](evidence/external-tcp-report/index.json)
 contains no raw provider response, target connection metadata or credentials.
-Earlier mismatch/403 failures remain failures.
+Earlier mismatch/403 failures remain failures. A later read of the already
+retained Go diagnostic request, without a new submission, confirmed its original
+creation time, exact TCP-443 target, unchanged three observers and three final
+failures with no successful connection time. This corroborates the closed-port
+provider observation; it is not an all-port negative or positive sample.
 
 A separate one-vCPU/one-GiB owned libvirt fixture passed signed Canonical image,
 upload hash, pinned SSH host key and NAT-local TCP checks, then shut down. It
