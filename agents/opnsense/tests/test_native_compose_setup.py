@@ -56,7 +56,8 @@ def test_combined_reference_failure_retains_only_source_and_existing_hints():
     assert value['phase'] == 'relay_fleet'
     assert value['locations'] == [{'source': 'relay_combined_fault', 'line': 193}]
     assert value['hints'] == ['relay_fleet_changed_client_heartbeat_timeout', 'relay_fleet_original_control_changed']
-    assert SETUP.project(SETUP.emit(value).encode(), 1) == value
+    # Nested emission carries locations/hints; the enclosing runner owns phase.
+    assert SETUP.project(SETUP.emit(value).encode(), 1) == dict(value, phase='unclassified')
     assert 'private-secret' not in str(value)
 
 
