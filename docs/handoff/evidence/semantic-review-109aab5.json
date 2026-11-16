@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of fifty-seven guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Partial semantic review of sixty-five guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -13,7 +13,8 @@
     "Certificate automation overview ended with a stale blanket protected-host-restoration gap. The follow-up now links merged isolated recovery while retaining public operator, real renewal-clock and durable encrypted off-host custody requirements. Original staged preparation/recovery failures remain historical failures.",
     "English/Chinese entry points, SAML dependency/admission/provider guides and current console/deployment API boundaries retain source-specific acceptance, no email-only binding, immutable grants/revocation and public/mobile/release gaps.",
     "The full deadline/recovery history distinguishes SQL and console/public clocks, scheduled reboot delay, real recovery, irreversible operations and scoped later success without relabeling failed trials.",
-    "Image guidance now identifies old Alpine3.23 advisory/index links as historical context, distinct from the documented current Caddy3.24 base; actual Dockerfile/module pins and required scans are unchanged."
+    "Image guidance now identifies old Alpine3.23 advisory/index links as historical context, distinct from the documented current Caddy3.24 base; actual Dockerfile/module pins and required scans are unchanged.",
+    "Authentication defaults and bounded verification/limiter policy agree with the inspected current constants. Backup scheduling, receipt/hash versus actual recovery, host lease ownership and bootstrap non-replay boundaries remain distinct. HTTP-01 publication guidance now links the implemented host worker rather than saying its startup is future work; public custody and renewal-clock acceptance remain open."
   ],
   "files": [
     {
@@ -243,6 +244,38 @@
     {
       "path": "deploy/README.md",
       "sha256": "1aef61f7b8660ef42c4329c12a4495fc8d157ff25195a5cb0c53a234e68c0cc6"
+    },
+    {
+      "path": "server/internal/auth/README.md",
+      "sha256": "e0261b731277d2c5c40bc12738e36271063ab467cbd751f2a7bbe8753f1c4a98"
+    },
+    {
+      "path": "server/internal/backupworker/README.md",
+      "sha256": "90899fb964ad666dbe34460081074f161cf3513e5796f5589d3b60ee74c52da2"
+    },
+    {
+      "path": "server/internal/claim/README.md",
+      "sha256": "805b307be6342f3fa75a57239ccaaaf57fdfc45634bf6cd5287e34bf2f9d84be"
+    },
+    {
+      "path": "server/internal/dbbackup/README.md",
+      "sha256": "e344ac50ba9ad109b5f4451bbde171d9fbecb2329d5707bbec37e8a0a13584ce"
+    },
+    {
+      "path": "server/internal/hostlease/README.md",
+      "sha256": "480a90ed26454b41f26ea856ebb2e286ecb4f2c68b69499cfc3eb780d0e49264"
+    },
+    {
+      "path": "server/internal/http01/README.md",
+      "sha256": "7dd34b0040bf9940fbb6b99b27295b03882cbe85782610fdd79c95d063dbf541"
+    },
+    {
+      "path": "server/internal/relayhook/README.md",
+      "sha256": "fd4812bcfa1fb6f2acfcfb164eca52f2a754506b112329c95f3b0457ae28d5e8"
+    },
+    {
+      "path": "server/cmd/nethub/admin-bootstrap.md",
+      "sha256": "cf86f7ac861e92a43baa1b3166c394550cddada65a497886e90d67eb4a9a89fa"
     }
   ]
 }
