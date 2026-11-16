@@ -56,6 +56,13 @@ ERRORS.update({name: () for name in (
     'relay_fleet_changed_client_Pong_generic', 'relay_fleet_changed_client_Pong_plugin_transport',
     'relay_recent_Ping_unavailable', 'relay_recent_Ping_device_denied', 'relay_recent_hook_busy',
     'relay_recent_snapshot_refresh_failed', 'relay_failure_context_unavailable',
+    'relay_frps_Ping_plugin_status_403', 'relay_frps_Ping_plugin_status_404',
+    'relay_frps_Ping_plugin_status_405', 'relay_frps_Ping_plugin_status_other',
+    'relay_frps_Ping_plugin_EOF', 'relay_frps_Ping_plugin_truncated',
+    'relay_frps_Ping_plugin_reset', 'relay_frps_Ping_plugin_refused',
+    'relay_frps_Ping_plugin_timeout', 'relay_frps_Ping_plugin_closed_idle',
+    'relay_frps_Ping_plugin_decode', 'relay_frps_Ping_plugin_unclassified',
+    'relay_frps_context_unavailable',
     'relay_fleet_failure_log_unavailable')})
 # These markers carry only closed curl/process/body/Pong observations. Empty
 # needles require exact marker lines rather than substring matches (e.g. 3/35).

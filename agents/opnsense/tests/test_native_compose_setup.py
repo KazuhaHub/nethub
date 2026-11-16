@@ -64,7 +64,10 @@ def test_combined_reference_failure_retains_only_source_and_existing_hints():
 def test_recent_service_and_exact_pong_categories_remain_closed_in_nested_output():
     names = ['relay_recent_Ping_unavailable', 'relay_recent_Ping_device_denied', 'relay_recent_hook_busy',
         'relay_recent_snapshot_refresh_failed', 'relay_failure_context_unavailable',
-        *('relay_fleet_changed_client_Pong_' + value for value in ('unavailable', 'not_authorized', 'generic', 'plugin_transport'))]
+        *('relay_fleet_changed_client_Pong_' + value for value in ('unavailable', 'not_authorized', 'generic', 'plugin_transport')),
+        *('relay_frps_Ping_plugin_' + value for value in ('status_403', 'status_404', 'status_405', 'status_other', 'truncated',
+            'EOF', 'reset', 'refused', 'timeout', 'closed_idle', 'decode', 'unclassified')),
+        'relay_frps_context_unavailable']
     raw = '\n'.join('NETHUB_NATIVE_HINT=' + name for name in names)
     raw += '\nNETHUB_NATIVE_HINT=relay_recent_private-secret\n'
     projected = SETUP.project(raw.encode(), 1)

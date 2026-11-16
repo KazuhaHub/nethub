@@ -35,8 +35,43 @@ def recent_failure_hints(raw):
     return hints
 
 
+FRPS_PLUGIN_SUFFIXES = (
+    (b'connection reset by peer', 'reset'), (b'connection refused', 'refused'),
+    (b'i/o timeout', 'timeout'), (b'context deadline exceeded', 'timeout'),
+    (b'Client.Timeout exceeded', 'timeout'), (b'server closed idle connection', 'closed_idle'),
+    (b'unexpected end of JSON input', 'decode'), (b'invalid character', 'decode'),
+    (b'unmarshal', 'decode'), (b'json', 'decode'))
+
+
+def frps_plugin_failure_hints(raw):
+    """Recent frps observations; only fixed Ping-plugin categories are exported."""
+    if not isinstance(raw, bytes) or len(raw) > 1024**2:
+        raise ValueError('Bounded private failure context required')
+    hints = set()
+    for line in raw.splitlines():
+        _head, marker, rest = line.partition(b'send Ping request to plugin [')
+        if not marker:
+            continue
+        _name, marker, reason = rest.partition(b'] error: ')
+        if not marker:
+            continue
+        reason = reason.strip()
+        code = re.search(rb'do http request error code: (\d+)', reason)
+        if code:
+            value = code.group(1).decode()
+            category = 'status_' + (value if value in ('403', '404', '405') else 'other')
+        elif reason.endswith(b'unexpected EOF'):
+            category = 'truncated'
+        elif reason.endswith(b'EOF'):
+            category = 'EOF'
+        else:
+            category = next((name for needle, name in FRPS_PLUGIN_SUFFIXES if needle in reason), 'unclassified')
+        hints.add('relay_frps_Ping_plugin_' + category)
+    return hints
+
+
 def report_failure_context(stage, compose):
-    """Read owned service logs once; preserve the first failure if this fails."""
+    """Read owned service logs once each; preserve the first failure if this fails."""
     try:
         stage = Path(stage)
         if (stage.parent not in (Path('/tmp'), Path('/var/tmp')) or stage.resolve() != stage
@@ -47,13 +82,27 @@ def report_failure_context(stage, compose):
                 or compose[5::2] != [str(stage / name) for name in (
                     'deployment/docker-compose.yml', 'deployment/docker-compose.override.yml', 'test.yml')]):
             raise ValueError('Owned isolated failure context required')
-        result = subprocess.run(compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '100', 'nethub-authz'],
-                                capture_output=True, timeout=5)
-        if result.returncode:
-            raise ValueError('Owned service context unavailable')
-        hints = recent_failure_hints(result.stdout)
     except Exception:
         hints = {'relay_failure_context_unavailable'}
+    else:
+        try:
+            result = subprocess.run(compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '100', 'nethub-authz'],
+                                    capture_output=True, timeout=5)
+            if result.returncode:
+                raise ValueError('Owned service context unavailable')
+            hints = recent_failure_hints(result.stdout)
+        except Exception:
+            hints = {'relay_failure_context_unavailable'}
+        # Ownership is established above; the frps read is independent of the
+        # authz outcome so "not read" is never confused with "nothing found".
+        try:
+            result = subprocess.run(compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '200', 'frps'],
+                                    capture_output=True, timeout=5)
+            if result.returncode:
+                raise ValueError('Owned service context unavailable')
+            hints |= frps_plugin_failure_hints(result.stdout)
+        except Exception:
+            hints.add('relay_frps_context_unavailable')
     for hint in sorted(hints):
         try:
             print('NETHUB_NATIVE_HINT=' + hint, flush=True)

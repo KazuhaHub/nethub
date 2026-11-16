@@ -30,7 +30,7 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_scheduler.py::test_enrollment_handoff_has_no_credentials_or_cached_output',
         'agents/opnsense/tests/test_enrollment.py::test_php_controller_keeps_credentials_private_and_saves_under_native_lock',
     ]),
-    'service': (174, [
+    'service': (176, [
         'server/tests/test_relay_fleet.py',
         'agents/opnsense/tests/test_native_reconcile_failure_probe.py',
         'agents/opnsense/tests/test_native_reconcile_failure.py',
@@ -69,6 +69,8 @@ REQUIRED_NATIVE_CASES = {'test_restart_and_lost_reply_keep_identical_original_ev
                          'test_unknown_native_failure_is_never_replayed_and_restore_does_not_mask_it[True]',
                          'test_interrupted_arm_restores_the_original_template_without_starting_cli',
                          'test_recent_failure_context_never_exports_private_child_fields',
+                         'test_frps_ping_plugin_categories_are_closed_and_never_export_private_text',
+                         'test_frps_read_failure_keeps_authz_hints_and_is_closed',
                          'test_witness_change_retains_fixed_reason_and_never_replays_WAN[process]',
                          'test_witness_change_retains_fixed_reason_and_never_replays_WAN[control]',
                          'test_witness_change_retains_fixed_reason_and_never_replays_WAN[route]',

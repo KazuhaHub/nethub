@@ -83,7 +83,11 @@ unknown text remains an unclassified Pong-error observation, never raw output.
 On fleet or native failure, one read of the owned authz service's last 100 log
 lines can add fixed recent Ping-unavailable/device-denied/busy or snapshot-refresh
 categories. These recent service observations do not identify a particular
-client and cannot prove the historical failure cause. No request/configuration,
+client and cannot prove the historical failure cause. One further bounded read
+of the owned frps log's last 200 lines, independent of the authz read outcome, projects only fixed Ping-plugin failure
+categories (HTTP status 403/404/405/other, EOF, truncated body, reset, refused, timeout, closed
+idle connection, decode or unclassified); these are recent observations that do
+not identify a client and cannot prove the root cause. No request/configuration,
 address, PID, secret or dependency error text is exported. Diagnostic failure
 does not replay any mutation or turn the first failure into success. All original
 controls, deadlines, package assertions and cleanup remain required.

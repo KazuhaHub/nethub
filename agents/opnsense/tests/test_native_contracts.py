@@ -22,6 +22,8 @@ def receipt():
         'test_unknown_native_failure_is_never_replayed_and_restore_does_not_mask_it[True]',
         'test_interrupted_arm_restores_the_original_template_without_starting_cli',
         'test_recent_failure_context_never_exports_private_child_fields',
+        'test_frps_ping_plugin_categories_are_closed_and_never_export_private_text',
+        'test_frps_read_failure_keeps_authz_hints_and_is_closed',
         'test_witness_change_retains_fixed_reason_and_never_replays_WAN[process]',
         'test_witness_change_retains_fixed_reason_and_never_replays_WAN[control]',
         'test_witness_change_retains_fixed_reason_and_never_replays_WAN[route]',

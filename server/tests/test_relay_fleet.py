@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 import json
 
-from relay_fleet import require_original_controls, require_retained_controls, recent_failure_hints, report_failure_context, PONG_REASONS
+from relay_fleet import require_original_controls, require_retained_controls, recent_failure_hints, frps_plugin_failure_hints, report_failure_context, PONG_REASONS
 
 
 class FleetFailureTests(unittest.TestCase):
@@ -34,19 +34,77 @@ class FleetFailureTests(unittest.TestCase):
                 report_failure_context(Path('/private'), ['private-command'])
         self.assertEqual(output.getvalue(), 'NETHUB_NATIVE_HINT=relay_failure_context_unavailable\n')
 
-    def test_owned_failure_context_reads_once_without_replaying_a_mutation(self):
+    def _owned(self):
         stage = Path('/tmp/nethub-stack-test-context')
         compose = ['docker', 'compose', '-p', 'nethub-stack-test-context']
         for name in ('deployment/docker-compose.yml', 'deployment/docker-compose.override.yml', 'test.yml'):
             compose += ['-f', str(stage / name)]
+        return stage, compose
+
+    def test_owned_failure_context_reads_once_without_replaying_a_mutation(self):
+        stage, compose = self._owned()
         output = io.StringIO()
-        with patch('relay_fleet.subprocess.run', return_value=SimpleNamespace(returncode=0,
-                stdout=b'{"msg":"Relay hook decision","operation":"Ping","decision":"unavailable","private":"hidden"}')) as run:
+        authz = SimpleNamespace(returncode=0,
+            stdout=b'{"msg":"Relay hook decision","operation":"Ping","decision":"unavailable","private":"hidden"}')
+        frps = SimpleNamespace(returncode=0,
+            stdout=b'x send Ping request to plugin [private] error: do http request error code: 404 10.0.0.1:8080\n')
+        with patch('relay_fleet.subprocess.run', side_effect=[authz, frps]) as run:
             with redirect_stdout(output):
                 report_failure_context(stage, compose)
-        self.assertEqual(run.call_count, 1)
-        self.assertEqual(run.call_args.args[0], compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '100', 'nethub-authz'])
-        self.assertEqual(output.getvalue(), 'NETHUB_NATIVE_HINT=relay_recent_Ping_unavailable\n')
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(run.call_args_list[0].args[0], compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '100', 'nethub-authz'])
+        self.assertEqual(run.call_args_list[1].args[0], compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '200', 'frps'])
+        self.assertEqual(output.getvalue(),
+            'NETHUB_NATIVE_HINT=relay_frps_Ping_plugin_status_404\nNETHUB_NATIVE_HINT=relay_recent_Ping_unavailable\n')
+        self.assertNotIn('private', output.getvalue())
+
+    def test_frps_read_failure_keeps_authz_hints_and_is_closed(self):
+        stage, compose = self._owned()
+        output = io.StringIO()
+        authz = SimpleNamespace(returncode=0,
+            stdout=b'{"msg":"Relay hook decision","operation":"Ping","decision":"unavailable"}')
+        with patch('relay_fleet.subprocess.run', side_effect=[authz, SimpleNamespace(returncode=1, stdout=b'private')]):
+            with redirect_stdout(output):
+                report_failure_context(stage, compose)
+        self.assertEqual(output.getvalue(),
+            'NETHUB_NATIVE_HINT=relay_frps_context_unavailable\nNETHUB_NATIVE_HINT=relay_recent_Ping_unavailable\n')
+        # A failed authz read must not suppress the independent owned frps read.
+        output = io.StringIO()
+        frps = SimpleNamespace(returncode=0,
+            stdout=b'send Ping request to plugin [private] error: Post "http://private": EOF\n')
+        with patch('relay_fleet.subprocess.run', side_effect=[SimpleNamespace(returncode=1, stdout=b'private'), frps]) as run:
+            with redirect_stdout(output):
+                report_failure_context(stage, compose)
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(output.getvalue(),
+            'NETHUB_NATIVE_HINT=relay_failure_context_unavailable\nNETHUB_NATIVE_HINT=relay_frps_Ping_plugin_EOF\n')
+
+    def test_frps_ping_plugin_categories_are_closed_and_never_export_private_text(self):
+        cases = {
+            'do http request error code: 403': 'status_403', 'do http request error code: 404': 'status_404',
+            'do http request error code: 405': 'status_405', 'do http request error code: 500': 'status_other',
+            'Post "http://10.1.2.3:7600/handler": EOF': 'EOF', 'unexpected EOF': 'truncated',
+            'read tcp 10.1.2.3:1->10.1.2.4:2: read: connection reset by peer': 'reset',
+            'dial tcp 10.1.2.3:7600: connect: connection refused': 'refused',
+            'dial tcp 10.1.2.3:7600: i/o timeout': 'timeout', 'context deadline exceeded': 'timeout',
+            'Client.Timeout exceeded while awaiting headers': 'timeout',
+            'http: server closed idle connection': 'closed_idle',
+            'invalid character x looking for value': 'decode', 'unexpected end of JSON input': 'decode',
+            'json: cannot unmarshal string': 'decode', 'private-secret surprise': 'unclassified'}
+        for suffix, category in cases.items():
+            with self.subTest(suffix=suffix):
+                raw = ('2026 [W] [manager.go:1] [reqid-private] send Ping request to plugin [private-name] error: '
+                       + suffix + '\n').encode()
+                hints = frps_plugin_failure_hints(raw)
+                self.assertEqual(hints, {'relay_frps_Ping_plugin_' + category})
+                self.assertNotIn('private', ''.join(hints))
+                # frps console output is colourised; Compose --no-color does not strip it.
+                self.assertEqual(frps_plugin_failure_hints(b'\x1b[1;33m' + raw + b'\x1b[0m'), hints)
+        self.assertEqual(frps_plugin_failure_hints(
+            b'send Login request to plugin [x] error: do http request error code: 404\nunrelated\n'
+            b'send Ping request to plugin [x] no marker\n'), set())
+        with self.assertRaises(ValueError):
+            frps_plugin_failure_hints(b'x' * (1024**2 + 1))
 
     def test_pong_reasons_require_exact_fixed_suffixes_and_keep_control_failure(self):
         with tempfile.TemporaryDirectory() as temporary:
