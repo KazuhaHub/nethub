@@ -56,8 +56,12 @@ never in URLs, process arguments, browser output or diagnostic messages.
 The heartbeat cache also retains a monotonically increasing claim issuance floor
 for each rotated device. A fresh database Login/proxy check rejects the old claim
 immediately after commit. Existing controls learn the floor on the bounded
-five-second snapshot refresh and are denied on a later heartbeat. A failed refresh
-retains the last good snapshot, so this is not an instantaneous cutoff guarantee.
+one-second snapshot refresh and are denied on a later heartbeat. A failed refresh
+retains known denials and floors, but the last good snapshot expires 2.5 seconds
+from its read start and cannot keep admitting Ping indefinitely. The freshness
+self-check stops authz when this bound fails. These nominal timers do not prove
+instantaneous cutoff or complete public/mobile acceptance; see the
+[cache and availability boundary](../server/internal/relayhook/README.md).
 Rotation is separate from one-way device revocation; a stale claim must not make
 a disconnect request appear to have completed device revocation.
 

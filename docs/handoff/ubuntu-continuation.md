@@ -291,6 +291,14 @@ records the owner's waiver of the third company/campus sample. This review does
 not accept every document or replace current dependency/advisory checks or an
 independent operator.
 
+Further reading covered the OPNsense agent and plugin guides, platform capability
+and FreeBSD-contract scope, deployment/server entry points and relay-trust,
+rotation and historical frp-hook protocol notes. The rotation guide's old
+five-second cache description was reconciled with actual `RevocationInterval`
+and `RevocationMaxAge`: one-second refresh, 2.5-second expiry and freshness
+fail-stop, with no instantaneous or public/mobile guarantee. The historical
+0.71.0 hook observations remain distinct from the current 0.71.1 pin.
+
 ## Doctor integration and the first real provider sample
 
 PR 253 applies only the retained external TCP feature on qualified native source
