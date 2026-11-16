@@ -30,6 +30,7 @@ PHASE_VERSIONS = {name: ('0.0.18' if name in ('rollback', 'legacy_recovered', 'l
                          else '0.0.19') for name in PHASES[:-1]}
 OUTAGE_PHASES = ('offline_rollback', 'offline_upgrade')
 OUTAGE_FLAGS = ('relay_running', 'native_control_present', 'native_route_verified', 'witness_route_verified')
+INVARIANTS = HASHES + ('lifecycle_markers', 'gui_readback', 'witness_process')
 
 
 def validate_packages(value):
@@ -92,8 +93,8 @@ def prepare(guest, directory):
 
 def validate(value):
     fields = set(FLAGS + LIMITS) | {'version', 'passed', 'phase', 'baseline_source', 'current_source',
-        'package_sha256', 'relay_config_sha256', 'steps', 'outages', 'cleanup_stopped_failed_relay'}
-    if (not isinstance(value, dict) or set(value) != fields or type(value['version']) is not int or value['version'] != 2
+        'package_sha256', 'relay_config_sha256', 'steps', 'outages', 'cleanup_stopped_failed_relay', 'invariant_failures'}
+    if (not isinstance(value, dict) or set(value) != fields or type(value['version']) is not int or value['version'] != 3
             or type(value['passed']) is not bool or value['phase'] not in PHASES
             or value['baseline_source'] != BASELINE or not isinstance(value['current_source'], str)
             or not re.fullmatch('[a-f0-9]{40}', value['current_source'])
@@ -106,6 +107,13 @@ def validate(value):
             or not isinstance(value['steps'], list) or len(value['steps']) > 10
             or not isinstance(value['outages'], list) or len(value['outages']) > 2):
         raise ValueError('Unexpected native package migration outcome')
+    failures = value['invariant_failures']
+    # Only fixed category names may leave the private fixture. Never include
+    # compared values, fingerprints, marker names or exception text here.
+    if (not isinstance(failures, list) or any(type(item) is not str or item not in INVARIANTS for item in failures)
+            or failures != [name for name in INVARIANTS if name in failures]
+            or value['passed'] and failures):
+        raise ValueError('Unexpected native package invariant diagnosis')
     for index, outage in enumerate(value['outages']):
         if (not isinstance(outage, dict) or set(outage) != {'phase', 'profile', 'budget_ms', 'first', 'last'}
                 or outage['phase'] != OUTAGE_PHASES[index]
@@ -185,7 +193,7 @@ def _exercise(guest, stage, compose, evidence, nonce, packages, native_read, rou
         raise GuestError('Current relay heartbeat baseline required')
     candidate = config.with_name('frps-native-package-candidate.toml')
     result = {key: False for key in FLAGS + LIMITS}
-    result.update(version=2, passed=False, phase='baseline', baseline_source=BASELINE,
+    result.update(version=3, passed=False, phase='baseline', baseline_source=BASELINE, invariant_failures=[],
         current_source=os.environ['NETHUB_SOURCE_HEAD'], package_sha256=packages['package_sha256'],
         relay_config_sha256=hashlib.sha256(original).hexdigest(), steps=[], outages=[], cleanup_stopped_failed_relay=False)
     path = evidence / 'installed-package-migration.json'
@@ -221,9 +229,18 @@ def _exercise(guest, stage, compose, evidence, nonce, packages, native_read, rou
         raise GuestError('Clean current native package baseline required')
 
     def invariants(value):
-        if (any(value[key] != before[key] for key in HASHES) or value['markers'] != before['markers']
-                or gui_read() != gui or witness.poll() is not None):
-            raise GuestError('Package migration changed enrollment, GUI, trust or witness process')
+        failures = [key for key in HASHES if value[key] != before[key]]
+        if value['markers'] != before['markers']:
+            failures.append('lifecycle_markers')
+        if not failures and gui_read() != gui:
+            failures.append('gui_readback')
+        if not failures and witness.poll() is not None:
+            failures.append('witness_process')
+        if failures:
+            result['invariant_failures'] = failures
+            save()
+            raise GuestError('Package migration changed enrollment, GUI, trust or witness process: '
+                             + ', '.join(failures))
         check_database()
         for role, expected in services.items():
             current = service(role)

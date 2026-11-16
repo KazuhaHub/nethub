@@ -158,7 +158,7 @@ def test_outage_observes_guest_tcp_settlement_without_replaying_mutations(tmp_pa
     arguments, context, guest, *_ = setup(tmp_path, monkeypatch)
     context['linger_probes'] = 2
     result = MIGRATION._exercise(*arguments)
-    assert result['passed'] is True and result['version'] == 2
+    assert result['passed'] is True and result['version'] == 3
     outage, legacy = result['outages']
     assert outage['first']['native_control_present'] is True
     assert outage['last']['native_control_present'] is False
@@ -249,3 +249,50 @@ def test_unowned_guest_is_refused_before_any_command():
     with pytest.raises(MIGRATION.GuestError):
         MIGRATION.prepare(guest, Path('/unrelated'))
     assert guest.installations == []
+
+
+@pytest.mark.parametrize('phase,version', [('rollback', '0.0.18'), ('upgrade', '0.0.19')])
+@pytest.mark.parametrize('category', MIGRATION.INVARIANTS)
+def test_historical_invariant_diagnosis_refuses_without_exporting_compared_values(
+        tmp_path, monkeypatch, phase, version, category):
+    arguments, context, guest, config, original, evidence = setup(tmp_path, monkeypatch)
+    arguments = list(arguments)
+    observation = guest.observation
+
+    def changed():
+        return bool(guest.installations) and guest.version == version
+
+    def probe():
+        value = observation()
+        if changed():
+            if category in PROBE.HASHES:
+                value[category] = 'f' * 64
+            elif category == 'lifecycle_markers':
+                value['markers']['disabled'] = True
+        return value
+
+    guest.observation = probe
+    arguments[8] = lambda: {'private-config-must-not-escape': 'original-or-changed'} if changed() and category == 'gui_readback' else {'same': 'GUI'}
+    arguments[10] = SimpleNamespace(poll=lambda: 1 if changed() and category == 'witness_process' else None)
+    with pytest.raises(MIGRATION.GuestError, match=category):
+        MIGRATION._exercise(*arguments)
+    report = json.loads((evidence / 'installed-package-migration.json').read_text())
+    MIGRATION.validate(report)
+    assert report['passed'] is False and report['phase'] == phase
+    assert report['invariant_failures'] == [category]
+    assert guest.installations == (['0.0.18'] if phase == 'rollback' else ['0.0.18', '0.0.19'])
+    assert context['online'] is False and config.read_bytes() == original
+    assert report['cleanup_stopped_failed_relay'] is True
+    assert 'private-config' not in json.dumps(report) and 'f' * 64 not in json.dumps(report)
+
+
+def test_historical_diagnosis_rejects_private_or_fabricated_success_fields(tmp_path, monkeypatch):
+    arguments, _context, _guest, _config, _original, _evidence = setup(tmp_path, monkeypatch)
+    valid = MIGRATION._exercise(*arguments)
+    assert valid['passed'] and valid['invariant_failures'] == []
+    for diagnosis in (['private-config'], ['gui_readback', 'gui_readback'],
+                      ['witness_process', 'gui_readback'], {'private': 'value'}, None):
+        value = copy.deepcopy(valid)
+        value['invariant_failures'] = diagnosis
+        with pytest.raises(ValueError):
+            MIGRATION.validate(value)
