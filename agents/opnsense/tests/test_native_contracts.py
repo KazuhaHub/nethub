@@ -25,6 +25,8 @@ def receipt():
         'test_witness_change_retains_fixed_reason_and_never_replays_WAN[process]',
         'test_witness_change_retains_fixed_reason_and_never_replays_WAN[control]',
         'test_witness_change_retains_fixed_reason_and_never_replays_WAN[route]',
+        'test_wan_inspection_retains_original_closed_ssh_kind_without_replay[command_timeout]',
+        'test_original_ssh_failure_is_not_replaced_by_a_restore_failure',
         'test_late_route_gap_delays_readiness_without_replaying_or_changing_first_recovery_time',
         'test_persistent_late_missing_route_stays_failed_at_the_original_deadline',
         'test_revoke_stop_precedes_backlog_delivery_and_clear_requires_ack',
