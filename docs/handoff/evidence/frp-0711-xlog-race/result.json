@@ -1,0 +1,44 @@
+{
+  "checked_at": "2026-11-16T22:11:09.761147+00:00",
+  "version": "v0.71.1",
+  "go_version": "go1.26.11 linux/amd64",
+  "image": "golang:1.26.11-bookworm@sha256:dc40a13b61304647ed7e5d581d246b86413dfc29d63c6d018310feb93cd98fc0",
+  "cpus": 2,
+  "memory_limit": "2g",
+  "network_scope": "public Go module download only; no listeners or credentials",
+  "go_mod_verify_passed": true,
+  "exit": 1,
+  "race_detected": true,
+  "race_methods": [
+    "Logger.renderPrefixString",
+    "Logger.Infof"
+  ],
+  "scope": "Standalone library concurrency reproducer. No actual frpc process exit or NetHub native failure reproduced. Concurrent API calls intentionally exercise an unsynchronized prefix update and log read.",
+  "upstream_call_sites": [
+    {
+      "path": "client/service.go",
+      "description": "Successful login updates the shared context logger runID prefix before closing the previous control."
+    },
+    {
+      "path": "client/control.go",
+      "description": "Control retains the context logger and runs heartbeat/dispatcher workers."
+    }
+  ],
+  "historical_native_cause_proven": false,
+  "native_acceptance_passed": false,
+  "version_pins_changed": false,
+  "files": {
+    "go.mod": "ad33e09d6710ea5e3538de8f77843ab748e24463272c061d9922aadf41b605f1",
+    "go.sum": "a10887a70ba95a666957980049ee8c9c5b9ef7f02d07e4e2e48da598cc83d289",
+    "xlog_test.go": "41c6ecef2a3aa2083e51f41a0aaf19bc928a09a9093499d89a4aefe6a67cec25",
+    "pkg/util/xlog/xlog.go": "a6ee26503164e24021955caf84acbdafe09bcfd6814463449a8de5f2c01126d7",
+    "client/service.go": "87389b05671136b4ccd714399d7dd3c98e153bcd627d558163c633136f4850e2",
+    "client/control.go": "8e89972189047591ac84586fa025c7c3a0346352a959efc0622841c34d42d7bb"
+  },
+  "private_log_sha256": "f6bbff7379e938df9a2c76de7378ce3b256f8ba09f5e1502d8120bbdce5a4785",
+  "reproducer_files": {
+    "go.mod": "ad33e09d6710ea5e3538de8f77843ab748e24463272c061d9922aadf41b605f1",
+    "go.sum": "a10887a70ba95a666957980049ee8c9c5b9ef7f02d07e4e2e48da598cc83d289",
+    "xlog_test.go": "41c6ecef2a3aa2083e51f41a0aaf19bc928a09a9093499d89a4aefe6a67cec25"
+  }
+}

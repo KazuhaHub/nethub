@@ -733,3 +733,31 @@ PHP/Node/Python plus related-server suite of 1413 cases, with 18 explicit skips,
 two CPUs and networking disabled. Its fresh workflows need their own evidence.
 All 29 original requirements and external-resource gaps remain; no current
 native upgrade, installed event delivery, complete W5/W7 or release is claimed.
+
+
+## Isolated logger race diagnostic; native cause still unproven
+
+A [bounded standalone reproducer](evidence/frp-0711-xlog-race/README.md) detected
+a concurrent logger prefix write/read race in the official checksummed frp
+0.71.1 module using Go 1.26.11. This intentionally overlaps calls to an API whose
+prefix operations are documented as not thread safe. It reproduces a library
+race, not an actual frpc exit or any NetHub native/package failure. The original
+a29 invariant-failure category and cause remain unproven. All three frp pins
+stay 0.71.1; no production code, deadlines or assertions changed.
+
+The current `368a60d` source separately passed exact-producer cold recovery
+`43958177729`, checked against its frozen operation/cleanup validators and
+original archive digest. Baseline route recovery was 108574 ms and original
+issuance/native recovery 169668 ms from source stop (181528 ms from checkpoint).
+Both screenshot hashes/views were checked; the removed view remains cropped at
+its original viewport. Its full installed sequence `43958179296` failed during WAN identity
+observation before package migration or the audit fixture. Its original closed
+record again reports only `guest_operation`: change/restore were first observed
+at 3120/4529 ms, followed by an 8458 ms failed settling observation with six
+samples and one missing-route sample. Recent Ping-device-denied was observed
+in bounded authz logs; this does not identify a client or establish the cause.
+The original failure archive and image binding were checked; owned image
+cleanup passed and the guest exited with status 0. Original-source diagnostic run `43961643610` at `9a80b44` is also still
+being observed; it cannot qualify the current protocol/audit implementation.
+Neither isolated cold recovery nor the logger diagnostic closes any of the 29
+requirements or proves public/mobile/formal-package/operator acceptance.
