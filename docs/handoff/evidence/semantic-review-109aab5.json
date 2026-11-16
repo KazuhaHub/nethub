@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of ninety-eight guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Partial semantic review of 111 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -17,7 +17,8 @@
     "Authentication defaults and bounded verification/limiter policy agree with the inspected current constants. Backup scheduling, receipt/hash versus actual recovery, host lease ownership and bootstrap non-replay boundaries remain distinct. HTTP-01 publication guidance now links the implemented host worker rather than saying its startup is future work; public custody and renewal-clock acceptance remain open.",
     "Agent/capability/plugin guides retain remote.web-only authority, separate os-frp state, current guard/lock ordering and unsigned-versus-formal package boundaries. The control-plane command table incorrectly named the admin-bootstrap Compose service as a CLI command; it now names the implemented admin create command and its service. Historical browser and FreeBSD contract scope remain separate from installed/public acceptance.",
     "Historical enrollment and certificate records retain their own sources, intentional image reuse boundaries, private fixture roots and the owner-approved old 1GiB allocation; those exceptions do not apply to this host or establish production sizing. Failed offline application, model-normalization diagnosis, later private-CA renewal/rollback and public-CA initial issuance are distinct outcomes. Actual public renewal-clock acceptance remains open. Separate Dex/Keycloak fixtures explicitly label SQL inventory rows and do not claim public providers or native tunnels.",
-    "The public console trial explicitly excludes clean-host and mobile-carrier acceptance. Relay transport, native distribution, admitted signer transitions and retirement are distinct staged records; initial timeout and later daemon-deadline reproductions are not relabeled. The old explicit lab SQL administration and resource exceptions are historical evidence, not authorization to repeat those operations in a new environment. Public chain normalization retains parser/identity/trust refusals and read-only original-order diagnostics."
+    "The public console trial explicitly excludes clean-host and mobile-carrier acceptance. Relay transport, native distribution, admitted signer transitions and retirement are distinct staged records; initial timeout and later daemon-deadline reproductions are not relabeled. The old explicit lab SQL administration and resource exceptions are historical evidence, not authorization to repeat those operations in a new environment. Public chain normalization retains parser/identity/trust refusals and read-only original-order diagnostics.",
+    "Thirteen original plugin progress records describe staged development package versions. Source-only key/CSR/journal controls, Core application and daemon/boot recovery, enrollment/lifecycle, local breaker and WAN/coexistence observations remain distinct. Their earlier future-work statements and old 10/30 heartbeat/compiler records are historical checkpoint scope, not instructions to downgrade the current 1/3 profile, compiler or authority boundaries. Key export, native backup history and cleanup limits remain explicit."
   ],
   "files": [
     {
@@ -411,6 +412,58 @@
     {
       "path": "deploy/validation-relay-authority-native.md",
       "sha256": "81e7b76ba77ea1264eed3594787fe544fd57402a470271dfb50e02cd42e5028d"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/certificate-application-progress.md",
+      "sha256": "a8697a24e46c3e590947eb70f4164c023f5f27ee3ec16f9316aaab4f7b402717"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/certificate-key-progress.md",
+      "sha256": "e978f072286d8a8ecca0666e4d24e8e37dd6f29f68e3e67b0c15542d33aae87a"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/certificate-request-progress.md",
+      "sha256": "0b9edb1a7dcad1bf131f05bea07d43c9fa5e54ce5c9115c59ed427b567301fef"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/certificate-sync-progress.md",
+      "sha256": "1011dac151c3bb0f9d2556a0bc773546069dda41bc0de517784c44cb9d5bf781"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/certificate-transaction-progress.md",
+      "sha256": "5c9536202761230a252e0488accc3ff4348052dc8f8c814b2539d624f1aadb06"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/circuit-breaker-progress.md",
+      "sha256": "57ede5b14698f225f0632e5e5da2798e2e28c3c4d03bdbaf5b8bd2ebccb81a18"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/frp-upgrade-validation.md",
+      "sha256": "9848ce717ac570dc91f0b4c1f5b8b00cf6c590fcfd4aec1c06c8c87b89a0b1b7"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/native-certificate-apply-progress.md",
+      "sha256": "b80e2783fae36c4c27052a4b8dc8425e15f6af05e2e1d90b2801763616fc30a3"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/native-certificate-store-progress.md",
+      "sha256": "4ffd0f9168ebc80994c09fa88b745d504aa61982758333fd29afcc20c7597304"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/native-validation.md",
+      "sha256": "713e1de02e59c0554b896b672408e159c4f89e2d258d9a84b5de3a3094105ede"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/relay-trust-native-progress.md",
+      "sha256": "ebbcbdaa5996deb92162a436dac5428a5a921d1f6c11c3aaa3f9a9d7ee1fc0e6"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/w2-progress.md",
+      "sha256": "80a2d1d22a2846940db9d7b9661cdba14f0039f134bc9384d5030530b7451997"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/w4-progress.md",
+      "sha256": "afb7985dc81ed2fc12ddf1b140d10e9850d41a9b5e1b01205367117ecb75efa1"
     }
   ]
 }
