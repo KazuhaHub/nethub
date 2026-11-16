@@ -559,7 +559,24 @@ def verify_local_opnsense_baseline():
         assert result[key] is True
     assert result['host_firewall_network_or_public_forward_changed'] is False
     assert result['NetHub_or_native_migration_or_release_accepted'] is False
-    print('Verified closed local disconnected appliance baseline; no installed NetHub, native migration or release acceptance.')
+    nat = json.loads((ROOT / 'docs/handoff/evidence/local-opnsense-baseline/nat-metadata-result.json').read_text())
+    assert nat['version'] == 1
+    assert (nat['observed_upgrade_candidate_count'], nat['observed_new_packages'], nat['observed_upgrades']) == (95, 3, 92)
+    assert nat['original_nonzero_preview_retained'] is True
+    assert nat['metadata_operation_replayed'] is False
+    assert nat['guest_shutdown_delivery_observation_refusal_retained'] is True
+    result = nat['result']
+    assert result['metadata_refresh_requests'] == 1 and result['package_upgrade_requests'] == 0
+    assert result['upgrade_dry_run_exit_code'] == 1 and result['upgrade_plan_accepted'] is False
+    for key in ('WAN_only_existing_NAT_verified', 'LAN_link_remained_down',
+                'official_HTTPS_and_fingerprint_repository_verified', 'outbound_TLS_verified',
+                'metadata_refresh_completed', 'installed_package_inventory_unchanged',
+                'private_password_absent_from_serial_output', 'host_default_network_definition_unchanged',
+                'gracefully_powered_off', 'shutdown_delivery_observed'):
+        assert result[key] is True
+    assert result['public_forward_or_host_firewall_changed'] is False
+    assert result['NetHub_native_public_or_release_accepted'] is False
+    print('Verified local appliance preparation and retained nonzero upgrade preview; no installed NetHub, native migration or release acceptance.')
 
 
 def verify_semantic_review(root=ROOT):

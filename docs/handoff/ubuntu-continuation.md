@@ -424,8 +424,7 @@ An owned Ubuntu/libvirt test appliance now has a
 The official Nano image's checksum, independently published signing key and
 signature were verified. The disk transferred into the default storage pool
 matched the converted source. The VM uses 3072 MiB and two vCPUs, with both
-network links disconnected until its actual interface roles and DHCP state are
-reviewed. Its independent serial console returned FreeBSD and OPNsense 26.7
+network links disconnected during the initial baseline inspection. Its independent serial console returned FreeBSD and OPNsense 26.7
 (amd64), then the guest shut down normally. It is currently off, without
 autostart, public forwarding or a changed host network definition.
 
@@ -443,10 +442,23 @@ before invoking its stdin-only password operation once. All configuration apart
 from the intended root password/change timestamp and native revision metadata
 was preserved. A fresh console rejected the factory password and accepted the
 new private credential. No password appeared in serial output or repository
-material. The independent serial path remains available, both NICs remain
-disconnected and the VM shut down normally. WAN/DHCP/interface roles were read
+material. The independent serial path remains available, both NICs were
+disconnected during this credential inspection and the VM shut down normally. WAN/DHCP/interface roles were read
 without enabling network access. This is not NetHub installation or migration
 acceptance, and the basic image still requires its separate firmware review.
+
+A subsequent [NAT metadata inspection](evidence/local-opnsense-baseline/nat-metadata-result.json)
+enabled only the owned VM's verified WAN interface on the existing libvirt NAT;
+its LAN link stayed down. The official HTTPS repository and fingerprint policy,
+verified outbound TLS and one metadata refresh passed. The upgrade preview
+reported 95 candidates (three new packages and 92 upgrades), then exited one;
+that original nonzero result remains unaccepted. No package upgrade was issued
+and the installed package inventory was unchanged. No metadata refresh was
+replayed. An initial shutdown-delivery observation failed; retaining the serial
+connection allowed graceful shutdown to be observed. The VM is off, with its
+WAN link configured for a future controlled boot. The host's default network
+definition, firewall and public forwarding remain unchanged. This is local
+resource preparation only, without NetHub or release acceptance.
 
 ### Consolidated source 109aab5: failed native boundary, scoped cold success
 
