@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of seventy-one guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Partial semantic review of eighty-nine guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -15,7 +15,8 @@
     "The full deadline/recovery history distinguishes SQL and console/public clocks, scheduled reboot delay, real recovery, irreversible operations and scoped later success without relabeling failed trials.",
     "Image guidance now identifies old Alpine3.23 advisory/index links as historical context, distinct from the documented current Caddy3.24 base; actual Dockerfile/module pins and required scans are unchanged.",
     "Authentication defaults and bounded verification/limiter policy agree with the inspected current constants. Backup scheduling, receipt/hash versus actual recovery, host lease ownership and bootstrap non-replay boundaries remain distinct. HTTP-01 publication guidance now links the implemented host worker rather than saying its startup is future work; public custody and renewal-clock acceptance remain open.",
-    "Agent/capability/plugin guides retain remote.web-only authority, separate os-frp state, current guard/lock ordering and unsigned-versus-formal package boundaries. The control-plane command table incorrectly named the admin-bootstrap Compose service as a CLI command; it now names the implemented admin create command and its service. Historical browser and FreeBSD contract scope remain separate from installed/public acceptance."
+    "Agent/capability/plugin guides retain remote.web-only authority, separate os-frp state, current guard/lock ordering and unsigned-versus-formal package boundaries. The control-plane command table incorrectly named the admin-bootstrap Compose service as a CLI command; it now names the implemented admin create command and its service. Historical browser and FreeBSD contract scope remain separate from installed/public acceptance.",
+    "Historical enrollment and certificate records retain their own sources, intentional image reuse boundaries, private fixture roots and the owner-approved old 1GiB allocation; those exceptions do not apply to this host or establish production sizing. Failed offline application, model-normalization diagnosis, later private-CA renewal/rollback and public-CA initial issuance are distinct outcomes. Actual public renewal-clock acceptance remains open. Separate Dex/Keycloak fixtures explicitly label SQL inventory rows and do not claim public providers or native tunnels."
   ],
   "files": [
     {
@@ -301,6 +302,78 @@
     {
       "path": "server/web/validation.md",
       "sha256": "2125677d42a6afee340ce64ba91c9f0e9f46f68ef98307f9b4c044901268b4fc"
+    },
+    {
+      "path": "deploy/validation-certificate-admission.md",
+      "sha256": "9620e3da57f3377a784b20cef765d69a0233eb8e4240e0c870afc93e217df13b"
+    },
+    {
+      "path": "deploy/validation-enrollment-boundaries.md",
+      "sha256": "055e10eedbcb853797323c7ac9aaf86234e9aa12cfd123fd619ff41fb6d1b855"
+    },
+    {
+      "path": "deploy/validation-enrollment-contention.md",
+      "sha256": "29814c6b0c2be76ad1261b31a9f6f3b817494bd07e9a1560a9818be37d40b8bd"
+    },
+    {
+      "path": "deploy/validation-gui-job-deadline.md",
+      "sha256": "d0af7b3fe6cff1e41aaf9e8032ccefd99ba6b8ed0ae8248dc2f7c1e9979c8422"
+    },
+    {
+      "path": "deploy/validation-http01-initialization.md",
+      "sha256": "f368c49114b15013fed74db47eeca9c234229bb7cf387ec9269c7b71cceff7b7"
+    },
+    {
+      "path": "deploy/validation-keycloak-saml.md",
+      "sha256": "519bada36f08a37217c1728ae54cb3514bed096a39fd6ff6c6cb70c2dd380978"
+    },
+    {
+      "path": "deploy/validation-two-dex.md",
+      "sha256": "001c14cd166f90d827d7e6f6d330a7c07332290ca52083cdeb34009053c22dcd"
+    },
+    {
+      "path": "deploy/validation-native-browser.md",
+      "sha256": "7c7a9b27a800181418506aefe6eb1da6f74c7cfcf8043cd24f55c24806b3925e"
+    },
+    {
+      "path": "deploy/validation-native-fresh-browser.md",
+      "sha256": "7886f5785a8c49ee141f0466fc8b88cb4b4f828a77e95ba384c3ca590cbcacee"
+    },
+    {
+      "path": "deploy/validation-native-certificate-identity.md",
+      "sha256": "c155b6e533500b64a3981151df6197cafdf7cc226ba09fde45dc1215b622b9a1"
+    },
+    {
+      "path": "deploy/validation-native-certificate-normalization.md",
+      "sha256": "c8e631327c16674aab0eaa5d37c6cae3e4d14520ad20b182b964d38c9be8b08d"
+    },
+    {
+      "path": "deploy/validation-native-certificate-rollback.md",
+      "sha256": "a0a68ca45cad602119dd07018a45fd10a56099d6d775845a93ff198445d11ee0"
+    },
+    {
+      "path": "deploy/validation-native-gui-lifecycle.md",
+      "sha256": "49d45b725f56b4251549d6fce02540ec436bd74d732cc88ce8477f9e7b668bd8"
+    },
+    {
+      "path": "deploy/validation-native-offline-recovery.md",
+      "sha256": "b44fa3f33f27dc3a92a9c1eef158af7274e8f1e5de5398a10e2ce7fce7918a2e"
+    },
+    {
+      "path": "deploy/validation-native-offline-renewal.md",
+      "sha256": "3dc3f961759b6e5f92013edb5576d2108933a397adfb2eb920dc21ce19f838a2"
+    },
+    {
+      "path": "deploy/validation-native-offline-root-recovery.md",
+      "sha256": "fa711c8aa4fdc825a34a8c6cfca883e4073f748679f8db69bfa74a0dfddef162"
+    },
+    {
+      "path": "deploy/validation-native-profile-recovery.md",
+      "sha256": "1b725f8973f616c0ff0755549f2b6c739933a38f6ad0f6b1c0ce194026c27fca"
+    },
+    {
+      "path": "deploy/validation-native-public-certificate.md",
+      "sha256": "015cfa7a9727530e379880ea9e7cc005f5761a13a30d3cffca0ef36976fc0a0d"
     }
   ]
 }
