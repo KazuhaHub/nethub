@@ -237,6 +237,16 @@ limitations remain explicit. This does not complete the review of every document
 external-reference checks, final integrated-source correspondence or the
 independent ten-minute deployment requirement.
 
+Further partial review covered the protocol walkthrough/schema guide, OIDC
+login/providers, provider encryption, invitations, and SAML
+login/providers/metadata/dependency notes. The SAML metadata guide now labels its
+old authcore pin as the preparation checkpoint; the active graph remains the
+existing `c1447857d71b` pin and explicit interim parser replacement. The dependency
+record distinguishes its early unaccepted cold-recovery checkpoint from PR 223's
+later isolated acceptance. Live PR inspection still found authcore PR 37 open and
+draft at `e3e8cc05330fcff6cbd21c6f38e10320a165c0e1`. No dependency change or new
+security/advisory acceptance follows from this documentation review.
+
 ## Temporarily skipped owner-dependent actions
 
 | Requirement | Missing input or participation | Resume condition |
