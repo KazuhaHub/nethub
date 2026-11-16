@@ -1,0 +1,17 @@
+{
+  "source_head": "6d73b5b7a5c66c4d2440ad70111915ff43edefad",
+  "source_tree": "18b49baeb73337807d0742db7b24b2c9f1cc519b",
+  "CPUs": 2,
+  "container_network": "none",
+  "container_image": "sha256:a97ac4de3de3632945ea41478023c3b3cf7f4f55bff6cb626389936126b2c12e",
+  "full_PHP_Node_Python_suite": {
+    "passed": 1390,
+    "explicit_environment_or_privilege_skips": 18,
+    "exit": 0,
+    "private_log_sha256": "e24cdcee8c678c0838c3391b96fcaf0b727439e05e8cef40b5f028ae590cfe5c"
+  },
+  "browser_module_syntax_check_passed": true,
+  "host_portable_helper_accepted": false,
+  "actual_installed_failure_delivery_or_full_goal_accepted": false,
+  "initial_targeted_missing_required_case_fixture_failure_retained": true
+}

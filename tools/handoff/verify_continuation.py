@@ -345,6 +345,97 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage,
     print(f'Verified {len(names)} checkpoint files for {head[:7]}, five exact-source runs and {source_count} source blobs; {outcome}.')
 
 
+def verify_audit_preparation_checkpoint(root=ROOT):
+    """Validate only the two terminal stages; require no invented native result."""
+    head = '6d73b5b7a5c66c4d2440ad70111915ff43edefad'
+    directory = root / 'docs/handoff/evidence/ubuntu-6d73b5b-preparation'
+    index = json.loads((directory / 'index.json').read_text())
+    assert index['version'] == 1 and index['source_head'] == head
+    assert index['installed_failure_delivery_accepted'] is index['native_upgrade_cause_proven'] is index['full_project_complete'] is False
+    paths = set()
+    for item in index['files']:
+        assert item['path'] not in paths
+        paths.add(item['path'])
+        raw = checked_path(directory, item['path']).read_bytes()
+        assert 0 < len(raw) == item['bytes'] <= 16 * 1024**2
+        assert hashlib.sha256(raw).hexdigest() == item['sha256']
+    assert len(paths) == 11
+    expected = {'filesystem': (43879903098, '.github/workflows/native-contracts.yml'),
+                'preparation': (43879903443, '.github/workflows/native-appliance.yml')}
+    assert len(index['runs']) == 2 and {row['kind'] for row in index['runs']} == set(expected)
+    contents = {}
+    for row in index['runs']:
+        kind = row['kind']
+        origin = json.loads((directory / kind / 'run-origin.json').read_text())
+        metadata = json.loads((directory / kind / 'run.json').read_text())
+        assert row['run_id'] == origin['id'] == expected[kind][0] and row['attempt'] == origin['run_attempt'] == 1
+        assert row['source_head'] == origin['head_sha'] == metadata['headSha'] == head
+        assert row['conclusion'] == origin['conclusion'] == metadata['conclusion'] == 'success'
+        assert origin['status'] == metadata['status'] == 'completed' and origin['path'] == expected[kind][1]
+        assert len(metadata['jobs']) == 1 and metadata['jobs'][0]['conclusion'] == 'success'
+        assert re.fullmatch('[a-f0-9]{64}', row['decoded_log_sha256'])
+        artifacts = json.loads((directory / kind / 'artifacts.json').read_text())['artifacts']
+        assert len(artifacts) == 1
+        artifact, retained = artifacts[0], row['artifact']
+        assert artifact['id'] == retained['id'] and artifact['digest'] == retained['digest']
+        raw = checked_path(directory, retained['path']).read_bytes()
+        assert len(raw) == retained['bytes'] == artifact['size_in_bytes']
+        assert 'sha256:' + hashlib.sha256(raw).hexdigest() == retained['digest']
+        with zipfile.ZipFile(directory / retained['path']) as archive:
+            names = archive.namelist()
+            assert len(names) == len(set(names)) and sum(v.file_size for v in archive.infolist()) <= 16 * 1024**2
+            assert all(not Path(name).is_absolute() and '..' not in Path(name).parts and '\\' not in name for name in names)
+            contents[kind] = {name: archive.read(name) for name in names}
+    files = contents['filesystem']
+    manifest, receipt = json.loads(files['source.json']), json.loads(files['result.json'])
+    assert manifest['source_head'] == receipt['source_head'] == head and len(manifest['files']) == 280
+    assert receipt['manifest_sha'] == hashlib.sha256(files['source.json']).hexdigest()
+    settings = {}
+    source = subprocess.check_output(['git', '-C', str(root), 'show', head + ':agents/opnsense/native_contracts.py'])
+    for node in ast.parse(source).body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            if node.targets[0].id in ('GROUPS', 'REQUIRED_NATIVE_CASES'):
+                settings[node.targets[0].id] = ast.literal_eval(node.value)
+    assert receipt['passed'] is receipt['source_unchanged'] is True
+    assert receipt['installed_opnsense_acceptance'] is receipt['frpc_installed_and_retested'] is False
+    assert receipt['system'] == 'FreeBSD' and receipt['release'].startswith('15.1-') and receipt['uid'] == 0
+    assert set(receipt['groups']) == set(settings['GROUPS'])
+    cases = set()
+    for name, group in receipt['groups'].items():
+        assert group['tests'] == group['passed'] >= settings['GROUPS'][name][0]
+        assert group['exit_code'] == 0 and group['nonpassing_cases'] == []
+        cases.update(group['native_cases_passed'])
+    assert cases == settings['REQUIRED_NATIVE_CASES'] and sum(v['passed'] for v in receipt['groups'].values()) == 354
+    for name, digest in manifest['files'].items():
+        assert hashlib.sha256(subprocess.check_output(['git', '-C', str(root), 'show', head + ':' + name])).hexdigest() == digest
+    preparation = json.loads(contents['preparation']['result.json'])
+    page = json.loads(contents['preparation']['page.json'])
+    assert preparation['source_head'] == head and preparation['passed'] is True and preparation['phase'] == 'completed'
+    assert preparation['unsigned_package_installed'] is True and preparation['page'] == page
+    assert page['passed'] is page['actual_installed_OPNsense_page'] is True
+    assert page['public_TLS_or_enrolled_rotation_acceptance'] is False
+    assert all(preparation[key] is False for key in ('full_rotation_acceptance', 'formal_release', 'public_network_acceptance', 'full_goal_complete'))
+    assert preparation['image']['signature_verified'] is True
+    assert preparation['installed']['frpc_compiler'] == 'go1.26.11' and preparation['installed']['frp_version'] == '0.71.1'
+    assert preparation['guest_diagnostic']['guest_exit_status_after_cleanup'] == 0
+    archive = subprocess.check_output(['git', '-C', str(root), '-c', 'core.autocrlf=false', 'archive', '--format=tar', head])
+    assert hashlib.sha256(archive).hexdigest() == preparation['source_archive_sha256']
+    assert len(page['screenshots']) == 4
+    for name, digest in page['screenshots'].items():
+        assert hashlib.sha256(contents['preparation'][name]).hexdigest() == digest
+    visual = json.loads((directory / 'preparation-checks.json').read_text())
+    views = visual['checks']['preparation']['images']
+    assert len(views) == 4 and sum(v['identical_to_reviewed_678e5d2'] for v in views) == 2
+    assert sum(v['changed_view_reviewed'] for v in views) == 2
+    assert all(v['identical_to_reviewed_678e5d2'] or v['changed_view_reviewed'] for v in views)
+    for view in views:
+        assert view['sha256'] == page['screenshots'][view['name']] and 'path' not in view
+    local = json.loads((directory / 'local-checks.json').read_text())
+    assert local['source_head'] == head and local['host_portable_helper_accepted'] is local['actual_installed_failure_delivery_or_full_goal_accepted'] is False
+    assert local['full_PHP_Node_Python_suite']['passed'] == 1390 and local['full_PHP_Node_Python_suite']['explicit_environment_or_privilege_skips'] == 18
+    print('Verified 11 closed 6d73b5b preparation records, 354 FreeBSD cases and 280 source blobs; actual installed audit and upgrade remain unaccepted.')
+
+
 def verify_installed_success(root, directory, head, index, deployment, read):
     """Check this completed run without changing the older failure branches."""
     assert index['native_upgrade_current_source_passed'] is True
@@ -660,3 +751,4 @@ if __name__ == '__main__':
 
     verify_local_opnsense_baseline()
     verify_semantic_review()
+    verify_audit_preparation_checkpoint()

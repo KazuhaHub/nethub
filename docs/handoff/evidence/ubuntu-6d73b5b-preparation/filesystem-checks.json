@@ -1,0 +1,10 @@
+{
+  "source_head": "6d73b5b7a5c66c4d2440ad70111915ff43edefad",
+  "run": 43879903098,
+  "artifact": 14232685910,
+  "archive_digest": "sha256:61eedfd19ff41c34f528b6bcf70f71817805e47045617e1ff89fb791dab0ce2b",
+  "archive_verified": true,
+  "actual_FreeBSD_cases": 354,
+  "source_blobs_verified_against_Git": 280,
+  "native_installed_public_or_release_accepted": false
+}

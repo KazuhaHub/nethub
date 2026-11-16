@@ -631,3 +631,56 @@ read-only readiness window, preserves first-recovery timings and requires a new
 source-specific set of gates. It changes no package invariants or route boundary,
 performs no network/package replay and accepts no public/mobile/formal scope.
 All 29 original requirements remain; owner-dependent actions stay recorded above.
+
+
+## Audit visibility regression and prepared installed-event observation
+
+The candidate's existing decoder/UI tests did not cover the complete SQL
+projection. An actual PostgreSQL test using the Web runtime role failed against
+the unchanged `678e5d2` query: it omitted the four typed reconcile-event detail
+fields. The corrected narrow query passed the component test and the complete
+PostgreSQL harness at frozen `eecd02ab189a9aa057f4f4191205840e699b6443`.
+Ordinary count 1, exact int64 overflow count 9223372036854775807, microsecond
+device-reported intervals, exclusion of a large private payload field and no
+enrichment of unrelated actions were checked. PR 260 remains a draft. This is
+actual SQL component evidence, not installed failure-event or release acceptance.
+Earlier C5 green decoder/ingestion checks must not be represented as proof that
+its uncorrected console query exposed these details.
+
+PR 261 at `6d73b5b7a5c66c4d2440ad70111915ff43edefad` adds a nonce-bound installed
+failure fixture after the complete package migration and before credential
+rotation. It uses the original mutation lock, an admitted template, durable
+backup/intent and one actual installed CLI refusal; it restores original bytes
+before normal report delivery. Read-only SQL, normal console API, one exact
+authenticated replay and a fresh browser login must confirm retained history
+and typed details without duplicate audit. One explicit normal reconcile then
+requires unchanged live configuration. These two deliberate reconciles belong
+only to this separate case; the WAN/package observation restrictions remain.
+Uncertain actions are not replayed. The fake-controller tests also exposed and
+fixed an interrupted-arm restoration gap before the native path ran.
+
+The [partial durable checkpoint](evidence/ubuntu-6d73b5b-preparation/index.json)
+contains only two terminal stages, their original small ZIPs, original metadata,
+complete-log hashes and scoped local receipts. FreeBSD run
+[43879903098](https://github.com/KazuhaHub/nethub/actions/runs/43879903098)
+passed 354 actual cases against all 280 source blobs, including real lockf,
+interrupted-arm cleanup and both restoration/no-replay variants. Unsigned
+preparation [43879903443](https://github.com/KazuhaHub/nethub/actions/runs/43879903443)
+passed exact archive/binary/compiler/frp, signed guest image and cleanup checks.
+All four image hashes were verified; two changed views were inspected and two
+matched previously reviewed pixels. Fixed-footer overlap in full-page captures
+and mobile status horizontal overflow remain disclosed. The isolated local
+PHP/Node/Python suite passed 1390 checks with 18 explicit environment/privilege
+skips; the host portable helper still lacks host PHP.
+
+At this checkpoint, CI `43879902882`, native `43879902944` and cold recovery
+`43879903455` are still being observed and are not included as accepted results.
+The original a29 invariant-failure cause remains unproven. The read-only WAN
+barrier is not qualified by an unenrolled page or fake controller. The preceding
+`46fcc67` CI `43877178116` failed when an original reference control changed in
+the combined-fault preparation wait, before target creation, packet loss or
+SQL revocation. Native `43877178230` and cold `43877178146` refused that source's
+failed image producer and skipped execution. Their failures remain failures;
+client/cause diagnosis is still incomplete. All 29 original requirements,
+five-second revocation, pins and security boundaries remain. No complete W5/W7,
+formal bad canary, public/operator or production release is established.
