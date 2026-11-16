@@ -564,3 +564,31 @@ target, frp 0.71.1 alignment, Go 1.26.11, authcore reuse and the confirmed secur
 boundaries. Native diagnosis precedes the external doctor integration; public,
 provider, formal-package, independent-deployment and canary gates follow their
 actual dependencies. Skipping an unavailable action never means accepting it.
+
+
+## Complete frozen plan reading and owned firmware preparation
+
+The semantic inventory now includes all 165 Markdown files at frozen source
+`109aab5`, including the complete 2205-line PLAN. This proves the bounded reading
+inventory, not current-source conformance, all external references, translation
+equivalence or the independent ten-minute operator flow. The PLAN follow-up fixes
+the illustrative tunnel CA/serverName and device-specific proxy name, names the
+pinned Go 1.26.11 compiler, uses a new owned disposable database project and
+corrects removal to confirm revocation before clearing native credentials. The
+revoked identity/history persist while the partial unique index releases its
+routing name; a later assignment still needs a new valid identity and claim. Historical versions and acceptance remain dated.
+
+The owned local OPNsense guest now has an offline recovery clone checked with
+qcow2 validation and logical disk comparison. Six installed stock firmware entry
+files matched official 26.7 source bytes; the enabled repository retained verified
+HTTPS and fingerprint signatures. A single stock stable update, with no major
+arguments or manual pkg upgrade, completed base/kernel installation and reboot.
+Fresh console inspection verified OPNsense 26.7.9_1 and running/installed kernel
+and userland 15.1-RELEASE-p6, package dependencies and enabled GUI security checks,
+then shut the guest down normally. The observation timeout, one console return,
+ambiguous OK matcher correction and missing wrapper exit after reboot are retained.
+The earlier nonzero metadata preview is still a separate unaccepted preview.
+The [closed firmware result](evidence/local-opnsense-baseline/firmware-result.json)
+contains no connection metadata or credentials. Host network/firewall and public
+forwarding were unchanged. This prepares a lab resource; it installs no NetHub
+package and accepts no native migration, public/mobile flow or formal release.

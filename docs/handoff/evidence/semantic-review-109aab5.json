@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of 164 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Source-bound semantic reading of all 165 Markdown files at source109aab5; not exhaustive current-source conformance, external-reference review, translation validation or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -28,7 +28,8 @@
     "Twenty operational guides and the shared protocol/credential-check guides retain explicit Open renewal, irreversible revoke, independent recovery, original operation journals, read-only audit checks, approximate warning-only traffic, invitation/issuer binding and secret exclusion. Historical compiler/security scans do not establish current advisory status. The device rotation guide still said bounded waiting required native execution despite its later lock-handoff acceptance section; the follow-up now points to that isolated result while retaining the earlier failed run and public/offline/release gaps.",
     "The complete long-form handoff distinguishes dated checkpoint outcomes from the newer Ubuntu handoff. Historical Windows topology, old compiler pins, public windows and former authorizations are not current Ubuntu resource access or current-source qualification. The later lock-handoff and protected-host results do not erase earlier failures, and the owner release/disclosure decisions remain separate. PLAN and DESIGN remain pending in this exhaustive semantic-review inventory.",
     "The complete frozen 109aab5 continuation ledger preserves each source/run binding, original failures, source-specific producer admission, scoped later successes and owner-dependent skips. Its then-pending integrated native/cold outcomes are historical checkpoints; the later durable evidence and current PR state determine their outcomes. None of the local preparation or partial documentation review closes the original 29 requirements.",
-    "Complete DESIGN review preserves its full original acceptance scope, all later confirmed decisions and dated illustrative layouts. Its audit requirement includes local reconcile failures, but current ReportDevice stores only latest reconcile metadata and has no corresponding append_audit call. Existing audit-chain integrity success therefore does not prove completeness of required system-event coverage. This gap is retained for implementation and actual-role/runtime verification; the design requirement is not weakened. PLAN remains pending in this exhaustive source-bound review inventory."
+    "Complete DESIGN review preserves its full original acceptance scope, all later confirmed decisions and dated illustrative layouts. Its audit requirement includes local reconcile failures, but current ReportDevice stores only latest reconcile metadata and has no corresponding append_audit call. Existing audit-chain integrity success therefore does not prove completeness of required system-event coverage. This gap is retained for implementation and actual-role/runtime verification; the design requirement is not weakened. PLAN remains pending in this exhaustive source-bound review inventory.",
+    "The complete 2205-line PLAN preserves all staged acceptance, current five-second revocation target, two-carrier scope, authcore reuse, source-specific histories and independent/public/formal owner gates. Its illustrative tunnel template omitted the required relay CA/serverName and used a shared proxy name; the follow-up adds verified-TLS fields and device-specific naming. Compiler guidance now names the pinned Go 1.26.11 without rewriting dated environment observations or the go.mod language directive. The initialization note now uses a new owned disposable project instead of suggesting deletion of an existing volume. The stale removal summary placed native credential clearing before server confirmation; it now follows confirmed revocation before native clearing. Inspection of migration 00005 and the lifecycle store confirms that revoked identity/history persist while a partial unique index releases the routing name. Retaining a device row does not imply permanently reserving its name. Actual source anomaly confirmations remain fifteen seconds apart, distinct from five-second display polling; the approximately 45-second PLAN statement is retained. All 165 frozen Markdown files now have reading receipts; subsequent candidate changes, external references, translation equivalence and independent ten-minute deployment still require separate verification."
   ],
   "files": [
     {
@@ -686,6 +687,11 @@
     {
       "path": "docs/DESIGN.md",
       "sha256": "b05037e37c9f7340c692f58a61cf8c87196d78d87385689502fc157024c5d23a"
+    },
+    {
+      "path": "docs/PLAN.md",
+      "sha256": "f076fadd280ee0f9f6b0dad33dffefc5353b220f9b29c58e2d09fa2f523550c3"
     }
-  ]
+  ],
+  "source_markdown_inventory_read": true
 }

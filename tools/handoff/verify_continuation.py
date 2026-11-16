@@ -576,6 +576,29 @@ def verify_local_opnsense_baseline():
         assert result[key] is True
     assert result['public_forward_or_host_firewall_changed'] is False
     assert result['NetHub_native_public_or_release_accepted'] is False
+    firmware = json.loads((ROOT / 'docs/handoff/evidence/local-opnsense-baseline/firmware-result.json').read_text())
+    assert firmware['version'] == 1
+    assert firmware['source']['repository'] == 'opnsense/core'
+    assert firmware['source']['tag'] == '26.7'
+    assert firmware['source']['commit'] == '821598263289e177b40971600f06f5a91d9faef3'
+    entries = firmware['source']['entry_sha256']
+    assert set(entries) == {'shell-firmware.sh', 'firmware-update.sh', 'firmware-launcher.sh', 'rc.firmware', 'rc.firmware.subr', 'config.sh'}
+    assert all(re.fullmatch('[a-f0-9]{64}', digest) for digest in entries.values())
+    assert firmware['original_nonzero_metadata_preview_retained'] is True
+    result = firmware['result']
+    assert result['firmware_update_requests'] == 1 and result['manual_pkg_upgrade_requests'] == 0
+    assert result['package_version'] == '26.7.9_1'
+    assert result['running_installed_kernel_and_userland'] == '15.1-RELEASE-p6'
+    for key in ('offline_recovery_clone_verified', 'six_official_stock_entry_hashes_verified',
+                'official_HTTPS_fingerprint_repository_verified', 'minor_only',
+                'stock_base_and_kernel_install_completion_observed', 'package_dependency_check_passed',
+                'GUI_security_checks_enabled', 'console_observation_timeout_retained',
+                'one_console_return_requested', 'broad_OK_match_correction_retained',
+                'stock_wrapper_exit_unavailable_after_reboot', 'gracefully_powered_off',
+                'host_default_network_unchanged'):
+        assert result[key] is True
+    assert result['host_firewall_or_public_forward_changed'] is False
+    assert result['NetHub_installation_native_or_public_or_release_accepted'] is False
     print('Verified local appliance preparation and retained nonzero upgrade preview; no installed NetHub, native migration or release acceptance.')
 
 
@@ -583,12 +606,15 @@ def verify_semantic_review(root=ROOT):
     value = json.loads((root / 'docs/handoff/evidence/semantic-review-109aab5.json').read_text())
     assert value['source_head'] == '109aab5063dc056f794ef2c98f8ba2d6ca0717a9'
     assert value['all_documents_reviewed'] is value['actual_public_renewal_accepted'] is False
-    assert len(value['files']) == len({row['path'] for row in value['files']}) == 164
+    assert len(value['files']) == len({row['path'] for row in value['files']}) == 165
+    assert value['source_markdown_inventory_read'] is True
+    inventory = subprocess.check_output(['git', '-C', str(root), 'ls-tree', '-r', '--name-only', value['source_head']], text=True).splitlines()
+    assert {path for path in inventory if path.endswith('.md')} == {row['path'] for row in value['files']}
     for row in value['files']:
         assert row['path'].endswith('.md') and not Path(row['path']).is_absolute() and '..' not in Path(row['path']).parts
         raw = subprocess.check_output(['git', '-C', str(root), 'show', value['source_head'] + ':' + row['path']])
         assert hashlib.sha256(raw).hexdigest() == row['sha256']
-    print('Verified 164 source-bound partial document reviews; exhaustive review, public renewal and independent deployment remain open.')
+    print('Verified reading receipts for all 165 frozen-source Markdown files; current-source conformance, external references, translations, public renewal and independent deployment remain open.')
 
 
 if __name__ == '__main__':
