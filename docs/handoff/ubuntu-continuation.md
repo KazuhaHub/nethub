@@ -684,3 +684,52 @@ failed image producer and skipped execution. Their failures remain failures;
 client/cause diagnosis is still incomplete. All 29 original requirements,
 five-second revocation, pins and security boundaries remain. No complete W5/W7,
 formal bad canary, public/operator or production release is established.
+
+
+## Completed 6d73b5b observation and retained WAN failure
+
+All five original `6d73b5b` runs are now terminal. The
+[full scoped checkpoint](evidence/ubuntu-6d73b5b/index.json) retains four original
+small ZIPs, original run metadata, complete-log hashes, selected bounded CI
+records and thirteen required CI images. All thirteen image hashes were checked:
+seven changed views were inspected and six matched reviewed pixels. Other
+producer images were hash checked without claiming visual review. The earlier
+two-stage checkpoint above remains its original, narrower preparation record.
+
+Six-job CI `43879902882`, FreeBSD `43879903098` and unsigned preparation
+`43879903443` passed. Cold recovery `43879903455` passed its frozen-source
+operation/cleanup validators, exact producer binding and both image hashes/views.
+The original route recovered in 127472 ms and original issuance/native
+confirmation in 196261 ms from source stop (211712 ms from checkpoint).
+Original identity/account/key/CSR/process/Open were retained. The removed-page
+view remains cropped to its original viewport. These are isolated recovery
+measurements, not real renewal, public operator or durable off-host custody.
+
+Installed run `43879902944` **failed** while observing restored-WAN readiness.
+Its closed WAN record has phase `identity`, reason `guest_operation`, one change
+and one restoration attempt; first observed recovery timings were 2997/4755 ms.
+The extra read-only window failed at observation after six samples, including
+one missing-route sample. Restoration was observed, but full WAN acceptance was
+not established. No package-migration or actual reconcile-audit result exists.
+The original failure ZIP/source/image binding, masked enrollment view, guest
+exit 0 and owned image cleanup were checked. The record does not identify the
+exact failing callback or prove the original a29 invariant-failure cause.
+
+The separate SQL-projection source `eecd02ab` also passed six-job CI
+`43877634327`. Its installed run `43882792217` failed before creating a guest:
+the ten-client fleet steady window observed a changed dedicated original control
+with Pong-error and prior successful-Pong categories. Its exact error text and
+cause remain unproven. Separate cold recovery `43882798078` passed frozen-source
+operation/cleanup/image binding and reviewed image checks: baseline 92523 ms,
+original issuance/native 124531 ms from source stop (136268 ms from checkpoint).
+Each missing consumer was requested once after the exact six-job producer gate;
+neither failure was blindly rerun or changed to success.
+
+PR 261's follow-up `368a60d` retains every original assertion and deadline while
+separating witness process/control/TLS failures, fixed Pong reasons and recent
+bounded authz-service categories. Recent service observations do not identify
+a particular client. Local checks passed 91 targeted cases and a complete
+PHP/Node/Python plus related-server suite of 1413 cases, with 18 explicit skips,
+two CPUs and networking disabled. Its fresh workflows need their own evidence.
+All 29 original requirements and external-resource gaps remain; no current
+native upgrade, installed event delivery, complete W5/W7 or release is claimed.

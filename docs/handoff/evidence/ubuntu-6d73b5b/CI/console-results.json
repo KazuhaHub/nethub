@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "backend": "fresh Compose project: Caddy, embedded web assets, actual PostgreSQL roles and sessions",
+  "tls": "internal test CA; public ACME is not covered",
+  "cspViolations": 0,
+  "browserErrors": 0,
+  "externalRequests": 0,
+  "unexpectedNetworkFailures": 0,
+  "expectedLogoutCancellations": 0,
+  "checked": [
+    "initial administrator login",
+    "session cookie",
+    "reload",
+    "empty inventory",
+    "audit page and action filter matched actual PostgreSQL append order and typed projection",
+    "fresh enrollment tokens",
+    "clipboard",
+    "dialog focus and Escape",
+    "secret storage exclusion",
+    "mobile",
+    "database session expiry",
+    "logout"
+  ]
+}

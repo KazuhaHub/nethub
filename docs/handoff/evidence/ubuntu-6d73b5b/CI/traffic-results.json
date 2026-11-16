@@ -1,0 +1,34 @@
+{
+  "passed": true,
+  "synthetic_counts_only": true,
+  "genuine_relay_or_SQL_acceptance_claimed": false,
+  "contrast": 9.779306180880488,
+  "screenshots": [
+    {
+      "name": "traffic-light.png",
+      "sha256": "ff581fac7d55f1f60a75a16d06bc79b69f46386af29e96e6a7eaea4640346ea0"
+    },
+    {
+      "name": "traffic-dark.png",
+      "sha256": "65aa3b8035f3b641955e831077441b2629691ea83867bc6fa44b015afd4829d6"
+    },
+    {
+      "name": "traffic-mobile.png",
+      "sha256": "c318ede4c83dd158c169ea8437abe893eb6cb06a1bed56909a9cc3c7eb08017d"
+    },
+    {
+      "name": "traffic-mobile-dialog.png",
+      "sha256": "585338d08ec43ee22bbfc144123c2960bc25189177d6dfd2679b1861deb0cb2f"
+    }
+  ],
+  "checks": [
+    "wide exact totals across pages",
+    "removed-device history",
+    "UTC month and empty state",
+    "administrator warning with CSRF and revision",
+    "passive refresh and live role loss",
+    "uncertain mutation without replay",
+    "mobile native dialog and reachable actions",
+    "light and dark presentation"
+  ]
+}

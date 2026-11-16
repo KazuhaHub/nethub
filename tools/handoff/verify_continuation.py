@@ -293,6 +293,27 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage,
             assert page['passed'] is page['actual_native_write_API'] is True
             for name, digest in page['screenshots'].items():
                 assert hashlib.sha256(archive.read('native/' + name)).hexdigest() == digest
+    elif failure_stage == 'wan_identity_observation':
+        native = read('native', 'native/result.json')
+        wan = read('native', 'native/installed-wan-recovery.json')
+        settling = read('native', 'native/installed-wan-settling.json')
+        assert native['source_head'] == head and native['passed'] is False
+        assert native['failure'] == 'Native WAN recovery failed at identity'
+        assert native['guest_diagnostic']['guest_exit_status_after_cleanup'] == 0
+        assert deployment['compose_setup']['phase'] == 'native_guest' and deployment['compose_tail'] is None
+        assert wan['passed'] is False and wan['phase'] == 'identity' and wan['failure_reason'] == 'guest_operation'
+        assert wan['restore_attempted'] is wan['restore_succeeded'] is True
+        assert wan['manual_agent_start_or_reconcile'] is wan['production_WAN_or_public_network_acceptance'] is wan['full_W5_acceptance'] is False
+        assert 0 < wan['change_ms'] <= 60000 and 0 < wan['restore_ms'] <= 60000
+        assert settling['passed'] is False and settling['phase'] == 'observation'
+        assert settling['samples'] == 6 and settling['missing_route_samples'] == 1
+        assert settling['read_only_observation'] is True and settling['network_or_package_operation_replayed'] is False
+        with zipfile.ZipFile(directory / 'native/original.zip') as archive:
+            assert 'native/installed-reconcile-audit.json' not in archive.namelist()
+            assert 'native/guest-console-after-wan-probe.json' not in archive.namelist()
+            page = read('native', 'native/installed-enroll-page.json')
+            for name, digest in page['screenshots'].items():
+                assert hashlib.sha256(archive.read('native/' + name)).hexdigest() == digest
     elif failure_stage == 'native_pass':
         verify_installed_success(root, directory, head, index, deployment, read)
     else:
@@ -752,3 +773,7 @@ if __name__ == '__main__':
     verify_local_opnsense_baseline()
     verify_semantic_review()
     verify_audit_preparation_checkpoint()
+
+    verify_runtime_checkpoint(ROOT, '6d73b5b7a5c66c4d2440ad70111915ff43edefad',
+        {'CI': 43879902882, 'native': 43879902944, 'cold': 43879903455,
+         'preparation': 43879903443, 'filesystem': 43879903098}, 280, 'wan_identity_observation', filesystem_cases=354)
