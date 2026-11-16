@@ -1,0 +1,78 @@
+{
+  "passed": true,
+  "real_Dex_providers": 2,
+  "genuine_PostgreSQL": true,
+  "device_inventory_rows_are_fixture_records": true,
+  "browser_TLS_verification_enabled": true,
+  "backend_TLS_verification_enabled": true,
+  "independent_signed_false_claim_verified": true,
+  "identical_subject_issuer_fence_verified": true,
+  "actual_Web_restart_and_replay_checked": true,
+  "checks": [
+    "real provider UI discovery and encrypted client credentials",
+    "actual signed Dex email_verified false verified independently through authcore",
+    "first issuer invitation claim and subsequent issuer-subject login",
+    "actual Web restart preserves the existing database-backed SSO session and one-use flow receipt",
+    "actual consumed callback replay with the original browser binding refused without another session",
+    "second independent issuer restricted invitation claim and member session",
+    "two real SSO members see only their owned fixture devices and cannot revoke the other's row with a valid CSRF token",
+    "existing mailbox and another issuer's equal email and subject cannot sign in without an invitation",
+    "wrong issuer cannot start or consume a restricted invitation",
+    "real signed false email claim cannot consume its matching invitation",
+    "actual signed authorization response with tampered state refused without consuming its valid flow",
+    "live account disable invalidates its existing session and refuses valid IdP login",
+    "fresh local-password emergency administrator login remains usable after SSO and member disable"
+  ],
+  "cspViolations": 0,
+  "browserErrors": 0,
+  "unexpectedRequests": 0,
+  "cookieLeaks": 0,
+  "screenshots": [
+    {
+      "name": "dex-one-login.png",
+      "sha256": "59197d5fea986c8afb1e99bb400bb8c2f58dd6e50f4ab85225a8959f488ee6ce"
+    },
+    {
+      "name": "dex-two-login.png",
+      "sha256": "f06df2bd161a07326e37332f1a56ce972b9682ed49b86b7983fe5dbae9441de9"
+    }
+  ],
+  "public_IdP_or_SAML_acceptance_claimed": false,
+  "provider_preflight": [
+    {
+      "provider": "one",
+      "dns_resolved": true,
+      "metadata_issuer_matches": true,
+      "metadata_code_supported": true,
+      "metadata_signing_rs256": true,
+      "metadata_basic_auth": true,
+      "console_discovery_ok": true,
+      "discovery_status": 200,
+      "network_error": "none",
+      "console_error": "none"
+    },
+    {
+      "provider": "two",
+      "dns_resolved": true,
+      "metadata_issuer_matches": true,
+      "metadata_code_supported": true,
+      "metadata_signing_rs256": true,
+      "metadata_basic_auth": true,
+      "console_discovery_ok": true,
+      "discovery_status": 200,
+      "network_error": "none",
+      "console_error": "none"
+    }
+  ],
+  "all_service_logs_checked_for_secret_absence": true,
+  "dex_image": "ghcr.io/dexidp/dex:v2.46.1@sha256:65b72ca0f4b0bf6d4ada84ec21da8851782563404ac7b8f926923d27ceced9ab",
+  "deployed_images": {
+    "runtime": "sha256:00d6382c8740dcb526370ab5b4afb2e213f76e58226a947008b462a4bae7d25a",
+    "postgres": "sha256:b09ce352ad212d86e11087e5f6ee640f05a9c6c20f2d7feaafe623e5a7e7946a",
+    "caddy": "sha256:4f004546403a6dc4beed7617c69813ae9abf34826902eb5b5c4f8897e8aa547e",
+    "frps": "sha256:f945cc7f112b439c5f55aa6d9bb1fd65402af77e2cae2b4ff779f9e685ae8054",
+    "backup": "sha256:564e0e1262a0bc36d3f1894f32b8ca6f7c8bf3f19e772d25549f704397384786"
+  },
+  "owned_services_removed": true,
+  "private_material_removed": true
+}

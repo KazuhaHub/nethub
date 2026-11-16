@@ -622,5 +622,9 @@ if __name__ == '__main__':
         {'CI': 43801873400, 'native': 43801873221, 'cold': 43805004536,
          'preparation': 43802001135, 'filesystem': 43801873348}, 258, 'package_route_boundary')
 
+    verify_runtime_checkpoint(ROOT, 'f98e8ceba3b85c485a3f63b76054430eb59be22e',
+        {'CI': 43807300109, 'native': 43807300105, 'cold': 43807300172,
+         'preparation': 43807300124, 'filesystem': 43807300031}, 258, 'native_pass')
+
     verify_local_opnsense_baseline()
     verify_semantic_review()

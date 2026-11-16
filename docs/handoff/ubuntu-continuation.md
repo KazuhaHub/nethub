@@ -493,6 +493,51 @@ the removal image matched an already reviewed view. This does not qualify the
 failed installed migration, public operator recovery, durable encrypted custody,
 real renewal clocks, formal packaging or the full project.
 
+### Integrated source f98e8ce: current isolated native checkpoint
+
+All five original runs for `f98e8ceba3b85c485a3f63b76054430eb59be22e`
+completed successfully. The [durable checkpoint](evidence/ubuntu-f98e8ce/index.json)
+retains 34 closed files: source-bound run metadata, original small ZIP archives,
+producer views and a native review receipt. CI `43807300109` produced its own
+image artifact `14200445139`; FreeBSD `43807300031` passed 252 cases with all
+258 source blobs verified, and preparation `43807300124` passed. The 13 producer
+views include six unchanged reviewed views and seven changed inspected views.
+
+Installed run `43807300105` passed all ten package phases and eight invariants,
+including unsigned 0.0.18 rollback, 37.643 seconds of legacy steady observation,
+upgrade to 0.0.19 and 11.566 seconds of current steady observation. Original
+identity, GUI, trust, source grants, witness process and unaffected services
+survived; the final current profile and original relay configuration were
+restored. No package or SQL mutation was replayed. One read-only preflight
+recovered the owned SSH listener after a connect timeout and completed in
+10,392 ms under the existing bounded policy.
+
+Normal console-confirmation-to-native-proxy cutoff took 1,120 ms, followed by
+fresh verified TLS refusal and 30,070 ms without reconnect. The independent
+original control and verified route survived. Normal/interrupted Rotate,
+publication conflict, committed replay, shared-token recovery, isolated host
+restore, normal Remove and the complete Compose tail passed. Guest exit was zero
+and owned-image cleanup passed. The original native ZIP artifact `14202205134`
+matched SHA256 `c799479747e66e2f417f6ef254fcff4dc338232adb3c56e7bc9f2b99da8a463c`.
+Fourteen native image hashes and nine distinct views were inspected; five
+success views share identical pixels. Known native footer clipping remains.
+
+Cold run `43807300172` used the same producer/source and passed original
+identity/account/key/CSR/process/grant checks, normal Remove and cleanup.
+Baseline route recovery took 126,965 ms; original-request issuance/native
+application took 159,912 ms from source stop, or 175,165 ms from checkpoint.
+The original cold ZIP artifact `14200891099` matched SHA256
+`ff02f444109bb0abd2cac6e84f23edf0f18ea8cd59e30db167ff18373e281a54`.
+Its changed enrollment view was inspected; removal matched reviewed pixels.
+
+This accepts the integrated source's isolated native migration and cold scope.
+It does not identify the historical a29 comparison or 109aab5 route subtype,
+relabel either failed run, or accept public/mobile/provider, durable custody,
+real renewal, independent deployment, formal packaging, signing or canary gates.
+The external TCP implementation and strict provider correction are included;
+the genuine all-port positive/late-port-negative samples and published-package
+agreement still require their own evidence.
+
 All 29 original requirements and their acceptance ranges remain open or scoped
 exactly as recorded until new evidence closes them. Keep the five-second revoke
 target, frp 0.71.1 alignment, Go 1.26.11, authcore reuse and the confirmed security
