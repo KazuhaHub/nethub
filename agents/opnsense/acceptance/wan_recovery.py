@@ -5,6 +5,7 @@ import re
 import time
 
 from guest import Guest, GuestError
+from wan_settling import settle
 
 
 PHASES = ('baseline', 'change', 'restore', 'identity', 'completed')
@@ -97,16 +98,19 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
             return value
         return projection(value)
 
+    def unchanged(value):
+        if any(value[key] != before[key] for key in ('pid', 'started')):
+            raise WANError('process_changed')
+        if value['runtime_sha256'] != before['runtime_sha256']:
+            raise WANError('runtime_changed')
+        if value['native_xml_sha256'] != before['native_xml_sha256']:
+            raise WANError('native_xml_changed')
+
     def recovered(wanted, started):
         while True:
             check_witness()
             value = probe('inspect')
-            if any(value[key] != before[key] for key in ('pid', 'started')):
-                raise WANError('process_changed')
-            if value['runtime_sha256'] != before['runtime_sha256']:
-                raise WANError('runtime_changed')
-            if value['native_xml_sha256'] != before['native_xml_sha256']:
-                raise WANError('native_xml_changed')
+            unchanged(value)
             if value['address'] == wanted and value['control_sources'] == [wanted] and route():
                 elapsed = time.monotonic() - started
                 if elapsed > 60:
@@ -151,6 +155,23 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
         if failure is None:
             result['phase'] = 'identity'
             try:
+                def readiness():
+                    check_witness()
+                    try:
+                        value = probe('inspect')
+                    except GuestError as error:
+                        if reason(error) == 'wan_route_missing':
+                            return 'route_missing'
+                        raise
+                    unchanged(value)
+                    return ('ready' if value['address'] == '10.0.2.15'
+                            and value['control_sources'] == ['10.0.2.15'] and route() else 'not_ready')
+
+                # First recovery timings above remain unchanged. A later stock
+                # address reapplication can briefly remove the default route;
+                # require closely sampled readiness before package operations.
+                # This uses the original restore deadline and no network repair.
+                settle(evidence, started, readiness)
                 if native_read('native-wan-after-private.json') != model or gui_read() != gui:
                     raise WANError('model_or_gui_changed')
                 check_witness()

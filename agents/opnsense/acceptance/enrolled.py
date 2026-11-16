@@ -23,6 +23,7 @@ from shared_token import exercise_shared_token
 from console_revoke_result import validate as validate_console_revoke
 from wan_recovery import exercise as exercise_wan_recovery
 from package_migration import exercise as exercise_package_migration
+from wan_settling import validate as validate_wan_settling
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -372,6 +373,10 @@ def _exercise(guest, stage, port, project, evidence, packages, cleanup):
 
     wan_recovery = exercise_wan_recovery(guest, evidence, nonce, native_read, route,
         lambda: fixture('inspect', host=host), check_wan_witness, check_wan_database)
+    wan_settling = json.loads((evidence / 'installed-wan-settling.json').read_text())
+    validate_wan_settling(wan_settling)
+    if wan_settling['passed'] is not True:
+        raise GuestError('Native WAN settling proof missing')
     probe = json.loads(guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/console_probe.py\n',
                                  'closed guest console probe after WAN recovery'))
     validate_result(probe)
@@ -664,6 +669,7 @@ def _exercise(guest, stage, port, project, evidence, packages, cleanup):
               'clean_host_restoration': host_restore,
               'installed_console_revoke_deadline': console_revoke,
               'installed_wan_recovery': wan_recovery,
+              'installed_wan_settling': wan_settling,
               'installed_package_migration': package_migration,
               'fixture_removed_through_native_page': True,
               'removed_fixture_revoked_model_cleared_service_stopped_route_closed': True,

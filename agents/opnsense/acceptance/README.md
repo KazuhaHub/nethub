@@ -498,3 +498,38 @@ Pinned upstream sources:
 - [Go release archive checksums](https://go.dev/dl/?mode=json&include=all)
 - [OPNsense factory interface assignments](https://docs.opnsense.org/manual/interfaces.html)
 - [FreeBSD canonical terminal limits](https://raw.githubusercontent.com/freebsd/freebsd-src/releng/15.1/sys/sys/syslimits.h)
+
+
+## Post-WAN route readiness before package migration
+
+Source `c5a7060` passed six-job CI `43838772887` but installed run
+`43838772910` failed before the first package snapshot with the fixed diagnosis
+`native_package_boundary_route_missing`. The preceding WAN recovery and console
+probe passed. This failure did not execute rollback/upgrade and remains failed.
+Its separate cold recovery does not qualify the failed installed sequence.
+
+An owned OPNsense 26.7.9_1/FreeBSD 15.1-RELEASE-p6 guest, without NetHub, reproduced
+a late route gap after one same-address reset and one observed-missing gateway
+restoration. The initial approximately six-second sampling saw no later gap. A
+separate 100 ms sampling experiment observed the route missing at 7726 ms and
+present again at 9618 ms, with unchanged configuration XML and normal shutdown.
+The [closed diagnostic](route-gap-reproduction.json) omits addresses, credentials
+and raw kernel output. Neither the late reset actor nor the original historical
+package-invariant failure is identified by this diagnostic.
+
+After first restored control/TLS recovery, the combined fixture now requires a
+separate fifteen-second window of closely sampled readiness within the original
+sixty-second restoration budget. Sample gaps over one second reset that window.
+Only the fixed missing-route diagnosis is retained as pending readiness; wrong
+routes, unexpected observations and original process/configuration changes still
+refuse immediately. Every ready sample requires the original native process,
+address/control source, runtime/XML fingerprints, independent witness and verified
+native TLS. Original first-recovery timing fields are preserved; the separate
+`installed-wan-settling.json` records the additional observation interval and
+missing-route sample count. It performs no route repair, network change, agent
+start/reconcile or package operation. The original package-probe route assertion,
+all migration invariants and all rollback/upgrade phases remain required.
+
+This is a readiness correction under validation. New exact-source native evidence
+is required; earlier failures are not relabeled, and no full W5/W7, public/mobile
+network or formal-package acceptance follows.

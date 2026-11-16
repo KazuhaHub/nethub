@@ -41,6 +41,20 @@ class Guest:
                            'native_xml_sha256': 'b' * 64})
 
 
+@pytest.fixture(autouse=True)
+def fake_clock(monkeypatch):
+    class Clock:
+        stamp = 0.0
+
+        def sleep(self, seconds):
+            self.stamp += seconds
+
+    clock = Clock()
+    monkeypatch.setattr(RECOVERY.time, 'monotonic', lambda: clock.stamp)
+    monkeypatch.setattr(RECOVERY.time, 'sleep', clock.sleep)
+    return clock
+
+
 def exercise(monkeypatch, tmp_path, guest):
     monkeypatch.setattr(RECOVERY, 'Guest', Guest)
     return RECOVERY.exercise(guest, tmp_path, 'a' * 32, lambda _name: {'model': 'original'},
@@ -51,7 +65,11 @@ def test_success_requires_change_and_restore_without_agent_commands(monkeypatch,
     guest = Guest()
     result = exercise(monkeypatch, tmp_path, guest)
     assert result['passed'] and result['phase'] == 'completed'
-    assert guest.actions == ['inspect', 'change', 'inspect', 'restore', 'inspect']
+    assert guest.actions[:5] == ['inspect', 'change', 'inspect', 'restore', 'inspect']
+    assert guest.actions[5:] and set(guest.actions[5:]) == {'inspect'}
+    settling = json.loads((tmp_path / 'installed-wan-settling.json').read_text())
+    assert settling['passed'] and settling['stable_ms'] >= 15000
+    assert settling['read_only_observation'] and not settling['network_or_package_operation_replayed']
     assert all(result[key] is True for key in RECOVERY.FLAGS)
     assert all(result[key] is False for key in RECOVERY.LIMITS)
     for key, value in [('passed', False), ('restore_attempted', False), ('change_ms', None),
@@ -73,6 +91,103 @@ def test_lost_change_response_restores_but_does_not_turn_failure_into_success(mo
     assert result['change_ms'] is None
     assert result['failure_reason'] == 'guest_operation'
     assert result['restore_failure_reason'] is None
+
+
+def test_late_route_gap_delays_readiness_without_replaying_or_changing_first_recovery_time(
+        monkeypatch, tmp_path, fake_clock):
+    class LateGapGuest(Guest):
+        def ssh(self, script, *args, **kwargs):
+            if self.actions.count('restore') and 7.5 <= fake_clock.stamp < 9.5:
+                assert script.split()[-2] == 'inspect'
+                self.actions.append('inspect')
+                raise RECOVERY.GuestError('owned native WAN inspect failed: fixture_wan_route_missing')
+            return super().ssh(script, *args, **kwargs)
+
+    guest = LateGapGuest()
+    result = exercise(monkeypatch, tmp_path, guest)
+    settling = json.loads((tmp_path / 'installed-wan-settling.json').read_text())
+    assert result['passed'] and result['restore_ms'] == 1
+    assert settling['passed'] and settling['missing_route_samples'] > 0
+    assert 24500 <= settling['elapsed_ms'] <= 60000 and settling['stable_ms'] >= 15000
+    assert guest.actions.count('change') == guest.actions.count('restore') == 1
+
+
+def test_persistent_late_missing_route_stays_failed_at_the_original_deadline(
+        monkeypatch, tmp_path, fake_clock):
+    class MissingGuest(Guest):
+        def ssh(self, script, *args, **kwargs):
+            if self.actions.count('restore') and fake_clock.stamp >= 5:
+                assert script.split()[-2] == 'inspect'
+                self.actions.append('inspect')
+                raise RECOVERY.GuestError('owned native WAN inspect failed: fixture_wan_route_missing')
+            return super().ssh(script, *args, **kwargs)
+
+    guest = MissingGuest()
+    with pytest.raises(RECOVERY.GuestError, match='failed at identity'):
+        exercise(monkeypatch, tmp_path, guest)
+    result = json.loads((tmp_path / 'installed-wan-recovery.json').read_text())
+    settling = json.loads((tmp_path / 'installed-wan-settling.json').read_text())
+    assert not result['passed'] and result['restore_ms'] == 1
+    assert not settling['passed'] and settling['phase'] == 'deadline'
+    assert settling['missing_route_samples'] > 0
+    assert guest.actions.count('change') == guest.actions.count('restore') == 1
+
+
+@pytest.mark.parametrize('reason', ['wan_route_mismatch', 'wan_route_table', 'wan_probe'])
+def test_settling_never_retries_wrong_routes_or_unclassified_failures(
+        monkeypatch, tmp_path, fake_clock, reason):
+    class WrongGuest(Guest):
+        def ssh(self, script, *args, **kwargs):
+            if self.actions.count('restore') and fake_clock.stamp >= 1:
+                self.actions.append('inspect')
+                raise RECOVERY.GuestError('owned native WAN inspect failed: fixture_' + reason)
+            return super().ssh(script, *args, **kwargs)
+
+    guest = WrongGuest()
+    with pytest.raises(RECOVERY.GuestError, match='failed at identity'):
+        exercise(monkeypatch, tmp_path, guest)
+    settling = json.loads((tmp_path / 'installed-wan-settling.json').read_text())
+    assert not settling['passed'] and settling['phase'] == 'observation'
+    assert fake_clock.stamp < 2
+    assert guest.actions.count('change') == guest.actions.count('restore') == 1
+
+
+def test_settling_receipt_refuses_unmeasured_or_broader_success(monkeypatch, tmp_path):
+    exercise(monkeypatch, tmp_path, Guest())
+    helper = sys.modules['wan_settling']
+    value = json.loads((tmp_path / 'installed-wan-settling.json').read_text())
+    helper.validate(value)
+    for key, bad in [('stable_ms', 14999), ('elapsed_ms', 60001), ('samples', True),
+                     ('window_max_gap_ms', 1001), ('required_stable_ms', 1),
+                     ('read_only_observation', False), ('network_or_package_operation_replayed', True),
+                     ('public_or_release_accepted', True), ('phase', 'private raw error')]:
+        with pytest.raises(ValueError):
+            helper.validate(dict(value, **{key: bad}))
+
+
+@pytest.mark.parametrize('delay,phase', [(-1, 'clock'), (1.5, 'deadline')])
+def test_slow_or_regressed_observations_never_create_a_stable_window(
+        tmp_path, fake_clock, delay, phase):
+    def observe():
+        fake_clock.stamp += delay
+        return 'ready'
+
+    with pytest.raises(RECOVERY.GuestError):
+        RECOVERY.settle(tmp_path, 0, observe)
+    value = json.loads((tmp_path / 'installed-wan-settling.json').read_text())
+    assert not value['passed'] and value['phase'] == phase and value['stable_ms'] == 0
+
+
+def test_existing_settling_record_does_not_authorize_another_attempt(tmp_path):
+    path = tmp_path / 'installed-wan-settling.json'
+    path.write_bytes(b'original retained outcome\n')
+
+    def refuse():
+        pytest.fail('An existing attempt must not invoke the observer')
+
+    with pytest.raises(FileExistsError):
+        RECOVERY.settle(tmp_path, 0, refuse)
+    assert path.read_bytes() == b'original retained outcome\n'
 
 
 def test_late_success_is_a_failure_even_when_the_route_is_available(monkeypatch, tmp_path):

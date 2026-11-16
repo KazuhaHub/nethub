@@ -13,6 +13,10 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[2]
 SCOPES = ['agents/opnsense/plugin', 'agents/opnsense/tests', 'proto',
           'agents/opnsense/acceptance/native_model_probe.py',
+          'agents/opnsense/acceptance/guest.py',
+          'agents/opnsense/acceptance/wan_probe.py',
+          'agents/opnsense/acceptance/wan_recovery.py',
+          'agents/opnsense/acceptance/wan_settling.py',
           'agents/opnsense/native_contracts.py', '.github/workflows/native-contracts.yml']
 GROUPS = {
     'enrollment': (17, [
@@ -20,7 +24,8 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_scheduler.py::test_enrollment_handoff_has_no_credentials_or_cached_output',
         'agents/opnsense/tests/test_enrollment.py::test_php_controller_keeps_credentials_private_and_saves_under_native_lock',
     ]),
-    'service': (102, [
+    'service': (120, [
+        'agents/opnsense/tests/test_native_wan_recovery.py',
         'agents/opnsense/tests/test_reconcile_audit.py',
         'agents/opnsense/plugin/tests/test_reconcile_audit_agent.py',
         'agents/opnsense/plugin/tests/test_circuit_breaker.py',
@@ -49,6 +54,8 @@ GROUPS = {
     ]),
 }
 REQUIRED_NATIVE_CASES = {'test_restart_and_lost_reply_keep_identical_original_events',
+                         'test_late_route_gap_delays_readiness_without_replaying_or_changing_first_recovery_time',
+                         'test_persistent_late_missing_route_stays_failed_at_the_original_deadline',
                          'test_revoke_stop_precedes_backlog_delivery_and_clear_requires_ack',
                          'test_enrollment_lock_interoperates_with_native_scheduler_lockf',
                          'test_native_install_guard_and_reconcile_share_the_original_lock',

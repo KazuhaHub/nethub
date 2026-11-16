@@ -14,6 +14,7 @@ from compose_tail import read_phase
 from compose_setup import inspect as inspect_setup
 from compose_setup import project as project_setup
 from wan_recovery import validate as validate_wan_recovery
+from wan_settling import validate as validate_wan_settling
 from route_failure import validate as validate_route_failure
 from native_model_probe import validate_rotation_conditions
 from console_probe import validate_result as validate_console_probe
@@ -27,6 +28,7 @@ JOBS = {'workflow lint', 'Go vulnerability checks', 'weekend0 kit checks',
 PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installed-rotation.json',
                 'native/installed-console-revoke.json', 'native/installed-console-revoke.png',
                 'native/installed-wan-recovery.json',
+                'native/installed-wan-settling.json',
                 'native/installed-package-migration.json',
                 'native/installed-route-failure.json',
                 'native/installed-shared-token.json', 'native/installed-trust-publication.json',
@@ -82,6 +84,10 @@ def publish_evidence(directory):
                 if not 0 < path.stat().st_size <= 16384:
                     raise GuestError('Native package migration evidence exceeds bound')
                 validate_package_migration(json.loads(path.read_text(encoding='utf-8')))
+            if name == 'native/installed-wan-settling.json':
+                if not 0 < path.stat().st_size <= 2048:
+                    raise GuestError('Native WAN settling evidence exceeds bound')
+                validate_wan_settling(json.loads(path.read_text(encoding='utf-8')))
             if name == 'native/rotation-recovery-probe.json':
                 if not 0 < path.stat().st_size <= 8192:
                     raise GuestError('Rotation recovery evidence exceeds bound')
@@ -220,6 +226,10 @@ def main():
         validate_wan_recovery(wan)
         if wan['passed'] is not True or native.get('installed_wan_recovery') != wan:
             raise GuestError('Installed native WAN recovery proof missing')
+        settling = json.loads((evidence / 'native/installed-wan-settling.json').read_text(encoding='utf-8'))
+        validate_wan_settling(settling)
+        if settling['passed'] is not True or native.get('installed_wan_settling') != settling:
+            raise GuestError('Installed native WAN settling proof missing')
         prepared = json.loads((evidence / 'native/result.json').read_text(encoding='utf-8'))
         validate_read_only_inspection_recoveries(prepared['read_only_inspection_recoveries'], require_completed=True)
         result['read_only_inspection_recoveries'] = prepared['read_only_inspection_recoveries']
