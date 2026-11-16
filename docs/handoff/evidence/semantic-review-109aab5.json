@@ -1,0 +1,124 @@
+{
+  "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
+  "scope": "Partial semantic review of twenty-seven component and deployment guides at source 109aab5; not exhaustive source validation or independent deployment",
+  "all_documents_reviewed": false,
+  "actual_public_renewal_accepted": false,
+  "findings": [
+    "Admission, durable CSR, role, CA account, private snapshots, HTTP-01 and finalization responsibilities remain separate.",
+    "CA protocol fixtures, logically aged renewal, real native application and real public renewal-clock proof remain distinct.",
+    "Explicit consent, original candidate/account identity, no raw secret logging, retained ambiguous outcomes and fail-closed boundary statements remain stated.",
+    "Relay authority preparation/custody assertions, publication barriers, retained-operation recovery, served-TLS verification and offline quarantine remain separate; no automatic offline bypass is documented.",
+    "Protected issuer host documentation separately states privileged host trust, narrow SQL identities, cleanup gates, original job/order/CSR retention and the actual fixture limitations. The public policy example still has the documented nine fields.",
+    "Quickstart omitted the explicit --network-subnet argument despite asking the operator to select a subnet. Both init examples now pass the selected value; doctor examples are unchanged. This correction is a documentation follow-up, not a mutation of the frozen candidate."
+  ],
+  "files": [
+    {
+      "path": "server/internal/device/README.md",
+      "sha256": "f1e00ea5c60dfdf661e7285dacb38b5287f96f6882154d0da5b55efe49d33e0d"
+    },
+    {
+      "path": "server/internal/device/README-certificates.md",
+      "sha256": "96806b0121d387a589e94751d82a33d2c2dd9727c7c3f538ab0ec5e4ba43a98a"
+    },
+    {
+      "path": "server/internal/device/README-lifecycle.md",
+      "sha256": "cd124f6a1d0f4d13295a52b9fdb886e2c4522930786d5de6a41a4d8dcaed0a2a"
+    },
+    {
+      "path": "server/internal/device/README-rotation.md",
+      "sha256": "970d8ea1a1e1ad3a39e62c4153870363192fde8d71616310ce21f8a4973908b3"
+    },
+    {
+      "path": "server/internal/guicert/README.md",
+      "sha256": "7a92afda17b45f946c281de9e4190a835b5e001fd68ea7fabc7e3d253bec007d"
+    },
+    {
+      "path": "server/internal/store/GUI_ISSUER_ROLE.md",
+      "sha256": "01be7b73ca004b4e0115970c392204f8967744fdf1cf2d4b05decd1a65312eb9"
+    },
+    {
+      "path": "server/internal/store/GUI_REQUESTS.md",
+      "sha256": "037997729f4c7d29a01c9bf5f91387bc51b9e4d8cb428842cfff9ef9b055f682"
+    },
+    {
+      "path": "server/internal/guiacme/README.md",
+      "sha256": "3613353c94b65d189f2e813baa31aa268f523411603fba286df47d96eb08bcb7"
+    },
+    {
+      "path": "server/internal/guiacme/PROVISIONING.md",
+      "sha256": "bef45b3bc9fc667cf61b81f0a5f3e70ab3be8f5a2f90112366060ce0b1772064"
+    },
+    {
+      "path": "server/internal/guiacme/STORE.md",
+      "sha256": "d1e849e1f9cf293d2eb64d369e578f97244eef3a99dc7fd2f71a249a99586e5b"
+    },
+    {
+      "path": "server/internal/guiacme/ORDERS.md",
+      "sha256": "3baa0d6e4bf6b7761bbba07582fb24b1d7038dde848f2357f07502e55a067c78"
+    },
+    {
+      "path": "server/internal/guiacme/HTTP01.md",
+      "sha256": "c007a66ef0e2b87d0156910fb6716b16bf48275d77e2c9bfc61b08104d46cc20"
+    },
+    {
+      "path": "server/internal/guiacme/FINALIZATION.md",
+      "sha256": "92d67e2f8276537bf2409008d6aa03bad1687d3263fc8ac1e8607b64072ab65c"
+    },
+    {
+      "path": "server/internal/guiacme/RENEWAL.md",
+      "sha256": "e2a73973d7ed29d66ef22d0978f9cdeb1204491168d1a671520d912ff8c12c41"
+    },
+    {
+      "path": "server/internal/guiacme/PEBBLE.md",
+      "sha256": "15ea9635c12cb51c1776bb0dda1a4d203fbaefb8fa3e9534c6eecf1ec7683494"
+    },
+    {
+      "path": "server/internal/relayauthority/README.md",
+      "sha256": "2fa9d029cf171937d9a6488f7ccaf63bdf762bd28764a6179e0fe87aa15edad4"
+    },
+    {
+      "path": "server/internal/relaytrust/README.md",
+      "sha256": "a2a098fc86055fd5025bd8d6c31dbcf62aebd0d20bbb6bc05371acaa44a5373c"
+    },
+    {
+      "path": "server/internal/relaycert/README.md",
+      "sha256": "134b1f0a0ec56eaf58969ab2d871943beef517be2821524b2e556f6e7ec1ed92"
+    },
+    {
+      "path": "server/internal/relaymaint/README.md",
+      "sha256": "2702ce38fd0ec222eea080e39125a9c04f337ff0afd41d3c261da9747f400327"
+    },
+    {
+      "path": "server/internal/relayprobe/README.md",
+      "sha256": "ece3fc7371309c281a16d345dc5a1c6955ddfdf66494c44842e62d35c61b0e48"
+    },
+    {
+      "path": "server/internal/relaystate/README.md",
+      "sha256": "8766767db11359a779cc3d320aff1507403f67a82b3cbef10357c68b3b9bc4a9"
+    },
+    {
+      "path": "server/internal/relaytoken/README.md",
+      "sha256": "e9a9f5dc2374fab6f530c5e9b47a90fb0e4c32986dcdd8002c7c94bce6011329"
+    },
+    {
+      "path": "server/internal/guiissuer/README.md",
+      "sha256": "c8c4c2010200445e0cd0bc8f43c1ed8219147033d49ad6cbbc8b76a9e9c891d9"
+    },
+    {
+      "path": "server/internal/guiissuer/HOST.md",
+      "sha256": "225464a219f448ea63a5264ef49417c6ef9a0417a2809515386f1f425552f7bb"
+    },
+    {
+      "path": "deploy/QUICKSTART.md",
+      "sha256": "587505719231cf7487d4f815799d7920a2537f5761c373e198e775f10745608f"
+    },
+    {
+      "path": "server/internal/setup/README.md",
+      "sha256": "16830e65a3fba4136f1748927bbfa4d505db9870db69e862ce2f579ac243af10"
+    },
+    {
+      "path": "server/internal/web/README.md",
+      "sha256": "c13528ab43874966f3a3e1cfdc6573770c98d05801b3215aaf27f086505f151d"
+    }
+  ]
+}

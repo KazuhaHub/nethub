@@ -117,3 +117,11 @@ host/port binding, local parent-fail/fixed-pass proof and a real owned TCP-443
 negative sample. Its NAT fixture remains powered off with no public forwarding.
 This does not accept all-port positive reachability, published appliance-version
 agreement, native/public W5, formal release or the full project.
+
+The [16708e3 integrated-doctor checkpoint](ubuntu-16708e3/index.json) retains all
+five successful exact-source gates, original closed ZIP digests, complete native
+rollback/upgrade, 1225-ms normal console cutoff, complete tail/cleanup and
+source-bound image review. This is isolated acceptance of that source only, not
+acceptance of the later real-provider fix, consolidated candidate, public/mobile
+flow, actual published package, renewal/custody or release. Earlier failures stay
+failed and the historical upgrade comparison's cause remains unproven.

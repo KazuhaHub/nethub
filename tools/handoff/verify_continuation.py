@@ -525,3 +525,7 @@ if __name__ == '__main__':
          'preparation': 43783251640, 'filesystem': 43783251552}, 258, 'native_pass')
 
     verify_external_tcp_report()
+
+    verify_runtime_checkpoint(ROOT, '16708e35443fbbe93344bd897f8d5ab3ef6749d0',
+        {'CI': 43791395178, 'native': 43799096360, 'cold': 43799098898,
+         'preparation': 43791538230, 'filesystem': 43791394959}, 258, 'native_pass')

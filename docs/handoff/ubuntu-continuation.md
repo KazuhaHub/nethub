@@ -308,8 +308,27 @@ FreeBSD `43791394959` (252 cases / 258 blobs), preparation `43791538230` and
 isolated cold recovery `43799098898`. Cold archive digest, source operation and
 cleanup validators, both image hashes and the changed view were checked:
 baseline route recovery 108774 ms, original-request issuance/native acknowledgement
-156059 ms from source stop. Installed `43799096360` remains in progress at this
-checkpoint; neither the parent's native result nor these other gates accepts it.
+156059 ms from source stop. Installed `43799096360` subsequently completed successfully. The
+[complete source-bound checkpoint](evidence/ubuntu-16708e3/index.json) retains
+34 closed files, official archive digests and all five exact-source run identities.
+All ten package phases, eight invariant flags, legacy/current steady windows,
+original witness process, source grants and other five services passed. Legacy and
+current steady windows were 37307/11475 ms. Normal console-confirmation-to-native
+proxy cutoff was 1225 ms; fresh verified TLS refusal, independent original
+control/TLS retention and a 30081-ms no-reconnect observation passed. WAN change
+and restoration measured 3458/4456 ms in the hosted fixture. Normal/interrupted
+Rotate, trust conflicts and committed replay, shared-token recovery, six-service
+restoration, normal native Remove, complete Compose tail and owned cleanup passed.
+Fourteen image hashes and nine distinct views were checked. One read-only
+`inspection_preflight` SSH timeout recovered the owned listener and completed its
+read in 10379 ms; no package or SQL mutation was replayed.
+
+This qualifies only that source's isolated integrated-native scope. The historical
+`a29` failed comparison remains unidentified, its earlier failed runs stay failed,
+and neither this result nor the real TCP negative qualifies changed source
+`898c3e0` or consolidated candidate `109aab5`. Their exact-source gates remain
+separate; public/mobile, formally published package, independent operator,
+renewal/custody, signing and canary requirements remain open.
 
 The first real compiled doctor call refused the provider's extended report before
 interpreting any closed port. A separate Python diagnostic received HTTP 403;
@@ -361,6 +380,16 @@ PHP is absent. No tests or deployment were started by that attempt, and it is no
 a successful local suite. Host package installation needs the owner under the
 shared-server rules. Continue other read-only, container and hosted work while
 that prerequisite is skipped; do not remove the admission check.
+
+A further partial semantic review of 27 component/deployment guides is retained
+in the [source-bound review inventory](evidence/semantic-review-109aab5.json).
+It covers device admission/lifecycle/rotation, durable CSR and issuer roles,
+ACME account/order/challenge/finalization/renewal, protected issuer work and relay
+authority/trust/maintenance/probes/state/token boundaries, plus initializer and
+console entry points. It does not complete every document, external-reference
+verification or independent ten-minute deployment. The quickstart now passes the
+operator's selected `--network-subnet` in both initialization examples; otherwise
+the CLI silently uses its documented default despite that selection instruction.
 
 ## Temporarily skipped owner-dependent actions
 
