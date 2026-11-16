@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of 163 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Partial semantic review of 164 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -27,7 +27,8 @@
     "The full W0 runbook retains historical 0.71.0 transport experiments, old heartbeat/Q2 thresholds, private raw evidence and explicit historical-use warnings. Three administrator API examples exposed credentials through curl user arguments; they now select an operator-owned private curl configuration outside Git. A bounded loopback control verified actual Basic authentication with the secret absent from child arguments and private-file cleanup; it is not an frps or public-network result. Historical TLS-warning acceptance and disruptive fault commands are not current production procedures.",
     "Twenty operational guides and the shared protocol/credential-check guides retain explicit Open renewal, irreversible revoke, independent recovery, original operation journals, read-only audit checks, approximate warning-only traffic, invitation/issuer binding and secret exclusion. Historical compiler/security scans do not establish current advisory status. The device rotation guide still said bounded waiting required native execution despite its later lock-handoff acceptance section; the follow-up now points to that isolated result while retaining the earlier failed run and public/offline/release gaps.",
     "The complete long-form handoff distinguishes dated checkpoint outcomes from the newer Ubuntu handoff. Historical Windows topology, old compiler pins, public windows and former authorizations are not current Ubuntu resource access or current-source qualification. The later lock-handoff and protected-host results do not erase earlier failures, and the owner release/disclosure decisions remain separate. PLAN and DESIGN remain pending in this exhaustive semantic-review inventory.",
-    "The complete frozen 109aab5 continuation ledger preserves each source/run binding, original failures, source-specific producer admission, scoped later successes and owner-dependent skips. Its then-pending integrated native/cold outcomes are historical checkpoints; the later durable evidence and current PR state determine their outcomes. None of the local preparation or partial documentation review closes the original 29 requirements."
+    "The complete frozen 109aab5 continuation ledger preserves each source/run binding, original failures, source-specific producer admission, scoped later successes and owner-dependent skips. Its then-pending integrated native/cold outcomes are historical checkpoints; the later durable evidence and current PR state determine their outcomes. None of the local preparation or partial documentation review closes the original 29 requirements.",
+    "Complete DESIGN review preserves its full original acceptance scope, all later confirmed decisions and dated illustrative layouts. Its audit requirement includes local reconcile failures, but current ReportDevice stores only latest reconcile metadata and has no corresponding append_audit call. Existing audit-chain integrity success therefore does not prove completeness of required system-event coverage. This gap is retained for implementation and actual-role/runtime verification; the design requirement is not weakened. PLAN remains pending in this exhaustive source-bound review inventory."
   ],
   "files": [
     {
@@ -681,6 +682,10 @@
     {
       "path": "docs/handoff/ubuntu-continuation.md",
       "sha256": "559867847e88682bed0d2e863db6c8cdaca79d93b798447e66f49f48691e48d8"
+    },
+    {
+      "path": "docs/DESIGN.md",
+      "sha256": "b05037e37c9f7340c692f58a61cf8c87196d78d87385689502fc157024c5d23a"
     }
   ]
 }

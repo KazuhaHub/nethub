@@ -493,6 +493,26 @@ the removal image matched an already reviewed view. This does not qualify the
 failed installed migration, public operator recovery, durable encrypted custody,
 real renewal clocks, formal packaging or the full project.
 
+### Semantic review: required system-event coverage gap
+
+The full DESIGN review retains its audit requirement for system actions,
+including reconcile failures (DESIGN section 9). At both frozen `109aab5` and
+integrated `f98e8ce`, `EnrollmentStore.ReportDevice` in
+`server/internal/store/device_lifecycle.go` updates the latest reconcile fields
+without appending a reconcile-failure audit. The current status wire also carries
+only the latest observation, not a durable event queue. Audit-chain verification
+proves integrity of recorded entries; it does not prove that every required
+system event was recorded. Existing scoped chain acceptance must not close this
+event-coverage gap.
+
+Implement retained, bounded, authenticated failure-event delivery and atomic,
+idempotent audit recording without publishing raw local diagnostics or secrets.
+Validate actual PostgreSQL role/tenant boundaries, concurrent/lost-reply retry,
+rollback on audit failure, offline backlog bounds and revoked-device behavior,
+then exercise the real agent/report path. Preserve local stop/watchdog ordering,
+existing protocol compatibility rules and the original acceptance scope. This
+work remains open; no silent design waiver or chain repair is authorized.
+
 ### Integrated source f98e8ce: current isolated native checkpoint
 
 All five original runs for `f98e8ceba3b85c485a3f63b76054430eb59be22e`
