@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Verify the first Ubuntu checkpoint without relabeling its failed native run."""
+"""Verify source-bound Ubuntu checkpoints while retaining every earlier failure."""
 import ast
 import hashlib
 import json
+import re
 from pathlib import Path
 import subprocess
 import zipfile
@@ -224,7 +225,7 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage)
         assert run['run_id'] == identifier and run['attempt'] == 1 and run['source_head'] == head
         metadata = json.loads((directory / kind / 'run.json').read_text())
         origin = json.loads((directory / kind / 'run-origin.json').read_text())
-        conclusion = 'failure' if kind == 'native' else 'success'
+        conclusion = 'failure' if kind == 'native' and failure_stage != 'native_pass' else 'success'
         assert run['conclusion'] == metadata['conclusion'] == origin['conclusion'] == conclusion
         assert metadata['headSha'] == origin['head_sha'] == head and origin['id'] == identifier
         assert origin['run_attempt'] == 1 and metadata['status'] == origin['status'] == 'completed'
@@ -248,7 +249,8 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage)
     deployment = read('native', 'deployment-result.json')
     assert deployment['source_head'] == head
     assert deployment['accepted_image_run'] == str(expected['CI']) and deployment['image_phase'] == 'verified'
-    assert deployment['passed'] is False and deployment['owned_image_cleanup_confirmed'] is True
+    assert deployment['passed'] is (failure_stage == 'native_pass')
+    assert deployment['owned_image_cleanup_confirmed'] is True
     if failure_stage == 'post_WAN':
         native = read('native', 'native/result.json')
         assert native['source_head'] == head and native['passed'] is False
@@ -274,10 +276,12 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage)
         assert {'source': 'relay_fleet', 'line': 133} in deployment['compose_setup']['locations']
         with zipfile.ZipFile(directory / 'native/original.zip') as archive:
             assert archive.namelist() == ['deployment-result.json']
+    elif failure_stage == 'native_pass':
+        verify_installed_success(root, directory, head, index, deployment, read)
     else:
         raise ValueError('Unknown recorded failure stage')
     with zipfile.ZipFile(directory / 'native/original.zip') as archive:
-        assert 'native/installed-package-migration.json' not in archive.namelist()
+        assert ('native/installed-package-migration.json' in archive.namelist()) is (failure_stage == 'native_pass')
     cold = read('cold', 'result.json')
     assert cold['source_head'] == head and cold['accepted_ci_run'] == expected['CI'] and cold['passed'] is True
     assert cold['full_goal_complete'] is False and cold['cleanup']['operation_cgroup_reaped'] is True
@@ -320,7 +324,88 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage)
     assert len(images) == 13 and {p.name for p in images} == {p.name for p in old.glob('*.png')}
     assert sum(p.read_bytes() == (old / p.name).read_bytes() for p in images) == 6
     assert index['required_image_review'] == {'images': 13, 'identical_to_reviewed_870eb57': 6, 'changed_views_reviewed': 7}
-    print(f'Verified {len(names)} checkpoint files for {head[:7]}, five exact-source runs and {source_count} source blobs; {failure_stage} failure remains failed.')
+    outcome = 'scoped installed success; earlier failures remain failed' if failure_stage == 'native_pass' else failure_stage + ' failure remains failed'
+    print(f'Verified {len(names)} checkpoint files for {head[:7]}, five exact-source runs and {source_count} source blobs; {outcome}.')
+
+
+def verify_installed_success(root, directory, head, index, deployment, read):
+    """Check this completed run without changing the older failure branches."""
+    assert index['native_upgrade_current_source_passed'] is True
+    native = read('native', 'native/result.json')
+    rotation = read('native', 'native/installed-rotation.json')
+    package = read('native', 'native/installed-package-migration.json')
+    assert native['source_head'] == package['current_source'] == head
+    assert native['passed'] is rotation['passed'] is package['passed'] is True
+    assert native['phase'] == package['phase'] == 'completed'
+    assert native['full_rotation_acceptance'] is native['full_goal_complete'] is False
+    assert native['formal_release'] is native['public_network_acceptance'] is False
+    assert native['guest_diagnostic']['guest_exit_status_after_cleanup'] == 0
+    assert native['source_archive_sha256'] == read('preparation', 'result.json')['source_archive_sha256']
+    assert deployment['installed_rotation'] == native['installed_rotation'] == rotation
+    assert rotation['installed_package_migration'] == package
+
+    # Execute only the selected source's pure schema validator and its constants.
+    # No guest, package operation, network call or inspection recovery is imported.
+    probe_source = subprocess.check_output(['git', '-C', str(root), 'show', head + ':agents/opnsense/acceptance/package_probe.py'])
+    hashes = [node for node in ast.parse(probe_source).body if isinstance(node, ast.Assign)
+              and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) and node.targets[0].id == 'HASHES']
+    assert len(hashes) == 1
+    context = {'re': re, 'HASHES': ast.literal_eval(hashes[0].value)}
+    source = subprocess.check_output(['git', '-C', str(root), 'show', head + ':agents/opnsense/acceptance/package_migration.py'])
+    constants = {'BASELINE', 'VERSIONS', 'PROFILES', 'PHASES', 'FLAGS', 'LIMITS', 'PHASE_VERSIONS',
+                 'OUTAGE_PHASES', 'OUTAGE_FLAGS', 'INVARIANTS'}
+    nodes = [node for node in ast.parse(source).body
+             if isinstance(node, ast.Assign) and len(node.targets) == 1
+             and isinstance(node.targets[0], ast.Name) and node.targets[0].id in constants
+             or isinstance(node, ast.FunctionDef) and node.name in ('validate', 'validate_packages')]
+    assert len(nodes) == len(constants) + 2
+    exec(compile(ast.Module(body=nodes, type_ignores=[]), '<recorded-package-schema>', 'exec'), context)
+    context['validate'](package)
+    context['validate_packages'](native['package_baseline'])
+    assert package['invariant_failures'] == [] and package['package_sha256'] == native['package_baseline']['package_sha256']
+    assert [row['phase'] for row in package['steps']] == list(context['PHASES'][:-1])
+    assert all(package[key] is True for key in context['FLAGS'])
+    assert all(package[key] is False for key in context['LIMITS'])
+    baseline = native['package_baseline']
+    raw = subprocess.check_output(['git', '-C', str(root), '-c', 'core.autocrlf=false', 'archive', '--format=tar', baseline['baseline_source']])
+    assert hashlib.sha256(raw).hexdigest() == baseline['baseline_source_archive_sha256']
+
+    for name, key in [('installed-shared-token.json', 'shared_token_incident_native_recovery'),
+                      ('installed-host-restore.json', 'clean_host_restoration'),
+                      ('installed-trust-publication.json', 'installed_trust_publication_conflict_recovery'),
+                      ('installed-committed-trust-replay.json', 'installed_committed_trust_replay'),
+                      ('installed-wan-recovery.json', 'installed_wan_recovery'),
+                      ('installed-console-revoke.json', 'installed_console_revoke_deadline')]:
+        value = read('native', 'native/' + name)
+        assert value == rotation[key] and value['passed'] is True
+    tail = read('native', 'native/compose-tail.json')
+    assert tail == deployment['compose_tail'] == {'version': 1, 'phase': 'completed', 'passed': True}
+    assert rotation['removed_fixture_revoked_model_cleared_service_stopped_route_closed'] is True
+    assert rotation['independent_device_preserved_after_fixture_removal'] is True
+    revoke = rotation['installed_console_revoke_deadline']
+    assert revoke['deadline_ms'] == 5000 and 0 < revoke['native_proxy_offline_ms'] <= 5000
+    assert revoke['clock_start'] == 'before normal console confirmation click'
+    assert revoke['no_reconnect_observation_ms'] >= 30000
+    assert all(revoke[key] is True for key in ('normal_browser_CSRF_protected_revoke',
+        'fresh_verified_native_route_refused', 'independent_original_control_and_verified_TLS_retained',
+        'native_identity_and_grants_retained', 'valid_source_grant_retained_during_TLS_refusal'))
+    assert revoke['full_W5_acceptance'] is revoke['public_network_acceptance'] is False
+    assert rotation['full_goal_complete'] is rotation['public_network_or_formal_release_acceptance'] is False
+    receipt = json.loads((directory / 'native/scoped-verification.json').read_text())
+    native_run = next(row['run_id'] for row in index['runs'] if row['kind'] == 'native')
+    assert receipt['source_head'] == head and receipt['run'] == native_run
+    assert receipt['native_upgrade_original_cause_proven'] is receipt['full_W5_W7_or_release_accepted'] is False
+    images = receipt['images']
+    assert len(images) == 14 and len({value['name'] for value in images}) == 14
+    assert len({value['sha256'] for value in images}) == 9
+    with zipfile.ZipFile(directory / 'native/original.zip') as archive:
+        for item in images:
+            assert item['archive_member'] == 'native/' + item['name']
+            assert hashlib.sha256(archive.read(item['archive_member'])).hexdigest() == item['sha256']
+            if not item['view_reviewed']:
+                reference = [v for v in images if v['name'] == item['identical_to_reviewed_image']]
+                assert len(reference) == 1 and reference[0]['view_reviewed'] is True
+                assert reference[0]['sha256'] == item['sha256']
 
 
 def verify_local_framing(root=ROOT):
@@ -363,3 +448,6 @@ if __name__ == '__main__':
     verify_runtime_checkpoint(ROOT, 'd33302f5420f6d90cc04b7e5142bc9660569d987',
         {'CI': 43776402103, 'native': 43776401967, 'cold': 43776401975,
          'preparation': 43776401980, 'filesystem': 43776401969}, 258, 'fleet_control')
+    verify_runtime_checkpoint(ROOT, 'ea173c660a38bd6c61f37f013e58761da4f337ae',
+        {'CI': 43783251653, 'native': 43783251698, 'cold': 43783251668,
+         'preparation': 43783251640, 'filesystem': 43783251552}, 258, 'native_pass')

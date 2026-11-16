@@ -1,0 +1,79 @@
+{
+  "conclusion": "success",
+  "headSha": "ea173c660a38bd6c61f37f013e58761da4f337ae",
+  "jobs": [
+    {
+      "completedAt": "2026-11-16T01:01:59Z",
+      "conclusion": "success",
+      "databaseId": 133025062056,
+      "name": "fresh OPNsense package and page",
+      "startedAt": "2026-11-16T00:56:20Z",
+      "status": "completed",
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Checkout exact source",
+          "number": 2,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Check isolated hosted resources",
+          "number": 3,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Set up browser runtime",
+          "number": 4,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Install pinned browser dependencies",
+          "number": 5,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Build and inspect the current package in a signed guest",
+          "number": 6,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Retain only bounded installed-package evidence",
+          "number": 7,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Set up browser runtime",
+          "number": 13,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Checkout exact source",
+          "number": 14,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43783251640/job/133025062056"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/KazuhaHub/nethub/actions/runs/43783251640"
+}

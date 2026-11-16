@@ -224,8 +224,42 @@ refusal while adding closed stage and original/dedicated-client categories plus
 bounded existing-log presence hints. Passing comparisons perform no new reads;
 diagnostic failure cannot hide the original refusal. Four fleet tests, twelve
 log-reader tests, three heartbeat tests and 38 projection/provenance tests
-passed locally. Its fresh producer/native/preparation/contracts/recovery gates
-are pending; do not use these diagnostic tests as native acceptance.
+passed locally. All five exact-source gates subsequently passed: six-job
+producer `43783251653`, FreeBSD `43783251552` (252 cases and 258 verified Git
+blobs), preparation `43783251640`, installed `43783251698` and isolated cold
+recovery `43783251668`. The [complete checkpoint](evidence/ubuntu-ea173c6/index.json)
+retains 35 closed files with original ZIP digests and source/run identities.
+
+Installed acceptance completed all ten native package phases: old-package
+rollback, legacy recovery and 37.229-second steady window, upgrade to the current
+package, current recovery and 12.409-second steady window. The eight invariant
+flags passed and the fixed failure list is empty. Model/GUI/runtime/trust,
+source grants, the independent witness process and the other five services were
+retained. The final current profile and original relay configuration were
+restored. There was no manual agent start/reconcile or replay of package/SQL
+mutations. One recorded `package_snapshot` inspection recovered the owned SSH
+listener after a connect timeout and completed its read in 10657 ms under the
+existing bounded read-only policy; this is not a package-operation retry.
+
+The actual normal console-confirmation-to-native-proxy cutoff was 1952 ms;
+fresh verified TLS was refused with the valid source grant retained, the original
+reference control/TLS survived, and the no-reconnect window was 30068 ms.
+WAN change and restoration measured 4573/4563 ms in the hosted fixture.
+Normal/interrupted Rotate, trust publication and committed replay, shared-token
+recovery, six-service restoration, native Remove and the complete Compose tail
+passed. Guest exit was zero and owned-image cleanup was confirmed. All fourteen
+native image hashes and nine distinct masked views were checked. Isolated cold
+recovery retained original identity/account/key/CSR/Open and passed normal Remove:
+baseline route recovery 89214 ms, original-request issuance recovery 163250 ms
+from source stop, checkpoint-to-issuance 174631 ms.
+
+This qualifies the current source's isolated native package gate for subsequent
+doctor integration. It does not identify which comparison failed in historical
+`a29`, attribute that failure to the independently reproduced install-guard race,
+or relabel any earlier failed run. The public/mobile/operator, published package,
+independent deployment, renewal/custody and canary gates remain open. Overall
+acceptance flags remain false. Integrate only the doctor feature patch on this
+validated source, then collect fresh exact-source evidence for the changed tree.
 
 The English/Chinese README entry points and documentation index now distinguish
 the dated Ubuntu handoff from this continuation record. A partial semantic review
