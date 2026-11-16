@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of 161 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Partial semantic review of 163 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -25,7 +25,9 @@
     "W0 mobile network and NewUserConn records are historical 0.71.0 experiments, not current signed-package/mobile console evidence. Two carrier samples and the explicitly waived company/campus sample remain distinct. Existing streams surviving source-gate denial, backend-hang stale observations and failed/interrupted trials retain their measured limits. Blank result templates request private collection; filled raw credentials, hook payloads and addresses must not be published. No current five-second or full W5 claim follows from the historical 10s/30s observations.",
     "The complete threat model retains privileged host/authz/IdP boundaries, exact-source scoped native results, public/mobile gaps and independent custody/release requirements. Session Lax and SAML None cookies, noopener/noreferrer GUI navigation and one-second/2.5-second cache constants were checked against corresponding current implementation. All 29 handoff rows and recorded D14/authcore/Go/frp/five-second decisions remain intact; immutable historical snapshot status is distinguished from later continuation evidence.",
     "The full W0 runbook retains historical 0.71.0 transport experiments, old heartbeat/Q2 thresholds, private raw evidence and explicit historical-use warnings. Three administrator API examples exposed credentials through curl user arguments; they now select an operator-owned private curl configuration outside Git. A bounded loopback control verified actual Basic authentication with the secret absent from child arguments and private-file cleanup; it is not an frps or public-network result. Historical TLS-warning acceptance and disruptive fault commands are not current production procedures.",
-    "Twenty operational guides and the shared protocol/credential-check guides retain explicit Open renewal, irreversible revoke, independent recovery, original operation journals, read-only audit checks, approximate warning-only traffic, invitation/issuer binding and secret exclusion. Historical compiler/security scans do not establish current advisory status. The device rotation guide still said bounded waiting required native execution despite its later lock-handoff acceptance section; the follow-up now points to that isolated result while retaining the earlier failed run and public/offline/release gaps."
+    "Twenty operational guides and the shared protocol/credential-check guides retain explicit Open renewal, irreversible revoke, independent recovery, original operation journals, read-only audit checks, approximate warning-only traffic, invitation/issuer binding and secret exclusion. Historical compiler/security scans do not establish current advisory status. The device rotation guide still said bounded waiting required native execution despite its later lock-handoff acceptance section; the follow-up now points to that isolated result while retaining the earlier failed run and public/offline/release gaps.",
+    "The complete long-form handoff distinguishes dated checkpoint outcomes from the newer Ubuntu handoff. Historical Windows topology, old compiler pins, public windows and former authorizations are not current Ubuntu resource access or current-source qualification. The later lock-handoff and protected-host results do not erase earlier failures, and the owner release/disclosure decisions remain separate. PLAN and DESIGN remain pending in this exhaustive semantic-review inventory.",
+    "The complete frozen 109aab5 continuation ledger preserves each source/run binding, original failures, source-specific producer admission, scoped later successes and owner-dependent skips. Its then-pending integrated native/cold outcomes are historical checkpoints; the later durable evidence and current PR state determine their outcomes. None of the local preparation or partial documentation review closes the original 29 requirements."
   ],
   "files": [
     {
@@ -671,6 +673,14 @@
     {
       "path": "proto/README.md",
       "sha256": "a20a7bca3a75797c8034540639aa392e8392ce59e53a712703fd21fc88d3aa02"
+    },
+    {
+      "path": "docs/HANDOFF_PROMPT.md",
+      "sha256": "f655c4f76b88667fca4276f85e88c1e93147a0e65c1e28ad7bea0face083b23e"
+    },
+    {
+      "path": "docs/handoff/ubuntu-continuation.md",
+      "sha256": "559867847e88682bed0d2e863db6c8cdaca79d93b798447e66f49f48691e48d8"
     }
   ]
 }
