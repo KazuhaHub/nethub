@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of 137 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Partial semantic review of 138 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -23,7 +23,8 @@
     "The W3 decision brief mixed original 10s/30s heartbeat language with present instructions. It now explicitly marks that profile historical and links the current owner-retained five-second target and 1s/3s profile; migration/rollback coverage remains. W4 history, UI comparison and lost-report fixture retain their bounded evidence and do not authorize repeating old listener/SQL changes. External TCP instructions bind both genuine provider host and canonical port and still require public positive acceptance.",
     "Protocol rotation/trust contracts preserve current cache freshness, original-operation replay, native CAS/journals and no private material in public replies. Ubuntu instructions retain fresh hosted-runner admission and exact-source image requirements. The original Check-Host-only-in-PR242 sentence now points to subsequent integration/correction and separately states the remaining all-port positive and late-port negative samples. Historical evidence and patch registries remain snapshots rather than permission to replay mutations.",
     "W0 mobile network and NewUserConn records are historical 0.71.0 experiments, not current signed-package/mobile console evidence. Two carrier samples and the explicitly waived company/campus sample remain distinct. Existing streams surviving source-gate denial, backend-hang stale observations and failed/interrupted trials retain their measured limits. Blank result templates request private collection; filled raw credentials, hook payloads and addresses must not be published. No current five-second or full W5 claim follows from the historical 10s/30s observations.",
-    "The complete threat model retains privileged host/authz/IdP boundaries, exact-source scoped native results, public/mobile gaps and independent custody/release requirements. Session Lax and SAML None cookies, noopener/noreferrer GUI navigation and one-second/2.5-second cache constants were checked against corresponding current implementation. All 29 handoff rows and recorded D14/authcore/Go/frp/five-second decisions remain intact; immutable historical snapshot status is distinguished from later continuation evidence."
+    "The complete threat model retains privileged host/authz/IdP boundaries, exact-source scoped native results, public/mobile gaps and independent custody/release requirements. Session Lax and SAML None cookies, noopener/noreferrer GUI navigation and one-second/2.5-second cache constants were checked against corresponding current implementation. All 29 handoff rows and recorded D14/authcore/Go/frp/five-second decisions remain intact; immutable historical snapshot status is distinguished from later continuation evidence.",
+    "The full W0 runbook retains historical 0.71.0 transport experiments, old heartbeat/Q2 thresholds, private raw evidence and explicit historical-use warnings. Three administrator API examples exposed credentials through curl user arguments; they now select an operator-owned private curl configuration outside Git. A bounded loopback control verified actual Basic authentication with the secret absent from child arguments and private-file cleanup; it is not an frps or public-network result. Historical TLS-warning acceptance and disruptive fault commands are not current production procedures."
   ],
   "files": [
     {
@@ -573,6 +574,10 @@
     {
       "path": "docs/handoff/decisions-and-repositories.md",
       "sha256": "ca40b74919c114a487a24b9176f91999fe74b570de2f7ad74095c43da5eaffb6"
+    },
+    {
+      "path": "weekend0/RUNBOOK.md",
+      "sha256": "daf27aae2e929e56694fd3d7f588377b2e4ed8c16693e7d5f334d02c20100083"
     }
   ]
 }
