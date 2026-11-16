@@ -3,6 +3,7 @@ import importlib.util
 import json
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -131,6 +132,38 @@ def test_persistent_late_missing_route_stays_failed_at_the_original_deadline(
     assert not settling['passed'] and settling['phase'] == 'deadline'
     assert settling['missing_route_samples'] > 0
     assert guest.actions.count('change') == guest.actions.count('restore') == 1
+
+
+@pytest.mark.parametrize('kind', ['process', 'control', 'route'])
+def test_witness_change_retains_fixed_reason_and_never_replays_WAN(monkeypatch, tmp_path, kind):
+    guest = Guest()
+    monkeypatch.setattr(RECOVERY, 'Guest', Guest)
+
+    def witness():
+        if guest.actions.count('restore') and guest.actions[-1] == 'inspect':
+            RECOVERY.require_witness(SimpleNamespace(poll=lambda: 1 if kind == 'process' else None),
+                {'original-private-socket'}, lambda: set() if kind == 'control' else {'original-private-socket'},
+                lambda: kind != 'route')
+
+    with pytest.raises(RECOVERY.GuestError, match='failed at identity'):
+        RECOVERY.exercise(guest, tmp_path, 'a' * 32, lambda _name: {'original': 'model'},
+            lambda: True, lambda: {'original': 'GUI'}, witness, lambda: None)
+    result = json.loads((tmp_path / 'installed-wan-recovery.json').read_text())
+    assert result['failure_reason'] == {'process': 'witness_process_changed',
+        'control': 'witness_control_changed', 'route': 'witness_route_unavailable'}[kind]
+    assert result['restore_succeeded'] and not result['passed']
+    assert guest.actions.count('change') == guest.actions.count('restore') == 1
+    assert 'private' not in json.dumps(result)
+
+
+def test_retained_witness_checks_original_process_control_and_route_once():
+    calls = []
+    def checked(name, value):
+        calls.append(name)
+        return value
+    RECOVERY.require_witness(SimpleNamespace(poll=lambda: checked('process', None)),
+        {'original'}, lambda: checked('control', {'original'}), lambda: checked('route', True))
+    assert calls == ['process', 'control', 'route']
 
 
 @pytest.mark.parametrize('reason', ['wan_route_mismatch', 'wan_route_table', 'wan_probe'])

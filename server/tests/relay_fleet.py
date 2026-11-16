@@ -7,6 +7,60 @@ import subprocess
 import time
 
 
+CONTEXT_HINTS = frozenset(('relay_recent_Ping_unavailable', 'relay_recent_Ping_device_denied',
+    'relay_recent_hook_busy', 'relay_recent_snapshot_refresh_failed', 'relay_failure_context_unavailable'))
+PONG_REASONS = {b'unavailable': 'unavailable', b'not_authorized': 'not_authorized',
+                b'invalid ping': 'generic', b'send Ping request to plugin error': 'plugin_transport'}
+
+
+def recent_failure_hints(raw):
+    """These recent service observations do not identify a particular client."""
+    if not isinstance(raw, bytes) or len(raw) > 1024**2:
+        raise ValueError('Bounded private failure context required')
+    hints = set()
+    for line in raw.splitlines():
+        try:
+            item = json.loads(line)
+        except (ValueError, UnicodeError):
+            continue
+        if not isinstance(item, dict):
+            continue
+        if item.get('msg') == 'Revocation refresh failed; retaining previous snapshot':
+            hints.add('relay_recent_snapshot_refresh_failed')
+        if item.get('msg') == 'Relay hook decision':
+            if item.get('operation') == 'Ping' and item.get('decision') in ('unavailable', 'device_denied'):
+                hints.add('relay_recent_Ping_' + item['decision'])
+            if item.get('decision') == 'busy':
+                hints.add('relay_recent_hook_busy')
+    return hints
+
+
+def report_failure_context(stage, compose):
+    """Read owned service logs once; preserve the first failure if this fails."""
+    try:
+        stage = Path(stage)
+        if (stage.parent not in (Path('/tmp'), Path('/var/tmp')) or stage.resolve() != stage
+                or len(compose) != 10 or compose[:2] != ['docker', 'compose']
+                or compose[2] not in ('-p', '--project-name')
+                or not re.fullmatch('nethub-stack-test-[a-z0-9-]+', compose[3])
+                or compose[4::2] not in (['-f'] * 3, ['--file'] * 3)
+                or compose[5::2] != [str(stage / name) for name in (
+                    'deployment/docker-compose.yml', 'deployment/docker-compose.override.yml', 'test.yml')]):
+            raise ValueError('Owned isolated failure context required')
+        result = subprocess.run(compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '100', 'nethub-authz'],
+                                capture_output=True, timeout=5)
+        if result.returncode:
+            raise ValueError('Owned service context unavailable')
+        hints = recent_failure_hints(result.stdout)
+    except Exception:
+        hints = {'relay_failure_context_unavailable'}
+    for hint in sorted(hints):
+        try:
+            print('NETHUB_NATIVE_HINT=' + hint, flush=True)
+        except (OSError, ValueError):
+            return
+
+
 def require_original_controls(actual, baseline, originals, owned, stage_index):
     """Keep the exact socket assertion; export only fixed failure categories."""
     if actual == baseline:
@@ -35,6 +89,10 @@ def require_original_controls(actual, baseline, originals, owned, stage_index):
                 hints.add('relay_fleet_changed_client_heartbeat_timeout')
             if b'pong message contains error' in raw:
                 hints.add('relay_fleet_changed_client_Pong_error')
+                for line in raw.splitlines():
+                    _prefix, marker, reason = line.rpartition(b'pong message contains error: ')
+                    if marker and reason.strip() in PONG_REASONS:
+                        hints.add('relay_fleet_changed_client_Pong_' + PONG_REASONS[reason.strip()])
             if b'receive heartbeat from server' in raw:
                 hints.add('relay_fleet_changed_client_Pong_observed')
         except (OSError, ValueError):
@@ -241,6 +299,9 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
                 (work / 'attempts.json').write_text(json.dumps(attempts, indent=2))
                 key = 'official_frp_snapshot_pressure' if stage_index == 2 else 'official_frp_small_fleet'
                 print(json.dumps({key: sample}), flush=True)
+    except Exception:
+        report_failure_context(stage, compose)
+        raise
     finally:
         for _, _, client in owned:
             stop_client(client)

@@ -22,6 +22,7 @@ SCOPES = ['agents/opnsense/plugin', 'agents/opnsense/tests', 'proto',
           'agents/opnsense/acceptance/console-audit-browser.mjs',
           'agents/opnsense/acceptance/package_migration.py',
           'agents/opnsense/acceptance/package_probe.py',
+          'server/tests/relay_fleet.py', 'server/tests/test_relay_fleet.py',
           'agents/opnsense/native_contracts.py', '.github/workflows/native-contracts.yml']
 GROUPS = {
     'enrollment': (17, [
@@ -29,7 +30,8 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_scheduler.py::test_enrollment_handoff_has_no_credentials_or_cached_output',
         'agents/opnsense/tests/test_enrollment.py::test_php_controller_keeps_credentials_private_and_saves_under_native_lock',
     ]),
-    'service': (154, [
+    'service': (168, [
+        'server/tests/test_relay_fleet.py',
         'agents/opnsense/tests/test_native_reconcile_failure_probe.py',
         'agents/opnsense/tests/test_native_reconcile_failure.py',
         'agents/opnsense/tests/test_native_wan_recovery.py',
@@ -66,6 +68,10 @@ REQUIRED_NATIVE_CASES = {'test_restart_and_lost_reply_keep_identical_original_ev
                          'test_unknown_native_failure_is_never_replayed_and_restore_does_not_mask_it[False]',
                          'test_unknown_native_failure_is_never_replayed_and_restore_does_not_mask_it[True]',
                          'test_interrupted_arm_restores_the_original_template_without_starting_cli',
+                         'test_recent_failure_context_never_exports_private_child_fields',
+                         'test_witness_change_retains_fixed_reason_and_never_replays_WAN[process]',
+                         'test_witness_change_retains_fixed_reason_and_never_replays_WAN[control]',
+                         'test_witness_change_retains_fixed_reason_and_never_replays_WAN[route]',
                          'test_late_route_gap_delays_readiness_without_replaying_or_changing_first_recovery_time',
                          'test_persistent_late_missing_route_stays_failed_at_the_original_deadline',
                          'test_revoke_stop_precedes_backlog_delivery_and_clear_requires_ack',

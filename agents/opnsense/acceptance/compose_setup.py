@@ -52,6 +52,10 @@ ERRORS.update({name: () for name in (
     'relay_fleet_original_control_changed', 'relay_fleet_dedicated_control_changed',
     'relay_fleet_inventory_changed', 'relay_fleet_changed_client_heartbeat_timeout',
     'relay_fleet_changed_client_Pong_error', 'relay_fleet_changed_client_Pong_observed',
+    'relay_fleet_changed_client_Pong_unavailable', 'relay_fleet_changed_client_Pong_not_authorized',
+    'relay_fleet_changed_client_Pong_generic', 'relay_fleet_changed_client_Pong_plugin_transport',
+    'relay_recent_Ping_unavailable', 'relay_recent_Ping_device_denied', 'relay_recent_hook_busy',
+    'relay_recent_snapshot_refresh_failed', 'relay_failure_context_unavailable',
     'relay_fleet_failure_log_unavailable')})
 # These markers carry only closed curl/process/body/Pong observations. Empty
 # needles require exact marker lines rather than substring matches (e.g. 3/35).
