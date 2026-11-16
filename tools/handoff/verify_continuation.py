@@ -206,7 +206,7 @@ def verify_local_load(root=ROOT):
     print('Verified local SQL/load record and exact source hashes; no online-fleet, native or public acceptance.')
 
 
-def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage):
+def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage, filesystem_cases=252):
     directory = root / ('docs/handoff/evidence/ubuntu-' + head[:7])
     index = json.loads((directory / 'index.json').read_text())
     assert index['source_head'] == head and index['version'] == 1
@@ -276,10 +276,12 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage)
         assert {'source': 'relay_fleet', 'line': 133} in deployment['compose_setup']['locations']
         with zipfile.ZipFile(directory / 'native/original.zip') as archive:
             assert archive.namelist() == ['deployment-result.json']
-    elif failure_stage == 'package_route_boundary':
+    elif failure_stage in ('package_route_boundary', 'package_route_missing'):
         native = read('native', 'native/result.json')
         assert native['source_head'] == head and native['passed'] is False
-        assert native['failure'] == 'native package snapshot failed: fixture_native_package_boundary_route'
+        expected_failure = {'package_route_boundary': 'native_package_boundary_route',
+                            'package_route_missing': 'native_package_boundary_route_missing'}[failure_stage]
+        assert native['failure'] == 'native package snapshot failed: fixture_' + expected_failure
         assert native['read_only_inspection_recoveries'] == []
         assert native['guest_diagnostic']['guest_exit_status_after_cleanup'] == 0
         assert deployment['compose_setup']['phase'] == 'native_guest'
@@ -331,7 +333,7 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage)
         assert group['exit_code'] == 0 and group['nonpassing_cases'] == []
         native_cases.update(group['native_cases_passed'])
     assert native_cases == settings['REQUIRED_NATIVE_CASES']
-    assert sum(g['passed'] for g in receipt['groups'].values()) == 252
+    assert sum(g['passed'] for g in receipt['groups'].values()) == filesystem_cases
     for name, digest in manifest['files'].items():
         assert hashlib.sha256(subprocess.check_output(['git', '-C', str(root), 'show', head + ':' + name])).hexdigest() == digest
     images = list((directory / 'CI').glob('*.png'))
@@ -651,6 +653,10 @@ if __name__ == '__main__':
     verify_runtime_checkpoint(ROOT, 'f98e8ceba3b85c485a3f63b76054430eb59be22e',
         {'CI': 43807300109, 'native': 43807300105, 'cold': 43807300172,
          'preparation': 43807300124, 'filesystem': 43807300031}, 258, 'native_pass')
+
+    verify_runtime_checkpoint(ROOT, 'c5a7060e4b93c473ba3ec3c96ba748d139c0fb04',
+        {'CI': 43838772887, 'native': 43838772910, 'cold': 43866630164,
+         'preparation': 43838914087, 'filesystem': 43838773114}, 269, 'package_route_missing', filesystem_cases=302)
 
     verify_local_opnsense_baseline()
     verify_semantic_review()

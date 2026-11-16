@@ -592,3 +592,42 @@ The [closed firmware result](evidence/local-opnsense-baseline/firmware-result.js
 contains no connection metadata or credentials. Host network/firewall and public
 forwarding were unchanged. This prepares a lab resource; it installs no NetHub
 package and accepts no native migration, public/mobile flow or formal release.
+
+
+## Reconcile-audit candidate: retained default-route failure
+
+Protocol/audit candidate `c5a7060e4b93c473ba3ec3c96ba748d139c0fb04` passed
+six-job CI `43838772887`, actual FreeBSD `43838773114` (302 cases/all 269 source
+blobs), fresh unsigned preparation `43838914087` and isolated protected-host cold
+recovery `43866630164`. The cold fixture recovered its original route by 109138 ms
+and original-request issuance/native confirmation by 152776 ms from source stop
+(166276 ms from checkpoint), with original identity/account/key/CSR/process/Open
+and owned cleanup. This is not real renewal-clock, off-host custody or public
+operator acceptance.
+
+Installed run `43838772910` failed before its first package snapshot with the
+closed diagnosis `native_package_boundary_route_missing`. Its earlier actual WAN
+change/restore passed at 4606/4097 ms, followed by a successful closed console
+probe. No rollback/upgrade or later rotation result exists. Same-source producer
+artifact 14213742917 was verified by the actual native consumer; the independent
+metadata check did not redownload the large image archive. Guest exit 0 and owned
+image cleanup passed. The fixed diagnosis identifies the failed prerequisite,
+not the actor that removed the route or the old a29 invariant-failure cause.
+
+The [closed checkpoint](evidence/ubuntu-c5a7060/index.json) retains four original
+small archives, original run metadata, complete-log hashes and selected bounded
+producer records. All required thirteen producer image hashes were checked; seven
+changed views were inspected and six matched already reviewed pixels. Preparation
+changes, the masked installed enrollment view and the changed cold view were
+inspected separately. Other fixture screenshot hashes were checked privately
+without claiming visual review. Earlier failures and cancelled sources remain
+separate. Neither this cold success nor the 1343-pass/18-explicit-skip isolated
+Python/PHP/Node suite proves current native migration or installed failure-event
+delivery.
+
+An owned non-NetHub guest then reproduced a later default-route gap with 100 ms
+sampling after one same-address reset/restoration. PR 259 adds a separate bounded
+read-only readiness window, preserves first-recovery timings and requires a new
+source-specific set of gates. It changes no package invariants or route boundary,
+performs no network/package replay and accepts no public/mobile/formal scope.
+All 29 original requirements remain; owner-dependent actions stay recorded above.
