@@ -381,13 +381,17 @@ a successful local suite. Host package installation needs the owner under the
 shared-server rules. Continue other read-only, container and hosted work while
 that prerequisite is skipped; do not remove the admission check.
 
-A further partial semantic review of 32 component/deployment/acceptance guides is retained
+A further partial semantic review of 57 component/deployment/acceptance guides is retained
 in the [source-bound review inventory](evidence/semantic-review-109aab5.json).
 It covers device admission/lifecycle/rotation, durable CSR and issuer roles,
 ACME account/order/challenge/finalization/renewal, protected issuer work and relay
 authority/trust/maintenance/probes/state/token boundaries, plus initializer and
 console entry points, certificate automation, the detailed installed/cold-recovery
-histories and database foundation records. The certificate overview now links the
+histories, database foundation records, bilingual entry points, SAML dependency
+and admission, the complete console API/deployment/deadline guidance, image-build
+notes and additional historical W5 validation. The image notes now identify older
+Alpine 3.23 links as historical context rather than the current Caddy base's
+repository branch; no dependency/image pin changed. The certificate overview now links the
 merged isolated protected-host recovery while retaining public/operator,
 renewal-clock and durable-custody gaps. It does not complete every document, external-reference
 verification or independent ten-minute deployment. The quickstart now passes the

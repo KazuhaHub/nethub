@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of thirty-two component and deployment/acceptance guides at source 109aab5; not exhaustive source validation or independent deployment",
+  "scope": "Partial semantic review of fifty-seven guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -10,7 +10,10 @@
     "Relay authority preparation/custody assertions, publication barriers, retained-operation recovery, served-TLS verification and offline quarantine remain separate; no automatic offline bypass is documented.",
     "Protected issuer host documentation separately states privileged host trust, narrow SQL identities, cleanup gates, original job/order/CSR retention and the actual fixture limitations. The public policy example still has the documented nine fields.",
     "Quickstart omitted the explicit --network-subnet argument despite asking the operator to select a subnet. Both init examples now pass the selected value; doctor examples are unchanged. This correction is a documentation follow-up, not a mutation of the frozen candidate.",
-    "Certificate automation overview ended with a stale blanket protected-host-restoration gap. The follow-up now links merged isolated recovery while retaining public operator, real renewal-clock and durable encrypted off-host custody requirements. Original staged preparation/recovery failures remain historical failures."
+    "Certificate automation overview ended with a stale blanket protected-host-restoration gap. The follow-up now links merged isolated recovery while retaining public operator, real renewal-clock and durable encrypted off-host custody requirements. Original staged preparation/recovery failures remain historical failures.",
+    "English/Chinese entry points, SAML dependency/admission/provider guides and current console/deployment API boundaries retain source-specific acceptance, no email-only binding, immutable grants/revocation and public/mobile/release gaps.",
+    "The full deadline/recovery history distinguishes SQL and console/public clocks, scheduled reboot delay, real recovery, irreversible operations and scoped later success without relabeling failed trials.",
+    "Image guidance now identifies old Alpine3.23 advisory/index links as historical context, distinct from the documented current Caddy3.24 base; actual Dockerfile/module pins and required scans are unchanged."
   ],
   "files": [
     {
@@ -140,6 +143,106 @@
     {
       "path": "server/internal/store/validation.md",
       "sha256": "4f7c66342f591526646b906e18518283aad6995c9b41a963159bd86d6689f580"
+    },
+    {
+      "path": "deploy/validation-native-w5-heartbeat.md",
+      "sha256": "1dfeb02143fe0e0d3cee201dfa68159c079ec23c15b8d0e8d7e0ec3928d03d87"
+    },
+    {
+      "path": "deploy/validation-native-w5-open-circuit.md",
+      "sha256": "c5b4369ab25923b3c8cf2321cf947b46f183cd8ff6efc3cc862f6bfc5f8d396e"
+    },
+    {
+      "path": "deploy/validation-native-w5-package.md",
+      "sha256": "50737ad9731e2babc970844593c4bd0e6094828b5c0d1a1e145c1be74f3bf3d7"
+    },
+    {
+      "path": "deploy/validation-heartbeat-and-cutoff.md",
+      "sha256": "bec2004f84707c122329d6575b47b3db8848cc8cb3d9d313aaafded85daa0e40"
+    },
+    {
+      "path": "deploy/validation-native-trust-conflict.md",
+      "sha256": "88c82fe26ad7267fed47d050f1cf271dfe3376e68e0b24c6ec325695af120586"
+    },
+    {
+      "path": "deploy/validation-protected-host-cold-recovery.md",
+      "sha256": "df5100446535a55df6d636f03425ae4666ab3bd6d49c13cbb2bb37535c92b35f"
+    },
+    {
+      "path": "deploy/validation-native-w5-recovery.md",
+      "sha256": "07e5a6cf3c497afe86b21011d8bafc3bf263907286ec160d4312da8ab8753901"
+    },
+    {
+      "path": "docs/deployment.md",
+      "sha256": "edf09c1932706a6351ac92a3850e4cf75afb41f198eeda0f008d60871b445c13"
+    },
+    {
+      "path": "docs/console-api.md",
+      "sha256": "26a1284f77196fa9057d52f5112b57cd81eb85f04736e61fcf463473dc42217a"
+    },
+    {
+      "path": "docs/w5-revocation-deadline.md",
+      "sha256": "cc3216391469003b761787f4bc75dff2140568865adb1939bb97ae53c16696dd"
+    },
+    {
+      "path": "deploy/frp/README.md",
+      "sha256": "381e1fe72b816dad8347495efee648171fd18c3ec31dc6994e69c2ef6d7d69e4"
+    },
+    {
+      "path": "deploy/images/README.md",
+      "sha256": "58d7b8725362f0b65c0bde15db59a6859ec6fbc8d426abc0fec651420d060ba8"
+    },
+    {
+      "path": "deploy/images/caddy/README.md",
+      "sha256": "196a3b0949449c4cc35b30e7ee9d7d98fed02d196f70cfd8e640a038d93e82c7"
+    },
+    {
+      "path": "deploy/saml-admission-foundation.md",
+      "sha256": "4982433387b05af99a0051d6a3c5afc507589f4625602aad6eaa2c6b1e757546"
+    },
+    {
+      "path": "deploy/saml-console.md",
+      "sha256": "d1eefc5ce771bcc07b02b8d5cc41081437548453bee458636b6a533d06629630"
+    },
+    {
+      "path": "deploy/saml-dependency-security.md",
+      "sha256": "ac509a376bdb9104abb3c9daff9eaf093213af4902ce2af8628ce757a1daad15"
+    },
+    {
+      "path": "deploy/saml-login.md",
+      "sha256": "4775ce7b44f93c344de6e1b4b904878cdec0c5c3e76a145150e309dd1cfffed3"
+    },
+    {
+      "path": "deploy/saml-provider-metadata.md",
+      "sha256": "a4a8d36e2417120fdf127b642c5844476a279a434de19db1cd101f22a9e19057"
+    },
+    {
+      "path": "deploy/saml-providers.md",
+      "sha256": "cc10726ffb88f196c1b4e8198aee1966cb99087ae42231d26b1ba83dd6f72c96"
+    },
+    {
+      "path": "README.md",
+      "sha256": "a56618a1b99fcd0eeef108f67466ec821b508bb0ced6e0d5643594a4090782b1"
+    },
+    {
+      "path": "docs/README.md",
+      "sha256": "1c2da1e5319d6a70a25ce1605efe8766b08cd543a4611e77047e72990bfc3952"
+    },
+    {
+      "path": "docs/README.zh-CN.md",
+      "sha256": "e45eb3f8c794343c6df5b6e846bc9ef5fff3e6f8420b0ad85327782da07661a5"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "0e33e40f32ea8f151f39d2e8e983dcdc9019f193742a06cb3ebf001d4fdea6e0"
+    },
+    {
+      "path": "HANDOFF.md",
+      "sha256": "fa4cc6b77e75ae65556038afa0f859c4f06a82591778da31e1701d246046fafd"
+    },
+    {
+      "path": "deploy/README.md",
+      "sha256": "1aef61f7b8660ef42c4329c12a4495fc8d157ff25195a5cb0c53a234e68c0cc6"
     }
   ]
 }
