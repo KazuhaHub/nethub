@@ -25,7 +25,12 @@ go_image=$(awk '$1 == "FROM" && $NF == "build" {print $2}' deploy/Dockerfile)
   echo 'Expected digest-pinned build images in deploy/Dockerfile.' >&2
   exit 2
 }
-mkdir -p .handoff-build
+check_cpus=${NETHUB_CHECK_CPUS:-2}
+if [[ ! $check_cpus =~ ^[1-9][0-9]?$ ]] || (( check_cpus > 64 )); then
+  echo 'NETHUB_CHECK_CPUS must be an integer from 1 through 64.' >&2
+  exit 2
+fi
+mkdir -p .handoff-build/go-cache .handoff-build/go-modules
 # The Python action-response contract invokes Node even when the console checks
 # run in Docker. Supply that executable from the same pinned runtime rather than
 # silently depending on an optional host installation.
@@ -50,13 +55,14 @@ python3 -m venv .handoff-build/venv
   pytest==8.3.5 jinja2==3.1.6 jsonschema==4.25.1
 .handoff-build/venv/bin/python -m pytest -q agents/opnsense/plugin/tests agents/opnsense/tests
 
-docker run --rm --user "$(id -u):$(id -g)" \
+docker run --rm --cpus "$check_cpus" --user "$(id -u):$(id -g)" \
   --env HOME=/tmp --env npm_config_cache=/tmp/npm-cache \
   --volume "$root:/src" --workdir /src/server/web "$node_check_image" \
   sh -eu -c 'npm ci --ignore-scripts; npm run format:check; npm test; npm run build'
-docker run --rm --user "$(id -u):$(id -g)" \
+docker run --rm --cpus "$check_cpus" --user "$(id -u):$(id -g)" \
   --env HOME=/tmp --env GOWORK=off --env GOTOOLCHAIN=local \
-  --env GOCACHE=/tmp/go-build --env GOPATH=/tmp/go \
+  --env GOMAXPROCS="$check_cpus" --env GOFLAGS="-p=$check_cpus" \
+  --env GOCACHE=/src/.handoff-build/go-cache --env GOPATH=/src/.handoff-build/go-modules \
   --volume "$root:/src" --workdir /src/server "$go_image" \
   sh -eu -c 'test "$(go env GOVERSION)" = "go$(cat .go-version)"; go test -race -count=1 ./...; go vet ./...; go build -o /src/.handoff-build/nethub ./cmd/nethub'
 git diff --check

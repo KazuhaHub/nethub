@@ -49,7 +49,11 @@ The helper checks host PHP/OpenSSL before running the Python contracts. It
 extracts the pinned Node executable into `.handoff-build/bin` for the Python
 JavaScript projection test, and adds OpenSSL to a derived console-check image
 for the ephemeral-certificate negative control. Neither operation installs
-software on the host or changes the production build image.
+software on the host or changes the production build image. Console and Go test
+containers default to two CPUs; `NETHUB_CHECK_CPUS` accepts an explicit integer
+from 1 through 64 for another reviewed host budget. Go build/module caches remain
+under `.handoff-build` to avoid repeated downloads and compilation. Python
+contracts run serially unless their own test logic starts a bounded fixture.
 
 Allow roughly 12 GiB free for the portable build's images/caches/output and
 reserve, and more for full integration. A disposable integration machine with
