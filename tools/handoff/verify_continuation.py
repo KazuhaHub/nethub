@@ -441,7 +441,7 @@ def verify_local_framing(root=ROOT):
     assert value['framing_reproduction_passed'] is value['owned_container_cleanup_confirmed'] is True
     assert value['all_padding_preserved'] is value['completed_json_valid'] is True
     assert value['first_json_valid'] is value['first_ends_newline'] is value['product_native_or_public_accepted'] is False
-    assert value['first_bytes'] == 16484 and value['completed_bytes'] == 20043
+    assert value['first_bytes'] == 16384 and value['completed_bytes'] == 20043
     assert value['reader_calls'] == 2 and value['parsed_events'] == 1 and value['log_driver'] == 'json-file'
     print('Verified local Docker framing reproduction; native failure attribution remains unproven.')
 
