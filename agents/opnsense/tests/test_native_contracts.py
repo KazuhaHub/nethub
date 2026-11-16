@@ -15,7 +15,9 @@ def receipt():
     groups = {name: {'tests': spec[0], 'passed': spec[0], 'exit_code': 0, 'native_cases_passed': [], 'nonpassing_cases': []}
               for name, spec in NATIVE.GROUPS.items()}
     groups['enrollment']['native_cases_passed'] = ['test_enrollment_lock_interoperates_with_native_scheduler_lockf']
-    groups['service']['native_cases_passed'] = ['test_native_lockf_excludes_both_python_operations',
+    groups['service']['native_cases_passed'] = ['test_restart_and_lost_reply_keep_identical_original_events',
+        'test_revoke_stop_precedes_backlog_delivery_and_clear_requires_ack',
+        'test_native_lockf_excludes_both_python_operations',
         'test_native_install_guard_and_reconcile_share_the_original_lock',
         'test_rotation_observes_actual_scheduler_lock_without_losing_busy_response',
         'test_rotation_waits_for_short_contention_without_replaying_native_work',
@@ -49,13 +51,15 @@ def test_relabeling_platform_and_broader_acceptance_claims_fail(field, value):
         NATIVE.validate_receipt(result, HEAD, SHA)
 
 
-@pytest.mark.parametrize('change', ['missing_native', 'missing_recovery', 'skipped_case', 'failed_guest', 'missing_group', 'boolean_exit'])
+@pytest.mark.parametrize('change', ['missing_native', 'missing_recovery', 'skipped_case', 'failed_guest', 'missing_group', 'boolean_exit', 'missing_audit'])
 def test_a_top_level_green_flag_cannot_hide_missing_or_failed_checks(change):
     result = copy.deepcopy(receipt())
     if change == 'missing_native':
         result['groups']['enrollment']['native_cases_passed'] = []
     elif change == 'missing_recovery':
         result['groups']['wire']['native_cases_passed'] = []
+    elif change == 'missing_audit':
+        result['groups']['service']['native_cases_passed'].remove('test_restart_and_lost_reply_keep_identical_original_events')
     elif change == 'skipped_case':
         result['groups']['service']['passed'] -= 1
     elif change == 'failed_guest':
@@ -88,7 +92,9 @@ def test_source_bytes_and_manifest_identity_must_remain_bound(tmp_path, monkeypa
     assert not NATIVE.source_matches(tmp_path, {'../outside': SHA})
 
 
-@pytest.mark.parametrize('name', ['test_native_lockf_excludes_both_python_operations',
+@pytest.mark.parametrize('name', ['test_restart_and_lost_reply_keep_identical_original_events',
+                                'test_revoke_stop_precedes_backlog_delivery_and_clear_requires_ack',
+                                'test_native_lockf_excludes_both_python_operations',
                                 'test_native_install_guard_and_reconcile_share_the_original_lock',
                                 'test_rotation_waits_for_short_contention_without_replaying_native_work'])
 def test_skipped_native_lockf_case_is_not_a_pass(tmp_path, name):
