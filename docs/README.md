@@ -3,8 +3,9 @@
 NetHub is pre-alpha. The repository includes a Go control plane, React console,
 OPNsense development plugin and deployment tooling. Accepted checks cover
 specific sources and environments; they do not establish a production release
-or completion of W5-W7. Start with the [handoff](HANDOFF_PROMPT.md) for current
-acceptance records and the [execution plan](PLAN.md) for remaining requirements.
+or completion of W5-W7. Start with the [Ubuntu handoff snapshot](../HANDOFF.md)
+and [continuation ledger](handoff/ubuntu-continuation.md) for source-bound
+acceptance records, and the [execution plan](PLAN.md) for remaining requirements.
 
 | Document                             | Status                                       | Purpose                                                                                                                                                                                                                                                                                                                      |
 | ------------------------------------ | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

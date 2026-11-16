@@ -227,6 +227,16 @@ log-reader tests, three heartbeat tests and 38 projection/provenance tests
 passed locally. Its fresh producer/native/preparation/contracts/recovery gates
 are pending; do not use these diagnostic tests as native acceptance.
 
+The English/Chinese README entry points and documentation index now distinguish
+the dated Ubuntu handoff from this continuation record. A partial semantic review
+covered those entry points and the eight operation guides for heartbeat
+revocation, console Revoke, Open, disconnect requests, device rotation,
+shared-token replacement, relay maintenance and anomaly confirmation. Their
+scoped evidence, independent access, retained-journal and public/mobile/release
+limitations remain explicit. This does not complete the review of every document,
+external-reference checks, final integrated-source correspondence or the
+independent ten-minute deployment requirement.
+
 ## Temporarily skipped owner-dependent actions
 
 | Requirement | Missing input or participation | Resume condition |
