@@ -281,6 +281,16 @@ later isolated acceptance. Live PR inspection still found authcore PR 37 open an
 draft at `e3e8cc05330fcff6cbd21c6f38e10320a165c0e1`. No dependency change or new
 security/advisory acceptance follows from this documentation review.
 
+Further partial semantic review covered audit-chain verification, console audit
+visibility, traffic accounting, scheduled backups, external-proxy deployment,
+user administration, relay-authority operations, credential-history checks,
+security-validation history and the threat model. The threat model now also
+links the later source-bound isolated 1952-ms result while retaining historical
+failures and public/mobile limitations. The existing continuation branch already
+records the owner's waiver of the third company/campus sample. This review does
+not accept every document or replace current dependency/advisory checks or an
+independent operator.
+
 ## Temporarily skipped owner-dependent actions
 
 | Requirement | Missing input or participation | Resume condition |
