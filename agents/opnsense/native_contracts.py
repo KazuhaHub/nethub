@@ -30,7 +30,7 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_scheduler.py::test_enrollment_handoff_has_no_credentials_or_cached_output',
         'agents/opnsense/tests/test_enrollment.py::test_php_controller_keeps_credentials_private_and_saves_under_native_lock',
     ]),
-    'service': (168, [
+    'service': (174, [
         'server/tests/test_relay_fleet.py',
         'agents/opnsense/tests/test_native_reconcile_failure_probe.py',
         'agents/opnsense/tests/test_native_reconcile_failure.py',
@@ -72,6 +72,8 @@ REQUIRED_NATIVE_CASES = {'test_restart_and_lost_reply_keep_identical_original_ev
                          'test_witness_change_retains_fixed_reason_and_never_replays_WAN[process]',
                          'test_witness_change_retains_fixed_reason_and_never_replays_WAN[control]',
                          'test_witness_change_retains_fixed_reason_and_never_replays_WAN[route]',
+                         'test_wan_inspection_retains_original_closed_ssh_kind_without_replay[command_timeout]',
+                         'test_original_ssh_failure_is_not_replaced_by_a_restore_failure',
                          'test_late_route_gap_delays_readiness_without_replaying_or_changing_first_recovery_time',
                          'test_persistent_late_missing_route_stays_failed_at_the_original_deadline',
                          'test_revoke_stop_precedes_backlog_delivery_and_clear_requires_ack',

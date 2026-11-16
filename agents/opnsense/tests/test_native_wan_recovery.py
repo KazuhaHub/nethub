@@ -166,6 +166,56 @@ def test_retained_witness_checks_original_process_control_and_route_once():
     assert calls == ['process', 'control', 'route']
 
 
+@pytest.mark.parametrize('kind', ['guest_ssh_connection_reset', 'command_timeout', 'fixture_wan_probe'])
+def test_wan_inspection_retains_original_closed_ssh_kind_without_replay(monkeypatch, tmp_path, kind):
+    class FailedGuest(Guest):
+        def ssh(self, script, *args, **kwargs):
+            if self.actions.count('restore') and self.actions[-1] == 'inspect':
+                error = RECOVERY.GuestError('private-error-text-must-not-escape')
+                error.ssh_failure_kind = kind
+                raise error
+            return super().ssh(script, *args, **kwargs)
+
+    guest = FailedGuest()
+    with pytest.raises(RECOVERY.GuestError):
+        exercise(monkeypatch, tmp_path, guest)
+    result = json.loads((tmp_path / 'installed-wan-recovery.json').read_text())
+    assert result['version'] == 3 and result['phase'] == 'identity' and not result['passed']
+    assert result['failure_ssh_kind'] == kind and result['restore_ssh_kind'] is None
+    assert guest.actions.count('change') == guest.actions.count('restore') == 1
+    assert 'private' not in json.dumps(result)
+
+
+@pytest.mark.parametrize('kind', ['private-error-text-must-not-escape', True])
+def test_unknown_ssh_attributes_never_enter_wan_evidence(kind):
+    error = RECOVERY.GuestError('private-error-text-must-not-escape')
+    error.ssh_failure_kind = kind
+    assert RECOVERY.ssh_kind(error) is None
+
+
+def test_original_ssh_failure_is_not_replaced_by_a_restore_failure(monkeypatch, tmp_path):
+    class FailedGuest(Guest):
+        def ssh(self, script, *args, **kwargs):
+            action = script.split()[-2]
+            if action in ('change', 'restore'):
+                self.actions.append(action)
+                error = RECOVERY.GuestError('private-stage-placeholder')
+                error.ssh_failure_kind = 'command_timeout' if action == 'change' else 'guest_ssh_connection_refused'
+                raise error
+            return super().ssh(script, *args, **kwargs)
+
+    guest = FailedGuest()
+    with pytest.raises(RECOVERY.GuestError):
+        exercise(monkeypatch, tmp_path, guest)
+    result = json.loads((tmp_path / 'installed-wan-recovery.json').read_text())
+    assert not result['passed'] and result['phase'] == 'change'
+    assert result['failure_ssh_kind'] == 'command_timeout'
+    assert result['restore_ssh_kind'] == 'guest_ssh_connection_refused'
+    assert result['restore_attempted'] and not result['restore_succeeded']
+    assert guest.actions.count('change') == guest.actions.count('restore') == 1
+    assert 'private' not in json.dumps(result)
+
+
 @pytest.mark.parametrize('reason', ['wan_route_mismatch', 'wan_route_table', 'wan_probe'])
 def test_settling_never_retries_wrong_routes_or_unclassified_failures(
         monkeypatch, tmp_path, fake_clock, reason):

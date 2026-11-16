@@ -88,6 +88,15 @@ address, PID, secret or dependency error text is exported. Diagnostic failure
 does not replay any mutation or turn the first failure into success. All original
 controls, deadlines, package assertions and cleanup remain required.
 
+The next WAN evidence schema (version 3) also retains the SSH probe's existing
+structured failure category, separately for the first operation and restoration.
+The previous generic WAN reason discarded that category. Only the existing
+closed SSH validator's codes are accepted; exception/dependency text is never
+copied. A restoration error cannot replace the first failure. This is additional
+failure evidence, not permission to retry inspection, mutate a network again,
+increase a deadline or replay an uncertain change. Historical version-2 records
+remain bound to their original source and are not upgraded or rewritten.
+
 The installed publication-conflict case passed the
 [PR #205 combination](../../../deploy/validation-native-trust-conflict.md).
 It prepares and verifies an independent authority backup through the

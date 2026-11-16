@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 import time
 
-from guest import Guest, GuestError
+from guest import Guest, GuestError, validate_ssh_failure_kind
 from wan_settling import settle
 
 
@@ -16,6 +16,17 @@ LIMITS = ('manual_agent_start_or_reconcile', 'production_WAN_or_public_network_a
 
 class WANError(GuestError):
     """A fixed WAN failure reason safe to retain outside the guest."""
+
+
+def ssh_kind(error):
+    """Retain the existing structured SSH category, never exception text."""
+    value = getattr(error, 'ssh_failure_kind', None) if isinstance(error, GuestError) else None
+    if value is None:
+        return None
+    try:
+        return validate_ssh_failure_kind(value)
+    except ValueError:
+        return None
 
 
 def require_witness(process, original, sockets, route):
@@ -35,8 +46,9 @@ def validate(value):
     reasons += ('witness_process_changed', 'witness_control_changed', 'witness_route_unavailable')
     if (not isinstance(value, dict) or set(value) != set(FLAGS + LIMITS) | {
             'version', 'passed', 'phase', 'limit_ms', 'change_ms', 'restore_ms',
-            'restore_attempted', 'restore_succeeded', 'failure_reason', 'restore_failure_reason'}
-            or type(value['version']) is not int or value['version'] != 2
+            'restore_attempted', 'restore_succeeded', 'failure_reason', 'restore_failure_reason',
+            'failure_ssh_kind', 'restore_ssh_kind'}
+            or type(value['version']) is not int or value['version'] != 3
             or value['phase'] not in PHASES or type(value['passed']) is not bool
             or type(value['limit_ms']) is not int or value['limit_ms'] != 60000
             or any(type(value[key]) is not bool for key in FLAGS + LIMITS + ('restore_attempted', 'restore_succeeded'))
@@ -45,6 +57,11 @@ def validate(value):
     if any(value[key] is not None and value[key] not in reasons
            for key in ('failure_reason', 'restore_failure_reason')):
         raise ValueError('Unexpected native WAN failure reason')
+    for key, reason in (('failure_ssh_kind', 'failure_reason'), ('restore_ssh_kind', 'restore_failure_reason')):
+        if value[key] is not None:
+            validate_ssh_failure_kind(value[key])
+            if value[reason] is None:
+                raise ValueError('SSH failure category requires its original failed phase')
     if (value['passed'] != (value['failure_reason'] is None)
             or value['restore_failure_reason'] is not None
             and (not value['restore_attempted'] or value['restore_succeeded'])):
@@ -79,8 +96,9 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
     if not isinstance(guest, Guest) or re.fullmatch('[a-f0-9]{32}', nonce) is None:
         raise GuestError('Owned native WAN fixture required')
     result = {key: False for key in FLAGS + LIMITS}
-    result.update(version=2, passed=False, phase='baseline', limit_ms=60000,
+    result.update(version=3, passed=False, phase='baseline', limit_ms=60000,
                   failure_reason=None, restore_failure_reason=None,
+                  failure_ssh_kind=None, restore_ssh_kind=None,
                   change_ms=None, restore_ms=None, restore_attempted=False, restore_succeeded=False)
     evidence = Path(evidence)
     source = Path(__file__).with_name('wan_probe.py')
@@ -149,6 +167,7 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
         except errors as error:
             failure = result['phase']
             result['failure_reason'] = reason(error)
+            result['failure_ssh_kind'] = ssh_kind(error)
         finally:
             if changed:
                 result['restore_attempted'] = True
@@ -161,6 +180,9 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
                 except errors as error:
                     failure = failure or 'restore'
                     result['restore_failure_reason'] = reason(error)
+                    result['restore_ssh_kind'] = ssh_kind(error)
+                    if result['failure_reason'] is None:
+                        result['failure_ssh_kind'] = result['restore_ssh_kind']
                     result['failure_reason'] = result['failure_reason'] or reason(error)
         if failure is None:
             result['phase'] = 'identity'
@@ -191,6 +213,7 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
             except errors as error:
                 failure = 'identity'
                 result['failure_reason'] = reason(error)
+                result['failure_ssh_kind'] = ssh_kind(error)
         if failure is not None:
             result['phase'] = failure
     finally:
