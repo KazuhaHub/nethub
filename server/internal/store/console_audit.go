@@ -47,6 +47,11 @@ func (s *ConsoleStore) Audit(ctx context.Context, actor string, query web.AuditQ
    'expires_at',CASE WHEN length(a.payload->>'expires_at')<=64 THEN a.payload->'expires_at' END)
  WHEN a.action='device.disconnect_requested' THEN jsonb_build_object(
    'request_id',CASE WHEN length(a.payload->>'request_id')=36 THEN a.payload->'request_id' END)
+ WHEN a.action IN ('device.reconcile_failed','device.reconcile_overflow') THEN jsonb_build_object(
+   'failure_count',CASE WHEN jsonb_typeof(a.payload->'failure_count')='number' AND length(a.payload->>'failure_count')<=19 THEN a.payload->'failure_count' END,
+   'device_reported',CASE WHEN jsonb_typeof(a.payload->'device_reported')='boolean' THEN a.payload->'device_reported' END,
+   'first_reported_at',CASE WHEN jsonb_typeof(a.payload->'first_reported_at')='string' AND length(a.payload->>'first_reported_at')<=64 THEN a.payload->'first_reported_at' END,
+   'last_reported_at',CASE WHEN jsonb_typeof(a.payload->'last_reported_at')='string' AND length(a.payload->>'last_reported_at')<=64 THEN a.payload->'last_reported_at' END)
  ELSE '{}'::jsonb END
  FROM audit_log a
  WHERE a.tenant_id=$3 AND ($4::bigint=0 OR a.sequence<$4)
