@@ -15,6 +15,7 @@ from relay_cache_phase import cutoff_ms
 from relay_control_drop import ControlDrop
 from relay_heartbeat import NoRedirect
 from relay_migration import control_bindings
+from relay_fleet import require_original_controls
 
 
 PRESSURE_FIELDS = ('synthetic_revoked_rows', 'synthetic_rotation_floors',
@@ -27,6 +28,36 @@ METRICS = ('SQL_dispatch_to_commit_ms', 'SQL_dispatch_to_original_control_and_pr
            'SQL_dispatch_to_fresh_TLS_refusal_ms', 'actual_drop_packets', 'actual_drop_bytes',
            'packet_loss_dispatch_to_restored_ms', 'no_reconnect_observation_ms',
            'minimum_reference_Pongs_during_fault_and_denial_observation')
+
+
+def reference_log(stage, client):
+    """Read only a config-derived log of the owned official reference process."""
+    try:
+        raw = Path(f'/proc/{client.pid}/cmdline').read_bytes()
+        if len(raw) > 16384:
+            return None
+        args = raw.rstrip(b'\0').split(b'\0')
+        if len(args) != 3 or args[1] != b'-c' or Path(args[0].decode()).resolve() != stage / 'official/frpc':
+            return None
+        path = Path(args[2].decode())
+        if path.parent != stage / 'relay-test' or path.is_symlink() or path.resolve() != path:
+            return None
+        return path.with_suffix('.log')
+    except (OSError, UnicodeError, ValueError):
+        return None
+
+
+def require_reference_controls(actual, baseline, references, stage):
+    if actual == baseline:
+        return
+    owned = [(None, reference_log(stage, client), client) for client in references
+             if actual.get(client.pid) != baseline.get(client.pid)]
+    try:
+        # These twelve already retained references belong to the pressure phase.
+        # Existing closed hints contain no PID, socket value or private log text.
+        require_original_controls(actual, baseline, references, owned, 2)
+    except AssertionError:
+        raise ValueError('Combined-fault reference control changed') from None
 
 
 def pressure_baseline(value):
@@ -162,8 +193,7 @@ def _exercise_combined_fault(stage, compose, references, pressure, create_target
                    and row['status'] == 'online' for row in rows)
 
     def retained():
-        if controls() != original:
-            raise ValueError('Combined-fault reference control changed')
+        require_reference_controls(controls(), original, references, stage)
 
     def reference_pongs():
         counts = []

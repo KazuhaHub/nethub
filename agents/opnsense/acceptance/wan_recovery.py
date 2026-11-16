@@ -18,11 +18,21 @@ class WANError(GuestError):
     """A fixed WAN failure reason safe to retain outside the guest."""
 
 
+def require_witness(process, original, sockets, route):
+    if process.poll() is not None:
+        raise WANError('witness_process_changed')
+    if not original.issubset(sockets()):
+        raise WANError('witness_control_changed')
+    if not route():
+        raise WANError('witness_route_unavailable')
+
+
 def validate(value):
     reasons = ('wan_route_table', 'wan_route_missing', 'wan_route_mismatch', 'wan_probe',
                'process_changed', 'runtime_changed', 'native_xml_changed', 'model_or_gui_changed',
                'baseline_unavailable', 'deadline', 'restore_refused', 'invalid_observation',
                'guest_operation', 'operation_error')
+    reasons += ('witness_process_changed', 'witness_control_changed', 'witness_route_unavailable')
     if (not isinstance(value, dict) or set(value) != set(FLAGS + LIMITS) | {
             'version', 'passed', 'phase', 'limit_ms', 'change_ms', 'restore_ms',
             'restore_attempted', 'restore_succeeded', 'failure_reason', 'restore_failure_reason'}

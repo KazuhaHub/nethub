@@ -5,11 +5,65 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
+import json
 
-from relay_fleet import require_original_controls, require_retained_controls
+from relay_fleet import require_original_controls, require_retained_controls, recent_failure_hints, report_failure_context, PONG_REASONS
 
 
 class FleetFailureTests(unittest.TestCase):
+    def test_recent_failure_context_never_exports_private_child_fields(self):
+        raw = b'\n'.join(json.dumps(value).encode() for value in [
+            {'msg': 'Relay hook decision', 'operation': 'Ping', 'decision': 'unavailable', 'private': 'must-not-escape'},
+            {'msg': 'Relay hook decision', 'operation': 'Ping', 'decision': 'device_denied'},
+            {'msg': 'Relay hook decision', 'operation': 'unknown', 'decision': 'busy'},
+            {'msg': 'Revocation refresh failed; retaining previous snapshot', 'private': 'must-not-escape'},
+            {'msg': 'Relay hook decision', 'operation': 'Login', 'decision': 'unavailable'},
+            {'msg': 'private', 'operation': 'Ping', 'decision': 'private'}, ['private']])
+        self.assertEqual(recent_failure_hints(raw), {
+            'relay_recent_Ping_unavailable', 'relay_recent_Ping_device_denied',
+            'relay_recent_hook_busy', 'relay_recent_snapshot_refresh_failed'})
+        self.assertEqual(recent_failure_hints(b'private non-JSON\n'), set())
+        with self.assertRaises(ValueError):
+            recent_failure_hints(b'x' * (1024**2 + 1))
+
+    def test_unowned_context_never_runs_a_child_or_exports_error_text(self):
+        output = io.StringIO()
+        with patch('relay_fleet.subprocess.run', side_effect=AssertionError('unexpected child')):
+            with redirect_stdout(output):
+                report_failure_context(Path('/private'), ['private-command'])
+        self.assertEqual(output.getvalue(), 'NETHUB_NATIVE_HINT=relay_failure_context_unavailable\n')
+
+    def test_owned_failure_context_reads_once_without_replaying_a_mutation(self):
+        stage = Path('/tmp/nethub-stack-test-context')
+        compose = ['docker', 'compose', '-p', 'nethub-stack-test-context']
+        for name in ('deployment/docker-compose.yml', 'deployment/docker-compose.override.yml', 'test.yml'):
+            compose += ['-f', str(stage / name)]
+        output = io.StringIO()
+        with patch('relay_fleet.subprocess.run', return_value=SimpleNamespace(returncode=0,
+                stdout=b'{"msg":"Relay hook decision","operation":"Ping","decision":"unavailable","private":"hidden"}')) as run:
+            with redirect_stdout(output):
+                report_failure_context(stage, compose)
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.args[0], compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '100', 'nethub-authz'])
+        self.assertEqual(output.getvalue(), 'NETHUB_NATIVE_HINT=relay_recent_Ping_unavailable\n')
+
+    def test_pong_reasons_require_exact_fixed_suffixes_and_keep_control_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / 'client.log'
+            for raw, category in list(PONG_REASONS.items()) + [(b'unavailable private-secret', None)]:
+                log.write_bytes(b'private-prefix pong message contains error: ' + raw + b'\n')
+                output = io.StringIO()
+                with self.subTest(category=category), redirect_stdout(output), self.assertRaises(AssertionError):
+                    require_original_controls({1: {'changed'}}, {1: {'original'}}, [], [(None, log, SimpleNamespace(pid=1))], 1)
+                expected = {'NETHUB_NATIVE_HINT=relay_fleet_stage_ten',
+                    'NETHUB_NATIVE_HINT=relay_fleet_dedicated_control_changed',
+                    'NETHUB_NATIVE_HINT=relay_fleet_changed_client_Pong_error'}
+                if category is not None:
+                    expected.add('NETHUB_NATIVE_HINT=relay_fleet_changed_client_Pong_' + category)
+                self.assertEqual(set(output.getvalue().splitlines()), expected)
+                self.assertNotIn('private', output.getvalue())
+
     def test_batch_can_add_members_without_replacing_any_retained_socket(self):
         retained = {101: {('original-source', 'original-peer', 'original-inode')}}
         actual = dict(retained)

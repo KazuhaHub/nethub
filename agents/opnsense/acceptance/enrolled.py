@@ -4,6 +4,7 @@ from contextlib import ExitStack
 import hashlib
 import http.server
 import ipaddress
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -22,6 +23,7 @@ from trust_publication_recovery import exercise_publication_conflict
 from shared_token import exercise_shared_token
 from console_revoke_result import validate as validate_console_revoke
 from wan_recovery import exercise as exercise_wan_recovery
+from wan_recovery import require_witness
 from package_migration import exercise as exercise_package_migration
 from wan_settling import validate as validate_wan_settling
 from reconcile_failure import exercise as exercise_reconcile_failure
@@ -37,7 +39,19 @@ def private_json(path, value):
 
 def exercise(guest, stage, port, project, evidence, packages):
     with ExitStack() as cleanup:
-        return _exercise(guest, stage, port, project, evidence, packages, cleanup)
+        try:
+            return _exercise(guest, stage, port, project, evidence, packages, cleanup)
+        except Exception:
+            try:
+                spec = importlib.util.spec_from_file_location('native_failure_context', ROOT / 'server/tests/relay_fleet.py')
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                module.report_failure_context(Path(stage), ['docker', 'compose', '-p', project,
+                    '-f', str(Path(stage) / 'deployment/docker-compose.yml'),
+                    '-f', str(Path(stage) / 'deployment/docker-compose.override.yml'), '-f', str(Path(stage) / 'test.yml')])
+            except Exception:
+                print('NETHUB_NATIVE_HINT=relay_failure_context_unavailable', flush=True)
+            raise
 
 
 def _exercise(guest, stage, port, project, evidence, packages, cleanup):
@@ -365,9 +379,7 @@ def _exercise(guest, stage, port, project, evidence, packages, cleanup):
     grants = sql(grants_query)
 
     def check_wan_witness():
-        if (survivor.poll() is not None or not survivor_route()
-                or not original_survivor.issubset(survivor_sockets())):
-            raise GuestError('Native WAN change interrupted the independent original control')
+        require_witness(survivor, original_survivor, survivor_sockets, survivor_route)
 
     def check_wan_database():
         if sql(stable_query) != stable or sql(grants_query) != grants:

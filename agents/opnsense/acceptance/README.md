@@ -45,8 +45,9 @@ relay recovery remain separate acceptance work.
 ## Combined installed-device acceptance
 
 The reconcile-audit fixture adds a genuine failure after package migration and
-before credential rotation. It is implemented but needs its own exact-source
-installed run. Its guest entry requires the existing root/nonce/private-SSH/NIC
+before credential rotation. Its initial installed run at `6d73b5b` failed during
+WAN readiness before this case; fresh exact-source execution is still required.
+Its guest entry requires the existing root/nonce/private-SSH/NIC
 boundary. Under the original persistent mutation lock, it verifies the installed
 template against the admitted source, durably records an original backup and
 intent, then adds one fixed invalid top-level frpc option. The actual installed
@@ -73,6 +74,19 @@ The closed `installed-reconcile-audit.json`, browser outcome and masked image ar
 mandatory consumer evidence. Filesystem/fake-controller tests do not prove this
 installed path, and this invalid-template fixture does not establish formal
 published bad-canary/channel/rollback acceptance.
+
+Failure diagnosis keeps witness process, original control and TLS-route refusal
+as separate fixed WAN reasons. The pinned
+[frp client closes its control after a Pong error](https://github.com/fatedier/frp/blob/v0.71.1/client/control.go#L174).
+Changed-client logs therefore project only four exact known error suffixes;
+unknown text remains an unclassified Pong-error observation, never raw output.
+On fleet or native failure, one read of the owned authz service's last 100 log
+lines can add fixed recent Ping-unavailable/device-denied/busy or snapshot-refresh
+categories. These recent service observations do not identify a particular
+client and cannot prove the historical failure cause. No request/configuration,
+address, PID, secret or dependency error text is exported. Diagnostic failure
+does not replay any mutation or turn the first failure into success. All original
+controls, deadlines, package assertions and cleanup remain required.
 
 The installed publication-conflict case passed the
 [PR #205 combination](../../../deploy/validation-native-trust-conflict.md).
