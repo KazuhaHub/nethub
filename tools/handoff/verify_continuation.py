@@ -267,6 +267,13 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage)
             assert {'source': 'relay_log', 'line': 34} in deployment['compose_setup']['locations']
         with zipfile.ZipFile(directory / 'native/original.zip') as archive:
             assert archive.namelist() == ['deployment-result.json']
+    elif failure_stage == 'fleet_control':
+        assert deployment['compose_setup']['phase'] == 'relay_fleet'
+        assert deployment['failure'] == 'Owned native deployment failed at relay_fleet'
+        assert deployment['compose_setup']['hints'] == []
+        assert {'source': 'relay_fleet', 'line': 133} in deployment['compose_setup']['locations']
+        with zipfile.ZipFile(directory / 'native/original.zip') as archive:
+            assert archive.namelist() == ['deployment-result.json']
     else:
         raise ValueError('Unknown recorded failure stage')
     with zipfile.ZipFile(directory / 'native/original.zip') as archive:
@@ -353,3 +360,6 @@ if __name__ == '__main__':
         {'CI': 43772146655, 'native': 43772146507, 'cold': 43772146549,
          'preparation': 43772146624, 'filesystem': 43772146565}, 258, 'plain_service_failure')
     verify_local_framing()
+    verify_runtime_checkpoint(ROOT, 'd33302f5420f6d90cc04b7e5142bc9660569d987',
+        {'CI': 43776402103, 'native': 43776401967, 'cold': 43776401975,
+         'preparation': 43776401980, 'filesystem': 43776401969}, 258, 'fleet_control')

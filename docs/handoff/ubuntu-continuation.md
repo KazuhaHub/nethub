@@ -195,6 +195,38 @@ retains 16 closed files for six runs, explicitly separated between sources
 stages, source-specific CI bindings, original ZIP digests and isolated recovery
 cleanup. Private logs and credentials are not included.
 
+The [structured-exit checkpoint](evidence/ubuntu-d33302f/index.json), source
+`d33302f5420f6d90cc04b7e5142bc9660569d987` in
+[PR 251](https://github.com/KazuhaHub/nethub/pull/251), retains another 33 closed
+files for five exact-source runs. Unexpected runtime exits now use the existing
+JSON logger with fixed reason categories and no raw error; the nonzero exit and
+fail-closed policy remain unchanged. Six-job producer `43776402103`, preparation
+`43776401980` and filesystem contracts `43776401969` passed. All 258 contract
+source blobs, the complete preparation source archive, compiler/frp pins and
+required image hashes were checked. The 13 producer views include six identical
+previously reviewed images and seven changed reviewed views.
+
+Installed run `43776401967` failed earlier at the genuine fleet steady-window
+original control socket identity comparison (`relay_fleet.py:133`). Its closed
+report has no failure hints and confirms owned-image cleanup. No guest was
+created; neither runtime-exit classification nor package migration was reached.
+The socket-change cause, earlier service-exit cause and original upgrade cause
+remain unproven. Preserve this failure alongside all earlier failed runs.
+Isolated cold recovery `43776401975` passed against the same producer/source:
+baseline recovery 90741 ms, original-request initial issuance 164366 ms from
+source stop, checkpoint-to-issuance 175234 ms, with cleanup confirmed. Both
+masked views were reviewed. Public custody, renewal and full acceptance remain
+explicitly false.
+
+[PR 252](https://github.com/KazuhaHub/nethub/pull/252), source
+`ea173c660a38bd6c61f37f013e58761da4f337ae`, retains the fleet comparison and
+refusal while adding closed stage and original/dedicated-client categories plus
+bounded existing-log presence hints. Passing comparisons perform no new reads;
+diagnostic failure cannot hide the original refusal. Four fleet tests, twelve
+log-reader tests, three heartbeat tests and 38 projection/provenance tests
+passed locally. Its fresh producer/native/preparation/contracts/recovery gates
+are pending; do not use these diagnostic tests as native acceptance.
+
 ## Temporarily skipped owner-dependent actions
 
 | Requirement | Missing input or participation | Resume condition |
