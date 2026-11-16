@@ -57,9 +57,11 @@ failed when retrying a received assignment after the controlled native-save
 interruption. Its response was HTTP 200 with `success=false`, `phase=busy`.
 The valid received journal and original model remained; a later lock probe found
 no holder, so the original holder is unknown. That complete run remains failed.
-The bounded-wait change above still requires native execution, including both
-short contention recovery and long contention refusal. It does not change the
-separate five-second console revocation target.
+The later lock-handoff validation below covers the bounded wait's isolated
+native execution, short contention recovery and long contention refusal. It does
+not establish the original failed run's exact cause or change the separate
+five-second console revocation target. Public, offline-fleet and formal-release
+acceptance remain separate.
 
 An error response may also contain a fixed `failure_reason`: `backend_response`,
 `backend_exception`, `trust_sync`, `trust_recovery`, `native_model`,

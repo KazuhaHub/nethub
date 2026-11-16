@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of 138 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Partial semantic review of 161 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -24,7 +24,8 @@
     "Protocol rotation/trust contracts preserve current cache freshness, original-operation replay, native CAS/journals and no private material in public replies. Ubuntu instructions retain fresh hosted-runner admission and exact-source image requirements. The original Check-Host-only-in-PR242 sentence now points to subsequent integration/correction and separately states the remaining all-port positive and late-port negative samples. Historical evidence and patch registries remain snapshots rather than permission to replay mutations.",
     "W0 mobile network and NewUserConn records are historical 0.71.0 experiments, not current signed-package/mobile console evidence. Two carrier samples and the explicitly waived company/campus sample remain distinct. Existing streams surviving source-gate denial, backend-hang stale observations and failed/interrupted trials retain their measured limits. Blank result templates request private collection; filled raw credentials, hook payloads and addresses must not be published. No current five-second or full W5 claim follows from the historical 10s/30s observations.",
     "The complete threat model retains privileged host/authz/IdP boundaries, exact-source scoped native results, public/mobile gaps and independent custody/release requirements. Session Lax and SAML None cookies, noopener/noreferrer GUI navigation and one-second/2.5-second cache constants were checked against corresponding current implementation. All 29 handoff rows and recorded D14/authcore/Go/frp/five-second decisions remain intact; immutable historical snapshot status is distinguished from later continuation evidence.",
-    "The full W0 runbook retains historical 0.71.0 transport experiments, old heartbeat/Q2 thresholds, private raw evidence and explicit historical-use warnings. Three administrator API examples exposed credentials through curl user arguments; they now select an operator-owned private curl configuration outside Git. A bounded loopback control verified actual Basic authentication with the secret absent from child arguments and private-file cleanup; it is not an frps or public-network result. Historical TLS-warning acceptance and disruptive fault commands are not current production procedures."
+    "The full W0 runbook retains historical 0.71.0 transport experiments, old heartbeat/Q2 thresholds, private raw evidence and explicit historical-use warnings. Three administrator API examples exposed credentials through curl user arguments; they now select an operator-owned private curl configuration outside Git. A bounded loopback control verified actual Basic authentication with the secret absent from child arguments and private-file cleanup; it is not an frps or public-network result. Historical TLS-warning acceptance and disruptive fault commands are not current production procedures.",
+    "Twenty operational guides and the shared protocol/credential-check guides retain explicit Open renewal, irreversible revoke, independent recovery, original operation journals, read-only audit checks, approximate warning-only traffic, invitation/issuer binding and secret exclusion. Historical compiler/security scans do not establish current advisory status. The device rotation guide still said bounded waiting required native execution despite its later lock-handoff acceptance section; the follow-up now points to that isolated result while retaining the earlier failed run and public/offline/release gaps."
   ],
   "files": [
     {
@@ -578,6 +579,98 @@
     {
       "path": "weekend0/RUNBOOK.md",
       "sha256": "daf27aae2e929e56694fd3d7f588377b2e4ed8c16693e7d5f334d02c20100083"
+    },
+    {
+      "path": "deploy/audit-chain.md",
+      "sha256": "f92ea8ab67deac1ba2f239c60cc625805fa4caca6387c11857db9797a53ef95a"
+    },
+    {
+      "path": "deploy/console-audit.md",
+      "sha256": "6f16cfef24822cca9b85a2e8a756b618596a19c7d339a2b33a04312f092165d0"
+    },
+    {
+      "path": "deploy/console-revocation.md",
+      "sha256": "ecad2893d9a74579c0c5976fab5f97a5bcde964121e04259dd16327e133f93b8"
+    },
+    {
+      "path": "deploy/database-backups.md",
+      "sha256": "964da3ad3ee1f8f6e4960899d76f84f87bf023d222b3302ebf589d8a5065d6cc"
+    },
+    {
+      "path": "deploy/device-open.md",
+      "sha256": "b842552af365071219a103ab6fd9cd855b04b6c91aacaf90f56121d095fdf439"
+    },
+    {
+      "path": "deploy/device-rotation.md",
+      "sha256": "ac00d8e94263936da3080b3615eae857df56be436598c40ca504c6465bf45f1c"
+    },
+    {
+      "path": "deploy/disconnect-requests.md",
+      "sha256": "fa96e45bebbb33f6b47c7241f7073ea78841b2725805dc8aefd4944d8de8373f"
+    },
+    {
+      "path": "deploy/external-proxy.md",
+      "sha256": "426480d58518591b88a91599ddfcae58aa6d6750345a90163a1de87f47725e25"
+    },
+    {
+      "path": "deploy/invitations.md",
+      "sha256": "3c31c2ffb315be4d478a0dee8160cab21c4df93c1a35ed8b713311fd2a3bd4f3"
+    },
+    {
+      "path": "deploy/oidc-login.md",
+      "sha256": "087355edae3007e60a1d7c7ef0f41dcfa2ec772867163c3e2f923538fb4ec619"
+    },
+    {
+      "path": "deploy/oidc-providers.md",
+      "sha256": "1527d1c06130b1e7a94eee866ea78da997f9f3236d5dc510ed48984e32c85370"
+    },
+    {
+      "path": "deploy/provider-secrets.md",
+      "sha256": "aac46fda44185d1e97c2bfa53dc6ac4d9f3ff88041836eea09f083d3b2ac0e0b"
+    },
+    {
+      "path": "deploy/relay-anomalies.md",
+      "sha256": "7e9c6181b1339012330cd8ef340d369bf1516bc3acd63cb39f99859aa0327c38"
+    },
+    {
+      "path": "deploy/relay-authority-operations.md",
+      "sha256": "2de206cb560e9f78ac4efcebe0cffc22731aee9b4b326feabd585a202107af26"
+    },
+    {
+      "path": "deploy/relay-maintenance.md",
+      "sha256": "6d4dabd6cf3dbbc98214eadb4afb9c7f9a9cdc2805f007e7dd7d79b1cc9838d4"
+    },
+    {
+      "path": "deploy/revocation-and-heartbeats.md",
+      "sha256": "30fef9f0104b576283e01f5676df11a689972a610867c9e57e630154b0fe97d6"
+    },
+    {
+      "path": "deploy/security-validation.md",
+      "sha256": "feaaa5d591a7f0eeb55778d75606ba17f5694aa2ed5f65d3b22b152223589b2a"
+    },
+    {
+      "path": "deploy/shared-relay-token-rotation.md",
+      "sha256": "b006bad0ee789ffdc664ff161d177d07ec522102315c386a97d1bfb0a5d5af55"
+    },
+    {
+      "path": "deploy/traffic-counters.md",
+      "sha256": "a09068d632ead8beff7ba30aedde885289f29459c1dce349e50d619e11cb1d5c"
+    },
+    {
+      "path": "deploy/user-administration.md",
+      "sha256": "9b9a6838e9f4b8699904dca72a2046d51116b09b2acd72d296a299a8e9f656e7"
+    },
+    {
+      "path": "docs/protocol.md",
+      "sha256": "554eecdacf8ae6771e2604cd5972ef58d6459e60304d05074e68c4097f4b2f7a"
+    },
+    {
+      "path": "docs/security/credential-checks.md",
+      "sha256": "d1e80e95ed7d2030d8f8881c1fa0cbcb6498da2823a90b631e5baa5f354ca6b5"
+    },
+    {
+      "path": "proto/README.md",
+      "sha256": "a20a7bca3a75797c8034540639aa392e8392ce59e53a712703fd21fc88d3aa02"
     }
   ]
 }
