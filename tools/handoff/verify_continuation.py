@@ -431,6 +431,71 @@ def verify_local_framing(root=ROOT):
     print('Verified local Docker framing reproduction; native failure attribution remains unproven.')
 
 
+def verify_external_tcp_report(root=ROOT):
+    directory = root / 'docs/handoff/evidence/external-tcp-report'
+    index = json.loads((directory / 'index.json').read_text())
+    head = '898c3e0e474aaf03c294c78c37d9e6c96630b6fb'
+    parent = '16708e35443fbbe93344bd897f8d5ab3ef6749d0'
+    assert index['version'] == 1 and index['source_head'] == head and index['parent_source'] == parent
+    assert index['public_positive_sample_accepted'] is index['full_project_complete'] is False
+    expected = {'parent-refusal.json', 'report-shape.json', 'fixed-refusal.json',
+                'local-checks.json', 'clean-build.json', 'NAT-fixture-ready.json',
+                'python-diagnostic-refusal.json'}
+    assert len(index['files']) == len(expected) and {v['path'] for v in index['files']} == expected
+    values = {}
+    for item in index['files']:
+        raw = checked_path(directory, item['path']).read_bytes()
+        assert 0 < len(raw) == item['bytes'] <= 16384
+        assert hashlib.sha256(raw).hexdigest() == item['sha256']
+        values[item['path']] = json.loads(raw)
+    before, after = values['parent-refusal.json'], values['fixed-refusal.json']
+    assert before['source_head'] == parent and after['source_head'] == head
+    for value in (before, after):
+        assert value['target_is_own_host'] is value['no_partial_success'] is True
+        assert value['host_ports_listening'] is value['public_forward_mutated'] is False
+        assert value['provider_submission_attempts'] == 1 and value['exit_status'] == 1
+        assert 0 < value['elapsed_ms'] <= 55000
+        assert value['stdout_sha256'] == hashlib.sha256(b'').hexdigest()
+        assert value['public_positive_sample_accepted'] is value['full_W7_or_release_accepted'] is False
+    assert before['verified_closed_observer_refusal'] is False
+    assert after['verified_closed_observer_refusal'] is True
+    shape = values['report-shape.json']
+    assert shape['scheduled_nodes'] == shape['observed_nodes'] == 3
+    for key in ('observer_identities_match', 'command_matches_tcp',
+                'report_host_is_exact_owned_IP', 'report_port_is_exact_requested_decimal'):
+        assert shape[key] is True
+    assert shape['host_matches_exact_target'] is shape['public_positive_or_closed_sample_accepted'] is False
+    assert shape['report_port_type'] == 'str' and abs(shape['creation_clock_delta_seconds']) <= 10
+    local, build = values['local-checks.json'], values['clean-build.json']
+    assert local['source_head'] == build['source_head'] == head
+    assert local['parent_source'] == parent
+    assert local['parent_parser_genuine_shape_reproduction_failed'] is local['fixed_local_tests_passed'] is True
+    assert local['top_level_Go_tests_passed'] == 41 and local['new_target_denial_subcases'] == 5
+    assert local['Go_version'] == build['go_version'] == '1.26.11'
+    assert local['network'] == build['network'] == 'none' and local['CPU_limit'] == build['CPU_limit'] == 2
+    assert local['gofmt_vet_build_passed'] is build['clean_build'] is True
+    assert local['native_or_full_public_acceptance'] is build['formal_release'] is False
+    assert after['binary_sha256'] == build['binary_sha256']
+    assert len(local['feature_blobs']) == 3 and len(local['native_files_unchanged_from_ea173c6']) == 10
+    for path, digest in local['feature_blobs'].items():
+        assert hashlib.sha256(subprocess.check_output(['git', '-C', str(root), 'show', head + ':' + path])).hexdigest() == digest
+    for row in local['native_files_unchanged_from_ea173c6']:
+        raw = subprocess.check_output(['git', '-C', str(root), 'show', head + ':' + row['path']])
+        assert hashlib.sha256(raw).hexdigest() == row['sha256']
+        assert raw == subprocess.check_output(['git', '-C', str(root), 'show',
+            'ea173c660a38bd6c61f37f013e58761da4f337ae:' + row['path']])
+    refusal = values['python-diagnostic-refusal.json']
+    assert refusal['HTTP_status'] == 403 and refusal['provider_result_received'] is refusal['public_sample_accepted'] is False
+    fixture = values['NAT-fixture-ready.json']
+    assert fixture['vCPU'] == 1 and fixture['memory_MiB'] == 1024
+    for key in ('pinned_Canonical_image_verified', 'uploaded_image_and_seed_sha256_verified',
+                'pinned_SSH_host_key_verified', 'powered_off_waiting_owner'):
+        assert fixture[key] is True
+    assert fixture['private_TCP_ports_verified'] == [14443, 17000, 18443]
+    assert fixture['public_exposure_authorized'] is fixture['public_forward_mutated'] is False
+    print('Verified strict TCP report correction, retained mismatch/403 refusals and owned-port negative sample; positive/public-release scope remains open.')
+
+
 if __name__ == '__main__':
     verify()
     verify_preflight()
@@ -451,3 +516,5 @@ if __name__ == '__main__':
     verify_runtime_checkpoint(ROOT, 'ea173c660a38bd6c61f37f013e58761da4f337ae',
         {'CI': 43783251653, 'native': 43783251698, 'cold': 43783251668,
          'preparation': 43783251640, 'filesystem': 43783251552}, 258, 'native_pass')
+
+    verify_external_tcp_report()

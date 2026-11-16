@@ -110,3 +110,10 @@ preparation, FreeBSD contracts and isolated recovery passed separately; the
 continuation verifier checks all source bindings, original ZIPs, 258 source
 blobs and screenshots. The exact earlier service failure remains unproven;
 the aggregate category does not establish which of three fixed messages occurred.
+
+The [external TCP report checkpoint](external-tcp-report/index.json) retains the
+first genuine report mismatch, separate HTTP-403 diagnostic, corrected strict
+host/port binding, local parent-fail/fixed-pass proof and a real owned TCP-443
+negative sample. Its NAT fixture remains powered off with no public forwarding.
+This does not accept all-port positive reachability, published appliance-version
+agreement, native/public W5, formal release or the full project.

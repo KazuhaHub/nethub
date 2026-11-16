@@ -291,11 +291,52 @@ records the owner's waiver of the third company/campus sample. This review does
 not accept every document or replace current dependency/advisory checks or an
 independent operator.
 
+## Doctor integration and the first real provider sample
+
+PR 253 applies only the retained external TCP feature on qualified native source
+`ea173c6`, preserving the later native/transport fixes. Its source
+`16708e35443fbbe93344bd897f8d5ab3ef6749d0` passed six-job CI `43791395178`,
+FreeBSD `43791394959` (252 cases / 258 blobs), preparation `43791538230` and
+isolated cold recovery `43799098898`. Cold archive digest, source operation and
+cleanup validators, both image hashes and the changed view were checked:
+baseline route recovery 108774 ms, original-request issuance/native acknowledgement
+156059 ms from source stop. Installed `43799096360` remains in progress at this
+checkpoint; neither the parent's native result nor these other gates accepts it.
+
+The first real compiled doctor call refused the provider's extended report before
+interpreting any closed port. A separate Python diagnostic received HTTP 403;
+that failed observation remains retained. A bounded diagnostic with the same Go
+HTTP client established the genuine TCP shape: `host` contains the IP and `port`
+is a separate decimal string. Command, creation time and all three observer
+identities matched. The original fixture had incorrectly embedded port in `host`.
+
+PR 254, source `898c3e0e474aaf03c294c78c37d9e6c96630b6fb`, checks both separate
+fields exactly. Five added denial subcases cover wrong host and wrong, missing,
+numeric or noncanonical ports. The parent production parser fails the corrected
+positive fixture using a read-only Go overlay; the fixed tree passes 41 top-level
+Go externalprobe/CLI cases, formatting, vet and build with pinned Go 1.26.11,
+networking disabled and two CPUs. Ten native/transport/pin files remain identical
+to the isolated-native-qualified parent. Fresh exact-source gates are pending.
+
+The clean source-bound binary subsequently accepted the genuine report binding
+and refused TCP 443 because an external observer could not connect: exit 1,
+3682 ms, empty stdout. This is a real owned-host negative sample. Fail-fast means
+7000/8443 were not reached; no all-port positive, TLS, published-package, public
+W5 or full W7 result follows. The [closed diagnostic checkpoint](evidence/external-tcp-report/index.json)
+contains no raw provider response, target connection metadata or credentials.
+Earlier mismatch/403 failures remain failures.
+
+A separate one-vCPU/one-GiB owned libvirt fixture passed signed Canonical image,
+upload hash, pinned SSH host key and NAT-local TCP checks, then shut down. It
+changed neither the default NAT definition nor public forwarding. Its readiness
+is not a public sample or hosted native acceptance. Public port-forward root
+commands remain skipped for the owner; the fixture is powered off meanwhile.
+
 ## Temporarily skipped owner-dependent actions
 
 | Requirement | Missing input or participation | Resume condition |
 | --- | --- | --- |
-| Public ingress, W7-3 external TCP, W7-5 public recovery | Historical LXC/DNS resources exist, but Ubuntu has no delivered connection metadata, authorized SSH identity or independently verified host trust. | Privately deliver access to an owned disposable endpoint and DNS; authorize the new environment's dedicated public key. Recheck listeners and public reachability before any mutation. |
+| Public ingress, W7-3 external TCP, W7-5 public recovery | Historical LXC/DNS access remains undelivered. The current owned-host TCP-443 negative sample passed after the report-shape fix; a NAT-only fixture is ready and powered off. No public forwarding was added. | Owner runs reviewed `sudo vm-forward` additions/removals for the positive TCP sample in a controlled window, or privately delivers another owned endpoint. Separate DNS/public TLS and full public operator recovery still require their own resources and evidence. |
 | W5/W7 mobile and source grants | Two historical carrier samples do not cover the new flow; a real phone and operator session are needed. | Arrange fresh mobile Open/login/refresh/revoke observations after the integrated native source qualifies. The third company/campus sample remains explicitly waived. |
 | W6-6 public provider | No registered public IdP test application or operator-controlled credentials have been delivered. | Register a suitable public test app and privately provide its credentials; retain invitation, identity-binding and denial/replay cases. |
 | W7-9 formal router install | The actual published package and a fresh public/mobile operator session are unavailable. Existing hosted guests cover only their unsigned isolated scope. | Use an approved non-production device with independent recovery; a new local lab can be provisioned within the shared-host limits without transferring the old Windows VM. Qualification still requires the actual signed package and genuine public/mobile observations. |
