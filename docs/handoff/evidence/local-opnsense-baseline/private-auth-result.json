@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "source": {
+    "repository": "opnsense/core",
+    "tag": "26.7",
+    "commit": "821598263289e177b40971600f06f5a91d9faef3",
+    "path": "src/opnsense/scripts/shell/password.php",
+    "sha256": "d2c34af2ae7d421cb65de3222b8e4594ce52e030ffb382adbab1ad64a210dff9"
+  },
+  "result": {
+    "stock_native_password_source_verified": true,
+    "password_change_requests": 1,
+    "unrelated_configuration_preserved": true,
+    "factory_password_refused": true,
+    "fresh_private_password_login_verified": true,
+    "password_absent_from_serial_output": true,
+    "private_credential_outside_repository": true,
+    "both_network_links_disconnected": true,
+    "native_WAN_DHCP_and_interface_roles_verified": true,
+    "gracefully_powered_off": true,
+    "host_firewall_network_or_public_forward_changed": false,
+    "NetHub_or_native_migration_or_release_accepted": false
+  },
+  "scope": "Own disconnected appliance credential preparation only; no network admission, patched firmware, NetHub installation, independent human deployment or migration/release acceptance."
+}

@@ -543,6 +543,22 @@ def verify_local_opnsense_baseline():
     for key in ('guest_pkg_install_or_SQL_replay', 'host_sudo_or_firewall_or_default_network_change',
                 'hosted_acceptance_guard_changed_or_forged', 'public_mobile_independent_operator_or_release_accepted'):
         assert value[key] is False
+    auth = json.loads((ROOT / 'docs/handoff/evidence/local-opnsense-baseline/private-auth-result.json').read_text())
+    assert auth['version'] == 1
+    assert auth['source']['repository'] == 'opnsense/core' and auth['source']['tag'] == '26.7'
+    assert auth['source']['path'] == 'src/opnsense/scripts/shell/password.php'
+    assert re.fullmatch('[a-f0-9]{40}', auth['source']['commit'])
+    assert re.fullmatch('[a-f0-9]{64}', auth['source']['sha256'])
+    result = auth['result']
+    assert result['password_change_requests'] == 1
+    for key in ('stock_native_password_source_verified', 'unrelated_configuration_preserved',
+                'factory_password_refused', 'fresh_private_password_login_verified',
+                'password_absent_from_serial_output', 'private_credential_outside_repository',
+                'both_network_links_disconnected', 'native_WAN_DHCP_and_interface_roles_verified',
+                'gracefully_powered_off'):
+        assert result[key] is True
+    assert result['host_firewall_network_or_public_forward_changed'] is False
+    assert result['NetHub_or_native_migration_or_release_accepted'] is False
     print('Verified closed local disconnected appliance baseline; no installed NetHub, native migration or release acceptance.')
 
 

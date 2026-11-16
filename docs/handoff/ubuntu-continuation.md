@@ -437,6 +437,17 @@ qualification remain unaccepted. The hosted native/cold fixture guards remain
 unchanged and were not forged. This VM is an own test resource, not a separate
 human deployment participant or formal-package acceptance.
 
+A later [native credential preparation](evidence/local-opnsense-baseline/private-auth-result.json)
+checked the installed stock password script against exact upstream 26.7 source
+before invoking its stdin-only password operation once. All configuration apart
+from the intended root password/change timestamp and native revision metadata
+was preserved. A fresh console rejected the factory password and accepted the
+new private credential. No password appeared in serial output or repository
+material. The independent serial path remains available, both NICs remain
+disconnected and the VM shut down normally. WAN/DHCP/interface roles were read
+without enabling network access. This is not NetHub installation or migration
+acceptance, and the basic image still requires its separate firmware review.
+
 ### Consolidated source 109aab5: failed native boundary, scoped cold success
 
 Source `109aab5063dc056f794ef2c98f8ba2d6ca0717a9` completed its five original
