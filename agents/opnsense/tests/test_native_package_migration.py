@@ -17,6 +17,7 @@ try:
     MIGRATION = importlib.util.module_from_spec(SPEC)
     SPEC.loader.exec_module(MIGRATION)
     PROBE = sys.modules['package_probe']
+    WAN_PROBE = sys.modules['wan_probe']
 finally:
     sys.path.pop(0)
 
@@ -61,7 +62,7 @@ def test_package_boundary_unknown_checkpoint_cannot_export_input(monkeypatch, ca
 def test_package_route_refusal_preserves_closed_reason_without_inspection(reason, monkeypatch, capsys):
     def refused(_nonce, *, observe):
         observe('route')
-        raise PROBE.ProbeError(reason)
+        raise WAN_PROBE.ProbeError(reason)
 
     monkeypatch.setattr(PROBE, 'boundary', refused)
     monkeypatch.setattr(PROBE, 'inspect', lambda: pytest.fail('Route refusal must stop inspection'))
@@ -74,9 +75,9 @@ def test_package_route_refusal_preserves_closed_reason_without_inspection(reason
 
 
 @pytest.mark.parametrize('phase,exception', [
-    ('route', PROBE.ProbeError('wan_route_missing private configuration')),
+    ('route', WAN_PROBE.ProbeError('wan_route_missing private configuration')),
     ('route', ValueError('wan_route_missing')),
-    ('wan', PROBE.ProbeError('wan_route_missing')),
+    ('wan', WAN_PROBE.ProbeError('wan_route_missing')),
 ])
 def test_package_route_detail_requires_exact_verifier_code_and_checkpoint(phase, exception, monkeypatch, capsys):
     def refused(_nonce, *, observe):
