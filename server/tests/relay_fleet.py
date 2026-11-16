@@ -44,6 +44,12 @@ def require_original_controls(actual, baseline, originals, owned, stage_index):
     raise AssertionError('fleet control disconnected or reconnected under bounded load')
 
 
+def require_retained_controls(actual, retained, originals, owned, stage_index):
+    """New batch members are allowed; every previously retained socket is exact."""
+    previous = {pid: actual[pid] for pid in retained if pid in actual}
+    require_original_controls(previous, retained, originals, owned, stage_index)
+
+
 def exercise_fleet(stage, compose, originals, create_client, stop_client,
                    revoke_clients, check_tunnels, probe, source, seed_pressure, combined_fault):
     work = Path(stage) / 'fleet-test'
@@ -148,13 +154,13 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
                         time.sleep(0.1)
                 clients = originals + [entry[2] for entry in owned]
                 baseline = sockets(clients)
-                assert all(baseline[pid] == values for pid, values in retained_controls.items()), 'batch preparation replaced an original fleet control'
+                require_retained_controls(baseline, retained_controls, originals, owned, stage_index)
                 retained_controls = baseline
                 check_tunnels()
                 for assignment, _, _ in owned:
                     result = probe(assignment, source)
                     assert result.returncode == 0 and result.stdout.decode() == assignment['subdomain'] + '.router.example.com'
-                assert sockets(clients) == baseline, 'fleet TLS preflight replaced an original control'
+                require_original_controls(sockets(clients), baseline, originals, owned, stage_index)
                 before = {role: usage(pid) for role, pid in roles.items()}
                 peak = {role: value['resident_bytes'] for role, value in before.items()}
                 container_before = {role: container_usage(binding) for role, binding in groups.items()}

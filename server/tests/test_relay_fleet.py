@@ -6,10 +6,36 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 
-from relay_fleet import require_original_controls
+from relay_fleet import require_original_controls, require_retained_controls
 
 
 class FleetFailureTests(unittest.TestCase):
+    def test_batch_can_add_members_without_replacing_any_retained_socket(self):
+        retained = {101: {('original-source', 'original-peer', 'original-inode')}}
+        actual = dict(retained)
+        actual[202] = {('new-source', 'new-peer', 'new-inode')}
+        output = io.StringIO()
+        with redirect_stdout(output):
+            require_retained_controls(actual, retained, [SimpleNamespace(pid=101)], [], 0)
+        self.assertEqual(output.getvalue(), '')
+        self.assertEqual(set(retained), {101})
+        self.assertEqual(set(actual), {101, 202})
+
+    def test_batch_replaced_or_missing_originals_still_refuse_with_closed_hints(self):
+        retained = {101: {('private-source', 'private-peer', 'private-inode')}}
+        for actual, missing in (({101: {('changed', 'peer', 'inode')}, 202: {'new'}}, False),
+                                ({202: {'new'}}, True)):
+            output = io.StringIO()
+            with self.subTest(missing=missing), redirect_stdout(output), self.assertRaises(AssertionError):
+                require_retained_controls(actual, retained, [SimpleNamespace(pid=101)], [], 1)
+            expected = {'NETHUB_NATIVE_HINT=relay_fleet_stage_ten',
+                        'NETHUB_NATIVE_HINT=relay_fleet_original_control_changed'}
+            if missing:
+                expected.add('NETHUB_NATIVE_HINT=relay_fleet_inventory_changed')
+            self.assertEqual(set(output.getvalue().splitlines()), expected)
+            self.assertNotIn('private', output.getvalue())
+            self.assertNotIn('101', output.getvalue())
+
     def test_unchanged_controls_do_not_inspect_private_logs(self):
         class Refuse:
             def __getattr__(self, _name):
