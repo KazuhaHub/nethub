@@ -122,6 +122,24 @@ override flag. Runtime container separation, frps/authz loopback and recent
 database backup have separate modes below. Agreement with a formally published
 appliance package remains an unfinished W7-3 requirement.
 
+For independent TCP observations, explicitly opt in to Check-Host:
+
+```sh
+./nethub doctor --external-tcp-check-host --expected-address 203.0.113.10
+```
+
+Replace the documentation address with the actual public ingress IP. This sends
+only that IP and ports 443/7000/8443 to the external provider; its report may be
+public. The [provider API](https://check-host.net/about/api) supplies three
+observers per port. Every observer must report a connection to the expected IP;
+wrong, incomplete, stale or unavailable results fail without partial success.
+Submissions are not retried automatically, and the check stops after 45 seconds.
+Run this mode separately from the initialized DNS, TLS, container and database
+checks. It proves TCP connectivity from those observers, not certificate or
+application health, successful device admission or every mobile network.
+The implementation's mocked protocol tests do not replace a real owned-public
+positive and closed-port drill, which remains pending.
+
 The separate database metadata mode uses only the Web-role password:
 
 ```sh
