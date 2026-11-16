@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of 111 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Partial semantic review of 116 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -18,7 +18,8 @@
     "Agent/capability/plugin guides retain remote.web-only authority, separate os-frp state, current guard/lock ordering and unsigned-versus-formal package boundaries. The control-plane command table incorrectly named the admin-bootstrap Compose service as a CLI command; it now names the implemented admin create command and its service. Historical browser and FreeBSD contract scope remain separate from installed/public acceptance.",
     "Historical enrollment and certificate records retain their own sources, intentional image reuse boundaries, private fixture roots and the owner-approved old 1GiB allocation; those exceptions do not apply to this host or establish production sizing. Failed offline application, model-normalization diagnosis, later private-CA renewal/rollback and public-CA initial issuance are distinct outcomes. Actual public renewal-clock acceptance remains open. Separate Dex/Keycloak fixtures explicitly label SQL inventory rows and do not claim public providers or native tunnels.",
     "The public console trial explicitly excludes clean-host and mobile-carrier acceptance. Relay transport, native distribution, admitted signer transitions and retirement are distinct staged records; initial timeout and later daemon-deadline reproductions are not relabeled. The old explicit lab SQL administration and resource exceptions are historical evidence, not authorization to repeat those operations in a new environment. Public chain normalization retains parser/identity/trust refusals and read-only original-order diagnostics.",
-    "Thirteen original plugin progress records describe staged development package versions. Source-only key/CSR/journal controls, Core application and daemon/boot recovery, enrollment/lifecycle, local breaker and WAN/coexistence observations remain distinct. Their earlier future-work statements and old 10/30 heartbeat/compiler records are historical checkpoint scope, not instructions to downgrade the current 1/3 profile, compiler or authority boundaries. Key export, native backup history and cleanup limits remain explicit."
+    "Thirteen original plugin progress records describe staged development package versions. Source-only key/CSR/journal controls, Core application and daemon/boot recovery, enrollment/lifecycle, local breaker and WAN/coexistence observations remain distinct. Their earlier future-work statements and old 10/30 heartbeat/compiler records are historical checkpoint scope, not instructions to downgrade the current 1/3 profile, compiler or authority boundaries. Key export, native backup history and cleanup limits remain explicit.",
+    "W3/W4 milestone records state their accepted old host/public-forwarding scope and preserve earlier failed observations. Those owner-approved historical environments do not authorize this shared host to expose ports. Restricted dump restoration, original six-service/client recovery and shared-token incident checks retain distinct sources and archive/upload limitations; later protected-host restoration does not retroactively broaden them. Normal Open with a measured source, unchanged grants and independently verified routes remains required."
   ],
   "files": [
     {
@@ -464,6 +465,26 @@
     {
       "path": "agents/opnsense/plugin/tests/w4-progress.md",
       "sha256": "afb7985dc81ed2fc12ddf1b140d10e9850d41a9b5e1b01205367117ecb75efa1"
+    },
+    {
+      "path": "deploy/validation-clean-host-restore.md",
+      "sha256": "4a10d0eb83f64e7a586456d5b4c5cbe27d8af0f954786caa0dd1ec13d337a937"
+    },
+    {
+      "path": "deploy/validation-database-backups.md",
+      "sha256": "ff54cc709bc1c653bc98f5e4b9be389fdd67f4eaf141b6a8b5938dc12c8fdf63"
+    },
+    {
+      "path": "deploy/validation-shared-token.md",
+      "sha256": "87a3a1f7954910fb10bd5e1e985f222c4f70bb0b128e5da3b89753f0c45c2673"
+    },
+    {
+      "path": "deploy/validation-w3.md",
+      "sha256": "62a3eed908f760b3a2b2bf05efd751cc17d446547c249157c10a1aec5cf35290"
+    },
+    {
+      "path": "deploy/validation-w4.md",
+      "sha256": "2f5cbf76213c8de4bc4143aee69d41aec2e87fbc814ce163a752e885aca588a3"
     }
   ]
 }
