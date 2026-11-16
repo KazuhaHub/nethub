@@ -1,0 +1,697 @@
+{
+  "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
+  "scope": "Source-bound semantic reading of all 165 Markdown files at source109aab5; not exhaustive current-source conformance, external-reference review, translation validation or independent deployment",
+  "all_documents_reviewed": false,
+  "actual_public_renewal_accepted": false,
+  "findings": [
+    "Admission, durable CSR, role, CA account, private snapshots, HTTP-01 and finalization responsibilities remain separate.",
+    "CA protocol fixtures, logically aged renewal, real native application and real public renewal-clock proof remain distinct.",
+    "Explicit consent, original candidate/account identity, no raw secret logging, retained ambiguous outcomes and fail-closed boundary statements remain stated.",
+    "Relay authority preparation/custody assertions, publication barriers, retained-operation recovery, served-TLS verification and offline quarantine remain separate; no automatic offline bypass is documented.",
+    "Protected issuer host documentation separately states privileged host trust, narrow SQL identities, cleanup gates, original job/order/CSR retention and the actual fixture limitations. The public policy example still has the documented nine fields.",
+    "Quickstart omitted the explicit --network-subnet argument despite asking the operator to select a subnet. Both init examples now pass the selected value; doctor examples are unchanged. This correction is a documentation follow-up, not a mutation of the frozen candidate.",
+    "Certificate automation overview ended with a stale blanket protected-host-restoration gap. The follow-up now links merged isolated recovery while retaining public operator, real renewal-clock and durable encrypted off-host custody requirements. Original staged preparation/recovery failures remain historical failures.",
+    "English/Chinese entry points, SAML dependency/admission/provider guides and current console/deployment API boundaries retain source-specific acceptance, no email-only binding, immutable grants/revocation and public/mobile/release gaps.",
+    "The full deadline/recovery history distinguishes SQL and console/public clocks, scheduled reboot delay, real recovery, irreversible operations and scoped later success without relabeling failed trials.",
+    "Image guidance now identifies old Alpine3.23 advisory/index links as historical context, distinct from the documented current Caddy3.24 base; actual Dockerfile/module pins and required scans are unchanged.",
+    "Authentication defaults and bounded verification/limiter policy agree with the inspected current constants. Backup scheduling, receipt/hash versus actual recovery, host lease ownership and bootstrap non-replay boundaries remain distinct. HTTP-01 publication guidance now links the implemented host worker rather than saying its startup is future work; public custody and renewal-clock acceptance remain open.",
+    "Agent/capability/plugin guides retain remote.web-only authority, separate os-frp state, current guard/lock ordering and unsigned-versus-formal package boundaries. The control-plane command table incorrectly named the admin-bootstrap Compose service as a CLI command; it now names the implemented admin create command and its service. Historical browser and FreeBSD contract scope remain separate from installed/public acceptance.",
+    "Historical enrollment and certificate records retain their own sources, intentional image reuse boundaries, private fixture roots and the owner-approved old 1GiB allocation; those exceptions do not apply to this host or establish production sizing. Failed offline application, model-normalization diagnosis, later private-CA renewal/rollback and public-CA initial issuance are distinct outcomes. Actual public renewal-clock acceptance remains open. Separate Dex/Keycloak fixtures explicitly label SQL inventory rows and do not claim public providers or native tunnels.",
+    "The public console trial explicitly excludes clean-host and mobile-carrier acceptance. Relay transport, native distribution, admitted signer transitions and retirement are distinct staged records; initial timeout and later daemon-deadline reproductions are not relabeled. The old explicit lab SQL administration and resource exceptions are historical evidence, not authorization to repeat those operations in a new environment. Public chain normalization retains parser/identity/trust refusals and read-only original-order diagnostics.",
+    "Thirteen original plugin progress records describe staged development package versions. Source-only key/CSR/journal controls, Core application and daemon/boot recovery, enrollment/lifecycle, local breaker and WAN/coexistence observations remain distinct. Their earlier future-work statements and old 10/30 heartbeat/compiler records are historical checkpoint scope, not instructions to downgrade the current 1/3 profile, compiler or authority boundaries. Key export, native backup history and cleanup limits remain explicit.",
+    "W3/W4 milestone records state their accepted old host/public-forwarding scope and preserve earlier failed observations. Those owner-approved historical environments do not authorize this shared host to expose ports. Restricted dump restoration, original six-service/client recovery and shared-token incident checks retain distinct sources and archive/upload limitations; later protected-host restoration does not retroactively broaden them. Normal Open with a measured source, unchanged grants and independently verified routes remains required.",
+    "The W3 decision brief mixed original 10s/30s heartbeat language with present instructions. It now explicitly marks that profile historical and links the current owner-retained five-second target and 1s/3s profile; migration/rollback coverage remains. W4 history, UI comparison and lost-report fixture retain their bounded evidence and do not authorize repeating old listener/SQL changes. External TCP instructions bind both genuine provider host and canonical port and still require public positive acceptance.",
+    "Protocol rotation/trust contracts preserve current cache freshness, original-operation replay, native CAS/journals and no private material in public replies. Ubuntu instructions retain fresh hosted-runner admission and exact-source image requirements. The original Check-Host-only-in-PR242 sentence now points to subsequent integration/correction and separately states the remaining all-port positive and late-port negative samples. Historical evidence and patch registries remain snapshots rather than permission to replay mutations.",
+    "W0 mobile network and NewUserConn records are historical 0.71.0 experiments, not current signed-package/mobile console evidence. Two carrier samples and the explicitly waived company/campus sample remain distinct. Existing streams surviving source-gate denial, backend-hang stale observations and failed/interrupted trials retain their measured limits. Blank result templates request private collection; filled raw credentials, hook payloads and addresses must not be published. No current five-second or full W5 claim follows from the historical 10s/30s observations.",
+    "The complete threat model retains privileged host/authz/IdP boundaries, exact-source scoped native results, public/mobile gaps and independent custody/release requirements. Session Lax and SAML None cookies, noopener/noreferrer GUI navigation and one-second/2.5-second cache constants were checked against corresponding current implementation. All 29 handoff rows and recorded D14/authcore/Go/frp/five-second decisions remain intact; immutable historical snapshot status is distinguished from later continuation evidence.",
+    "The full W0 runbook retains historical 0.71.0 transport experiments, old heartbeat/Q2 thresholds, private raw evidence and explicit historical-use warnings. Three administrator API examples exposed credentials through curl user arguments; they now select an operator-owned private curl configuration outside Git. A bounded loopback control verified actual Basic authentication with the secret absent from child arguments and private-file cleanup; it is not an frps or public-network result. Historical TLS-warning acceptance and disruptive fault commands are not current production procedures.",
+    "Twenty operational guides and the shared protocol/credential-check guides retain explicit Open renewal, irreversible revoke, independent recovery, original operation journals, read-only audit checks, approximate warning-only traffic, invitation/issuer binding and secret exclusion. Historical compiler/security scans do not establish current advisory status. The device rotation guide still said bounded waiting required native execution despite its later lock-handoff acceptance section; the follow-up now points to that isolated result while retaining the earlier failed run and public/offline/release gaps.",
+    "The complete long-form handoff distinguishes dated checkpoint outcomes from the newer Ubuntu handoff. Historical Windows topology, old compiler pins, public windows and former authorizations are not current Ubuntu resource access or current-source qualification. The later lock-handoff and protected-host results do not erase earlier failures, and the owner release/disclosure decisions remain separate. PLAN and DESIGN remain pending in this exhaustive semantic-review inventory.",
+    "The complete frozen 109aab5 continuation ledger preserves each source/run binding, original failures, source-specific producer admission, scoped later successes and owner-dependent skips. Its then-pending integrated native/cold outcomes are historical checkpoints; the later durable evidence and current PR state determine their outcomes. None of the local preparation or partial documentation review closes the original 29 requirements.",
+    "Complete DESIGN review preserves its full original acceptance scope, all later confirmed decisions and dated illustrative layouts. Its audit requirement includes local reconcile failures, but current ReportDevice stores only latest reconcile metadata and has no corresponding append_audit call. Existing audit-chain integrity success therefore does not prove completeness of required system-event coverage. This gap is retained for implementation and actual-role/runtime verification; the design requirement is not weakened. PLAN remains pending in this exhaustive source-bound review inventory.",
+    "The complete 2205-line PLAN preserves all staged acceptance, current five-second revocation target, two-carrier scope, authcore reuse, source-specific histories and independent/public/formal owner gates. Its illustrative tunnel template omitted the required relay CA/serverName and used a shared proxy name; the follow-up adds verified-TLS fields and device-specific naming. Compiler guidance now names the pinned Go 1.26.11 without rewriting dated environment observations or the go.mod language directive. The initialization note now uses a new owned disposable project instead of suggesting deletion of an existing volume. The stale removal summary placed native credential clearing before server confirmation; it now follows confirmed revocation before native clearing. Inspection of migration 00005 and the lifecycle store confirms that revoked identity/history persist while a partial unique index releases the routing name. Retaining a device row does not imply permanently reserving its name. Actual source anomaly confirmations remain fifteen seconds apart, distinct from five-second display polling; the approximately 45-second PLAN statement is retained. All 165 frozen Markdown files now have reading receipts; subsequent candidate changes, external references, translation equivalence and independent ten-minute deployment still require separate verification."
+  ],
+  "files": [
+    {
+      "path": "server/internal/device/README.md",
+      "sha256": "f1e00ea5c60dfdf661e7285dacb38b5287f96f6882154d0da5b55efe49d33e0d"
+    },
+    {
+      "path": "server/internal/device/README-certificates.md",
+      "sha256": "96806b0121d387a589e94751d82a33d2c2dd9727c7c3f538ab0ec5e4ba43a98a"
+    },
+    {
+      "path": "server/internal/device/README-lifecycle.md",
+      "sha256": "cd124f6a1d0f4d13295a52b9fdb886e2c4522930786d5de6a41a4d8dcaed0a2a"
+    },
+    {
+      "path": "server/internal/device/README-rotation.md",
+      "sha256": "970d8ea1a1e1ad3a39e62c4153870363192fde8d71616310ce21f8a4973908b3"
+    },
+    {
+      "path": "server/internal/guicert/README.md",
+      "sha256": "7a92afda17b45f946c281de9e4190a835b5e001fd68ea7fabc7e3d253bec007d"
+    },
+    {
+      "path": "server/internal/store/GUI_ISSUER_ROLE.md",
+      "sha256": "01be7b73ca004b4e0115970c392204f8967744fdf1cf2d4b05decd1a65312eb9"
+    },
+    {
+      "path": "server/internal/store/GUI_REQUESTS.md",
+      "sha256": "037997729f4c7d29a01c9bf5f91387bc51b9e4d8cb428842cfff9ef9b055f682"
+    },
+    {
+      "path": "server/internal/guiacme/README.md",
+      "sha256": "3613353c94b65d189f2e813baa31aa268f523411603fba286df47d96eb08bcb7"
+    },
+    {
+      "path": "server/internal/guiacme/PROVISIONING.md",
+      "sha256": "bef45b3bc9fc667cf61b81f0a5f3e70ab3be8f5a2f90112366060ce0b1772064"
+    },
+    {
+      "path": "server/internal/guiacme/STORE.md",
+      "sha256": "d1e849e1f9cf293d2eb64d369e578f97244eef3a99dc7fd2f71a249a99586e5b"
+    },
+    {
+      "path": "server/internal/guiacme/ORDERS.md",
+      "sha256": "3baa0d6e4bf6b7761bbba07582fb24b1d7038dde848f2357f07502e55a067c78"
+    },
+    {
+      "path": "server/internal/guiacme/HTTP01.md",
+      "sha256": "c007a66ef0e2b87d0156910fb6716b16bf48275d77e2c9bfc61b08104d46cc20"
+    },
+    {
+      "path": "server/internal/guiacme/FINALIZATION.md",
+      "sha256": "92d67e2f8276537bf2409008d6aa03bad1687d3263fc8ac1e8607b64072ab65c"
+    },
+    {
+      "path": "server/internal/guiacme/RENEWAL.md",
+      "sha256": "e2a73973d7ed29d66ef22d0978f9cdeb1204491168d1a671520d912ff8c12c41"
+    },
+    {
+      "path": "server/internal/guiacme/PEBBLE.md",
+      "sha256": "15ea9635c12cb51c1776bb0dda1a4d203fbaefb8fa3e9534c6eecf1ec7683494"
+    },
+    {
+      "path": "server/internal/relayauthority/README.md",
+      "sha256": "2fa9d029cf171937d9a6488f7ccaf63bdf762bd28764a6179e0fe87aa15edad4"
+    },
+    {
+      "path": "server/internal/relaytrust/README.md",
+      "sha256": "a2a098fc86055fd5025bd8d6c31dbcf62aebd0d20bbb6bc05371acaa44a5373c"
+    },
+    {
+      "path": "server/internal/relaycert/README.md",
+      "sha256": "134b1f0a0ec56eaf58969ab2d871943beef517be2821524b2e556f6e7ec1ed92"
+    },
+    {
+      "path": "server/internal/relaymaint/README.md",
+      "sha256": "2702ce38fd0ec222eea080e39125a9c04f337ff0afd41d3c261da9747f400327"
+    },
+    {
+      "path": "server/internal/relayprobe/README.md",
+      "sha256": "ece3fc7371309c281a16d345dc5a1c6955ddfdf66494c44842e62d35c61b0e48"
+    },
+    {
+      "path": "server/internal/relaystate/README.md",
+      "sha256": "8766767db11359a779cc3d320aff1507403f67a82b3cbef10357c68b3b9bc4a9"
+    },
+    {
+      "path": "server/internal/relaytoken/README.md",
+      "sha256": "e9a9f5dc2374fab6f530c5e9b47a90fb0e4c32986dcdd8002c7c94bce6011329"
+    },
+    {
+      "path": "server/internal/guiissuer/README.md",
+      "sha256": "c8c4c2010200445e0cd0bc8f43c1ed8219147033d49ad6cbbc8b76a9e9c891d9"
+    },
+    {
+      "path": "server/internal/guiissuer/HOST.md",
+      "sha256": "225464a219f448ea63a5264ef49417c6ef9a0417a2809515386f1f425552f7bb"
+    },
+    {
+      "path": "deploy/QUICKSTART.md",
+      "sha256": "587505719231cf7487d4f815799d7920a2537f5761c373e198e775f10745608f"
+    },
+    {
+      "path": "server/internal/setup/README.md",
+      "sha256": "16830e65a3fba4136f1748927bbfa4d505db9870db69e862ce2f579ac243af10"
+    },
+    {
+      "path": "server/internal/web/README.md",
+      "sha256": "c13528ab43874966f3a3e1cfdc6573770c98d05801b3215aaf27f086505f151d"
+    },
+    {
+      "path": "docs/certificate-automation.md",
+      "sha256": "4ad3cc99d8d46aa1672aa148e004aa4a3256d2140bce3dbb35150da45fb780a0"
+    },
+    {
+      "path": "agents/opnsense/acceptance/README.md",
+      "sha256": "1fab56a5baed87159ee5a16f2830053f7466545a1f836a1f5d7b0b4ebcbd1872"
+    },
+    {
+      "path": "server/tests/recovery/README.md",
+      "sha256": "8ced3ca19d84f94b8d29920cc26f256ed30a59dd6a87f59ccaabdaded763e5e9"
+    },
+    {
+      "path": "server/internal/store/README.md",
+      "sha256": "7bd3e09c06b7bf5bcf153305fbf000dc2330159b26cb3602baa7a18b798ec2b3"
+    },
+    {
+      "path": "server/internal/store/validation.md",
+      "sha256": "4f7c66342f591526646b906e18518283aad6995c9b41a963159bd86d6689f580"
+    },
+    {
+      "path": "deploy/validation-native-w5-heartbeat.md",
+      "sha256": "1dfeb02143fe0e0d3cee201dfa68159c079ec23c15b8d0e8d7e0ec3928d03d87"
+    },
+    {
+      "path": "deploy/validation-native-w5-open-circuit.md",
+      "sha256": "c5b4369ab25923b3c8cf2321cf947b46f183cd8ff6efc3cc862f6bfc5f8d396e"
+    },
+    {
+      "path": "deploy/validation-native-w5-package.md",
+      "sha256": "50737ad9731e2babc970844593c4bd0e6094828b5c0d1a1e145c1be74f3bf3d7"
+    },
+    {
+      "path": "deploy/validation-heartbeat-and-cutoff.md",
+      "sha256": "bec2004f84707c122329d6575b47b3db8848cc8cb3d9d313aaafded85daa0e40"
+    },
+    {
+      "path": "deploy/validation-native-trust-conflict.md",
+      "sha256": "88c82fe26ad7267fed47d050f1cf271dfe3376e68e0b24c6ec325695af120586"
+    },
+    {
+      "path": "deploy/validation-protected-host-cold-recovery.md",
+      "sha256": "df5100446535a55df6d636f03425ae4666ab3bd6d49c13cbb2bb37535c92b35f"
+    },
+    {
+      "path": "deploy/validation-native-w5-recovery.md",
+      "sha256": "07e5a6cf3c497afe86b21011d8bafc3bf263907286ec160d4312da8ab8753901"
+    },
+    {
+      "path": "docs/deployment.md",
+      "sha256": "edf09c1932706a6351ac92a3850e4cf75afb41f198eeda0f008d60871b445c13"
+    },
+    {
+      "path": "docs/console-api.md",
+      "sha256": "26a1284f77196fa9057d52f5112b57cd81eb85f04736e61fcf463473dc42217a"
+    },
+    {
+      "path": "docs/w5-revocation-deadline.md",
+      "sha256": "cc3216391469003b761787f4bc75dff2140568865adb1939bb97ae53c16696dd"
+    },
+    {
+      "path": "deploy/frp/README.md",
+      "sha256": "381e1fe72b816dad8347495efee648171fd18c3ec31dc6994e69c2ef6d7d69e4"
+    },
+    {
+      "path": "deploy/images/README.md",
+      "sha256": "58d7b8725362f0b65c0bde15db59a6859ec6fbc8d426abc0fec651420d060ba8"
+    },
+    {
+      "path": "deploy/images/caddy/README.md",
+      "sha256": "196a3b0949449c4cc35b30e7ee9d7d98fed02d196f70cfd8e640a038d93e82c7"
+    },
+    {
+      "path": "deploy/saml-admission-foundation.md",
+      "sha256": "4982433387b05af99a0051d6a3c5afc507589f4625602aad6eaa2c6b1e757546"
+    },
+    {
+      "path": "deploy/saml-console.md",
+      "sha256": "d1eefc5ce771bcc07b02b8d5cc41081437548453bee458636b6a533d06629630"
+    },
+    {
+      "path": "deploy/saml-dependency-security.md",
+      "sha256": "ac509a376bdb9104abb3c9daff9eaf093213af4902ce2af8628ce757a1daad15"
+    },
+    {
+      "path": "deploy/saml-login.md",
+      "sha256": "4775ce7b44f93c344de6e1b4b904878cdec0c5c3e76a145150e309dd1cfffed3"
+    },
+    {
+      "path": "deploy/saml-provider-metadata.md",
+      "sha256": "a4a8d36e2417120fdf127b642c5844476a279a434de19db1cd101f22a9e19057"
+    },
+    {
+      "path": "deploy/saml-providers.md",
+      "sha256": "cc10726ffb88f196c1b4e8198aee1966cb99087ae42231d26b1ba83dd6f72c96"
+    },
+    {
+      "path": "README.md",
+      "sha256": "a56618a1b99fcd0eeef108f67466ec821b508bb0ced6e0d5643594a4090782b1"
+    },
+    {
+      "path": "docs/README.md",
+      "sha256": "1c2da1e5319d6a70a25ce1605efe8766b08cd543a4611e77047e72990bfc3952"
+    },
+    {
+      "path": "docs/README.zh-CN.md",
+      "sha256": "e45eb3f8c794343c6df5b6e846bc9ef5fff3e6f8420b0ad85327782da07661a5"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "0e33e40f32ea8f151f39d2e8e983dcdc9019f193742a06cb3ebf001d4fdea6e0"
+    },
+    {
+      "path": "HANDOFF.md",
+      "sha256": "fa4cc6b77e75ae65556038afa0f859c4f06a82591778da31e1701d246046fafd"
+    },
+    {
+      "path": "deploy/README.md",
+      "sha256": "1aef61f7b8660ef42c4329c12a4495fc8d157ff25195a5cb0c53a234e68c0cc6"
+    },
+    {
+      "path": "server/internal/auth/README.md",
+      "sha256": "e0261b731277d2c5c40bc12738e36271063ab467cbd751f2a7bbe8753f1c4a98"
+    },
+    {
+      "path": "server/internal/backupworker/README.md",
+      "sha256": "90899fb964ad666dbe34460081074f161cf3513e5796f5589d3b60ee74c52da2"
+    },
+    {
+      "path": "server/internal/claim/README.md",
+      "sha256": "805b307be6342f3fa75a57239ccaaaf57fdfc45634bf6cd5287e34bf2f9d84be"
+    },
+    {
+      "path": "server/internal/dbbackup/README.md",
+      "sha256": "e344ac50ba9ad109b5f4451bbde171d9fbecb2329d5707bbec37e8a0a13584ce"
+    },
+    {
+      "path": "server/internal/hostlease/README.md",
+      "sha256": "480a90ed26454b41f26ea856ebb2e286ecb4f2c68b69499cfc3eb780d0e49264"
+    },
+    {
+      "path": "server/internal/http01/README.md",
+      "sha256": "7dd34b0040bf9940fbb6b99b27295b03882cbe85782610fdd79c95d063dbf541"
+    },
+    {
+      "path": "server/internal/relayhook/README.md",
+      "sha256": "fd4812bcfa1fb6f2acfcfb164eca52f2a754506b112329c95f3b0457ae28d5e8"
+    },
+    {
+      "path": "server/cmd/nethub/admin-bootstrap.md",
+      "sha256": "cf86f7ac861e92a43baa1b3166c394550cddada65a497886e90d67eb4a9a89fa"
+    },
+    {
+      "path": "agents/opnsense/README.md",
+      "sha256": "e876e0170f95c2d5afba654bfa90b02f61299a538c6a3e8137807047958c9648"
+    },
+    {
+      "path": "agents/opnsense/capabilities.md",
+      "sha256": "c4349bd9ebc1f55a7231a96958f6e570a398b18e45a9b94882f51ee6a355c50f"
+    },
+    {
+      "path": "agents/opnsense/plugin/README.md",
+      "sha256": "c8839596a126df2cc9a81f7dc2244ea252d81c8719cc0ecbc9a70a5196eb8701"
+    },
+    {
+      "path": "agents/opnsense/tests/native-contracts.md",
+      "sha256": "d633aceca8dad5204b086f62a127847b383594ab1f92851a96904e2a51cf218e"
+    },
+    {
+      "path": "server/README.md",
+      "sha256": "bc76af1a69f2f20d463bfbb9eaf5418594bf68da1b1979ca7cf0d488395ca078"
+    },
+    {
+      "path": "server/web/validation.md",
+      "sha256": "2125677d42a6afee340ce64ba91c9f0e9f46f68ef98307f9b4c044901268b4fc"
+    },
+    {
+      "path": "deploy/validation-certificate-admission.md",
+      "sha256": "9620e3da57f3377a784b20cef765d69a0233eb8e4240e0c870afc93e217df13b"
+    },
+    {
+      "path": "deploy/validation-enrollment-boundaries.md",
+      "sha256": "055e10eedbcb853797323c7ac9aaf86234e9aa12cfd123fd619ff41fb6d1b855"
+    },
+    {
+      "path": "deploy/validation-enrollment-contention.md",
+      "sha256": "29814c6b0c2be76ad1261b31a9f6f3b817494bd07e9a1560a9818be37d40b8bd"
+    },
+    {
+      "path": "deploy/validation-gui-job-deadline.md",
+      "sha256": "d0af7b3fe6cff1e41aaf9e8032ccefd99ba6b8ed0ae8248dc2f7c1e9979c8422"
+    },
+    {
+      "path": "deploy/validation-http01-initialization.md",
+      "sha256": "f368c49114b15013fed74db47eeca9c234229bb7cf387ec9269c7b71cceff7b7"
+    },
+    {
+      "path": "deploy/validation-keycloak-saml.md",
+      "sha256": "519bada36f08a37217c1728ae54cb3514bed096a39fd6ff6c6cb70c2dd380978"
+    },
+    {
+      "path": "deploy/validation-two-dex.md",
+      "sha256": "001c14cd166f90d827d7e6f6d330a7c07332290ca52083cdeb34009053c22dcd"
+    },
+    {
+      "path": "deploy/validation-native-browser.md",
+      "sha256": "7c7a9b27a800181418506aefe6eb1da6f74c7cfcf8043cd24f55c24806b3925e"
+    },
+    {
+      "path": "deploy/validation-native-fresh-browser.md",
+      "sha256": "7886f5785a8c49ee141f0466fc8b88cb4b4f828a77e95ba384c3ca590cbcacee"
+    },
+    {
+      "path": "deploy/validation-native-certificate-identity.md",
+      "sha256": "c155b6e533500b64a3981151df6197cafdf7cc226ba09fde45dc1215b622b9a1"
+    },
+    {
+      "path": "deploy/validation-native-certificate-normalization.md",
+      "sha256": "c8e631327c16674aab0eaa5d37c6cae3e4d14520ad20b182b964d38c9be8b08d"
+    },
+    {
+      "path": "deploy/validation-native-certificate-rollback.md",
+      "sha256": "a0a68ca45cad602119dd07018a45fd10a56099d6d775845a93ff198445d11ee0"
+    },
+    {
+      "path": "deploy/validation-native-gui-lifecycle.md",
+      "sha256": "49d45b725f56b4251549d6fce02540ec436bd74d732cc88ce8477f9e7b668bd8"
+    },
+    {
+      "path": "deploy/validation-native-offline-recovery.md",
+      "sha256": "b44fa3f33f27dc3a92a9c1eef158af7274e8f1e5de5398a10e2ce7fce7918a2e"
+    },
+    {
+      "path": "deploy/validation-native-offline-renewal.md",
+      "sha256": "3dc3f961759b6e5f92013edb5576d2108933a397adfb2eb920dc21ce19f838a2"
+    },
+    {
+      "path": "deploy/validation-native-offline-root-recovery.md",
+      "sha256": "fa711c8aa4fdc825a34a8c6cfca883e4073f748679f8db69bfa74a0dfddef162"
+    },
+    {
+      "path": "deploy/validation-native-profile-recovery.md",
+      "sha256": "1b725f8973f616c0ff0755549f2b6c739933a38f6ad0f6b1c0ce194026c27fca"
+    },
+    {
+      "path": "deploy/validation-native-public-certificate.md",
+      "sha256": "015cfa7a9727530e379880ea9e7cc005f5761a13a30d3cffca0ef36976fc0a0d"
+    },
+    {
+      "path": "deploy/validation-public-chain-format.md",
+      "sha256": "0a1d72910c242990769829fa73d26f470faadc207a600d9f45dd18fdd6bfc9d3"
+    },
+    {
+      "path": "deploy/validation-public-console-source48.md",
+      "sha256": "c6e42eb66bed39d5fb0f4ee839cb66d325a629f331d0317d6a042a94e1ce26c9"
+    },
+    {
+      "path": "deploy/validation-relay-maintenance.md",
+      "sha256": "59fad12802e3b1336ca8b9cc57edb0d3674bf6c949377c90f91898dc9d52f672"
+    },
+    {
+      "path": "deploy/validation-relay-observation-latency.md",
+      "sha256": "4241ba1b77cf50a9c8b25144a71723d47305f817ac8ac3a7dbf71b6c5925699a"
+    },
+    {
+      "path": "deploy/validation-relay-trust-native.md",
+      "sha256": "9542564184443c227df884bf94420158390550130770d65daa96e0ca3248fce2"
+    },
+    {
+      "path": "deploy/validation-relay-trust-overlap.md",
+      "sha256": "ec5584a3679a1d636034982bb23170b246096cf109f87e3d0b24081537df7e55"
+    },
+    {
+      "path": "deploy/validation-relay-trust-recovery.md",
+      "sha256": "49ed1f6e15c610071f655120692b1cef3fe0230c30d75ffb5c9d5bad6a1e9497"
+    },
+    {
+      "path": "deploy/validation-relay-trust.md",
+      "sha256": "e1d994d05b30a76401274a010919fe07d31ee159b2b499ac7e5c489c4b431ddb"
+    },
+    {
+      "path": "deploy/validation-relay-authority-native.md",
+      "sha256": "81e7b76ba77ea1264eed3594787fe544fd57402a470271dfb50e02cd42e5028d"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/certificate-application-progress.md",
+      "sha256": "a8697a24e46c3e590947eb70f4164c023f5f27ee3ec16f9316aaab4f7b402717"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/certificate-key-progress.md",
+      "sha256": "e978f072286d8a8ecca0666e4d24e8e37dd6f29f68e3e67b0c15542d33aae87a"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/certificate-request-progress.md",
+      "sha256": "0b9edb1a7dcad1bf131f05bea07d43c9fa5e54ce5c9115c59ed427b567301fef"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/certificate-sync-progress.md",
+      "sha256": "1011dac151c3bb0f9d2556a0bc773546069dda41bc0de517784c44cb9d5bf781"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/certificate-transaction-progress.md",
+      "sha256": "5c9536202761230a252e0488accc3ff4348052dc8f8c814b2539d624f1aadb06"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/circuit-breaker-progress.md",
+      "sha256": "57ede5b14698f225f0632e5e5da2798e2e28c3c4d03bdbaf5b8bd2ebccb81a18"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/frp-upgrade-validation.md",
+      "sha256": "9848ce717ac570dc91f0b4c1f5b8b00cf6c590fcfd4aec1c06c8c87b89a0b1b7"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/native-certificate-apply-progress.md",
+      "sha256": "b80e2783fae36c4c27052a4b8dc8425e15f6af05e2e1d90b2801763616fc30a3"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/native-certificate-store-progress.md",
+      "sha256": "4ffd0f9168ebc80994c09fa88b745d504aa61982758333fd29afcc20c7597304"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/native-validation.md",
+      "sha256": "713e1de02e59c0554b896b672408e159c4f89e2d258d9a84b5de3a3094105ede"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/relay-trust-native-progress.md",
+      "sha256": "ebbcbdaa5996deb92162a436dac5428a5a921d1f6c11c3aaa3f9a9d7ee1fc0e6"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/w2-progress.md",
+      "sha256": "80a2d1d22a2846940db9d7b9661cdba14f0039f134bc9384d5030530b7451997"
+    },
+    {
+      "path": "agents/opnsense/plugin/tests/w4-progress.md",
+      "sha256": "afb7985dc81ed2fc12ddf1b140d10e9850d41a9b5e1b01205367117ecb75efa1"
+    },
+    {
+      "path": "deploy/validation-clean-host-restore.md",
+      "sha256": "4a10d0eb83f64e7a586456d5b4c5cbe27d8af0f954786caa0dd1ec13d337a937"
+    },
+    {
+      "path": "deploy/validation-database-backups.md",
+      "sha256": "ff54cc709bc1c653bc98f5e4b9be389fdd67f4eaf141b6a8b5938dc12c8fdf63"
+    },
+    {
+      "path": "deploy/validation-shared-token.md",
+      "sha256": "87a3a1f7954910fb10bd5e1e985f222c4f70bb0b128e5da3b89753f0c45c2673"
+    },
+    {
+      "path": "deploy/validation-w3.md",
+      "sha256": "62a3eed908f760b3a2b2bf05efd751cc17d446547c249157c10a1aec5cf35290"
+    },
+    {
+      "path": "deploy/validation-w4.md",
+      "sha256": "2f5cbf76213c8de4bc4143aee69d41aec2e87fbc814ce163a752e885aca588a3"
+    },
+    {
+      "path": "docs/w3-decisions.md",
+      "sha256": "f51aadfb03f1b5ae60d1fa89ee7cfdee5ee0b924e981127bf7dc6973cf68ef1c"
+    },
+    {
+      "path": "docs/w4-decisions.md",
+      "sha256": "17fb84e6a05b4aeb0fca1ce55099127ca2b122e69a92374d2d3e6c11ecf5561e"
+    },
+    {
+      "path": "docs/w4-progress.md",
+      "sha256": "7617c1e4a4b24cb30099a9e8428e4910fcf2065ae32b4f08869f677bd1a3d07e"
+    },
+    {
+      "path": "docs/ui-study/README.md",
+      "sha256": "39187776fa868b4429daa4ee9ce481c63fc40f1eb70385ec0529da6ad93ea6ec"
+    },
+    {
+      "path": "server/tests/trust-report-fault.md",
+      "sha256": "0783e94ba839f7c321c870243fb7f90c4c65e1cc1b1dc225628f0dbc97352f63"
+    },
+    {
+      "path": "server/internal/externalprobe/README.md",
+      "sha256": "1b0dfd514c1d0aabc0fa3d66fae97919768588633b793b876bbfa00ab15229e0"
+    },
+    {
+      "path": "proto/ROTATION.md",
+      "sha256": "7ed15a00367fbc598826a468f313639631e20260b72123a1268338f4d2db1366"
+    },
+    {
+      "path": "proto/RELAY_TRUST.md",
+      "sha256": "0974ab505f8f6f0d697b1df37d6a771e102365aa08826fe5da7fd2a3ff1f9387"
+    },
+    {
+      "path": "proto/frp-hooks-0.71.0.md",
+      "sha256": "52fa2f685320538bc9520dfab05ff26f6d40ae3f41d921f0c648ff28d614bfbc"
+    },
+    {
+      "path": "server/web/README.md",
+      "sha256": "c3705fa46f2f1e452971f38678b4042655eead100ed7a200727ed23f6f40ab10"
+    },
+    {
+      "path": "docs/handoff/ubuntu.md",
+      "sha256": "c099bfa661a8b270fc0f06320f70a9550f64c9d863661542e979d9203545cbf3"
+    },
+    {
+      "path": "docs/handoff/validation.md",
+      "sha256": "92fc15e4fe7241efbd2d2fb42bec6b3c1f4cd1e889839d9209e4835b5db82a41"
+    },
+    {
+      "path": "docs/handoff/patches/README.md",
+      "sha256": "716acab1c36fbf0bea6e1802d336bf4a819c9603cad70f1ca1dc67a06d362b83"
+    },
+    {
+      "path": "docs/handoff/evidence/README.md",
+      "sha256": "3a68a8afb4cf77abea66b30f7eb1b9390703b710ffa332b52f15277e6ea2ad4d"
+    },
+    {
+      "path": "weekend0/network-results.md",
+      "sha256": "a9167bef2f309620f5649d10bf175e5c024c04b646c1d60069c636461b88ab49"
+    },
+    {
+      "path": "weekend0/results-2026-10-17.md",
+      "sha256": "383807ab951eb011c2e3d746a0611d111035fe56d5b34e36c3f5c0b5a0425af9"
+    },
+    {
+      "path": "weekend0/results-template.md",
+      "sha256": "36c23e89b6bf8c39c1c2ba513f9aac5d93646ceb56b9c90001301579c0606737"
+    },
+    {
+      "path": "weekend0/userconn-results.md",
+      "sha256": "8b92a690435673aac8bc7f1aaec0a60837abe5ca371cccf9aa4fe49bd3c27a26"
+    },
+    {
+      "path": "docs/threat-model.md",
+      "sha256": "a51e3d6e1d20deb705d8f2280f0f45ad402100e24edfc99b37124666d727fe3a"
+    },
+    {
+      "path": "docs/handoff/remaining-work.md",
+      "sha256": "aed391d73e0eb4b292c77a71999ae3652dcfdf701f473aec9b381c44561efccf"
+    },
+    {
+      "path": "docs/handoff/decisions-and-repositories.md",
+      "sha256": "ca40b74919c114a487a24b9176f91999fe74b570de2f7ad74095c43da5eaffb6"
+    },
+    {
+      "path": "weekend0/RUNBOOK.md",
+      "sha256": "daf27aae2e929e56694fd3d7f588377b2e4ed8c16693e7d5f334d02c20100083"
+    },
+    {
+      "path": "deploy/audit-chain.md",
+      "sha256": "f92ea8ab67deac1ba2f239c60cc625805fa4caca6387c11857db9797a53ef95a"
+    },
+    {
+      "path": "deploy/console-audit.md",
+      "sha256": "6f16cfef24822cca9b85a2e8a756b618596a19c7d339a2b33a04312f092165d0"
+    },
+    {
+      "path": "deploy/console-revocation.md",
+      "sha256": "ecad2893d9a74579c0c5976fab5f97a5bcde964121e04259dd16327e133f93b8"
+    },
+    {
+      "path": "deploy/database-backups.md",
+      "sha256": "964da3ad3ee1f8f6e4960899d76f84f87bf023d222b3302ebf589d8a5065d6cc"
+    },
+    {
+      "path": "deploy/device-open.md",
+      "sha256": "b842552af365071219a103ab6fd9cd855b04b6c91aacaf90f56121d095fdf439"
+    },
+    {
+      "path": "deploy/device-rotation.md",
+      "sha256": "ac00d8e94263936da3080b3615eae857df56be436598c40ca504c6465bf45f1c"
+    },
+    {
+      "path": "deploy/disconnect-requests.md",
+      "sha256": "fa96e45bebbb33f6b47c7241f7073ea78841b2725805dc8aefd4944d8de8373f"
+    },
+    {
+      "path": "deploy/external-proxy.md",
+      "sha256": "426480d58518591b88a91599ddfcae58aa6d6750345a90163a1de87f47725e25"
+    },
+    {
+      "path": "deploy/invitations.md",
+      "sha256": "3c31c2ffb315be4d478a0dee8160cab21c4df93c1a35ed8b713311fd2a3bd4f3"
+    },
+    {
+      "path": "deploy/oidc-login.md",
+      "sha256": "087355edae3007e60a1d7c7ef0f41dcfa2ec772867163c3e2f923538fb4ec619"
+    },
+    {
+      "path": "deploy/oidc-providers.md",
+      "sha256": "1527d1c06130b1e7a94eee866ea78da997f9f3236d5dc510ed48984e32c85370"
+    },
+    {
+      "path": "deploy/provider-secrets.md",
+      "sha256": "aac46fda44185d1e97c2bfa53dc6ac4d9f3ff88041836eea09f083d3b2ac0e0b"
+    },
+    {
+      "path": "deploy/relay-anomalies.md",
+      "sha256": "7e9c6181b1339012330cd8ef340d369bf1516bc3acd63cb39f99859aa0327c38"
+    },
+    {
+      "path": "deploy/relay-authority-operations.md",
+      "sha256": "2de206cb560e9f78ac4efcebe0cffc22731aee9b4b326feabd585a202107af26"
+    },
+    {
+      "path": "deploy/relay-maintenance.md",
+      "sha256": "6d4dabd6cf3dbbc98214eadb4afb9c7f9a9cdc2805f007e7dd7d79b1cc9838d4"
+    },
+    {
+      "path": "deploy/revocation-and-heartbeats.md",
+      "sha256": "30fef9f0104b576283e01f5676df11a689972a610867c9e57e630154b0fe97d6"
+    },
+    {
+      "path": "deploy/security-validation.md",
+      "sha256": "feaaa5d591a7f0eeb55778d75606ba17f5694aa2ed5f65d3b22b152223589b2a"
+    },
+    {
+      "path": "deploy/shared-relay-token-rotation.md",
+      "sha256": "b006bad0ee789ffdc664ff161d177d07ec522102315c386a97d1bfb0a5d5af55"
+    },
+    {
+      "path": "deploy/traffic-counters.md",
+      "sha256": "a09068d632ead8beff7ba30aedde885289f29459c1dce349e50d619e11cb1d5c"
+    },
+    {
+      "path": "deploy/user-administration.md",
+      "sha256": "9b9a6838e9f4b8699904dca72a2046d51116b09b2acd72d296a299a8e9f656e7"
+    },
+    {
+      "path": "docs/protocol.md",
+      "sha256": "554eecdacf8ae6771e2604cd5972ef58d6459e60304d05074e68c4097f4b2f7a"
+    },
+    {
+      "path": "docs/security/credential-checks.md",
+      "sha256": "d1e80e95ed7d2030d8f8881c1fa0cbcb6498da2823a90b631e5baa5f354ca6b5"
+    },
+    {
+      "path": "proto/README.md",
+      "sha256": "a20a7bca3a75797c8034540639aa392e8392ce59e53a712703fd21fc88d3aa02"
+    },
+    {
+      "path": "docs/HANDOFF_PROMPT.md",
+      "sha256": "f655c4f76b88667fca4276f85e88c1e93147a0e65c1e28ad7bea0face083b23e"
+    },
+    {
+      "path": "docs/handoff/ubuntu-continuation.md",
+      "sha256": "559867847e88682bed0d2e863db6c8cdaca79d93b798447e66f49f48691e48d8"
+    },
+    {
+      "path": "docs/DESIGN.md",
+      "sha256": "b05037e37c9f7340c692f58a61cf8c87196d78d87385689502fc157024c5d23a"
+    },
+    {
+      "path": "docs/PLAN.md",
+      "sha256": "f076fadd280ee0f9f6b0dad33dffefc5353b220f9b29c58e2d09fa2f523550c3"
+    }
+  ],
+  "source_markdown_inventory_read": true
+}

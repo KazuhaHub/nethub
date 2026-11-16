@@ -255,6 +255,12 @@ VPS 的安全组/防火墙需要放行：
   `frpc.toml` 那边也要加一样的值（第 2.3 步）。
 - `subDomainHost` 换成你自己的域名。
 
+查询下面的私有管理 API 时，不要把实际用户名/密码写进 `curl -u` 参数或 shell
+命令。用编辑器在仓库外准备一个仅自己可读的 curl 配置文件，父目录为 0700、文件为
+0600，内容使用 curl 的 `user = "用户名:密码"` 配置语法。下面的
+`/path/to/private-curl.conf` 是该文件路径占位；不要把填过凭据的文件、命令展开、
+配置内容或原始管理 API 输出提交到 Git。实验结束后清理这个私有副本。
+
 ### 1.5 启动前的配置检查（先检查，再启动）
 
 frp 0.71.0 的 `frps` / `frpc` 默认带 `--strict_config=true`（`cmd/frps/root.go`、
@@ -711,7 +717,7 @@ hang 这组额外做两件事：
 1. **用 `time ./frpc -c frpc.toml`** 或者自己掐表，记录从启动到 frpc 日志报错（或者
    代理最终注册成功）之间过了多久，以及探针里 `NewProxy` 的计数涨到了几。
 2. 同时观察 frps 进程本身在 hang 期间是不是还能正常处理别的请求——在 VPS 上用
-   `curl -s -u '<webServer.user>:<webServer.password>' http://127.0.0.1:7500/api/serverinfo`
+   `curl --config /path/to/private-curl.conf --silent http://127.0.0.1:7500/api/serverinfo`
    （或者 SSH 隧道过去开 dashboard）看 frps 是否仍正常响应；如果手头有第二台设备，
    在 hang 期间让它连一次，间接确认"卡住的只是这台设备的这次注册，不是整个
    frps 进程"。
@@ -1005,7 +1011,7 @@ frpc 随即断开整条隧道，标签页 A 会因为这个断开而不是因为
    - 再开一个新的无痕窗口打开同一个地址：应该打不开（连接被直接断开）。
    - 同时确认隧道还在：frpc 终端里没有断线重连的日志；探针里 `Ping` 仍然每 10 秒一条、
      `mode=allow`；frps 日志里出现 `the user conn [...] was rejected`；在 VPS 上
-     `curl -s -u '<webServer.user>:<webServer.password>' http://127.0.0.1:7500/api/proxy/https`
+     `curl --config /path/to/private-curl.conf --silent http://127.0.0.1:7500/api/proxy/https`
      里 `opnsense-webui` 的 `status` 仍是 `online`。（这也是 DESIGN §10 第 6 项里
      "`NewUserConn` deny 时控制连接是否保持"的答案，⑥直接引用这里的结果。）
 3. （可选）**出错时的行为**：`w0modes '{"NewUserConn":"error500"}'`，再开一个无痕窗口试一次，
@@ -1166,7 +1172,7 @@ frps 日志的时间戳），frpc 的日志只用来看发生了什么。
     （预计约 2、4、8、16 秒，之后稳定在 20 秒左右）；frps 每次对应一条 `register control error: ...`；
   - 探针里是不是只剩 `Login` 计数在涨；
   - 新开一个无痕窗口打开同一个地址：应该打不开（frps 上已经没有这个域名的路由）；
-  - `curl -s -u '<webServer.user>:<webServer.password>' http://127.0.0.1:7500/api/proxy/https`：
+  - `curl --config /path/to/private-curl.conf --silent http://127.0.0.1:7500/api/proxy/https`：
     `opnsense-webui` 应为 `offline`，或者已经不在列表里。
 - `NewUserConn` 不用写：设备不在线时，没有用户连接能走到这个钩子。
 

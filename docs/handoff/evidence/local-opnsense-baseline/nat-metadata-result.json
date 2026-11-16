@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "result": {
+    "WAN_only_existing_NAT_verified": true,
+    "LAN_link_remained_down": true,
+    "official_HTTPS_and_fingerprint_repository_verified": true,
+    "outbound_TLS_verified": true,
+    "metadata_refresh_requests": 1,
+    "metadata_refresh_completed": true,
+    "upgrade_dry_run_exit_code": 1,
+    "upgrade_plan_accepted": false,
+    "package_upgrade_requests": 0,
+    "installed_package_inventory_unchanged": true,
+    "private_password_absent_from_serial_output": true,
+    "host_default_network_definition_unchanged": true,
+    "public_forward_or_host_firewall_changed": false,
+    "gracefully_powered_off": true,
+    "shutdown_delivery_observed": true,
+    "NetHub_native_public_or_release_accepted": false,
+    "scope": "Owned NAT/outbound TLS and signed metadata inspection only. Nonzero upgrade preview remains unaccepted. No package upgrade, NetHub installation or public ingress acceptance."
+  },
+  "observed_upgrade_candidate_count": 95,
+  "observed_new_packages": 3,
+  "observed_upgrades": 92,
+  "original_nonzero_preview_retained": true,
+  "metadata_operation_replayed": false,
+  "guest_shutdown_delivery_observation_refusal_retained": true
+}

@@ -1,0 +1,43 @@
+{
+  "source_head": "6d73b5b7a5c66c4d2440ad70111915ff43edefad",
+  "checks": {
+    "preparation": {
+      "run": 43879903443,
+      "artifact": 14232082295,
+      "archive_digest": "sha256:47451edfa86848e630e7a0f64d6b954d622ca2d54794fdfc22683bcf2219be37",
+      "archive_verified": true,
+      "images": [
+        {
+          "name": "native-page.png",
+          "sha256": "d8783716280179eebc7cea00a5c381b39356625d57304647f7b5da41c7a745eb",
+          "identical_to_reviewed_678e5d2": false,
+          "changed_view_reviewed": true
+        },
+        {
+          "name": "native-mobile.png",
+          "sha256": "021fcdd3ddb6bcdd31ea53dd0d21dc210ce7b0cbc6f86aa30204c238311ed6cd",
+          "identical_to_reviewed_678e5d2": false,
+          "changed_view_reviewed": true
+        },
+        {
+          "name": "native-mobile-enrollment.png",
+          "sha256": "5a6c7d2ea40c20e4643d21276c6b376422fffcbcd5bb695bb60d00ecc870571c",
+          "identical_to_reviewed_678e5d2": true,
+          "changed_view_reviewed": false
+        },
+        {
+          "name": "native-mobile-rotation.png",
+          "sha256": "5a6c7d2ea40c20e4643d21276c6b376422fffcbcd5bb695bb60d00ecc870571c",
+          "identical_to_reviewed_678e5d2": true,
+          "changed_view_reviewed": false
+        }
+      ]
+    }
+  },
+  "integrated_native_or_release_accepted": false,
+  "visual_limitations": [
+    "Native fixed footer obscures underlying content in full-page captures; independently scrolled enrollment/rotation views remain separately scoped.",
+    "Mobile status preformatted text has horizontal overflow.",
+    "Unenrolled preparation does not prove actual failure delivery or migration."
+  ]
+}

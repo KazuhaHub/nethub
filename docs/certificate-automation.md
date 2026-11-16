@@ -277,6 +277,9 @@ Spread renewal schedules and retain actionable expiry/failure status for offline
 devices. HTTP-01 and protected account provisioning are implemented; see the
 [account procedure](../server/internal/guiacme/PROVISIONING.md) and
 [host worker boundary](../server/internal/guiissuer/HOST.md). DNS-provider
-integration remains an optional future fallback. Full protected-host restoration
-with resumed automation and durable off-host custody are still unaccepted; an
+integration remains an optional future fallback. The later
+[isolated protected-host recovery](../deploy/validation-protected-host-cold-recovery.md)
+restored issuer/account/publisher state and resumed the original request through
+native issuance/application. Public operator recovery, real renewal-clock behavior
+and independently durable encrypted off-host custody remain unaccepted. An
 account-namespace restore alone does not close those requirements.

@@ -22,8 +22,11 @@ Implement the scope already described in DESIGN sections 1 and 6:
   outside v1. Console authentication does not replace the device's own login.
 
 Already confirmed: source-IP grants last 30 minutes and renew only on explicit
-Open; heartbeat-based revocation uses 10s/30s and rejects Ping/Login/NewProxy;
-keep browser port 8443 and both device hostname security checks enabled.
+Open; keep browser port 8443 and both device hostname security checks enabled.
+The original W3 heartbeat profile was 10s/30s. The later owner-retained
+five-second revocation target uses the current 1s/3s profile; see
+[the current deadline and migration record](w5-revocation-deadline.md).
+The older profile remains a migration/rollback fixture, not a new-deployment setting.
 
 ## D11: database and process permissions
 

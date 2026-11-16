@@ -386,7 +386,7 @@ Homebrew 默认不放进 PATH，装完按它最后打印的提示，把对应的
 ```bash
 git --version
 gh --version
-go version            # 要求 go1.26.x；版本不对就装对应版本
+go version            # 当前编译器固定为 go1.26.11；与 server/.go-version 一致
 node -v               # 用 Node.js 当前的 LTS 版本
 npm -v
 python3.13 --version  # 要求 3.13.x
@@ -971,9 +971,11 @@ os-frp 那边也要有一个 `FRP_VERSION` 文件，那是 Kazuha 的仓库，�
   metadatas.device_id = "{{ OPNsense.NetHubAgent.device_id }}"
   metadatas.domain_claim = "{{ OPNsense.NetHubAgent.domain_claim }}"
   transport.tls.enable = true
+  transport.tls.trustedCaFile = "/usr/local/etc/nethub-agent/relay-ca.pem"
+  transport.tls.serverName = "{{ OPNsense.NetHubAgent.server_name }}"
 
   [[proxies]]
-  name = "nethub-webgui"
+  name = "nethub-{{ OPNsense.NetHubAgent.device_id }}-web"
   type = "https"
   localIP = "127.0.0.1"
   localPort = {{ system.webgui.port|default('443', true) }}
@@ -1115,7 +1117,7 @@ Native checks completed 2026-10-18; see [evidence and limits](../agents/opnsense
 
 | 方面 | 选择 | 状态 |
 |---|---|---|
-| Go 版本 | 1.26.x（与组织其他 Go 仓库同一条线） | 已定 |
+| Go 编译器 | 1.26.11（以 `server/.go-version` 和镜像构建 pin 为准；`go.mod` 的语言版本另计） | 已定 |
 | 模块位置和路径 | `server/`，`github.com/KazuhaHub/nethub/server` | 已定 |
 | HTTP | 标准库 `net/http`（Go 1.22 起支持按方法和路径路由） | 建议 |
 | 命令行子命令 | 标准库 `flag`，自己分发 `web` / `authz` / `migrate` / `init` / `doctor` | 建议【D16】 |
@@ -1188,8 +1190,8 @@ deployment and isolated SQL harness do not publish PostgreSQL host ports.
   owns the mounted files before dropping root privileges. The earlier psql -v
   password example is superseded by the confirmed D11 input/file requirement.
 
-- **这个目录里的脚本只在数据卷为空、第一次初始化时运行。** 改了脚本要重新测，就先删掉开发库的数据卷。
-- 这样做，Postgres 容器在初始化时要拿到全部四个角色的密码，和决策 #21"每个容器只拿自己的密钥"有出入，列在【D11】里请 Kazuha 确认。
+- **这个目录里的脚本只在数据卷为空、第一次初始化时运行。** 修改后用新的、明确归本次测试所有的一次性项目和空卷重测；先核对项目、卷归属和保留需求，不删除已有或他人的数据卷。
+- 【D11】已确认 PostgreSQL 初始化可读取四个角色及 bootstrap 超级用户密码的明确例外；web/authz/migrate/backup 仍只接收各自凭据，CA 私钥和声明签名密钥不进入数据库容器。参见[已确认的数据库边界](w3-decisions.md#d11-database-and-process-permissions)，不重新请求已给出的决定。
 
 **迁移本身（以 `nethub_owner` 运行，`nethub migrate`）：**
 
@@ -1540,7 +1542,7 @@ The configuration writer and private temporary-file handoff were confirmed by Ka
 **W4-8 unenroll 和 status。**
 协议里的这两条消息也在本阶段做完（`proto/README.md`）：
 
-- `agentctl.py unenroll`：停服务、清空凭证字段（同样由 PHP 写配置），通知 authz。authz 把设备标为撤销，释放子域名，写审计记录。
+- `agentctl.py unenroll`：先停服务并确认 authz 已撤销，再由 PHP 通过原生模型清理本地凭证。未确认的请求保留原身份及事务记录，按原操作恢复，不能因观察超时创建新操作。authz 保留原设备及审计历史，并通过只约束未撤销设备的唯一索引释放路由名；后续分配仍需新设备身份和有效声明。当前实现和故障恢复顺序见[移除协议](../proto/README.md)及[设备生命周期](../server/internal/device/README-lifecycle.md)。
 - `status`：agent 定时（以及页面上手动）把状态报给 authz，内容只有服务状态、版本、上次 reconcile 结果这类健康信息，**不包含设备配置**。
   authz 更新 `devices` 里对应的展示字段。
 

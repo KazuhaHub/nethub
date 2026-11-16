@@ -206,7 +206,7 @@ def verify_local_load(root=ROOT):
     print('Verified local SQL/load record and exact source hashes; no online-fleet, native or public acceptance.')
 
 
-def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage):
+def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage, filesystem_cases=252):
     directory = root / ('docs/handoff/evidence/ubuntu-' + head[:7])
     index = json.loads((directory / 'index.json').read_text())
     assert index['source_head'] == head and index['version'] == 1
@@ -276,6 +276,44 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage)
         assert {'source': 'relay_fleet', 'line': 133} in deployment['compose_setup']['locations']
         with zipfile.ZipFile(directory / 'native/original.zip') as archive:
             assert archive.namelist() == ['deployment-result.json']
+    elif failure_stage in ('package_route_boundary', 'package_route_missing'):
+        native = read('native', 'native/result.json')
+        assert native['source_head'] == head and native['passed'] is False
+        expected_failure = {'package_route_boundary': 'native_package_boundary_route',
+                            'package_route_missing': 'native_package_boundary_route_missing'}[failure_stage]
+        assert native['failure'] == 'native package snapshot failed: fixture_' + expected_failure
+        assert native['read_only_inspection_recoveries'] == []
+        assert native['guest_diagnostic']['guest_exit_status_after_cleanup'] == 0
+        assert deployment['compose_setup']['phase'] == 'native_guest'
+        assert deployment['compose_tail'] is None
+        assert read('native', 'native/installed-wan-recovery.json')['passed'] is True
+        assert read('native', 'native/guest-console-after-wan-probe.json')['passed'] is True
+        with zipfile.ZipFile(directory / 'native/original.zip') as archive:
+            page = read('native', 'native/installed-enroll-page.json')
+            assert page['passed'] is page['actual_native_write_API'] is True
+            for name, digest in page['screenshots'].items():
+                assert hashlib.sha256(archive.read('native/' + name)).hexdigest() == digest
+    elif failure_stage == 'wan_identity_observation':
+        native = read('native', 'native/result.json')
+        wan = read('native', 'native/installed-wan-recovery.json')
+        settling = read('native', 'native/installed-wan-settling.json')
+        assert native['source_head'] == head and native['passed'] is False
+        assert native['failure'] == 'Native WAN recovery failed at identity'
+        assert native['guest_diagnostic']['guest_exit_status_after_cleanup'] == 0
+        assert deployment['compose_setup']['phase'] == 'native_guest' and deployment['compose_tail'] is None
+        assert wan['passed'] is False and wan['phase'] == 'identity' and wan['failure_reason'] == 'guest_operation'
+        assert wan['restore_attempted'] is wan['restore_succeeded'] is True
+        assert wan['manual_agent_start_or_reconcile'] is wan['production_WAN_or_public_network_acceptance'] is wan['full_W5_acceptance'] is False
+        assert 0 < wan['change_ms'] <= 60000 and 0 < wan['restore_ms'] <= 60000
+        assert settling['passed'] is False and settling['phase'] == 'observation'
+        assert settling['samples'] == 6 and settling['missing_route_samples'] == 1
+        assert settling['read_only_observation'] is True and settling['network_or_package_operation_replayed'] is False
+        with zipfile.ZipFile(directory / 'native/original.zip') as archive:
+            assert 'native/installed-reconcile-audit.json' not in archive.namelist()
+            assert 'native/guest-console-after-wan-probe.json' not in archive.namelist()
+            page = read('native', 'native/installed-enroll-page.json')
+            for name, digest in page['screenshots'].items():
+                assert hashlib.sha256(archive.read('native/' + name)).hexdigest() == digest
     elif failure_stage == 'native_pass':
         verify_installed_success(root, directory, head, index, deployment, read)
     else:
@@ -316,7 +354,7 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage)
         assert group['exit_code'] == 0 and group['nonpassing_cases'] == []
         native_cases.update(group['native_cases_passed'])
     assert native_cases == settings['REQUIRED_NATIVE_CASES']
-    assert sum(g['passed'] for g in receipt['groups'].values()) == 252
+    assert sum(g['passed'] for g in receipt['groups'].values()) == filesystem_cases
     for name, digest in manifest['files'].items():
         assert hashlib.sha256(subprocess.check_output(['git', '-C', str(root), 'show', head + ':' + name])).hexdigest() == digest
     images = list((directory / 'CI').glob('*.png'))
@@ -326,6 +364,97 @@ def verify_runtime_checkpoint(root, head, expected, source_count, failure_stage)
     assert index['required_image_review'] == {'images': 13, 'identical_to_reviewed_870eb57': 6, 'changed_views_reviewed': 7}
     outcome = 'scoped installed success; earlier failures remain failed' if failure_stage == 'native_pass' else failure_stage + ' failure remains failed'
     print(f'Verified {len(names)} checkpoint files for {head[:7]}, five exact-source runs and {source_count} source blobs; {outcome}.')
+
+
+def verify_audit_preparation_checkpoint(root=ROOT):
+    """Validate only the two terminal stages; require no invented native result."""
+    head = '6d73b5b7a5c66c4d2440ad70111915ff43edefad'
+    directory = root / 'docs/handoff/evidence/ubuntu-6d73b5b-preparation'
+    index = json.loads((directory / 'index.json').read_text())
+    assert index['version'] == 1 and index['source_head'] == head
+    assert index['installed_failure_delivery_accepted'] is index['native_upgrade_cause_proven'] is index['full_project_complete'] is False
+    paths = set()
+    for item in index['files']:
+        assert item['path'] not in paths
+        paths.add(item['path'])
+        raw = checked_path(directory, item['path']).read_bytes()
+        assert 0 < len(raw) == item['bytes'] <= 16 * 1024**2
+        assert hashlib.sha256(raw).hexdigest() == item['sha256']
+    assert len(paths) == 11
+    expected = {'filesystem': (43879903098, '.github/workflows/native-contracts.yml'),
+                'preparation': (43879903443, '.github/workflows/native-appliance.yml')}
+    assert len(index['runs']) == 2 and {row['kind'] for row in index['runs']} == set(expected)
+    contents = {}
+    for row in index['runs']:
+        kind = row['kind']
+        origin = json.loads((directory / kind / 'run-origin.json').read_text())
+        metadata = json.loads((directory / kind / 'run.json').read_text())
+        assert row['run_id'] == origin['id'] == expected[kind][0] and row['attempt'] == origin['run_attempt'] == 1
+        assert row['source_head'] == origin['head_sha'] == metadata['headSha'] == head
+        assert row['conclusion'] == origin['conclusion'] == metadata['conclusion'] == 'success'
+        assert origin['status'] == metadata['status'] == 'completed' and origin['path'] == expected[kind][1]
+        assert len(metadata['jobs']) == 1 and metadata['jobs'][0]['conclusion'] == 'success'
+        assert re.fullmatch('[a-f0-9]{64}', row['decoded_log_sha256'])
+        artifacts = json.loads((directory / kind / 'artifacts.json').read_text())['artifacts']
+        assert len(artifacts) == 1
+        artifact, retained = artifacts[0], row['artifact']
+        assert artifact['id'] == retained['id'] and artifact['digest'] == retained['digest']
+        raw = checked_path(directory, retained['path']).read_bytes()
+        assert len(raw) == retained['bytes'] == artifact['size_in_bytes']
+        assert 'sha256:' + hashlib.sha256(raw).hexdigest() == retained['digest']
+        with zipfile.ZipFile(directory / retained['path']) as archive:
+            names = archive.namelist()
+            assert len(names) == len(set(names)) and sum(v.file_size for v in archive.infolist()) <= 16 * 1024**2
+            assert all(not Path(name).is_absolute() and '..' not in Path(name).parts and '\\' not in name for name in names)
+            contents[kind] = {name: archive.read(name) for name in names}
+    files = contents['filesystem']
+    manifest, receipt = json.loads(files['source.json']), json.loads(files['result.json'])
+    assert manifest['source_head'] == receipt['source_head'] == head and len(manifest['files']) == 280
+    assert receipt['manifest_sha'] == hashlib.sha256(files['source.json']).hexdigest()
+    settings = {}
+    source = subprocess.check_output(['git', '-C', str(root), 'show', head + ':agents/opnsense/native_contracts.py'])
+    for node in ast.parse(source).body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            if node.targets[0].id in ('GROUPS', 'REQUIRED_NATIVE_CASES'):
+                settings[node.targets[0].id] = ast.literal_eval(node.value)
+    assert receipt['passed'] is receipt['source_unchanged'] is True
+    assert receipt['installed_opnsense_acceptance'] is receipt['frpc_installed_and_retested'] is False
+    assert receipt['system'] == 'FreeBSD' and receipt['release'].startswith('15.1-') and receipt['uid'] == 0
+    assert set(receipt['groups']) == set(settings['GROUPS'])
+    cases = set()
+    for name, group in receipt['groups'].items():
+        assert group['tests'] == group['passed'] >= settings['GROUPS'][name][0]
+        assert group['exit_code'] == 0 and group['nonpassing_cases'] == []
+        cases.update(group['native_cases_passed'])
+    assert cases == settings['REQUIRED_NATIVE_CASES'] and sum(v['passed'] for v in receipt['groups'].values()) == 354
+    for name, digest in manifest['files'].items():
+        assert hashlib.sha256(subprocess.check_output(['git', '-C', str(root), 'show', head + ':' + name])).hexdigest() == digest
+    preparation = json.loads(contents['preparation']['result.json'])
+    page = json.loads(contents['preparation']['page.json'])
+    assert preparation['source_head'] == head and preparation['passed'] is True and preparation['phase'] == 'completed'
+    assert preparation['unsigned_package_installed'] is True and preparation['page'] == page
+    assert page['passed'] is page['actual_installed_OPNsense_page'] is True
+    assert page['public_TLS_or_enrolled_rotation_acceptance'] is False
+    assert all(preparation[key] is False for key in ('full_rotation_acceptance', 'formal_release', 'public_network_acceptance', 'full_goal_complete'))
+    assert preparation['image']['signature_verified'] is True
+    assert preparation['installed']['frpc_compiler'] == 'go1.26.11' and preparation['installed']['frp_version'] == '0.71.1'
+    assert preparation['guest_diagnostic']['guest_exit_status_after_cleanup'] == 0
+    archive = subprocess.check_output(['git', '-C', str(root), '-c', 'core.autocrlf=false', 'archive', '--format=tar', head])
+    assert hashlib.sha256(archive).hexdigest() == preparation['source_archive_sha256']
+    assert len(page['screenshots']) == 4
+    for name, digest in page['screenshots'].items():
+        assert hashlib.sha256(contents['preparation'][name]).hexdigest() == digest
+    visual = json.loads((directory / 'preparation-checks.json').read_text())
+    views = visual['checks']['preparation']['images']
+    assert len(views) == 4 and sum(v['identical_to_reviewed_678e5d2'] for v in views) == 2
+    assert sum(v['changed_view_reviewed'] for v in views) == 2
+    assert all(v['identical_to_reviewed_678e5d2'] or v['changed_view_reviewed'] for v in views)
+    for view in views:
+        assert view['sha256'] == page['screenshots'][view['name']] and 'path' not in view
+    local = json.loads((directory / 'local-checks.json').read_text())
+    assert local['source_head'] == head and local['host_portable_helper_accepted'] is local['actual_installed_failure_delivery_or_full_goal_accepted'] is False
+    assert local['full_PHP_Node_Python_suite']['passed'] == 1390 and local['full_PHP_Node_Python_suite']['explicit_environment_or_privilege_skips'] == 18
+    print('Verified 11 closed 6d73b5b preparation records, 354 FreeBSD cases and 280 source blobs; actual installed audit and upgrade remain unaccepted.')
 
 
 def verify_installed_success(root, directory, head, index, deployment, read):
@@ -503,6 +632,105 @@ def verify_external_tcp_report(root=ROOT):
     print('Verified strict TCP report correction, retained mismatch/403 refusals and owned-port negative sample; positive/public-release scope remains open.')
 
 
+def verify_local_opnsense_baseline():
+    value = json.loads((ROOT / 'docs/handoff/evidence/local-opnsense-baseline/result.json').read_text())
+    assert value['version'] == 1
+    assert value['verification_source_head'] == 'f98e8ceba3b85c485a3f63b76054430eb59be22e'
+    assert value['verification_source_path'] == 'agents/opnsense/acceptance/guest.py'
+    source = subprocess.check_output(['git', '-C', str(ROOT), 'show',
+        value['verification_source_head'] + ':' + value['verification_source_path']])
+    assert hashlib.sha256(source).hexdigest() == value['verification_source_sha256']
+    image, baseline = value['image'], value['baseline']
+    assert image['signature_verified'] is True
+    assert image['compressed_sha256'] == '28d5e2f37e40d87468a924e3006ef10e2ddc6de485b85333d9e3958c84d0cb9d'
+    assert image['raw_sha256'] == 'c376b498338e9e0ddd785ac447f933e940f7d556810779475eecef30d37fcb98'
+    assert re.fullmatch('[a-f0-9]{64}', image['converted_disk_sha256'])
+    assert baseline['guest_system'] == 'FreeBSD' and baseline['guest_version'] == 'OPNsense 26.7 (amd64)'
+    assert baseline['memory_MiB'] == 3072 and baseline['vCPU'] == 2
+    for key in ('official_image_signature_verified', 'disk_transfer_hash_verified',
+                'independent_serial_console_boot_verified', 'both_network_links_disconnected', 'gracefully_powered_off'):
+        assert baseline[key] is True
+    for key in ('public_ports_exposed', 'host_network_definition_changed',
+                'installed_NetHub_or_native_migration_or_release_accepted'):
+        assert baseline[key] is False
+    assert value['earlier_readback_wrapper_refusals_retained'] == 3 and value['host_start_requests'] == 1
+    for key in ('guest_pkg_install_or_SQL_replay', 'host_sudo_or_firewall_or_default_network_change',
+                'hosted_acceptance_guard_changed_or_forged', 'public_mobile_independent_operator_or_release_accepted'):
+        assert value[key] is False
+    auth = json.loads((ROOT / 'docs/handoff/evidence/local-opnsense-baseline/private-auth-result.json').read_text())
+    assert auth['version'] == 1
+    assert auth['source']['repository'] == 'opnsense/core' and auth['source']['tag'] == '26.7'
+    assert auth['source']['path'] == 'src/opnsense/scripts/shell/password.php'
+    assert re.fullmatch('[a-f0-9]{40}', auth['source']['commit'])
+    assert re.fullmatch('[a-f0-9]{64}', auth['source']['sha256'])
+    result = auth['result']
+    assert result['password_change_requests'] == 1
+    for key in ('stock_native_password_source_verified', 'unrelated_configuration_preserved',
+                'factory_password_refused', 'fresh_private_password_login_verified',
+                'password_absent_from_serial_output', 'private_credential_outside_repository',
+                'both_network_links_disconnected', 'native_WAN_DHCP_and_interface_roles_verified',
+                'gracefully_powered_off'):
+        assert result[key] is True
+    assert result['host_firewall_network_or_public_forward_changed'] is False
+    assert result['NetHub_or_native_migration_or_release_accepted'] is False
+    nat = json.loads((ROOT / 'docs/handoff/evidence/local-opnsense-baseline/nat-metadata-result.json').read_text())
+    assert nat['version'] == 1
+    assert (nat['observed_upgrade_candidate_count'], nat['observed_new_packages'], nat['observed_upgrades']) == (95, 3, 92)
+    assert nat['original_nonzero_preview_retained'] is True
+    assert nat['metadata_operation_replayed'] is False
+    assert nat['guest_shutdown_delivery_observation_refusal_retained'] is True
+    result = nat['result']
+    assert result['metadata_refresh_requests'] == 1 and result['package_upgrade_requests'] == 0
+    assert result['upgrade_dry_run_exit_code'] == 1 and result['upgrade_plan_accepted'] is False
+    for key in ('WAN_only_existing_NAT_verified', 'LAN_link_remained_down',
+                'official_HTTPS_and_fingerprint_repository_verified', 'outbound_TLS_verified',
+                'metadata_refresh_completed', 'installed_package_inventory_unchanged',
+                'private_password_absent_from_serial_output', 'host_default_network_definition_unchanged',
+                'gracefully_powered_off', 'shutdown_delivery_observed'):
+        assert result[key] is True
+    assert result['public_forward_or_host_firewall_changed'] is False
+    assert result['NetHub_native_public_or_release_accepted'] is False
+    firmware = json.loads((ROOT / 'docs/handoff/evidence/local-opnsense-baseline/firmware-result.json').read_text())
+    assert firmware['version'] == 1
+    assert firmware['source']['repository'] == 'opnsense/core'
+    assert firmware['source']['tag'] == '26.7'
+    assert firmware['source']['commit'] == '821598263289e177b40971600f06f5a91d9faef3'
+    entries = firmware['source']['entry_sha256']
+    assert set(entries) == {'shell-firmware.sh', 'firmware-update.sh', 'firmware-launcher.sh', 'rc.firmware', 'rc.firmware.subr', 'config.sh'}
+    assert all(re.fullmatch('[a-f0-9]{64}', digest) for digest in entries.values())
+    assert firmware['original_nonzero_metadata_preview_retained'] is True
+    result = firmware['result']
+    assert result['firmware_update_requests'] == 1 and result['manual_pkg_upgrade_requests'] == 0
+    assert result['package_version'] == '26.7.9_1'
+    assert result['running_installed_kernel_and_userland'] == '15.1-RELEASE-p6'
+    for key in ('offline_recovery_clone_verified', 'six_official_stock_entry_hashes_verified',
+                'official_HTTPS_fingerprint_repository_verified', 'minor_only',
+                'stock_base_and_kernel_install_completion_observed', 'package_dependency_check_passed',
+                'GUI_security_checks_enabled', 'console_observation_timeout_retained',
+                'one_console_return_requested', 'broad_OK_match_correction_retained',
+                'stock_wrapper_exit_unavailable_after_reboot', 'gracefully_powered_off',
+                'host_default_network_unchanged'):
+        assert result[key] is True
+    assert result['host_firewall_or_public_forward_changed'] is False
+    assert result['NetHub_installation_native_or_public_or_release_accepted'] is False
+    print('Verified local appliance preparation and retained nonzero upgrade preview; no installed NetHub, native migration or release acceptance.')
+
+
+def verify_semantic_review(root=ROOT):
+    value = json.loads((root / 'docs/handoff/evidence/semantic-review-109aab5.json').read_text())
+    assert value['source_head'] == '109aab5063dc056f794ef2c98f8ba2d6ca0717a9'
+    assert value['all_documents_reviewed'] is value['actual_public_renewal_accepted'] is False
+    assert len(value['files']) == len({row['path'] for row in value['files']}) == 165
+    assert value['source_markdown_inventory_read'] is True
+    inventory = subprocess.check_output(['git', '-C', str(root), 'ls-tree', '-r', '--name-only', value['source_head']], text=True).splitlines()
+    assert {path for path in inventory if path.endswith('.md')} == {row['path'] for row in value['files']}
+    for row in value['files']:
+        assert row['path'].endswith('.md') and not Path(row['path']).is_absolute() and '..' not in Path(row['path']).parts
+        raw = subprocess.check_output(['git', '-C', str(root), 'show', value['source_head'] + ':' + row['path']])
+        assert hashlib.sha256(raw).hexdigest() == row['sha256']
+    print('Verified reading receipts for all 165 frozen-source Markdown files; current-source conformance, external references, translations, public renewal and independent deployment remain open.')
+
+
 if __name__ == '__main__':
     verify()
     verify_preflight()
@@ -525,3 +753,27 @@ if __name__ == '__main__':
          'preparation': 43783251640, 'filesystem': 43783251552}, 258, 'native_pass')
 
     verify_external_tcp_report()
+
+    verify_runtime_checkpoint(ROOT, '16708e35443fbbe93344bd897f8d5ab3ef6749d0',
+        {'CI': 43791395178, 'native': 43799096360, 'cold': 43799098898,
+         'preparation': 43791538230, 'filesystem': 43791394959}, 258, 'native_pass')
+
+    verify_runtime_checkpoint(ROOT, '109aab5063dc056f794ef2c98f8ba2d6ca0717a9',
+        {'CI': 43801873400, 'native': 43801873221, 'cold': 43805004536,
+         'preparation': 43802001135, 'filesystem': 43801873348}, 258, 'package_route_boundary')
+
+    verify_runtime_checkpoint(ROOT, 'f98e8ceba3b85c485a3f63b76054430eb59be22e',
+        {'CI': 43807300109, 'native': 43807300105, 'cold': 43807300172,
+         'preparation': 43807300124, 'filesystem': 43807300031}, 258, 'native_pass')
+
+    verify_runtime_checkpoint(ROOT, 'c5a7060e4b93c473ba3ec3c96ba748d139c0fb04',
+        {'CI': 43838772887, 'native': 43838772910, 'cold': 43866630164,
+         'preparation': 43838914087, 'filesystem': 43838773114}, 269, 'package_route_missing', filesystem_cases=302)
+
+    verify_local_opnsense_baseline()
+    verify_semantic_review()
+    verify_audit_preparation_checkpoint()
+
+    verify_runtime_checkpoint(ROOT, '6d73b5b7a5c66c4d2440ad70111915ff43edefad',
+        {'CI': 43879902882, 'native': 43879902944, 'cold': 43879903455,
+         'preparation': 43879903443, 'filesystem': 43879903098}, 280, 'wan_identity_observation', filesystem_cases=354)

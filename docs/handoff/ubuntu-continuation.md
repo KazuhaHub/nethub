@@ -308,8 +308,27 @@ FreeBSD `43791394959` (252 cases / 258 blobs), preparation `43791538230` and
 isolated cold recovery `43799098898`. Cold archive digest, source operation and
 cleanup validators, both image hashes and the changed view were checked:
 baseline route recovery 108774 ms, original-request issuance/native acknowledgement
-156059 ms from source stop. Installed `43799096360` remains in progress at this
-checkpoint; neither the parent's native result nor these other gates accepts it.
+156059 ms from source stop. Installed `43799096360` subsequently completed successfully. The
+[complete source-bound checkpoint](evidence/ubuntu-16708e3/index.json) retains
+34 closed files, official archive digests and all five exact-source run identities.
+All ten package phases, eight invariant flags, legacy/current steady windows,
+original witness process, source grants and other five services passed. Legacy and
+current steady windows were 37307/11475 ms. Normal console-confirmation-to-native
+proxy cutoff was 1225 ms; fresh verified TLS refusal, independent original
+control/TLS retention and a 30081-ms no-reconnect observation passed. WAN change
+and restoration measured 3458/4456 ms in the hosted fixture. Normal/interrupted
+Rotate, trust conflicts and committed replay, shared-token recovery, six-service
+restoration, normal native Remove, complete Compose tail and owned cleanup passed.
+Fourteen image hashes and nine distinct views were checked. One read-only
+`inspection_preflight` SSH timeout recovered the owned listener and completed its
+read in 10379 ms; no package or SQL mutation was replayed.
+
+This qualifies only that source's isolated integrated-native scope. The historical
+`a29` failed comparison remains unidentified, its earlier failed runs stay failed,
+and neither this result nor the real TCP negative qualifies changed source
+`898c3e0` or consolidated candidate `109aab5`. Their exact-source gates remain
+separate; public/mobile, formally published package, independent operator,
+renewal/custody, signing and canary requirements remain open.
 
 The first real compiled doctor call refused the provider's extended report before
 interpreting any closed port. A separate Python diagnostic received HTTP 403;
@@ -362,6 +381,23 @@ a successful local suite. Host package installation needs the owner under the
 shared-server rules. Continue other read-only, container and hosted work while
 that prerequisite is skipped; do not remove the admission check.
 
+A further partial semantic review of 57 component/deployment/acceptance guides is retained
+in the [source-bound review inventory](evidence/semantic-review-109aab5.json).
+It covers device admission/lifecycle/rotation, durable CSR and issuer roles,
+ACME account/order/challenge/finalization/renewal, protected issuer work and relay
+authority/trust/maintenance/probes/state/token boundaries, plus initializer and
+console entry points, certificate automation, the detailed installed/cold-recovery
+histories, database foundation records, bilingual entry points, SAML dependency
+and admission, the complete console API/deployment/deadline guidance, image-build
+notes and additional historical W5 validation. The image notes now identify older
+Alpine 3.23 links as historical context rather than the current Caddy base's
+repository branch; no dependency/image pin changed. The certificate overview now links the
+merged isolated protected-host recovery while retaining public/operator,
+renewal-clock and durable-custody gaps. It does not complete every document, external-reference
+verification or independent ten-minute deployment. The quickstart now passes the
+operator's selected `--network-subnet` in both initialization examples; otherwise
+the CLI silently uses its documented default despite that selection instruction.
+
 ## Temporarily skipped owner-dependent actions
 
 | Requirement | Missing input or participation | Resume condition |
@@ -381,9 +417,347 @@ material. No old Windows file is a prerequisite for source checks or hosted gues
 
 ## Scope retained
 
+### Own local appliance baseline
+
+An owned Ubuntu/libvirt test appliance now has a
+[closed baseline receipt](evidence/local-opnsense-baseline/result.json).
+The official Nano image's checksum, independently published signing key and
+signature were verified. The disk transferred into the default storage pool
+matched the converted source. The VM uses 3072 MiB and two vCPUs, with both
+network links disconnected during the initial baseline inspection. Its independent serial console returned FreeBSD and OPNsense 26.7
+(amd64), then the guest shut down normally. It is currently off, without
+autostart, public forwarding or a changed host network definition.
+
+Three early readback-wrapper refusals remain retained privately. Framed output
+collection completed on the existing boot; no package install, SQL mutation or
+second host start was replayed. This is base-image/console preparation only:
+firmware updates, private administration, NetHub installation and public/mobile
+qualification remain unaccepted. The hosted native/cold fixture guards remain
+unchanged and were not forged. This VM is an own test resource, not a separate
+human deployment participant or formal-package acceptance.
+
+A later [native credential preparation](evidence/local-opnsense-baseline/private-auth-result.json)
+checked the installed stock password script against exact upstream 26.7 source
+before invoking its stdin-only password operation once. All configuration apart
+from the intended root password/change timestamp and native revision metadata
+was preserved. A fresh console rejected the factory password and accepted the
+new private credential. No password appeared in serial output or repository
+material. The independent serial path remains available, both NICs were
+disconnected during this credential inspection and the VM shut down normally. WAN/DHCP/interface roles were read
+without enabling network access. This is not NetHub installation or migration
+acceptance, and the basic image still requires its separate firmware review.
+
+A subsequent [NAT metadata inspection](evidence/local-opnsense-baseline/nat-metadata-result.json)
+enabled only the owned VM's verified WAN interface on the existing libvirt NAT;
+its LAN link stayed down. The official HTTPS repository and fingerprint policy,
+verified outbound TLS and one metadata refresh passed. The upgrade preview
+reported 95 candidates (three new packages and 92 upgrades), then exited one;
+that original nonzero result remains unaccepted. No package upgrade was issued
+and the installed package inventory was unchanged. No metadata refresh was
+replayed. An initial shutdown-delivery observation failed; retaining the serial
+connection allowed graceful shutdown to be observed. The VM is off, with its
+WAN link configured for a future controlled boot. The host's default network
+definition, firewall and public forwarding remain unchanged. This is local
+resource preparation only, without NetHub or release acceptance.
+
+### Consolidated source 109aab5: failed native boundary, scoped cold success
+
+Source `109aab5063dc056f794ef2c98f8ba2d6ca0717a9` completed its five original
+runs. [The durable checkpoint](evidence/ubuntu-109aab5/index.json) retains 33
+closed files, original small ZIPs and run identities. CI `43801873400`, FreeBSD
+`43801873348` (252 cases/258 source blobs), preparation `43802001135` and cold
+recovery `43805004536` passed within their scopes. The 13 required producer
+views were accounted for: six identical to reviewed pixels and seven changed
+views inspected. Preparation's two changed views and cold enrollment were also
+inspected; their other required views matched already reviewed images.
+
+Installed run `43801873221` **failed before package migration**. WAN recovery
+and the post-WAN console HTTPS probe passed; the first package snapshot refused
+`fixture_native_package_boundary_route`. No migration report was produced.
+The original artifact `14197983894` matched SHA256
+`a89b8918b644921b4c0db83178850326ab287efe8ec96555df6e0fc89910b5f1`.
+Guest cleanup exited zero and owned-image cleanup passed. The route subtype and
+original a29 upgrade cause remain unknown. PR #257 retains the route verifier's
+three fixed refusal categories without changing its assertions or adding repair
+or installation replay. It requires its own exact-source evidence.
+
+Cold recovery used this source's own producer artifact `14197299501`. Its
+original ZIP `14198501912` matched SHA256
+`70ab2a230730b18043f436f9e41504e58f145c853a95816a15015ca64664ab8c`.
+The baseline route recovered in 91,538 ms; the original initial request reached
+issuance/native application in 148,484 ms from source stop (159,244 ms from
+checkpoint start). Original identity, account, key, CSR, process and normal Open
+grant were retained, with no reenrollment, SQL-created grant or grant renewal.
+Normal Remove and cleanup passed. The changed enrollment image was inspected;
+the removal image matched an already reviewed view. This does not qualify the
+failed installed migration, public operator recovery, durable encrypted custody,
+real renewal clocks, formal packaging or the full project.
+
+### Semantic review: required system-event coverage gap
+
+The full DESIGN review retains its audit requirement for system actions,
+including reconcile failures (DESIGN section 9). At both frozen `109aab5` and
+integrated `f98e8ce`, `EnrollmentStore.ReportDevice` in
+`server/internal/store/device_lifecycle.go` updates the latest reconcile fields
+without appending a reconcile-failure audit. The current status wire also carries
+only the latest observation, not a durable event queue. Audit-chain verification
+proves integrity of recorded entries; it does not prove that every required
+system event was recorded. Existing scoped chain acceptance must not close this
+event-coverage gap.
+
+Implement retained, bounded, authenticated failure-event delivery and atomic,
+idempotent audit recording without publishing raw local diagnostics or secrets.
+Validate actual PostgreSQL role/tenant boundaries, concurrent/lost-reply retry,
+rollback on audit failure, offline backlog bounds and revoked-device behavior,
+then exercise the real agent/report path. Preserve local stop/watchdog ordering,
+existing protocol compatibility rules and the original acceptance scope. This
+work remains open; no silent design waiver or chain repair is authorized.
+
+### Integrated source f98e8ce: current isolated native checkpoint
+
+All five original runs for `f98e8ceba3b85c485a3f63b76054430eb59be22e`
+completed successfully. The [durable checkpoint](evidence/ubuntu-f98e8ce/index.json)
+retains 34 closed files: source-bound run metadata, original small ZIP archives,
+producer views and a native review receipt. CI `43807300109` produced its own
+image artifact `14200445139`; FreeBSD `43807300031` passed 252 cases with all
+258 source blobs verified, and preparation `43807300124` passed. The 13 producer
+views include six unchanged reviewed views and seven changed inspected views.
+
+Installed run `43807300105` passed all ten package phases and eight invariants,
+including unsigned 0.0.18 rollback, 37.643 seconds of legacy steady observation,
+upgrade to 0.0.19 and 11.566 seconds of current steady observation. Original
+identity, GUI, trust, source grants, witness process and unaffected services
+survived; the final current profile and original relay configuration were
+restored. No package or SQL mutation was replayed. One read-only preflight
+recovered the owned SSH listener after a connect timeout and completed in
+10,392 ms under the existing bounded policy.
+
+Normal console-confirmation-to-native-proxy cutoff took 1,120 ms, followed by
+fresh verified TLS refusal and 30,070 ms without reconnect. The independent
+original control and verified route survived. Normal/interrupted Rotate,
+publication conflict, committed replay, shared-token recovery, isolated host
+restore, normal Remove and the complete Compose tail passed. Guest exit was zero
+and owned-image cleanup passed. The original native ZIP artifact `14202205134`
+matched SHA256 `c799479747e66e2f417f6ef254fcff4dc338232adb3c56e7bc9f2b99da8a463c`.
+Fourteen native image hashes and nine distinct views were inspected; five
+success views share identical pixels. Known native footer clipping remains.
+
+Cold run `43807300172` used the same producer/source and passed original
+identity/account/key/CSR/process/grant checks, normal Remove and cleanup.
+Baseline route recovery took 126,965 ms; original-request issuance/native
+application took 159,912 ms from source stop, or 175,165 ms from checkpoint.
+The original cold ZIP artifact `14200891099` matched SHA256
+`ff02f444109bb0abd2cac6e84f23edf0f18ea8cd59e30db167ff18373e281a54`.
+Its changed enrollment view was inspected; removal matched reviewed pixels.
+
+This accepts the integrated source's isolated native migration and cold scope.
+It does not identify the historical a29 comparison or 109aab5 route subtype,
+relabel either failed run, or accept public/mobile/provider, durable custody,
+real renewal, independent deployment, formal packaging, signing or canary gates.
+The external TCP implementation and strict provider correction are included;
+the genuine all-port positive/late-port-negative samples and published-package
+agreement still require their own evidence.
+
 All 29 original requirements and their acceptance ranges remain open or scoped
 exactly as recorded until new evidence closes them. Keep the five-second revoke
 target, frp 0.71.1 alignment, Go 1.26.11, authcore reuse and the confirmed security
 boundaries. Native diagnosis precedes the external doctor integration; public,
 provider, formal-package, independent-deployment and canary gates follow their
 actual dependencies. Skipping an unavailable action never means accepting it.
+
+
+## Complete frozen plan reading and owned firmware preparation
+
+The semantic inventory now includes all 165 Markdown files at frozen source
+`109aab5`, including the complete 2205-line PLAN. This proves the bounded reading
+inventory, not current-source conformance, all external references, translation
+equivalence or the independent ten-minute operator flow. The PLAN follow-up fixes
+the illustrative tunnel CA/serverName and device-specific proxy name, names the
+pinned Go 1.26.11 compiler, uses a new owned disposable database project and
+corrects removal to confirm revocation before clearing native credentials. The
+revoked identity/history persist while the partial unique index releases its
+routing name; a later assignment still needs a new valid identity and claim. Historical versions and acceptance remain dated.
+
+The owned local OPNsense guest now has an offline recovery clone checked with
+qcow2 validation and logical disk comparison. Six installed stock firmware entry
+files matched official 26.7 source bytes; the enabled repository retained verified
+HTTPS and fingerprint signatures. A single stock stable update, with no major
+arguments or manual pkg upgrade, completed base/kernel installation and reboot.
+Fresh console inspection verified OPNsense 26.7.9_1 and running/installed kernel
+and userland 15.1-RELEASE-p6, package dependencies and enabled GUI security checks,
+then shut the guest down normally. The observation timeout, one console return,
+ambiguous OK matcher correction and missing wrapper exit after reboot are retained.
+The earlier nonzero metadata preview is still a separate unaccepted preview.
+The [closed firmware result](evidence/local-opnsense-baseline/firmware-result.json)
+contains no connection metadata or credentials. Host network/firewall and public
+forwarding were unchanged. This prepares a lab resource; it installs no NetHub
+package and accepts no native migration, public/mobile flow or formal release.
+
+
+## Reconcile-audit candidate: retained default-route failure
+
+Protocol/audit candidate `c5a7060e4b93c473ba3ec3c96ba748d139c0fb04` passed
+six-job CI `43838772887`, actual FreeBSD `43838773114` (302 cases/all 269 source
+blobs), fresh unsigned preparation `43838914087` and isolated protected-host cold
+recovery `43866630164`. The cold fixture recovered its original route by 109138 ms
+and original-request issuance/native confirmation by 152776 ms from source stop
+(166276 ms from checkpoint), with original identity/account/key/CSR/process/Open
+and owned cleanup. This is not real renewal-clock, off-host custody or public
+operator acceptance.
+
+Installed run `43838772910` failed before its first package snapshot with the
+closed diagnosis `native_package_boundary_route_missing`. Its earlier actual WAN
+change/restore passed at 4606/4097 ms, followed by a successful closed console
+probe. No rollback/upgrade or later rotation result exists. Same-source producer
+artifact 14213742917 was verified by the actual native consumer; the independent
+metadata check did not redownload the large image archive. Guest exit 0 and owned
+image cleanup passed. The fixed diagnosis identifies the failed prerequisite,
+not the actor that removed the route or the old a29 invariant-failure cause.
+
+The [closed checkpoint](evidence/ubuntu-c5a7060/index.json) retains four original
+small archives, original run metadata, complete-log hashes and selected bounded
+producer records. All required thirteen producer image hashes were checked; seven
+changed views were inspected and six matched already reviewed pixels. Preparation
+changes, the masked installed enrollment view and the changed cold view were
+inspected separately. Other fixture screenshot hashes were checked privately
+without claiming visual review. Earlier failures and cancelled sources remain
+separate. Neither this cold success nor the 1343-pass/18-explicit-skip isolated
+Python/PHP/Node suite proves current native migration or installed failure-event
+delivery.
+
+An owned non-NetHub guest then reproduced a later default-route gap with 100 ms
+sampling after one same-address reset/restoration. PR 259 adds a separate bounded
+read-only readiness window, preserves first-recovery timings and requires a new
+source-specific set of gates. It changes no package invariants or route boundary,
+performs no network/package replay and accepts no public/mobile/formal scope.
+All 29 original requirements remain; owner-dependent actions stay recorded above.
+
+
+## Audit visibility regression and prepared installed-event observation
+
+The candidate's existing decoder/UI tests did not cover the complete SQL
+projection. An actual PostgreSQL test using the Web runtime role failed against
+the unchanged `678e5d2` query: it omitted the four typed reconcile-event detail
+fields. The corrected narrow query passed the component test and the complete
+PostgreSQL harness at frozen `eecd02ab189a9aa057f4f4191205840e699b6443`.
+Ordinary count 1, exact int64 overflow count 9223372036854775807, microsecond
+device-reported intervals, exclusion of a large private payload field and no
+enrichment of unrelated actions were checked. PR 260 remains a draft. This is
+actual SQL component evidence, not installed failure-event or release acceptance.
+Earlier C5 green decoder/ingestion checks must not be represented as proof that
+its uncorrected console query exposed these details.
+
+PR 261 at `6d73b5b7a5c66c4d2440ad70111915ff43edefad` adds a nonce-bound installed
+failure fixture after the complete package migration and before credential
+rotation. It uses the original mutation lock, an admitted template, durable
+backup/intent and one actual installed CLI refusal; it restores original bytes
+before normal report delivery. Read-only SQL, normal console API, one exact
+authenticated replay and a fresh browser login must confirm retained history
+and typed details without duplicate audit. One explicit normal reconcile then
+requires unchanged live configuration. These two deliberate reconciles belong
+only to this separate case; the WAN/package observation restrictions remain.
+Uncertain actions are not replayed. The fake-controller tests also exposed and
+fixed an interrupted-arm restoration gap before the native path ran.
+
+The [partial durable checkpoint](evidence/ubuntu-6d73b5b-preparation/index.json)
+contains only two terminal stages, their original small ZIPs, original metadata,
+complete-log hashes and scoped local receipts. FreeBSD run
+[43879903098](https://github.com/KazuhaHub/nethub/actions/runs/43879903098)
+passed 354 actual cases against all 280 source blobs, including real lockf,
+interrupted-arm cleanup and both restoration/no-replay variants. Unsigned
+preparation [43879903443](https://github.com/KazuhaHub/nethub/actions/runs/43879903443)
+passed exact archive/binary/compiler/frp, signed guest image and cleanup checks.
+All four image hashes were verified; two changed views were inspected and two
+matched previously reviewed pixels. Fixed-footer overlap in full-page captures
+and mobile status horizontal overflow remain disclosed. The isolated local
+PHP/Node/Python suite passed 1390 checks with 18 explicit environment/privilege
+skips; the host portable helper still lacks host PHP.
+
+At this checkpoint, CI `43879902882`, native `43879902944` and cold recovery
+`43879903455` are still being observed and are not included as accepted results.
+The original a29 invariant-failure cause remains unproven. The read-only WAN
+barrier is not qualified by an unenrolled page or fake controller. The preceding
+`46fcc67` CI `43877178116` failed when an original reference control changed in
+the combined-fault preparation wait, before target creation, packet loss or
+SQL revocation. Native `43877178230` and cold `43877178146` refused that source's
+failed image producer and skipped execution. Their failures remain failures;
+client/cause diagnosis is still incomplete. All 29 original requirements,
+five-second revocation, pins and security boundaries remain. No complete W5/W7,
+formal bad canary, public/operator or production release is established.
+
+
+## Completed 6d73b5b observation and retained WAN failure
+
+All five original `6d73b5b` runs are now terminal. The
+[full scoped checkpoint](evidence/ubuntu-6d73b5b/index.json) retains four original
+small ZIPs, original run metadata, complete-log hashes, selected bounded CI
+records and thirteen required CI images. All thirteen image hashes were checked:
+seven changed views were inspected and six matched reviewed pixels. Other
+producer images were hash checked without claiming visual review. The earlier
+two-stage checkpoint above remains its original, narrower preparation record.
+
+Six-job CI `43879902882`, FreeBSD `43879903098` and unsigned preparation
+`43879903443` passed. Cold recovery `43879903455` passed its frozen-source
+operation/cleanup validators, exact producer binding and both image hashes/views.
+The original route recovered in 127472 ms and original issuance/native
+confirmation in 196261 ms from source stop (211712 ms from checkpoint).
+Original identity/account/key/CSR/process/Open were retained. The removed-page
+view remains cropped to its original viewport. These are isolated recovery
+measurements, not real renewal, public operator or durable off-host custody.
+
+Installed run `43879902944` **failed** while observing restored-WAN readiness.
+Its closed WAN record has phase `identity`, reason `guest_operation`, one change
+and one restoration attempt; first observed recovery timings were 2997/4755 ms.
+The extra read-only window failed at observation after six samples, including
+one missing-route sample. Restoration was observed, but full WAN acceptance was
+not established. No package-migration or actual reconcile-audit result exists.
+The original failure ZIP/source/image binding, masked enrollment view, guest
+exit 0 and owned image cleanup were checked. The record does not identify the
+exact failing callback or prove the original a29 invariant-failure cause.
+
+The separate SQL-projection source `eecd02ab` also passed six-job CI
+`43877634327`. Its installed run `43882792217` failed before creating a guest:
+the ten-client fleet steady window observed a changed dedicated original control
+with Pong-error and prior successful-Pong categories. Its exact error text and
+cause remain unproven. Separate cold recovery `43882798078` passed frozen-source
+operation/cleanup/image binding and reviewed image checks: baseline 92523 ms,
+original issuance/native 124531 ms from source stop (136268 ms from checkpoint).
+Each missing consumer was requested once after the exact six-job producer gate;
+neither failure was blindly rerun or changed to success.
+
+PR 261's follow-up `368a60d` retains every original assertion and deadline while
+separating witness process/control/TLS failures, fixed Pong reasons and recent
+bounded authz-service categories. Recent service observations do not identify
+a particular client. Local checks passed 91 targeted cases and a complete
+PHP/Node/Python plus related-server suite of 1413 cases, with 18 explicit skips,
+two CPUs and networking disabled. Its fresh workflows need their own evidence.
+All 29 original requirements and external-resource gaps remain; no current
+native upgrade, installed event delivery, complete W5/W7 or release is claimed.
+
+
+## Isolated logger race diagnostic; native cause still unproven
+
+A [bounded standalone reproducer](evidence/frp-0711-xlog-race/README.md) detected
+a concurrent logger prefix write/read race in the official checksummed frp
+0.71.1 module using Go 1.26.11. This intentionally overlaps calls to an API whose
+prefix operations are documented as not thread safe. It reproduces a library
+race, not an actual frpc exit or any NetHub native/package failure. The original
+a29 invariant-failure category and cause remain unproven. All three frp pins
+stay 0.71.1; no production code, deadlines or assertions changed.
+
+The current `368a60d` source separately passed exact-producer cold recovery
+`43958177729`, checked against its frozen operation/cleanup validators and
+original archive digest. Baseline route recovery was 108574 ms and original
+issuance/native recovery 169668 ms from source stop (181528 ms from checkpoint).
+Both screenshot hashes/views were checked; the removed view remains cropped at
+its original viewport. Its full installed sequence `43958179296` failed during WAN identity
+observation before package migration or the audit fixture. Its original closed
+record again reports only `guest_operation`: change/restore were first observed
+at 3120/4529 ms, followed by an 8458 ms failed settling observation with six
+samples and one missing-route sample. Recent Ping-device-denied was observed
+in bounded authz logs; this does not identify a client or establish the cause.
+The original failure archive and image binding were checked; owned image
+cleanup passed and the guest exited with status 0. Original-source diagnostic run `43961643610` at `9a80b44` is also still
+being observed; it cannot qualify the current protocol/audit implementation.
+Neither isolated cold recovery nor the logger diagnostic closes any of the 29
+requirements or proves public/mobile/formal-package/operator acceptance.

@@ -280,7 +280,7 @@ See [frp builds](../deploy/frp/README.md).
 | `enroll` with a private request-file path | The plugin form takes a separate HTTPS console origin and opaque token. agentctl reads and unlinks the checked 0600 request file, sends HTTPS to `/api/v1/devices/enroll`, validates bounded known response fields, and returns JSON. PHP validates the result again and saves through the OPNsense model/configuration lock before reconcile; Python never writes config.xml. Tokens and returned secrets never enter command arguments or logs. An existing DeviceId returns success without another enrollment request. Wire schemas are W4 work; see [confirmed choices](w4-decisions.md). |
 | `reconcile` | 先查 kill switch 文件（决策 #10）→ 渲染 `frpc.toml` 到临时文件 → `frpc verify` 通过才 `mv` + 按需 restart（决策 #13）；不通过则保留旧文件、写本地状态、**不重启**。WAN changes rely on reconnect and periodic reconcile; only the measured fallback uses a debounced hook (decision #17) |
 | `status` | rc.d 状态 + 本插件 frpc 日志的尾部 + 上次 reconcile 的结果/失败原因 + certificate expiry and verified deployment state (v1)，拼 JSON 给 GUI。**不启用 frpc 的 `[webServer]`**（原因见下方共存规则）；设备在不在线由控制面另行通过 `last_seen_at` 掌握 |
-| `unenroll` | 停服务、清空凭证字段、通知控制面注销 |
+| `unenroll` | 先停服务并确认控制面撤销，再通过原生模型清理本地凭证；未确认时保留原身份及事务状态供恢复 |
 | `rotate` | 拉一套新凭证/新中继地址，原地更新并 reconcile 一次，不需要重走带外流程（决策 #18） |
 
 ### 与 configd / MVC / rc.d 的关系

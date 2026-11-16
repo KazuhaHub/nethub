@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "source_head": "6d73b5b7a5c66c4d2440ad70111915ff43edefad",
+  "scope": "Only terminal FreeBSD/filesystem and unsigned preparation outcomes, plus scoped local checks",
+  "installed_failure_delivery_accepted": false,
+  "native_upgrade_cause_proven": false,
+  "full_project_complete": false,
+  "required_view_review": {
+    "hashes_verified": 4,
+    "changed_views_reviewed": 2,
+    "identical_to_reviewed_views": 2
+  },
+  "runs": [
+    {
+      "kind": "filesystem",
+      "run_id": 43879903098,
+      "source_head": "6d73b5b7a5c66c4d2440ad70111915ff43edefad",
+      "attempt": 1,
+      "conclusion": "success",
+      "decoded_log_sha256": "83dbd84588c70dee138ae274b6f6ab07323ed4979e56171202b71645ca6cb11b",
+      "artifact": {
+        "id": 14232685910,
+        "name": "native-source-contracts",
+        "bytes": 14659,
+        "digest": "sha256:61eedfd19ff41c34f528b6bcf70f71817805e47045617e1ff89fb791dab0ce2b",
+        "path": "filesystem/original.zip"
+      }
+    },
+    {
+      "kind": "preparation",
+      "run_id": 43879903443,
+      "source_head": "6d73b5b7a5c66c4d2440ad70111915ff43edefad",
+      "attempt": 1,
+      "conclusion": "success",
+      "decoded_log_sha256": "15312d426a8986095da9f56a8987ebec30278595136ce9e1ca892729c7574786",
+      "artifact": {
+        "id": 14232082295,
+        "name": "native-installed-package",
+        "bytes": 260034,
+        "digest": "sha256:47451edfa86848e630e7a0f64d6b954d622ca2d54794fdfc22683bcf2219be37",
+        "path": "preparation/original.zip"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": "filesystem/artifacts.json",
+      "bytes": 912,
+      "sha256": "e12a5b04c604ab078e3a7a9c2d027ab8790629c05566b5b5c9a6afe3e240ac02"
+    },
+    {
+      "path": "filesystem/original.zip",
+      "bytes": 14659,
+      "sha256": "61eedfd19ff41c34f528b6bcf70f71817805e47045617e1ff89fb791dab0ce2b"
+    },
+    {
+      "path": "filesystem/run-origin.json",
+      "bytes": 312,
+      "sha256": "c376f14a89c7cff8e83f099ad35a3ba34f3f28d4f080a548d67345f79b532eae"
+    },
+    {
+      "path": "filesystem/run.json",
+      "bytes": 2015,
+      "sha256": "cbf76911ef0ebaf7bc2f3620c9d73e71b44e0aa68bb266c2a3902c14018fb14a"
+    },
+    {
+      "path": "filesystem-checks.json",
+      "bytes": 367,
+      "sha256": "9a1694a583f72a78ae41931eeac291bd7441797c7aaa90be44e6f798fa5bad55"
+    },
+    {
+      "path": "local-checks.json",
+      "bytes": 714,
+      "sha256": "5c013046ccf4c843a3f52aa2e6e5f39314c7b8899b96b7c63cdd4902a5206b20"
+    },
+    {
+      "path": "preparation/artifacts.json",
+      "bytes": 914,
+      "sha256": "282072f2c80f36ac59df17fbeb2d8eabe2982807d318ba753559f3d4167f349d"
+    },
+    {
+      "path": "preparation/original.zip",
+      "bytes": 260034,
+      "sha256": "47451edfa86848e630e7a0f64d6b954d622ca2d54794fdfc22683bcf2219be37"
+    },
+    {
+      "path": "preparation/run-origin.json",
+      "bytes": 312,
+      "sha256": "fef8a042b9cee854075e0cf53b0af2135085451a4eac01107318bef3a8f31d4d"
+    },
+    {
+      "path": "preparation/run.json",
+      "bytes": 2180,
+      "sha256": "b196664a2e6960757acde21d6e828d7d3a62c874fd534c31777f4026b262c17e"
+    },
+    {
+      "path": "preparation-checks.json",
+      "bytes": 1673,
+      "sha256": "c049d9834ea2af01e7177ebfb5b0e074cb3d932b2d606453652c87865df3ce21"
+    }
+  ]
+}

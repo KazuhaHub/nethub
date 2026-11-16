@@ -1,0 +1,11 @@
+{
+  "id": 43802001135,
+  "run_attempt": 1,
+  "head_sha": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
+  "path": ".github/workflows/native-appliance.yml",
+  "event": "workflow_dispatch",
+  "status": "completed",
+  "conclusion": "success",
+  "created_at": "2026-11-16T04:06:03Z",
+  "updated_at": "2026-11-16T04:11:17Z"
+}

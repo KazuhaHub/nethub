@@ -34,7 +34,7 @@ Deployment targets one Docker Compose host, with no Kubernetes target for v1.
 | web | Console API/SPA, sessions, administration, source grants, audit and traffic. |
 | authz | Device lifecycle/certificate/trust APIs, relay hooks and observations. |
 | migrate | One-shot schema migration using the owner role. |
-| admin-bootstrap | One-time initial local administrator; preserves break-glass access. |
+| admin create | One-time initial local administrator, run through the `admin-bootstrap` Compose service; preserves break-glass access. |
 | init | New deployment files, independent secret backup and acknowledgement; refuses overwrite. |
 | doctor | Explicit file/DNS, TLS, role, container, hook, archive and audit checks. |
 | backup | Restricted archive production, daily worker and health checks. |

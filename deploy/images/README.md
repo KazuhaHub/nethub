@@ -11,13 +11,16 @@ claimed to be unchanged.
   `golang.org/x/net` upgraded to 0.62.0 for
   [GO-2026-6860](https://pkg.go.dev/vuln/GO-2026-6860). Its version identifies the
   NetHub build.
-  Its pinned Alpine base also receives the `brotli-libs` 1.2.1-r0 security patch
-  for CVE-2026-111497, as recorded in the
-  [Alpine 3.23 security database](https://secdb.alpinelinux.org/v3.23/main.json).
-  This updates the inherited OS libraries without changing the Caddy module set.
-  Its inherited curl and libcurl packages are upgraded to 8.23.0-r0 for
-  [CVE-2026-92392](https://curl.se/docs/CVE-2026-92392.html), matching the Alpine
-  3.23 security database. The assembled-image HIGH/CRITICAL scan remains required.
+  Its runtime pins `brotli-libs` 1.2.1-r0 and curl/libcurl 8.23.0-r0.
+  The earlier base's advisory review used the
+  [Alpine 3.23 security database](https://secdb.alpinelinux.org/v3.23/main.json)
+  for CVE-2026-111497 and
+  [CVE-2026-92392](https://curl.se/docs/CVE-2026-92392.html). That is historical
+  scan context, not the current Caddy base's repository branch. The current
+  pinned 2.11.9 base uses Alpine 3.24, as recorded below; its
+  [Dockerfile](caddy/Dockerfile) installs exact versions from that base's own
+  repositories. The Caddy module set is retained and fresh assembled-image
+  HIGH/CRITICAL scans remain required.
   Its crypto dependency uses released Smallstep v0.92.0 and JOSE v4.1.9 with
   the retained, hash-fenced compatibility adaptations. The migration note records
   the changes, upstream test evidence and separate image/runtime gates.
@@ -25,9 +28,11 @@ claimed to be unchanged.
   existing Alpine repositories. The previous assembled-image scan reported
   CVE-2026-85091 against 1.3.2-r0. The initial 1.3.2-r1 pin passed source
   `326d444` deployment checks before Alpine superseded that package revision.
-  [Alpine's package index](https://pkgs.alpinelinux.org/package/v3.23/main/x86_64/zlib)
-  records 1.4-r0; [upstream 1.4](https://github.com/madler/zlib/releases/tag/v1.4)
-  includes the security fix and changes stream error/reset behavior. Exact pins
+  The historical
+  [Alpine 3.23 package index](https://pkgs.alpinelinux.org/package/v3.23/main/x86_64/zlib)
+  supplied the earlier branch context; [upstream 1.4](https://github.com/madler/zlib/releases/tag/v1.4)
+  includes the security fix and changes stream error/reset behavior. Current
+  Dockerfiles retain the same exact zlib pin against their own base repositories. Exact pins
   fail the build when a repository no longer supplies them; there is no fallback
   to an unreviewed version. The new assembled-image scans, PostgreSQL restore
   and backup/deployment checks must pass, including the libraries copied into

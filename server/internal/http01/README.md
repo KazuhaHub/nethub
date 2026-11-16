@@ -74,7 +74,11 @@ Ordinary static file serving has no per-request expiry check. Responses remain
 available until a successful cleanup, including during busy/error conditions;
 the actual CA worker must separately reject expired proof/assignment/lease use.
 Publication must not be enabled before independent cleanup has been configured
-and verified. Protected host worker configuration/startup remains separate work.
+and verified. The implemented [protected host worker](../guiissuer/HOST.md)
+checks that independent cleanup before advancing issuance. Its configuration,
+startup and acceptance are separate from this publication package; isolated
+worker and protected-host recovery results do not establish public operator
+deployment, durable off-host custody or real renewal-clock acceptance.
 
 The Caddy snippet uses an HTTP-only catch-all with exact host/original-URI/method
 matching and fixed static files, without directory listing or templates. Existing

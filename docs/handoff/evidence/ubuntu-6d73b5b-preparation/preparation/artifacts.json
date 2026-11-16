@@ -1,0 +1,25 @@
+{
+  "total_count": 1,
+  "artifacts": [
+    {
+      "id": 14232082295,
+      "node_id": "MDg6QXJ0aWZhY3QxNDIzMjA4MjI5NQ==",
+      "name": "native-installed-package",
+      "size_in_bytes": 260034,
+      "url": "https://api.github.com/repos/KazuhaHub/nethub/actions/artifacts/14232082295",
+      "archive_download_url": "https://api.github.com/repos/KazuhaHub/nethub/actions/artifacts/14232082295/zip",
+      "expired": false,
+      "digest": "sha256:47451edfa86848e630e7a0f64d6b954d622ca2d54794fdfc22683bcf2219be37",
+      "created_at": "2026-11-16T13:57:28Z",
+      "updated_at": "2026-11-16T13:57:28Z",
+      "expires_at": "2026-11-23T13:57:27Z",
+      "workflow_run": {
+        "id": 43879903443,
+        "repository_id": 1423199015,
+        "head_repository_id": 1423199015,
+        "head_branch": "test/native-reconcile-audit",
+        "head_sha": "6d73b5b7a5c66c4d2440ad70111915ff43edefad"
+      }
+    }
+  ]
+}

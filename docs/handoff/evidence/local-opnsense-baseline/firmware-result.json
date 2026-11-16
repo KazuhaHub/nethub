@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "source": {
+    "repository": "opnsense/core",
+    "commit": "821598263289e177b40971600f06f5a91d9faef3",
+    "tag": "26.7",
+    "entry_sha256": {
+      "shell-firmware.sh": "805b192ac221eb1abbf81b259d077b5100668f16bcd0202680108f0df9e07142",
+      "firmware-update.sh": "46b070c9a30ac8971d83eef5f955bb86470fbdc2b58178ff50bbc9c5f8922b28",
+      "firmware-launcher.sh": "f9594a26e0dc8dd12635620b73016206ea8053f059502f59631893445a08b86e",
+      "rc.firmware": "b1ff973e28ccc251020e72385d021193c77fd38d2bd58251db83e86805a0adc4",
+      "rc.firmware.subr": "59a31c1a0da83d36f6c721b972da9320319b5534cfedf0af3c7b0b2a08423f7f",
+      "config.sh": "75540c7556fcf6e781aae1ce7c57dac548124e769789284354d18e7701a65bfb"
+    }
+  },
+  "result": {
+    "scope": "Owned OPNsense firmware preparation only",
+    "firmware_update_requests": 1,
+    "manual_pkg_upgrade_requests": 0,
+    "offline_recovery_clone_verified": true,
+    "six_official_stock_entry_hashes_verified": true,
+    "official_HTTPS_fingerprint_repository_verified": true,
+    "minor_only": true,
+    "package_version": "26.7.9_1",
+    "running_installed_kernel_and_userland": "15.1-RELEASE-p6",
+    "stock_base_and_kernel_install_completion_observed": true,
+    "package_dependency_check_passed": true,
+    "GUI_security_checks_enabled": true,
+    "console_observation_timeout_retained": true,
+    "one_console_return_requested": true,
+    "broad_OK_match_correction_retained": true,
+    "stock_wrapper_exit_unavailable_after_reboot": true,
+    "gracefully_powered_off": true,
+    "host_default_network_unchanged": true,
+    "host_firewall_or_public_forward_changed": false,
+    "NetHub_installation_native_or_public_or_release_accepted": false
+  },
+  "original_nonzero_metadata_preview_retained": true,
+  "observation_note": "The original stock update rebooted without a wrapper exit receipt. One console return was sent after an observation timeout. The next transcript showed kernel startup; a broad OK matcher first mislabeled a CARP startup message as a loader prompt. The original transcript and correction remain retained. Fresh authenticated console inspection then verified package/base/kernel completion, matching running/installed versions, dependencies and unchanged GUI safety checks before normal shutdown. No firmware or package request was replayed."
+}

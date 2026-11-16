@@ -1,0 +1,113 @@
+{
+  "source_head": "16708e35443fbbe93344bd897f8d5ab3ef6749d0",
+  "run": 43799096360,
+  "producer": 43791395178,
+  "official_zip_digest_verified": true,
+  "source_archive_verified": true,
+  "migration_all_ten_phases_passed": true,
+  "native_upgrade_original_cause_proven": false,
+  "full_W5_W7_or_release_accepted": false,
+  "native_revoke_ms": 1225,
+  "native_no_reconnect_ms": 30081,
+  "read_only_inspection_recoveries": [
+    {
+      "operation": "inspection_preflight",
+      "first_transport_failure": "guest_ssh_connect_timeout",
+      "phase": "completed",
+      "listener_recovery": "started_and_verified",
+      "read_completed": true,
+      "elapsed_ms": 10379
+    }
+  ],
+  "images": [
+    {
+      "name": "installed-console-revoke.png",
+      "sha256": "75af97cd72f139995eb7134de5d60d427c51b7cc6b060c1c9d29f3e2a645364a",
+      "view_reviewed": true,
+      "archive_member": "native/installed-console-revoke.png"
+    },
+    {
+      "name": "installed-enroll.png",
+      "sha256": "3bd3d54af442075283b642c96323d4c3cbef6b0dc62aea41541d07718b5bb158",
+      "view_reviewed": true,
+      "archive_member": "native/installed-enroll.png"
+    },
+    {
+      "name": "installed-remove.png",
+      "sha256": "1db7bf80fc5888fe1e86cc5c8310568f056a7928e8cc6e34b252a27865fdd7d2",
+      "view_reviewed": true,
+      "archive_member": "native/installed-remove.png"
+    },
+    {
+      "name": "installed-rotate-lost.png",
+      "sha256": "2c2dfd10da4f23a3823f89f9033a6924c620f72244df87e5ea01b539ea31d4e0",
+      "view_reviewed": true,
+      "archive_member": "native/installed-rotate-lost.png"
+    },
+    {
+      "name": "installed-rotate-publication-committed-lost.png",
+      "sha256": "8091e022372987ba8bc70ac914029f65c3902451e9de913f1d6c2111475f70cf",
+      "view_reviewed": true,
+      "archive_member": "native/installed-rotate-publication-committed-lost.png"
+    },
+    {
+      "name": "installed-rotate-publication-committed-recovered.png",
+      "sha256": "b9ed41252a7fd40adbd9ba7f107938091c6f95e5b975f91121fed53094795edf",
+      "view_reviewed": true,
+      "archive_member": "native/installed-rotate-publication-committed-recovered.png"
+    },
+    {
+      "name": "installed-rotate-publication-conflict.png",
+      "sha256": "9e6e7e8c90bbacb3ecdd0c7d06d3192a1312b01672d7d0990fc6379c12a6160f",
+      "view_reviewed": true,
+      "archive_member": "native/installed-rotate-publication-conflict.png"
+    },
+    {
+      "name": "installed-rotate-publication-recovered.png",
+      "sha256": "b9ed41252a7fd40adbd9ba7f107938091c6f95e5b975f91121fed53094795edf",
+      "view_reviewed": false,
+      "archive_member": "native/installed-rotate-publication-recovered.png",
+      "identical_to_reviewed_image": "installed-rotate-publication-committed-recovered.png"
+    },
+    {
+      "name": "installed-rotate-publication-unavailable.png",
+      "sha256": "8091e022372987ba8bc70ac914029f65c3902451e9de913f1d6c2111475f70cf",
+      "view_reviewed": false,
+      "archive_member": "native/installed-rotate-publication-unavailable.png",
+      "identical_to_reviewed_image": "installed-rotate-publication-committed-lost.png"
+    },
+    {
+      "name": "installed-rotate-recovered.png",
+      "sha256": "2ecf3268eb4dd67b155a465c782df0e27cbc38b9b48a68c74fe4feaa45e70989",
+      "view_reviewed": true,
+      "archive_member": "native/installed-rotate-recovered.png"
+    },
+    {
+      "name": "installed-rotate-save-failed.png",
+      "sha256": "2c2dfd10da4f23a3823f89f9033a6924c620f72244df87e5ea01b539ea31d4e0",
+      "view_reviewed": false,
+      "archive_member": "native/installed-rotate-save-failed.png",
+      "identical_to_reviewed_image": "installed-rotate-lost.png"
+    },
+    {
+      "name": "installed-rotate-save-recovered.png",
+      "sha256": "2ecf3268eb4dd67b155a465c782df0e27cbc38b9b48a68c74fe4feaa45e70989",
+      "view_reviewed": false,
+      "archive_member": "native/installed-rotate-save-recovered.png",
+      "identical_to_reviewed_image": "installed-rotate-recovered.png"
+    },
+    {
+      "name": "installed-rotate-shared.png",
+      "sha256": "b9ed41252a7fd40adbd9ba7f107938091c6f95e5b975f91121fed53094795edf",
+      "view_reviewed": false,
+      "archive_member": "native/installed-rotate-shared.png",
+      "identical_to_reviewed_image": "installed-rotate-publication-committed-recovered.png"
+    },
+    {
+      "name": "installed-rotate.png",
+      "sha256": "543a79c9fb019923f60247e0ef4d1f06c1039e4cfafe130487da1a39606f744a",
+      "view_reviewed": true,
+      "archive_member": "native/installed-rotate.png"
+    }
+  ]
+}

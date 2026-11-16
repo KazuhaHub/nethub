@@ -53,7 +53,8 @@ Keep the source checkout and protected state/backup parents available.
 
 1. Arrange the console DNS hostname outside the device wildcard, wildcard DNS,
    and inbound TCP 80/443 for Caddy's certificate issuance, plus 7000/8443 for frps.
-   Select an unused RFC1918 /24 for the edge network. The gateway uses .1, Caddy .2,
+   Select an unused RFC1918 /24 for the edge network and pass it explicitly with
+   `--network-subnet` in either initialization command below. The gateway uses .1, Caddy .2,
    web .3 and authz .4. Web/authz trust only Caddy's address for forwarded clients.
    Host-network frps binds its authenticated admin API only to the private gateway.
 2. Choose a new deployment directory and a separate protected backup directory.
@@ -66,7 +67,8 @@ Keep the source checkout and protected state/backup parents available.
      --backup-directory /protected-backups/nethub \
      --source-directory "$PWD" \
      --console-host console.example.com --device-domain router.example.com \
-     --expected-address YOUR_PUBLIC_RELAY_ADDRESS
+     --expected-address YOUR_PUBLIC_RELAY_ADDRESS \
+     --network-subnet YOUR_UNUSED_PRIVATE_CIDR
    ```
 
    Replace the sample DNS names/address and choose a real protected backup parent.
@@ -90,7 +92,8 @@ Keep the source checkout and protected state/backup parents available.
      --directory /opt/nethub-state/deployment \
      --backup-directory /protected-backups/nethub \
      --console-host console.example.com --device-domain router.example.com \
-     --expected-address YOUR_PUBLIC_RELAY_ADDRESS
+     --expected-address YOUR_PUBLIC_RELAY_ADDRESS \
+     --network-subnet YOUR_UNUSED_PRIVATE_CIDR
    ```
 
    The initializer runs as root to assign service UIDs. Only the chosen state and
