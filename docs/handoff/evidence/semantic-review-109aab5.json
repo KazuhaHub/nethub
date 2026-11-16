@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of eighty-nine guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Partial semantic review of ninety-eight guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -16,7 +16,8 @@
     "Image guidance now identifies old Alpine3.23 advisory/index links as historical context, distinct from the documented current Caddy3.24 base; actual Dockerfile/module pins and required scans are unchanged.",
     "Authentication defaults and bounded verification/limiter policy agree with the inspected current constants. Backup scheduling, receipt/hash versus actual recovery, host lease ownership and bootstrap non-replay boundaries remain distinct. HTTP-01 publication guidance now links the implemented host worker rather than saying its startup is future work; public custody and renewal-clock acceptance remain open.",
     "Agent/capability/plugin guides retain remote.web-only authority, separate os-frp state, current guard/lock ordering and unsigned-versus-formal package boundaries. The control-plane command table incorrectly named the admin-bootstrap Compose service as a CLI command; it now names the implemented admin create command and its service. Historical browser and FreeBSD contract scope remain separate from installed/public acceptance.",
-    "Historical enrollment and certificate records retain their own sources, intentional image reuse boundaries, private fixture roots and the owner-approved old 1GiB allocation; those exceptions do not apply to this host or establish production sizing. Failed offline application, model-normalization diagnosis, later private-CA renewal/rollback and public-CA initial issuance are distinct outcomes. Actual public renewal-clock acceptance remains open. Separate Dex/Keycloak fixtures explicitly label SQL inventory rows and do not claim public providers or native tunnels."
+    "Historical enrollment and certificate records retain their own sources, intentional image reuse boundaries, private fixture roots and the owner-approved old 1GiB allocation; those exceptions do not apply to this host or establish production sizing. Failed offline application, model-normalization diagnosis, later private-CA renewal/rollback and public-CA initial issuance are distinct outcomes. Actual public renewal-clock acceptance remains open. Separate Dex/Keycloak fixtures explicitly label SQL inventory rows and do not claim public providers or native tunnels.",
+    "The public console trial explicitly excludes clean-host and mobile-carrier acceptance. Relay transport, native distribution, admitted signer transitions and retirement are distinct staged records; initial timeout and later daemon-deadline reproductions are not relabeled. The old explicit lab SQL administration and resource exceptions are historical evidence, not authorization to repeat those operations in a new environment. Public chain normalization retains parser/identity/trust refusals and read-only original-order diagnostics."
   ],
   "files": [
     {
@@ -374,6 +375,42 @@
     {
       "path": "deploy/validation-native-public-certificate.md",
       "sha256": "015cfa7a9727530e379880ea9e7cc005f5761a13a30d3cffca0ef36976fc0a0d"
+    },
+    {
+      "path": "deploy/validation-public-chain-format.md",
+      "sha256": "0a1d72910c242990769829fa73d26f470faadc207a600d9f45dd18fdd6bfc9d3"
+    },
+    {
+      "path": "deploy/validation-public-console-source48.md",
+      "sha256": "c6e42eb66bed39d5fb0f4ee839cb66d325a629f331d0317d6a042a94e1ce26c9"
+    },
+    {
+      "path": "deploy/validation-relay-maintenance.md",
+      "sha256": "59fad12802e3b1336ca8b9cc57edb0d3674bf6c949377c90f91898dc9d52f672"
+    },
+    {
+      "path": "deploy/validation-relay-observation-latency.md",
+      "sha256": "4241ba1b77cf50a9c8b25144a71723d47305f817ac8ac3a7dbf71b6c5925699a"
+    },
+    {
+      "path": "deploy/validation-relay-trust-native.md",
+      "sha256": "9542564184443c227df884bf94420158390550130770d65daa96e0ca3248fce2"
+    },
+    {
+      "path": "deploy/validation-relay-trust-overlap.md",
+      "sha256": "ec5584a3679a1d636034982bb23170b246096cf109f87e3d0b24081537df7e55"
+    },
+    {
+      "path": "deploy/validation-relay-trust-recovery.md",
+      "sha256": "49ed1f6e15c610071f655120692b1cef3fe0230c30d75ffb5c9d5bad6a1e9497"
+    },
+    {
+      "path": "deploy/validation-relay-trust.md",
+      "sha256": "e1d994d05b30a76401274a010919fe07d31ee159b2b499ac7e5c489c4b431ddb"
+    },
+    {
+      "path": "deploy/validation-relay-authority-native.md",
+      "sha256": "81e7b76ba77ea1264eed3594787fe544fd57402a470271dfb50e02cd42e5028d"
     }
   ]
 }
