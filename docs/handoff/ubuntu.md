@@ -159,9 +159,15 @@ old workstation secret or router disk is needed. Do not commit those secrets.
 External reverse proxies manage their console TLS; NetHub's relay trust and
 device GUI-certificate lifecycle remain separate.
 
-The Check-Host mode exists only in PR #242 until integrated. Its patch is in
-[patches](patches/README.md). The required real positive/closed-port sample is
-still open. It must use an owned public test endpoint, explicit provider opt-in,
+At the original handoff, the Check-Host mode existed only in PR #242, with its
+patch retained in [patches](patches/README.md). The Ubuntu continuation integrated
+it on the qualified native base in PR #253, then corrected genuine provider
+host/port binding in PR #254. See the
+[continuation ledger](ubuntu-continuation.md) and
+[retained provider evidence](evidence/external-tcp-report/index.json).
+The owned TCP-443 negative sample does not establish the required all-port
+positive or late-port negative path. Complete public samples must use an owned
+public test endpoint, explicit provider opt-in,
 an independent deadline/cleanup for any temporary listener, and unchanged
 unrelated services. Record provider errors as failures; do not manufacture a
 positive result or relax the three-observer requirement.

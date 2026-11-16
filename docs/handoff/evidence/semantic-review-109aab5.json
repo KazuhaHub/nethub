@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of 122 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Partial semantic review of 130 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -20,7 +20,8 @@
     "The public console trial explicitly excludes clean-host and mobile-carrier acceptance. Relay transport, native distribution, admitted signer transitions and retirement are distinct staged records; initial timeout and later daemon-deadline reproductions are not relabeled. The old explicit lab SQL administration and resource exceptions are historical evidence, not authorization to repeat those operations in a new environment. Public chain normalization retains parser/identity/trust refusals and read-only original-order diagnostics.",
     "Thirteen original plugin progress records describe staged development package versions. Source-only key/CSR/journal controls, Core application and daemon/boot recovery, enrollment/lifecycle, local breaker and WAN/coexistence observations remain distinct. Their earlier future-work statements and old 10/30 heartbeat/compiler records are historical checkpoint scope, not instructions to downgrade the current 1/3 profile, compiler or authority boundaries. Key export, native backup history and cleanup limits remain explicit.",
     "W3/W4 milestone records state their accepted old host/public-forwarding scope and preserve earlier failed observations. Those owner-approved historical environments do not authorize this shared host to expose ports. Restricted dump restoration, original six-service/client recovery and shared-token incident checks retain distinct sources and archive/upload limitations; later protected-host restoration does not retroactively broaden them. Normal Open with a measured source, unchanged grants and independently verified routes remains required.",
-    "The W3 decision brief mixed original 10s/30s heartbeat language with present instructions. It now explicitly marks that profile historical and links the current owner-retained five-second target and 1s/3s profile; migration/rollback coverage remains. W4 history, UI comparison and lost-report fixture retain their bounded evidence and do not authorize repeating old listener/SQL changes. External TCP instructions bind both genuine provider host and canonical port and still require public positive acceptance."
+    "The W3 decision brief mixed original 10s/30s heartbeat language with present instructions. It now explicitly marks that profile historical and links the current owner-retained five-second target and 1s/3s profile; migration/rollback coverage remains. W4 history, UI comparison and lost-report fixture retain their bounded evidence and do not authorize repeating old listener/SQL changes. External TCP instructions bind both genuine provider host and canonical port and still require public positive acceptance.",
+    "Protocol rotation/trust contracts preserve current cache freshness, original-operation replay, native CAS/journals and no private material in public replies. Ubuntu instructions retain fresh hosted-runner admission and exact-source image requirements. The original Check-Host-only-in-PR242 sentence now points to subsequent integration/correction and separately states the remaining all-port positive and late-port negative samples. Historical evidence and patch registries remain snapshots rather than permission to replay mutations."
   ],
   "files": [
     {
@@ -510,6 +511,38 @@
     {
       "path": "server/internal/externalprobe/README.md",
       "sha256": "1b0dfd514c1d0aabc0fa3d66fae97919768588633b793b876bbfa00ab15229e0"
+    },
+    {
+      "path": "proto/ROTATION.md",
+      "sha256": "7ed15a00367fbc598826a468f313639631e20260b72123a1268338f4d2db1366"
+    },
+    {
+      "path": "proto/RELAY_TRUST.md",
+      "sha256": "0974ab505f8f6f0d697b1df37d6a771e102365aa08826fe5da7fd2a3ff1f9387"
+    },
+    {
+      "path": "proto/frp-hooks-0.71.0.md",
+      "sha256": "52fa2f685320538bc9520dfab05ff26f6d40ae3f41d921f0c648ff28d614bfbc"
+    },
+    {
+      "path": "server/web/README.md",
+      "sha256": "c3705fa46f2f1e452971f38678b4042655eead100ed7a200727ed23f6f40ab10"
+    },
+    {
+      "path": "docs/handoff/ubuntu.md",
+      "sha256": "c099bfa661a8b270fc0f06320f70a9550f64c9d863661542e979d9203545cbf3"
+    },
+    {
+      "path": "docs/handoff/validation.md",
+      "sha256": "92fc15e4fe7241efbd2d2fb42bec6b3c1f4cd1e889839d9209e4835b5db82a41"
+    },
+    {
+      "path": "docs/handoff/patches/README.md",
+      "sha256": "716acab1c36fbf0bea6e1802d336bf4a819c9603cad70f1ca1dc67a06d362b83"
+    },
+    {
+      "path": "docs/handoff/evidence/README.md",
+      "sha256": "3a68a8afb4cf77abea66b30f7eb1b9390703b710ffa332b52f15277e6ea2ad4d"
     }
   ]
 }
