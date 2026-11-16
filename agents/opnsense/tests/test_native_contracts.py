@@ -16,6 +16,11 @@ def receipt():
               for name, spec in NATIVE.GROUPS.items()}
     groups['enrollment']['native_cases_passed'] = ['test_enrollment_lock_interoperates_with_native_scheduler_lockf']
     groups['service']['native_cases_passed'] = ['test_restart_and_lost_reply_keep_identical_original_events',
+        'test_failure_keeps_the_original_lock_captures_real_outbox_and_restores_bytes',
+        'test_exact_normal_delivery_replay_browser_and_recovery_keep_native_control',
+        'test_unknown_native_failure_is_never_replayed_and_restore_does_not_mask_it[False]',
+        'test_unknown_native_failure_is_never_replayed_and_restore_does_not_mask_it[True]',
+        'test_interrupted_arm_restores_the_original_template_without_starting_cli',
         'test_late_route_gap_delays_readiness_without_replaying_or_changing_first_recovery_time',
         'test_persistent_late_missing_route_stays_failed_at_the_original_deadline',
         'test_revoke_stop_precedes_backlog_delivery_and_clear_requires_ack',
@@ -53,7 +58,7 @@ def test_relabeling_platform_and_broader_acceptance_claims_fail(field, value):
         NATIVE.validate_receipt(result, HEAD, SHA)
 
 
-@pytest.mark.parametrize('change', ['missing_native', 'missing_recovery', 'skipped_case', 'failed_guest', 'missing_group', 'boolean_exit', 'missing_audit', 'missing_settling'])
+@pytest.mark.parametrize('change', ['missing_native', 'missing_recovery', 'skipped_case', 'failed_guest', 'missing_group', 'boolean_exit', 'missing_audit', 'missing_settling', 'missing_installed_audit'])
 def test_a_top_level_green_flag_cannot_hide_missing_or_failed_checks(change):
     result = copy.deepcopy(receipt())
     if change == 'missing_native':
@@ -64,6 +69,8 @@ def test_a_top_level_green_flag_cannot_hide_missing_or_failed_checks(change):
         result['groups']['service']['native_cases_passed'].remove('test_restart_and_lost_reply_keep_identical_original_events')
     elif change == 'missing_settling':
         result['groups']['service']['native_cases_passed'].remove('test_persistent_late_missing_route_stays_failed_at_the_original_deadline')
+    elif change == 'missing_installed_audit':
+        result['groups']['service']['native_cases_passed'].remove('test_exact_normal_delivery_replay_browser_and_recovery_keep_native_control')
     elif change == 'skipped_case':
         result['groups']['service']['passed'] -= 1
     elif change == 'failed_guest':

@@ -17,7 +17,7 @@ IMAGE = 'OPNsense-26.7-nano-amd64.img'
 IMAGE_SHA256 = '28d5e2f37e40d87468a924e3006ef10e2ddc6de485b85333d9e3958c84d0cb9d'
 KEY_SHA256 = '9f3b76ffef38fb6405595038b324b61043c9a2c375ae5c151d628508e9a845ce'
 BASE = 'https://pkg.opnsense.org/releases/26.7/'
-NATIVE_FIXTURE_PHASES = frozenset(('wan_route_table', 'wan_route_missing', 'wan_route_mismatch', 'wan_probe', 'native_package_probe',
+NATIVE_FIXTURE_PHASES = frozenset(('reconcile_failure_fixture', 'wan_route_table', 'wan_route_missing', 'wan_route_mismatch', 'wan_probe', 'native_package_probe',
     'native_package_boundary', 'native_package_model', 'native_package_gui', 'native_package_runtime',
     'native_package_boundary_host', 'native_package_boundary_nonce', 'native_package_boundary_marker',
     'native_package_boundary_interfaces', 'native_package_boundary_lan',

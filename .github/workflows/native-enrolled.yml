@@ -127,6 +127,9 @@ jobs:
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-console-revoke.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-wan-recovery.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-wan-settling.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-reconcile-audit.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-reconcile-audit-browser.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-reconcile-audit.png
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-package-migration.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-route-failure.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-console-revoke.png

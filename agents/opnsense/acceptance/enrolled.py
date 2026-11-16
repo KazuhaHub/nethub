@@ -24,6 +24,7 @@ from console_revoke_result import validate as validate_console_revoke
 from wan_recovery import exercise as exercise_wan_recovery
 from package_migration import exercise as exercise_package_migration
 from wan_settling import validate as validate_wan_settling
+from reconcile_failure import exercise as exercise_reconcile_failure
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -89,6 +90,7 @@ def _exercise(guest, stage, port, project, evidence, packages, cleanup):
     # Stage the read-only observer before enrollment and WAN changes. Package
     # observations must not depend on a later file transfer succeeding.
     guest.put(Path(__file__).with_name('package_probe.py'), 'package_probe.py')
+    guest.put(Path(__file__).with_name('reconcile_failure_probe.py'), 'reconcile_failure_probe.py')
     guest.ssh('chmod 0600 /root/nethub-ci/native-fixture-nonce\n', 'private native fixture identity')
     host_probe = guest.ssh("/usr/local/bin/php -r 'echo json_encode(["
         "\"argument_count_available\"=>isset($argc),"
@@ -392,6 +394,8 @@ def _exercise(guest, stage, port, project, evidence, packages, cleanup):
     original_survivor = survivor_sockets()
     if not original_survivor or not survivor_route():
         raise GuestError('Package migration witness control was not restored')
+    reconcile_audit = exercise_reconcile_failure(guest, stage, evidence, nonce, device, port, sql, request,
+        lambda: fixture('inspect', host=host), route, check_wan_database, check_wan_witness)
     started = time.monotonic()
     page_action('rotate')
     after = native_read('native-after.json')
@@ -671,6 +675,7 @@ def _exercise(guest, stage, port, project, evidence, packages, cleanup):
               'installed_wan_recovery': wan_recovery,
               'installed_wan_settling': wan_settling,
               'installed_package_migration': package_migration,
+              'installed_reconcile_audit': reconcile_audit,
               'fixture_removed_through_native_page': True,
               'removed_fixture_revoked_model_cleared_service_stopped_route_closed': True,
               'independent_device_preserved_after_fixture_removal': True,

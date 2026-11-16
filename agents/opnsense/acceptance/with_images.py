@@ -20,6 +20,9 @@ from native_model_probe import validate_rotation_conditions
 from console_probe import validate_result as validate_console_probe
 from package_migration import validate as validate_package_migration
 from post_wan_failure import validate as validate_post_wan_failure
+from reconcile_failure import validate as validate_reconcile_audit
+from reconcile_failure import validate_browser as validate_audit_browser
+from reconcile_failure import require_evidence as require_reconcile_audit
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -29,6 +32,9 @@ PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installe
                 'native/installed-console-revoke.json', 'native/installed-console-revoke.png',
                 'native/installed-wan-recovery.json',
                 'native/installed-wan-settling.json',
+                'native/installed-reconcile-audit.json',
+                'native/installed-reconcile-audit-browser.json',
+                'native/installed-reconcile-audit.png',
                 'native/installed-package-migration.json',
                 'native/installed-route-failure.json',
                 'native/installed-shared-token.json', 'native/installed-trust-publication.json',
@@ -88,6 +94,11 @@ def publish_evidence(directory):
                 if not 0 < path.stat().st_size <= 2048:
                     raise GuestError('Native WAN settling evidence exceeds bound')
                 validate_wan_settling(json.loads(path.read_text(encoding='utf-8')))
+            if name in ('native/installed-reconcile-audit.json', 'native/installed-reconcile-audit-browser.json'):
+                if not 0 < path.stat().st_size <= 4096:
+                    raise GuestError('Installed reconcile audit evidence exceeds bound')
+                validator = validate_audit_browser if name.endswith('-browser.json') else validate_reconcile_audit
+                validator(json.loads(path.read_text(encoding='utf-8')))
             if name == 'native/rotation-recovery-probe.json':
                 if not 0 < path.stat().st_size <= 8192:
                     raise GuestError('Rotation recovery evidence exceeds bound')
@@ -230,6 +241,7 @@ def main():
         validate_wan_settling(settling)
         if settling['passed'] is not True or native.get('installed_wan_settling') != settling:
             raise GuestError('Installed native WAN settling proof missing')
+        require_reconcile_audit(evidence / 'native', native)
         prepared = json.loads((evidence / 'native/result.json').read_text(encoding='utf-8'))
         validate_read_only_inspection_recoveries(prepared['read_only_inspection_recoveries'], require_completed=True)
         result['read_only_inspection_recoveries'] = prepared['read_only_inspection_recoveries']

@@ -17,6 +17,11 @@ SCOPES = ['agents/opnsense/plugin', 'agents/opnsense/tests', 'proto',
           'agents/opnsense/acceptance/wan_probe.py',
           'agents/opnsense/acceptance/wan_recovery.py',
           'agents/opnsense/acceptance/wan_settling.py',
+          'agents/opnsense/acceptance/reconcile_failure.py',
+          'agents/opnsense/acceptance/reconcile_failure_probe.py',
+          'agents/opnsense/acceptance/console-audit-browser.mjs',
+          'agents/opnsense/acceptance/package_migration.py',
+          'agents/opnsense/acceptance/package_probe.py',
           'agents/opnsense/native_contracts.py', '.github/workflows/native-contracts.yml']
 GROUPS = {
     'enrollment': (17, [
@@ -24,7 +29,9 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_scheduler.py::test_enrollment_handoff_has_no_credentials_or_cached_output',
         'agents/opnsense/tests/test_enrollment.py::test_php_controller_keeps_credentials_private_and_saves_under_native_lock',
     ]),
-    'service': (120, [
+    'service': (154, [
+        'agents/opnsense/tests/test_native_reconcile_failure_probe.py',
+        'agents/opnsense/tests/test_native_reconcile_failure.py',
         'agents/opnsense/tests/test_native_wan_recovery.py',
         'agents/opnsense/tests/test_reconcile_audit.py',
         'agents/opnsense/plugin/tests/test_reconcile_audit_agent.py',
@@ -54,6 +61,11 @@ GROUPS = {
     ]),
 }
 REQUIRED_NATIVE_CASES = {'test_restart_and_lost_reply_keep_identical_original_events',
+                         'test_failure_keeps_the_original_lock_captures_real_outbox_and_restores_bytes',
+                         'test_exact_normal_delivery_replay_browser_and_recovery_keep_native_control',
+                         'test_unknown_native_failure_is_never_replayed_and_restore_does_not_mask_it[False]',
+                         'test_unknown_native_failure_is_never_replayed_and_restore_does_not_mask_it[True]',
+                         'test_interrupted_arm_restores_the_original_template_without_starting_cli',
                          'test_late_route_gap_delays_readiness_without_replaying_or_changing_first_recovery_time',
                          'test_persistent_late_missing_route_stays_failed_at_the_original_deadline',
                          'test_revoke_stop_precedes_backlog_delivery_and_clear_requires_ack',

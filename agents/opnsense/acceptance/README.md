@@ -44,6 +44,36 @@ relay recovery remain separate acceptance work.
 
 ## Combined installed-device acceptance
 
+The reconcile-audit fixture adds a genuine failure after package migration and
+before credential rotation. It is implemented but needs its own exact-source
+installed run. Its guest entry requires the existing root/nonce/private-SSH/NIC
+boundary. Under the original persistent mutation lock, it verifies the installed
+template against the admitted source, durably records an original backup and
+intent, then adds one fixed invalid top-level frpc option. The actual installed
+CLI must reject that candidate, preserve live configuration and retain one real
+outbox event. It restores the exact original template before releasing the lock;
+an interrupted or failed attempt stays failed and is never re-armed automatically.
+Unrelated edits are not overwritten.
+
+The ordinary report action must acknowledge the original event. Read-only SQL
+checks require one additional exact receipt and audit without deleting prior
+history; normal console API reads must expose only the typed count and original
+device-reported interval. One explicitly journaled authenticated replay of the
+same captured UUID must add no audit. A new normal browser login filters that
+device/action and checks the actual row and details. Its CONNECT proxy admits
+only the owned console; the isolated console CA exception is explicit and does
+not qualify public TLS. The recorded view masks actor/device/source identifiers.
+
+After acknowledgement, one explicit normal reconcile must report unchanged
+configuration. Package/runtime identity, original process/control, native GUI,
+trust, source grants and independent original witness remain exact throughout.
+This case invokes normal reconcile twice deliberately and is separate from the
+WAN/package observation windows, whose no-manual-reconcile limits remain intact.
+The closed `installed-reconcile-audit.json`, browser outcome and masked image are
+mandatory consumer evidence. Filesystem/fake-controller tests do not prove this
+installed path, and this invalid-template fixture does not establish formal
+published bad-canary/channel/rollback acceptance.
+
 The installed publication-conflict case passed the
 [PR #205 combination](../../../deploy/validation-native-trust-conflict.md).
 It prepares and verifies an independent authority backup through the

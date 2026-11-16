@@ -21,6 +21,14 @@ or network work, then admit a separate explicit action after the lock is release
 A guest test failure returns its receipt for inspection, and the following host
 verification makes the CI job fail. The workflow must retain that verification.
 
+The service group also checks the private reconcile-failure fixture with the
+real outbox, original lock inode, exact template restoration, interrupted-arm
+cleanup and refusal to replay an uncertain mutation. Controller tests require
+normal delivery, exact replay, narrow Web details, browser evidence and retained
+native controls. These filesystem tests use injected CLI/transport outcomes;
+only the separate installed workflow can prove actual frpc refusal and delivery.
+Its helper dependencies are included in the exact-source manifest.
+
 Only source hashes and the bounded receipt are eligible for artifact upload.
 Raw test XML, fixture diagnostics, VM disks and runtime credentials are excluded.
 The VM action is pinned to reviewed commit
