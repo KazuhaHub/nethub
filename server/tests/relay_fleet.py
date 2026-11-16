@@ -7,6 +7,43 @@ import subprocess
 import time
 
 
+def require_original_controls(actual, baseline, originals, owned, stage_index):
+    """Keep the exact socket assertion; export only fixed failure categories."""
+    if actual == baseline:
+        return
+    stage = {0: 'five', 1: 'ten', 2: 'pressure'}.get(stage_index, 'unknown')
+    hints = {'relay_fleet_stage_' + stage}
+    original_pids = {client.pid for client in originals}
+    changed = {pid for pid in baseline if actual.get(pid) != baseline[pid]}
+    if changed & original_pids:
+        hints.add('relay_fleet_original_control_changed')
+    if changed - original_pids:
+        hints.add('relay_fleet_dedicated_control_changed')
+    if set(actual) != set(baseline):
+        hints.add('relay_fleet_inventory_changed')
+    for _, log, client in owned:
+        if client.pid not in changed:
+            continue
+        try:
+            if log.is_symlink() or not log.is_file() or log.stat().st_size > 4 * 1024**2:
+                raise ValueError('Bounded private fleet log required')
+            with log.open('rb') as stream:
+                raw = stream.read(4 * 1024**2 + 1)
+            if len(raw) > 4 * 1024**2:
+                raise ValueError('Private fleet log grew beyond its bound')
+            if b'heartbeat timeout' in raw:
+                hints.add('relay_fleet_changed_client_heartbeat_timeout')
+            if b'pong message contains error' in raw:
+                hints.add('relay_fleet_changed_client_Pong_error')
+            if b'receive heartbeat from server' in raw:
+                hints.add('relay_fleet_changed_client_Pong_observed')
+        except (OSError, ValueError):
+            hints.add('relay_fleet_failure_log_unavailable')
+    for hint in sorted(hints):
+        print('NETHUB_NATIVE_HINT=' + hint, flush=True)
+    raise AssertionError('fleet control disconnected or reconnected under bounded load')
+
+
 def exercise_fleet(stage, compose, originals, create_client, stop_client,
                    revoke_clients, check_tunnels, probe, source, seed_pressure, combined_fault):
     work = Path(stage) / 'fleet-test'
@@ -130,7 +167,7 @@ def exercise_fleet(stage, compose, originals, create_client, stop_client,
                 started = time.monotonic()
                 while time.monotonic() - started < 30:
                     assert all(client.poll() is None for client in clients), 'fleet client exited under bounded load'
-                    assert sockets(clients) == baseline, 'fleet control disconnected or reconnected under bounded load'
+                    require_original_controls(sockets(clients), baseline, originals, owned, stage_index)
                     now = time.monotonic()
                     for index, (_, log, _) in enumerate(owned):
                         assert log.stat().st_size <= 4 * 1024**2, 'bounded private fleet log required'

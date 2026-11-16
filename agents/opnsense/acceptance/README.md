@@ -475,6 +475,23 @@ liveness, original control continuity, route recovery and cutoff assertions are
 unchanged. This format correction does not establish why the earlier service
 failed or qualify package migration.
 
+Installed run `43776401967` at `d33302f` failed earlier in the genuine small-fleet
+steady window: an established control socket differed from its original
+endpoint/inode identity. This run did not reach the heartbeat/exit-log diagnostic
+or create the guest, so it does not validate the hypothesized prior service-exit
+cause or package migration. Its owned-image cleanup passed; the run stays failed.
+
+That same socket comparison now retains only fixed hints for the five-client,
+ten-client or snapshot-pressure stage, and whether an original reference or
+dedicated client control changed. For affected dedicated clients, a single
+bounded read of their existing private logs reports only presence of the pinned
+heartbeat-timeout, Pong-error and successful-Pong messages. No PID, address,
+inode, raw log or exception is exported. Passing comparisons perform no new
+reads. A failed/missing diagnostic log never hides the original continuity
+refusal. The control comparison, 30-second window, 200-ms polling, all deadlines,
+client enrollment/cleanup and other assertions remain unchanged. No failed case
+is retried and no new route probe or mutation is introduced.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)

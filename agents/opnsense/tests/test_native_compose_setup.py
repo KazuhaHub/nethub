@@ -36,6 +36,17 @@ def test_every_relay_log_hint_survives_without_unknown_values():
     assert SETUP.project(SETUP.emit(result).encode(), 1)['hints'] == result['hints']
 
 
+def test_fleet_control_failure_hints_are_exact_and_private_values_are_ignored():
+    expected = ['relay_fleet_dedicated_control_changed', 'relay_fleet_original_control_changed',
+                'relay_fleet_stage_pressure']
+    raw = b'\n'.join(('NETHUB_NATIVE_HINT=' + value).encode() for value in expected)
+    raw += b'\nNETHUB_NATIVE_HINT=relay_fleet_stage_pressure_private-secret\n'
+    value = SETUP.project(raw, 1)
+    assert value['hints'] == expected
+    assert SETUP.project(SETUP.emit(value).encode(), 1)['hints'] == expected
+    assert 'private-secret' not in str(value)
+
+
 @pytest.mark.parametrize('raw,code', [(b'x' * (4 * 1024**2 + 1), 1), ('private', 1), (b'', True)],
                          ids=['oversized', 'text', 'boolean-exit'])
 def test_unbounded_or_wrong_typed_input_refused(raw, code):

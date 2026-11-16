@@ -47,6 +47,12 @@ ERRORS.update({
     'relay_revocation_denial_missing': (b'revoked control session lacked its actual Pong error, Ping and reconnect Login denials',),
     'relay_snapshot_seed_timeout': (b'isolated fleet-pressure seed exceeded its caller budget',),
 })
+ERRORS.update({name: () for name in (
+    'relay_fleet_stage_five', 'relay_fleet_stage_ten', 'relay_fleet_stage_pressure', 'relay_fleet_stage_unknown',
+    'relay_fleet_original_control_changed', 'relay_fleet_dedicated_control_changed',
+    'relay_fleet_inventory_changed', 'relay_fleet_changed_client_heartbeat_timeout',
+    'relay_fleet_changed_client_Pong_error', 'relay_fleet_changed_client_Pong_observed',
+    'relay_fleet_failure_log_unavailable')})
 # These markers carry only closed curl/process/body/Pong observations. Empty
 # needles require exact marker lines rather than substring matches (e.g. 3/35).
 ERRORS.update({name: () for name in (
