@@ -1,6 +1,6 @@
 {
   "source_head": "109aab5063dc056f794ef2c98f8ba2d6ca0717a9",
-  "scope": "Partial semantic review of 134 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
+  "scope": "Partial semantic review of 137 guides and historical acceptance records at source109aab5; not exhaustive source validation, external-reference review or independent deployment",
   "all_documents_reviewed": false,
   "actual_public_renewal_accepted": false,
   "findings": [
@@ -22,7 +22,8 @@
     "W3/W4 milestone records state their accepted old host/public-forwarding scope and preserve earlier failed observations. Those owner-approved historical environments do not authorize this shared host to expose ports. Restricted dump restoration, original six-service/client recovery and shared-token incident checks retain distinct sources and archive/upload limitations; later protected-host restoration does not retroactively broaden them. Normal Open with a measured source, unchanged grants and independently verified routes remains required.",
     "The W3 decision brief mixed original 10s/30s heartbeat language with present instructions. It now explicitly marks that profile historical and links the current owner-retained five-second target and 1s/3s profile; migration/rollback coverage remains. W4 history, UI comparison and lost-report fixture retain their bounded evidence and do not authorize repeating old listener/SQL changes. External TCP instructions bind both genuine provider host and canonical port and still require public positive acceptance.",
     "Protocol rotation/trust contracts preserve current cache freshness, original-operation replay, native CAS/journals and no private material in public replies. Ubuntu instructions retain fresh hosted-runner admission and exact-source image requirements. The original Check-Host-only-in-PR242 sentence now points to subsequent integration/correction and separately states the remaining all-port positive and late-port negative samples. Historical evidence and patch registries remain snapshots rather than permission to replay mutations.",
-    "W0 mobile network and NewUserConn records are historical 0.71.0 experiments, not current signed-package/mobile console evidence. Two carrier samples and the explicitly waived company/campus sample remain distinct. Existing streams surviving source-gate denial, backend-hang stale observations and failed/interrupted trials retain their measured limits. Blank result templates request private collection; filled raw credentials, hook payloads and addresses must not be published. No current five-second or full W5 claim follows from the historical 10s/30s observations."
+    "W0 mobile network and NewUserConn records are historical 0.71.0 experiments, not current signed-package/mobile console evidence. Two carrier samples and the explicitly waived company/campus sample remain distinct. Existing streams surviving source-gate denial, backend-hang stale observations and failed/interrupted trials retain their measured limits. Blank result templates request private collection; filled raw credentials, hook payloads and addresses must not be published. No current five-second or full W5 claim follows from the historical 10s/30s observations.",
+    "The complete threat model retains privileged host/authz/IdP boundaries, exact-source scoped native results, public/mobile gaps and independent custody/release requirements. Session Lax and SAML None cookies, noopener/noreferrer GUI navigation and one-second/2.5-second cache constants were checked against corresponding current implementation. All 29 handoff rows and recorded D14/authcore/Go/frp/five-second decisions remain intact; immutable historical snapshot status is distinguished from later continuation evidence."
   ],
   "files": [
     {
@@ -560,6 +561,18 @@
     {
       "path": "weekend0/userconn-results.md",
       "sha256": "8b92a690435673aac8bc7f1aaec0a60837abe5ca371cccf9aa4fe49bd3c27a26"
+    },
+    {
+      "path": "docs/threat-model.md",
+      "sha256": "a51e3d6e1d20deb705d8f2280f0f45ad402100e24edfc99b37124666d727fe3a"
+    },
+    {
+      "path": "docs/handoff/remaining-work.md",
+      "sha256": "aed391d73e0eb4b292c77a71999ae3652dcfdf701f473aec9b381c44561efccf"
+    },
+    {
+      "path": "docs/handoff/decisions-and-repositories.md",
+      "sha256": "ca40b74919c114a487a24b9176f91999fe74b570de2f7ad74095c43da5eaffb6"
     }
   ]
 }
