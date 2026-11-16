@@ -198,7 +198,7 @@ class Agent:
             if model is not None and model.findtext('relay_trust_state'):
                 raise AgentError('Former relay trust metadata cleanup is incomplete; retry removal first')
             remnants = [self.config / name for name in ('gui-apply', 'gui-request', 'gui-certificate.json', 'relay-trust')]
-            remnants.append(self.state / 'rotation.json')
+            remnants.extend(self.state / name for name in ('rotation.json', 'reconcile-audit.json'))
             if any(path.exists() or path.is_symlink() for path in remnants):
                 raise AgentError('Previous enrollment runtime cleanup is incomplete; retry Remove enrollment before enrolling')
             version = self.command(['/usr/local/sbin/opnsense-version', '-v'], timeout=5)
@@ -527,6 +527,9 @@ class Agent:
         if model.findtext('enabled') == '1' or any(model.findtext(key) for key in ('device_id', 'device_secret', 'frp_token', 'domain_claim', 'relay_trust_state')):
             raise AgentError('Native configuration must be cleared before removing runtime credentials')
         self.stop_revoked()
+        audit = self.state / 'reconcile-audit.json'
+        if audit.exists() or audit.is_symlink():
+            raise AgentError('Retained reconcile audit history needs confirmed delivery before runtime cleanup')
         try:
             rotation = self.state / 'rotation.json'
             if rotation.exists() or rotation.is_symlink():

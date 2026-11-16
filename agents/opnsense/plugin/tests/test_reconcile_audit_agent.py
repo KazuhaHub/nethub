@@ -75,3 +75,15 @@ def test_outbox_storage_failure_cannot_hide_original_failure_or_release_stop(cas
     assert 'private data' not in json.dumps(result)
     assert (case.agent.state / 'reconcile-audit.json').read_text() == 'corrupt private data'
     assert case.agent.apply('disable')['success'] and not case.active
+
+
+def test_forget_cannot_erase_runtime_keys_while_retained_history_exists(case):
+    fail(case)
+    original = box(case).batch()
+    case.set_enabled(False)  # Model cleared separately, not a confirmed Remove.
+    case.agent.backup.write_text('private retained runtime fixture')
+    result = case.agent.apply('forget')
+    assert result['success'] is False and 'audit' in result['message']
+    assert box(case).batch() == original
+    assert case.agent.backup.read_text() == 'private retained runtime fixture'
+    assert not case.active

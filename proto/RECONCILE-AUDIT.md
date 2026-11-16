@@ -44,7 +44,7 @@ native model clearing; each explicit retry drains at most one batch. An older
 console may need upgrading before that history can be acknowledged. Removal
 never silently erases pending events to appear successful. Restore the matching
 private outbox with an enrolled device's local state; conflicting old-enrollment
-history requires local review rather than rebinding or discarding it.
+history requires local review rather than rebinding or discarding it. A remaining outbox, including corrupt or linked state, refuses fresh enrollment before key generation or any network request. The existing identity may still use its retained operation. Runtime credential cleanup also refuses a retained outbox after a separately cleared model, while keeping the local stop effective.
 
 This implementation is under validation. Unit/filesystem, actual PostgreSQL and
 compiled-HTTP results have distinct scopes. Native package migration, offline

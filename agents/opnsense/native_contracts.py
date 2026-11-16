@@ -15,12 +15,12 @@ SCOPES = ['agents/opnsense/plugin', 'agents/opnsense/tests', 'proto',
           'agents/opnsense/acceptance/native_model_probe.py',
           'agents/opnsense/native_contracts.py', '.github/workflows/native-contracts.yml']
 GROUPS = {
-    'enrollment': (14, [
+    'enrollment': (17, [
         'agents/opnsense/plugin/tests/test_certificate_enrollment.py',
         'agents/opnsense/plugin/tests/test_scheduler.py::test_enrollment_handoff_has_no_credentials_or_cached_output',
         'agents/opnsense/tests/test_enrollment.py::test_php_controller_keeps_credentials_private_and_saves_under_native_lock',
     ]),
-    'service': (101, [
+    'service': (102, [
         'agents/opnsense/tests/test_reconcile_audit.py',
         'agents/opnsense/plugin/tests/test_reconcile_audit_agent.py',
         'agents/opnsense/plugin/tests/test_circuit_breaker.py',
