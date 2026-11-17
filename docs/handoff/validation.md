@@ -1,9 +1,78 @@
 # Validation at the handoff boundary
 
-The current step is finished as a result review, including its failures. No new
-runtime trial was started after the owner requested the handoff. All runs below
+The handoff step was finished as a result review, including its failures; no
+new runtime trial was started after the owner requested the handoff. The
+continuation's later results come first; the handoff sections follow unchanged. All runs below
 were terminal when reviewed. The numeric `source71`/`source72` directory names
 are evidence labels, not release versions.
+
+## Continuation acceptance: 5cf0f8e
+
+The handoff results below are retained unchanged. On
+`5cf0f8ef1826087d03df1c7f1258ba115b159b94` the five gates triggered by its
+changes each ran once, as first attempts. The recovery database and recovery
+target workflows were not triggered by these changes and did not run:
+
+| Workflow | Original run | Result |
+| --- | --- | --- |
+| Complete six-job CI | [44009160953](https://github.com/KazuhaHub/nethub/actions/runs/44009160953) | Passed; producer of the tested images |
+| Native FreeBSD contracts | [44009160940](https://github.com/KazuhaHub/nethub/actions/runs/44009160940) | Passed; 417 cases and all 284 source files bound |
+| Unsigned appliance preparation | [44009160948](https://github.com/KazuhaHub/nethub/actions/runs/44009160948) | Passed; source, installed binary and four views checked |
+| Protected-host cold recovery | [44009161079](https://github.com/KazuhaHub/nethub/actions/runs/44009161079) | Passed within the isolated scope; baseline route 106,331 ms, initial issuance 169,016 ms |
+| Installed native rotation | [44009161022](https://github.com/KazuhaHub/nethub/actions/runs/44009161022) | **Passed every phase of the run**; isolated scope, not full rotation acceptance |
+
+The appliance was OPNsense **26.7.9_3** with **3072 MiB** guest memory, frp
+**0.71.1** and compiler **Go 1.26.11**; the immutable rollback source remained
+`c9e74abb1fb1c060ab32ee880d20f32d8d7a653b`. The installed run passed:
+
+- WAN change/restore (4,347/4,208 ms) and bounded settling: 15,297 ms stable
+  within 33,449 ms over 32 samples, maximum sample gap 659 ms. The fixture's
+  private observer sshd was found dead after SIGTERM and restarted once over
+  the serial console; that sample counted as a restart and reset the stable
+  window. In a local stock OPNsense lab and in the `ac6de06` console evidence,
+  `rc.newwanip` regenerated OpenSSH after a WAN address event; this run records
+  only the dead process and its signal.
+- All ten package migration phases, including `upgrade`, which failed in a29.
+  This run does not establish a29's original cause; none of the fixes listed
+  below is known to address it.
+- Reconcile-failure audit delivery with its actual browser view.
+- Normal and interrupted Rotate (normal rotation to verified route 2,240 ms),
+  trust publication conflict and committed replay, shared-token recovery.
+- Console Revoke: native proxy offline in **920 ms** against the five-second
+  target, no reconnect during a 30,059 ms observation, and the independent
+  device unchanged.
+- Restoration onto a distinct, empty Ubuntu 24.04 machine with a new
+  PostgreSQL cluster: 56,453 ms from source stop to verified native and witness
+  routes, without restart, Rotate or re-enrollment; off-host durable custody is
+  not covered. Fixture removal through the native page also passed.
+
+Causes of other failures fixed on the way, each with its own gates: the authorization hook
+server's idle timeout was shorter than the frps plugin client's keep-alive, so
+reused connections failed Ping checks (`IdleTimeout` is now 120 s); SSH banner
+timeouts are classified separately; WAN identity failures retain closed console
+evidence. Earlier failed originals were not rerun to replace their outcome.
+
+This is isolated hosted acceptance. It is not public-network, mobile, formal
+package or release acceptance. Its evidence is the linked original runs and
+their artifacts, verified independently outside the repository; no snapshot
+of them is committed here, and the repository verifiers do not check these
+claims.
+
+## External doctor public samples
+
+Each sample ran once against the development host's own public address, with
+only `--external-tcp-check-host --expected-address`, using a binary built
+offline from the stated source. The doctor and external probe code is
+identical in both sources.
+
+- Closed ports, `898c3e0` (no listener, no forward): exit status 1 with the
+  observer refusal message and no partial success output.
+- Positive, `5cf0f8e`: temporary forwards of 443/7000/8443 to an owned disposable VM
+  listener; all three ports reported **3/3** Check-Host observers connected,
+  exit status 0 in 6,478 ms. The forwards and VM were removed afterwards.
+
+These samples prove external TCP reachability only. They do not cover TLS,
+relay admission or agreement with a published agent package version.
 
 ## Latest native transport correction: a29fbfe
 
@@ -57,7 +126,8 @@ later upgrade failure. Neither failed original was rerun to replace its outcome.
 
 The external doctor package and CLI boundaries passed `go test -race -count=1
 ./...` and `go vet ./...`. Its tests use HTTP transport fixtures; **a real
-owned-public positive/closed-port drill has not been performed**. It sends a
+owned-public positive/closed-port drill had not been performed** at that
+source (later samples: see External doctor public samples above). It sends a
 public IP and ports to Check-Host only with the explicit flag. Normal doctor
 modes do not contact that provider. See the candidate's
 [source documentation](https://github.com/KazuhaHub/nethub/blob/a4d8a1c456464bb3a5707ad8b5c4fa6071ea592e/server/internal/externalprobe/README.md).

@@ -500,7 +500,7 @@ def verify_external_tcp_report(root=ROOT):
         assert fixture[key] is True
     assert fixture['private_TCP_ports_verified'] == [14443, 17000, 18443]
     assert fixture['public_exposure_authorized'] is fixture['public_forward_mutated'] is False
-    print('Verified strict TCP report correction, retained mismatch/403 refusals and owned-port negative sample; positive/public-release scope remains open.')
+    print('Verified strict TCP report correction, retained mismatch/403 refusals and owned-port negative sample; the later positive sample is recorded in validation.md and not checked here; public-release scope remains open.')
 
 
 if __name__ == '__main__':
