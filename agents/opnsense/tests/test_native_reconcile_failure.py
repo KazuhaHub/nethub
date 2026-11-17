@@ -212,3 +212,84 @@ def test_consumer_refuses_incomplete_audit_or_browser_evidence(case, change):
     if change == 'missing_image': (evidence / 'installed-reconcile-audit.png').unlink()
     with pytest.raises((ValueError, OSError, audit.GuestError)):
         audit.require_evidence(evidence, {'installed_reconcile_audit': embedded})
+
+
+BUSY = {'available': False, 'reason': 'mutation_busy'}
+
+
+def busy_clock(monkeypatch):
+    clock = {'now': 0.0, 'sleeps': []}
+    monkeypatch.setattr(audit.time, 'monotonic', lambda: clock['now'])
+
+    def sleep(seconds):
+        clock['sleeps'].append(seconds)
+        clock['now'] += seconds
+
+    monkeypatch.setattr(audit.time, 'sleep', sleep)
+    return clock
+
+
+def test_busy_answers_are_retried_and_recorded_only_as_counters(case, monkeypatch):
+    guest, evidence, _checks, exercise = case
+    clock = busy_clock(monkeypatch)
+    ssh, remaining = guest.ssh, {'pending': 2, 'replay': 1}
+
+    def busy_ssh(script, *args, **kwargs):
+        if 'configctl' not in script and remaining.get(script.split()[-2]):
+            remaining[script.split()[-2]] -= 1
+            guest.calls.append('busy')
+            clock['now'] += 0.05
+            return json.dumps(BUSY).encode()
+        return ssh(script, *args, **kwargs)
+
+    guest.ssh = busy_ssh
+    result = exercise()
+    audit.validate(result)
+    assert result['version'] == 2 and result['passed'] and result['mutation_busy_retries'] == 3
+    assert result['max_busy_wait_ms'] == 1100 and guest.calls.count('busy') == 3
+    assert guest.calls.count('failure') == 1 and clock['sleeps'] == [1] * 3
+    audit.require_evidence(evidence, {'installed_reconcile_audit': result})
+
+
+def test_busy_lock_gives_up_at_the_deadline(case, monkeypatch):
+    guest, evidence, _checks, exercise = case
+    clock = busy_clock(monkeypatch)
+    guest.ssh = lambda *_a, **_k: json.dumps(BUSY).encode()
+    with pytest.raises(audit.GuestError, match='lock remained busy'):
+        exercise()
+    assert clock['now'] >= 100 and clock['now'] < 100.3
+    recorded = json.loads((evidence / 'installed-reconcile-audit.json').read_text())
+    assert recorded['mutation_busy_retries'] == 101 and recorded['max_busy_wait_ms'] >= 100000
+    assert recorded['phase'] == 'baseline' and not recorded['passed']
+
+
+@pytest.mark.parametrize('other', [{'success': False, 'fixture_phase': 'reconcile_failure_delivery'},
+                                   {'available': False, 'reason': 'other'}, {'available': False}])
+def test_only_the_exact_busy_answer_is_retried(case, monkeypatch, other):
+    guest, _evidence, _checks, exercise = case
+    clock = busy_clock(monkeypatch)
+    guest.ssh = lambda *_a, **_k: json.dumps(other).encode()
+    with pytest.raises(audit.GuestError):
+        exercise()
+    assert not clock['sleeps']
+
+
+def evidence_value(version, **extra):
+    value = dict.fromkeys(audit.FLAGS + audit.LIMITS, False)
+    value.update(version=version, passed=False, phase='baseline', source_head='a' * 40,
+                 event_count=0, explicit_normal_reconcile_calls=0)
+    value.update(extra)
+    return value
+
+
+def test_validate_accepts_v1_and_v2_and_rejects_bad_counters():
+    audit.validate(evidence_value(1))
+    audit.validate(evidence_value(2, mutation_busy_retries=0, max_busy_wait_ms=7))
+    for bad in [evidence_value(1, mutation_busy_retries=0, max_busy_wait_ms=0),
+                evidence_value(2), evidence_value(3, mutation_busy_retries=0, max_busy_wait_ms=0),
+                evidence_value(2, mutation_busy_retries=-1, max_busy_wait_ms=0),
+                evidence_value(2, mutation_busy_retries=True, max_busy_wait_ms=0),
+                evidence_value(2, mutation_busy_retries=0, max_busy_wait_ms=1.5),
+                evidence_value(2, mutation_busy_retries=0, max_busy_wait_ms='0')]:
+        with pytest.raises(ValueError):
+            audit.validate(bad)

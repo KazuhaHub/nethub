@@ -75,6 +75,13 @@ mandatory consumer evidence. Filesystem/fake-controller tests do not prove this
 installed path, and this invalid-template fixture does not establish formal
 published bad-canary/channel/rollback acceptance.
 
+The fixture probe shares the plugin's nonblocking `reconcile.lock`. When a
+normal cron holder has it, the probe answers `mutation_busy` before any change
+and the caller retries only that answer, sleeping 1 s between attempts, for at
+most 100 s per action. Record version 2 keeps `mutation_busy_retries` and `max_busy_wait_ms`.
+Other probe refusals stay failures with closed `reconcile_failure_*` phases,
+including the route verifier's `boundary_route_{table,missing,mismatch}` codes.
+
 Failure diagnosis keeps witness process, original control and TLS-route refusal
 as separate fixed WAN reasons. The pinned
 [frp client closes its control after a Pong error](https://github.com/fatedier/frp/blob/v0.71.1/client/control.go#L174).

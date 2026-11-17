@@ -1,4 +1,5 @@
 """Exercise fixture locking/restoration with the real private outbox implementation."""
+import fcntl
 import importlib.util
 import json
 import os
@@ -119,7 +120,7 @@ def test_replay_and_recovery_require_actual_ack_then_keep_original_payload(case)
     case.box.acknowledge([e['event_id'] for e in original])
     assert case.fixture.replay() == {'replayed': True, 'event_count': 1}
     assert case.sent == [('https://console.example.com', 'unit-test-placeholder', DEVICE, original)]
-    with pytest.raises(FileExistsError):
+    with pytest.raises(probe.IntentExists):
         case.fixture.replay()
     assert len(case.sent) == 1
     assert case.fixture.pending()['events'] == []
@@ -177,5 +178,94 @@ def test_cli_boundary_failure_never_constructs_a_mutation_fixture(monkeypatch, c
     monkeypatch.setattr(probe, 'Fixture', lambda: pytest.fail('Boundary must precede construction'))
     assert probe.main(['failure', 'a' * 32]) == 1
     result = capsys.readouterr()
-    assert json.loads(result.out) == {'success': False, 'fixture_phase': 'reconcile_failure_fixture'}
+    assert json.loads(result.out) == {'success': False, 'fixture_phase': 'reconcile_failure_boundary'}
     assert 'private-boundary-placeholder' not in result.out
+
+
+def run_main(monkeypatch, case, action):
+    monkeypatch.setattr(probe, 'boundary', lambda *_a, **_k: None)
+    monkeypatch.setattr(probe, 'Fixture', lambda: case.fixture)
+    return probe.main([action, 'a' * 32])
+
+
+@pytest.mark.parametrize('action', ['failure', 'restore', 'pending', 'replay', 'recover'])
+def test_held_lock_is_busy_not_failure_and_has_no_side_effect(monkeypatch, capsys, case, action):
+    descriptor = os.open(case.state / 'reconcile.lock', os.O_RDWR)
+    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    try:
+        before = case.template.read_bytes()
+        assert run_main(monkeypatch, case, action) == 0
+    finally:
+        os.close(descriptor)
+    assert json.loads(capsys.readouterr().out) == {'available': False, 'reason': 'mutation_busy'}
+    assert not case.fixture.directory.exists() and not case.calls and not case.sent
+    assert case.template.read_bytes() == before
+
+
+def phase_of(monkeypatch, capsys, case, action):
+    assert run_main(monkeypatch, case, action) == 1
+    result = json.loads(capsys.readouterr().out)
+    assert set(result) == {'success', 'fixture_phase'} and result['success'] is False
+    return result['fixture_phase']
+
+
+def test_boundary_refusal_is_its_own_closed_phase(monkeypatch, capsys, case):
+    monkeypatch.setattr(probe, 'Fixture', lambda: pytest.fail('Boundary must precede construction'))
+    monkeypatch.setattr(probe, 'boundary', lambda *_a, **_k: (_ for _ in ()).throw(ValueError('private')))
+    assert probe.main(['pending', 'a' * 32]) == 1
+    assert json.loads(capsys.readouterr().out) == {'success': False, 'fixture_phase': 'reconcile_failure_boundary'}
+
+
+def test_each_refusal_has_its_closed_phase_without_raw_text(monkeypatch, capsys, case):
+    # Retained events block both arming and replay.
+    case.box.record_failure()
+    assert phase_of(monkeypatch, capsys, case, 'failure') == 'reconcile_failure_retained_events'
+    assert phase_of(monkeypatch, capsys, case, 'replay') == 'reconcile_failure_retained_events'
+    case.box.acknowledge([e['event_id'] for e in case.fixture.pending()['events']])
+    # No captured batch yet.
+    case.fixture.directory.mkdir(mode=0o700)
+    assert phase_of(monkeypatch, capsys, case, 'replay') == 'reconcile_failure_captured_batch'
+    captured = case.fixture.directory / 'captured.json'
+    captured.write_bytes(probe.encoded({'device_id': DEVICE, 'events': [{'event_id': 'x'}]}))
+    captured.chmod(0o600)
+    case.fixture.send = lambda *_a: (_ for _ in ()).throw(RuntimeError('private-network-text'))
+    assert phase_of(monkeypatch, capsys, case, 'replay') == 'reconcile_failure_delivery'
+    assert (case.fixture.directory / 'replay-requested').exists()
+    assert phase_of(monkeypatch, capsys, case, 'replay') == 'reconcile_failure_replay_intent_exists'
+    (case.fixture.directory / 'replay-requested').unlink()
+    case.fixture.send = lambda *_a: True
+    assert phase_of(monkeypatch, capsys, case, 'replay') == 'reconcile_failure_identity_revoked'
+    case.fixture.send = lambda *_a: pytest.fail('unreachable')
+    (case.fixture.directory / 'replay-requested').unlink()
+    assert phase_of(monkeypatch, capsys, case, 'recover') == 'reconcile_failure_fixture'
+
+
+def test_unknown_failures_keep_the_fallback_phase(monkeypatch, capsys, case):
+    assert phase_of(monkeypatch, capsys, case, 'restore') == 'reconcile_failure_fixture'
+
+
+@pytest.mark.parametrize('code', probe.ROUTE_FAILURES)
+def test_route_verifier_codes_are_kept_as_closed_boundary_phases(monkeypatch, capsys, case, code):
+    monkeypatch.setattr(probe, 'Fixture', lambda: pytest.fail('Boundary must precede construction'))
+    monkeypatch.setattr(probe, 'boundary', lambda *_a, **_k: (_ for _ in ()).throw(probe.ProbeError(code)))
+    assert probe.main(['replay', 'a' * 32]) == 1
+    phase = json.loads(capsys.readouterr().out)['fixture_phase']
+    assert phase == 'reconcile_failure_boundary_route_' + code.removeprefix('wan_route_')
+
+
+def test_every_closed_probe_phase_is_registered_for_guest_classification():
+    import guest
+    phases = {value.phase for value in vars(probe).values()
+              if isinstance(value, type) and issubclass(value, probe.Refused)}
+    phases |= {'reconcile_failure_boundary_route_' + code.removeprefix('wan_route_') for code in probe.ROUTE_FAILURES}
+    assert 'reconcile_failure_fixture' in phases and len(phases) == 10
+    assert phases <= guest.NATIVE_FIXTURE_PHASES
+
+
+@pytest.mark.parametrize('error', [probe.ProbeError('wan_route_missing private configuration'),
+                                   probe.ProbeError('wan_probe_other'), ValueError('wan_route_missing')])
+def test_other_boundary_refusals_keep_only_the_plain_phase(monkeypatch, capsys, case, error):
+    monkeypatch.setattr(probe, 'Fixture', lambda: pytest.fail('Boundary must precede construction'))
+    monkeypatch.setattr(probe, 'boundary', lambda *_a, **_k: (_ for _ in ()).throw(error))
+    assert probe.main(['replay', 'a' * 32]) == 1
+    assert json.loads(capsys.readouterr().out) == {'success': False, 'fixture_phase': 'reconcile_failure_boundary'}

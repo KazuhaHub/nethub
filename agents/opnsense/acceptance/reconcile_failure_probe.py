@@ -11,11 +11,34 @@ import sys
 import uuid
 import xml.etree.ElementTree as ET
 
-from wan_probe import boundary
+from wan_probe import ProbeError, boundary
 
 
 TEMPLATE = 'usr/local/opnsense/service/templates/OPNsense/NetHubAgent/frpc.toml.j2'
 BAD_PREFIX = b'nethub_fixture_unknown_configuration_key = true\n'
+
+
+class Busy(Exception):
+    """The persistent mutation lock is held by another normal holder."""
+
+
+class Refused(ValueError):
+    """A fixture refusal carrying only a closed phase name, never raw text."""
+    phase = 'reconcile_failure_fixture'
+
+
+def refusal(phase):
+    return type('Refused_' + phase, (Refused,), {'phase': phase})
+
+
+Retained = refusal('reconcile_failure_retained_events')
+Captured = refusal('reconcile_failure_captured_batch')
+IntentExists = refusal('reconcile_failure_replay_intent_exists')
+Delivery = refusal('reconcile_failure_delivery')
+Revoked = refusal('reconcile_failure_identity_revoked')
+Boundary = refusal('reconcile_failure_boundary')
+# Only the route verifier's closed codes are kept, never its input or output.
+ROUTE_FAILURES = ('wan_route_table', 'wan_route_missing', 'wan_route_mismatch')
 
 
 def encoded(value):
@@ -88,7 +111,11 @@ class Fixture:
             if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
                     or info.st_nlink != 1 or info.st_size != 0 or stat.S_IMODE(info.st_mode) != 0o600):
                 raise ValueError('Original native lock required')
-            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                # Held by a normal cron holder; nothing has been changed yet.
+                raise Busy() from None
             current = path.lstat()
             if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
                 raise ValueError('Native lock changed')
@@ -134,7 +161,7 @@ class Fixture:
 
     def _arm(self):
         if self._pending()['events']:
-            raise ValueError('Existing retained failures must not be mixed with the fixture')
+            raise Retained('Existing retained failures must not be mixed with the fixture')
         original, mode = self.regular(self.template, private=False)
         source, _ = self.regular(self.source)
         if original != source:
@@ -243,21 +270,31 @@ class Fixture:
     def replay(self):
         with self.locked():
             if self._pending()['events']:
-                raise ValueError('Normal reporting must acknowledge the original outbox first')
-            raw, _ = self.regular(self.directory / 'captured.json', private=True, maximum=8192)
-            captured = json.loads(raw)
+                raise Retained('Normal reporting must acknowledge the original outbox first')
             model, device = self.identity()
-            if (set(captured) != {'device_id', 'events'} or captured['device_id'] != device
-                    or not isinstance(captured['events'], list) or not 1 <= len(captured['events']) <= 8):
-                raise ValueError('Original fixture event batch required')
-            with (self.directory / 'replay-requested').open('xb') as output:
+            try:
+                raw, _ = self.regular(self.directory / 'captured.json', private=True, maximum=8192)
+                captured = json.loads(raw)
+                if (set(captured) != {'device_id', 'events'} or captured['device_id'] != device
+                        or not isinstance(captured['events'], list) or not 1 <= len(captured['events']) <= 8):
+                    raise ValueError('Original fixture event batch required')
+            except Exception:
+                raise Captured('Original fixture event batch required') from None
+            try:
+                output = (self.directory / 'replay-requested').open('xb')
+            except FileExistsError:
+                raise IntentExists('Replay already requested') from None
+            with output:
                 os.fchmod(output.fileno(), 0o600)
                 output.write(b'One deliberate exact replay after normal acknowledgement\n')
                 output.flush()
                 os.fsync(output.fileno())
-            revoked = self.send(model.findtext('console_url'), model.findtext('device_secret'), device, captured['events'])
+            try:
+                revoked = self.send(model.findtext('console_url'), model.findtext('device_secret'), device, captured['events'])
+            except Exception:
+                raise Delivery('Exact replay delivery failed') from None
             if revoked is not False:
-                raise ValueError('Active original fixture identity required')
+                raise Revoked('Active original fixture identity required')
             return {'replayed': True, 'event_count': len(captured['events'])}
 
 
@@ -265,10 +302,25 @@ def main(arguments):
     try:
         if len(arguments) != 2 or arguments[0] not in ('failure', 'restore', 'pending', 'replay', 'recover'):
             raise ValueError('Known fixture action and nonce required')
-        boundary(arguments[1], require_route=arguments[0] != 'restore')
+        try:
+            boundary(arguments[1], require_route=arguments[0] != 'restore')
+        except ProbeError as error:
+            if str(error) in ROUTE_FAILURES:
+                raise refusal('reconcile_failure_boundary_route_' + str(error).removeprefix('wan_route_'))(
+                    'Fixture route refused') from None
+            raise Boundary('Fixture boundary refused') from None
+        except Exception:
+            raise Boundary('Fixture boundary refused') from None
         result = getattr(Fixture(), arguments[0])()
         print(json.dumps(result))
         return 0
+    except Busy:
+        # Same convention as the cold native probe: busy is not a failure.
+        print(json.dumps({'available': False, 'reason': 'mutation_busy'}))
+        return 0
+    except Refused as error:
+        print(json.dumps({'success': False, 'fixture_phase': error.phase}))
+        return 1
     except Exception:
         print(json.dumps({'success': False, 'fixture_phase': 'reconcile_failure_fixture'}))
         return 1

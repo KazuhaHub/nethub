@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import re
+import time
 import uuid
 
 from guest import GuestError, invoke
@@ -17,14 +18,21 @@ FLAGS = ('candidate_refused', 'template_restored', 'original_outbox_acknowledged
          'actual_Web_projection_verified', 'normal_browser_audit_verified',
          'recovered_without_restart', 'native_identity_GUI_trust_process_and_control_retained',
          'source_grants_and_independent_original_control_retained')
+BUSY = {'available': False, 'reason': 'mutation_busy'}
+# Covers the longest documented cron lock holder (trust run_bounded, 95 s).
+BUSY_DEADLINE = 100
 LIMITS = ('public_or_formal_bad_canary_accepted', 'full_W5_W7_or_release_accepted')
 
 
 def validate(value):
     fields = set(FLAGS + LIMITS) | {'version', 'passed', 'phase', 'source_head', 'event_count',
                                    'explicit_normal_reconcile_calls'}
+    counters = ('mutation_busy_retries', 'max_busy_wait_ms')
+    if isinstance(value, dict) and value.get('version') == 2:
+        fields |= set(counters)
     if (not isinstance(value, dict) or set(value) != fields
-            or type(value['version']) is not int or value['version'] != 1
+            or type(value['version']) is not int or value['version'] not in (1, 2)
+            or value['version'] == 2 and any(type(value[key]) is not int or value[key] < 0 for key in counters)
             or type(value['passed']) is not bool or value['phase'] not in PHASES
             or not isinstance(value['source_head'], str) or not re.fullmatch('[a-f0-9]{40}', value['source_head'])
             or type(value['event_count']) is not int or value['event_count'] not in (0, 1)
@@ -130,16 +138,27 @@ def exercise(guest, stage, evidence, nonce, device, port, sql, request,
 def _exercise(guest, stage, evidence, nonce, device, port, sql, request,
               gui_read, route, check_database, check_witness):
     value = dict.fromkeys(FLAGS + LIMITS, False)
-    value.update(version=1, passed=False, phase='baseline', source_head=os.environ['NETHUB_SOURCE_HEAD'],
-                 event_count=0, explicit_normal_reconcile_calls=0)
+    value.update(version=2, passed=False, phase='baseline', source_head=os.environ['NETHUB_SOURCE_HEAD'],
+                 event_count=0, explicit_normal_reconcile_calls=0, mutation_busy_retries=0, max_busy_wait_ms=0)
     path = evidence / 'installed-reconcile-audit.json'
     with path.open('x') as output:
         json.dump(value, output)
     path.chmod(0o600)
 
     def action(name):
-        return json.loads(guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/reconcile_failure_probe.py '
-            + name + ' ' + nonce + '\n', 'owned native failure audit ' + name, timeout=60))
+        # Only the exact busy answer is retried; the probe makes it before any side effect.
+        started = time.monotonic()
+        while True:
+            result = json.loads(guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/reconcile_failure_probe.py '
+                + name + ' ' + nonce + '\n', 'owned native failure audit ' + name, timeout=60))
+            if result != BUSY:
+                return result
+            waited = time.monotonic() - started
+            value['mutation_busy_retries'] += 1
+            value['max_busy_wait_ms'] = max(value['max_busy_wait_ms'], int(waited * 1000))
+            if waited >= BUSY_DEADLINE:
+                raise GuestError('Owned native failure audit lock remained busy')
+            time.sleep(1)  # Holders keep the lock for seconds; avoid SSH connection churn.
 
     def probe():
         result = json.loads(guest.ssh_read_only_inspection(
