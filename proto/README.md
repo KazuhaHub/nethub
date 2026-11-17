@@ -31,7 +31,7 @@ see the [shared-token validation and limits](../deploy/validation-shared-token.m
 | relay-trust-settings-request / relay-trust-settings-response | Authenticated current public trust generation, or explicit pending null |
 | relay-trust-applied-request / relay-trust-applied-response | Exact current trust identity report and original server acceptance receipt |
 
-The lifecycle router implements `/api/v1/devices/{enroll,status,unenroll,rotate}`
+The lifecycle router implements `/api/v1/devices/{enroll,status,unenroll,rotate,reconcile-events}`
 under the administrator-selected HTTPS console origin. Rotation requires protocol
 1.6 and binds a privately journaled candidate to an operation ID. Server/API and
 transaction, native command, journal/model persistence and explicit page action

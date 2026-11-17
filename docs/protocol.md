@@ -67,7 +67,7 @@ Status reporting does not make a device online: the console uses recent relay
 observations. Removal revokes the device; reporting success or retaining an old
 local configuration does not restore its authority.
 
-The lifecycle router implements `/api/v1/devices/{status,unenroll,rotate}`.
+The lifecycle router implements `/api/v1/devices/{status,unenroll,rotate,reconcile-events}`.
 Protocol 1.6 rotation binds one privately journaled candidate to one operation;
 its transaction advances the credential hash and claim timestamp with an immutable
 operation/audit. A response-loss retry authenticates the committed candidate and
@@ -96,6 +96,7 @@ authority over the router.
 | 1.4           | Authenticated report of a verified, durably applied GUI generation.                                    |
 | 1.5           | Authenticated current relay trust delivery and application receipt.                                    |
 | 1.6           | Operation-bound credential rotation with an exact retained relay-trust digest and recoverable candidate. |
+| 1.7           | Authenticated durable reconcile failure events (see [RECONCILE-AUDIT](../proto/RECONCILE-AUDIT.md)).    |
 
 The optional enrollment key is canonical unpadded base64url P-256 SubjectPublicKeyInfo.
 Its acknowledgement is the SHA256 of its DER bytes. A supplied key must receive

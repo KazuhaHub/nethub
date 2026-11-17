@@ -633,7 +633,7 @@ Response `201`:
 ```
 
 - The approved lifetime is 72 hours, generated from one database timestamp.
-- Errors: `409 user_exists`.
+- Errors: `409 user_exists`, `404 provider_unavailable`.
 
 ### `GET /invites`
 
@@ -882,7 +882,8 @@ does not establish access. The console page is `/audit`.
 - Response: a paginated list of
   `{ "id", "created_at", "actor_type": "user|system|device", "actor", "action", "target_device_id", "client_ip", "details" }`.
 - `actor` and `target_device_id` are nullable UUID strings. `client_ip` is optional.
-- `details` exposes only typed fields for selected actions: `target_user_id`,
+- `details` exposes only typed fields for selected actions: `failure_count`,
+  `device_reported`, `first_reported_at`, `last_reported_at`, `target_user_id`,
   `role`, `disabled`, `sessions_revoked`, `expires_at` and `request_id`. Raw payloads,
   credentials, hashes and claims are not returned. Other actions return `{}`.
 - For members, `client_ip` is omitted unless the actor is the caller. A member

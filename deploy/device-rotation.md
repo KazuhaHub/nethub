@@ -38,7 +38,7 @@ different identity over unresolved recovery state.
 
 The shared mutation lock excludes reconcile, watchdog and other device actions
 while rotation runs. The command and backend have internal and external time
-limits. The console page receives only a fixed success/busy/saved/error result;
+limits. The console page receives only a fixed applied/busy/saved/trust_changed/error result;
 credentials and native snapshots never appear in browser responses, process
 arguments or diagnostic messages. The root-only PHP model helper exchanges its
 private data over stdin/stdout with the bounded Python caller.
@@ -61,9 +61,14 @@ The bounded-wait change above still requires native execution, including both
 short contention recovery and long contention refusal. It does not change the
 separate five-second console revocation target.
 
-An error response may also contain a fixed `failure_reason`: `backend_response`,
-`backend_exception`, `trust_sync`, `trust_recovery`, `native_model`,
-`rotation_journal`, `native_save`, `interrupted` or `unclassified`. These categories
+An error response may also contain a fixed `failure_reason`. The plugin's
+service controller currently emits `backend_response`, `backend_exception`,
+`trust_sync`, `trust_recovery`, `native_model`, `rotation_journal`, `native_save`,
+`interrupted`, `rotation_request`, `rotation_protocol`, `rotation_response`,
+`rotation_binding`, `runtime_trust`, `mutation_lock`, `inactive`,
+`runtime_configuration`, `runtime_template`, `runtime_verify`, `service_action`,
+`service_exit`, `operation_timeout` or `unclassified`; the controller source is
+authoritative for the complete set. These categories
 help distinguish unavailable backend output from trust, model and journal
 failures. Unknown backend messages remain private. A category does not prove
 whether a remote commit occurred; retain recovery state and use the same action

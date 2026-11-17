@@ -18,7 +18,7 @@ Changed sources and rebuilt clients need their own applicable checks.
 - Go 1.26.11 builds one nethub binary. The module is
   github.com/KazuhaHub/nethub/server; Go 1.26.0 is its language floor.
 - React, TypeScript and Vite build the embedded SPA, using shadcn/ui and native
-  dialog. Generated web/dist is not committed.
+  dialog. Generated server/internal/webui/dist output is not committed (only its .gitkeep placeholder).
 - PostgreSQL 16 stores accounts, devices, jobs and operation/audit history.
 - Bundled Caddy or an administrator-managed proxy owns console HTTPS.
 - Unmodified frp 0.71.1 supplies frps and the separately packaged frpc; pins agree.
@@ -34,7 +34,7 @@ Deployment targets one Docker Compose host, with no Kubernetes target for v1.
 | web | Console API/SPA, sessions, administration, source grants, audit and traffic. |
 | authz | Device lifecycle/certificate/trust APIs, relay hooks and observations. |
 | migrate | One-shot schema migration using the owner role. |
-| admin-bootstrap | One-time initial local administrator; preserves break-glass access. |
+| admin-bootstrap (Compose service running `nethub admin create`) | One-time initial local administrator; preserves break-glass access. |
 | init | New deployment files, independent secret backup and acknowledgement; refuses overwrite. |
 | doctor | Explicit file/DNS, TLS, role, container, hook, archive and audit checks. |
 | backup | Restricted archive production, daily worker and health checks. |

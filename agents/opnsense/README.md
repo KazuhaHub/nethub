@@ -9,6 +9,9 @@ agents/opnsense/
                    Jinja2 templates, agentctl.py)
   capabilities.md  what this platform can do, as reported to the control plane
   tests/           contract tests against ../../proto/
+  acceptance/      hosted native appliance acceptance tooling (see acceptance/README.md)
+  dev-deploy.sh    development deployment helper
+  native_contracts.py  FreeBSD native filesystem/wire contract checks
 ```
 
 > **Status: pre-alpha with scoped installed acceptance.** The plugin includes

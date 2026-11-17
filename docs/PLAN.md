@@ -243,7 +243,7 @@ and the stage validation records for current implementation evidence.
 ### 3.2 外部资料
 
 - frp 官方文档与源码：<https://github.com/fatedier/frp>（historical W0 uses v0.71.0; current product frpc/frps use reviewed rebuilds of v0.71.1; configuration fields follow `pkg/config/v1/`）
-- OPNsense 插件开发文档：<https://docs.opnsense.org/development/>（重点看 "Frontend"、"Backend"（configd）、"Models"、"Templates"）
+- OPNsense 插件开发文档：<https://docs.opnsense.org/> 的 Development 部分（如 <https://docs.opnsense.org/development/frontend.html>、<https://docs.opnsense.org/development/backend.html>）（重点看 "Frontend"、"Backend"（configd）、"Models"、"Templates"）
 - Go 语言入门：<https://go.dev/tour/>；标准库 `net/http`、`database/sql` 文档
 - Postgres 行级安全（RLS）：<https://www.postgresql.org/docs/16/ddl-rowsecurity.html>
 - OIDC 入门：OpenID Connect Core 1.0 规范的 "Authorization Code Flow" 一节；PKCE 是 RFC 7636

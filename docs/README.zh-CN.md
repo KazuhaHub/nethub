@@ -112,7 +112,7 @@ NetHub 适合一个更窄的场景，同时满足下面三点：
 
 ```
 proto/            协议定义（JSON Schema），平台中立，唯一事实来源
-server/           控制面：Go，一个二进制 `nethub`（web | authz | migrate | init | doctor）
+server/           控制面：Go，一个二进制 `nethub`（web | authz | migrate | admin | init | doctor | backup | relay-token | certificates | version）
   web/              控制台源码：React + TypeScript + Vite（构建产物嵌入二进制）
 agents/opnsense/  OPNsense agent：os-nethub-agent 插件源码（PHP MVC、rc.d、agentctl.py）
 deploy/           docker-compose、Caddy 配置、按服务划分的密钥目录

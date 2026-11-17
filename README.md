@@ -164,7 +164,7 @@ proxy can own console HTTPS instead; see [external proxy routing](deploy/externa
 
 ```
 proto/            protocol definitions (JSON Schema) — platform-neutral, single source of truth
-server/           control plane: Go, one binary `nethub` (web | authz | migrate | init | doctor)
+server/           control plane: Go, one binary `nethub` (web | authz | migrate | admin | init | doctor | backup | relay-token | certificates | version)
   web/              console source: React + TypeScript + Vite (build output embedded in the binary)
 agents/opnsense/  the OPNsense agent: os-nethub-agent plugin source (PHP MVC, rc.d, agentctl.py)
 deploy/           docker-compose, Caddy config, per-service secrets layout
@@ -236,8 +236,15 @@ is established.
 - [Device protocol](docs/protocol.md): enrollment, certificate/trust lifecycles,
   compatibility and the platform adapter boundary.
 - [Documentation index](docs/README.md) and [accepted evidence/remaining work](docs/HANDOFF_PROMPT.md).
+- [Protected-host cold recovery record](deploy/validation-protected-host-cold-recovery.md):
+  an isolated recovery restored the issuer, ACME account and publication state,
+  and the original device's retained request continued to be issued and applied. A public
+  operator drill, durable encrypted off-host custody and a formal release are
+  not accepted.
 
 These guides do not establish a production release or complete W5-W7 acceptance.
+Other historical status statements in this README still need item-by-item
+review against the W7 plan and the current implementation.
 
 ## Security model
 
