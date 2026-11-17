@@ -587,6 +587,19 @@ missing-route sample count. It performs no route repair, network change, agent
 start/reconcile or package operation. The original package-probe route assertion,
 all migration invariants and all rollback/upgrade phases remain required.
 
+An SSH `Connection timed out during banner exchange` now reports the closed
+kind `guest_ssh_banner_timeout` instead of `guest_ssh_connect_timeout`; every
+existing recovery rule treats the two identically. Only when the identity phase
+fails, one fixed read-only serial-console observation is retained in
+`installed-wan-identity-console.json` (private sshd pid and total sshd process count, LAN NIC/address, pf, bounded
+last-200-line log counts, load bucket, scheduler lock and second-of-minute, or a
+fixed collection-failure category). It is written only after
+`installed-wan-recovery.json`, atomically and never over an existing file. The
+second-of-minute, near-cron-start flag and last-200-line log counts are
+observation-time values taken after the failure (up to about 30 s later), not
+values at the failure instant. It repairs nothing, replays nothing, never
+replaces the original failure, and cannot by itself prove the cause.
+
 This is a readiness correction under validation. New exact-source native evidence
 is required; earlier failures are not relabeled, and no full W5/W7, public/mobile
 network or formal-package acceptance follows.

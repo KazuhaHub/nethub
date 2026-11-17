@@ -15,6 +15,7 @@ from compose_setup import inspect as inspect_setup
 from compose_setup import project as project_setup
 from wan_recovery import validate as validate_wan_recovery
 from wan_settling import validate as validate_wan_settling
+from wan_identity_console import validate as validate_wan_identity_console
 from route_failure import validate as validate_route_failure
 from native_model_probe import validate_rotation_conditions
 from console_probe import validate_result as validate_console_probe
@@ -32,6 +33,7 @@ PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installe
                 'native/installed-console-revoke.json', 'native/installed-console-revoke.png',
                 'native/installed-wan-recovery.json',
                 'native/installed-wan-settling.json',
+                'native/installed-wan-identity-console.json',
                 'native/installed-reconcile-audit.json',
                 'native/installed-reconcile-audit-browser.json',
                 'native/installed-reconcile-audit.png',
@@ -94,6 +96,10 @@ def publish_evidence(directory):
                 if not 0 < path.stat().st_size <= 2048:
                     raise GuestError('Native WAN settling evidence exceeds bound')
                 validate_wan_settling(json.loads(path.read_text(encoding='utf-8')))
+            if name == 'native/installed-wan-identity-console.json':
+                if not 0 < path.stat().st_size <= 2048:
+                    raise GuestError('Native WAN identity console evidence exceeds bound')
+                validate_wan_identity_console(json.loads(path.read_text(encoding='utf-8')))
             if name in ('native/installed-reconcile-audit.json', 'native/installed-reconcile-audit-browser.json'):
                 if not 0 < path.stat().st_size <= 4096:
                     raise GuestError('Installed reconcile audit evidence exceeds bound')

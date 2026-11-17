@@ -47,7 +47,7 @@ def validate_ssh_failure_kind(value):
     if value in {'command_timeout', 'unclassified', 'disk_space', 'download_tls', 'missing_dependency',
                  'php_failure', 'compiler_mismatch', 'guest_dns', 'guest_network', 'guest_ssh_host_key',
                  'guest_ssh_authentication', 'guest_ssh_connection_refused', 'guest_ssh_connect_timeout',
-                 'guest_ssh_connection_reset'}:
+                 'guest_ssh_banner_timeout', 'guest_ssh_connection_reset'}:
         return value
     for phase in NATIVE_FIXTURE_PHASES:
         prefix = 'fixture_' + phase
@@ -70,6 +70,7 @@ def ssh_transport_failure(stderr):
                         ('permission denied', 'guest_ssh_authentication'),
                         ('authentication failed', 'guest_ssh_authentication'),
                         ('connection refused', 'guest_ssh_connection_refused'),
+                        ('timed out during banner exchange', 'guest_ssh_banner_timeout'),
                         ('connection timed out', 'guest_ssh_connect_timeout'),
                         ('connection reset', 'guest_ssh_connection_reset')]:
         if token in text:
@@ -86,7 +87,8 @@ def validate_read_only_inspection_recoveries(value, *, require_completed=False):
                 or item['operation'] not in ('GUI_inspection', 'model_readback', 'inspection_preflight',
                                               'lock_snapshot', 'rotation_conditions', 'package_snapshot')
                 or item['first_transport_failure'] not in (
-                    'guest_ssh_connection_refused', 'guest_ssh_connect_timeout', 'guest_ssh_connection_reset')
+                    'guest_ssh_connection_refused', 'guest_ssh_connect_timeout', 'guest_ssh_banner_timeout',
+                    'guest_ssh_connection_reset')
                 or item['phase'] not in ('listener_probe', 'readback', 'failed', 'completed')
                 or item['listener_recovery'] not in ('unconfirmed', 'probe_only', 'started_and_verified')
                 or type(item['read_completed']) is not bool or type(item['elapsed_ms']) is not int
@@ -441,7 +443,8 @@ cat /root/nethub-ci/host-key.pub
             return False
         except GuestError as error:
             if (str(error) not in {'existing owned SSH probe failed: ' + code for code in (
-                    'guest_ssh_connection_refused', 'guest_ssh_connect_timeout', 'guest_ssh_connection_reset')}
+                    'guest_ssh_connection_refused', 'guest_ssh_connect_timeout', 'guest_ssh_banner_timeout',
+                    'guest_ssh_connection_reset')}
                     or self.process is None or self.process.poll() is not None or self.console is None):
                 raise
             # OPNsense service regeneration can stop all openssh listener
@@ -476,7 +479,8 @@ cat /root/nethub-ci/host-key.pub
         try:
             return self.ssh(script, label)
         except GuestError as error:
-            failures = ('guest_ssh_connection_refused', 'guest_ssh_connect_timeout', 'guest_ssh_connection_reset')
+            failures = ('guest_ssh_connection_refused', 'guest_ssh_connect_timeout', 'guest_ssh_banner_timeout',
+                    'guest_ssh_connection_reset')
             code = next((code for code in failures if str(error) == label + ' failed: ' + code), None)
             if code is None or len(self.read_only_inspection_recoveries) >= 4:
                 raise

@@ -5,6 +5,7 @@ import re
 import time
 
 from guest import Guest, GuestError, validate_ssh_failure_kind
+from wan_identity_console import retain as retain_identity_console
 from wan_settling import settle
 
 
@@ -103,6 +104,7 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
     evidence = Path(evidence)
     source = Path(__file__).with_name('wan_probe.py')
     before, model, gui, failure = None, None, None, None
+    identity_failed = False
     changed = False
 
     def reason(error):
@@ -214,6 +216,7 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
                 failure = 'identity'
                 result['failure_reason'] = reason(error)
                 result['failure_ssh_kind'] = ssh_kind(error)
+                identity_failed = True
         if failure is not None:
             result['phase'] = failure
     finally:
@@ -222,5 +225,9 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
         path.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
         path.chmod(0o600)
     if not result['passed']:
+        if identity_failed:
+            # After the original record is durable: one closed read-only serial
+            # observation; it never raises, repairs the network or replaces the failure.
+            retain_identity_console(guest, evidence)
         raise GuestError('Native WAN recovery failed at ' + result['phase'])
     return result

@@ -1,9 +1,11 @@
 """Keep native WAN success separate from attempted changes and restored failures."""
 import importlib.util
 import json
+import re
 from pathlib import Path
 import sys
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -337,3 +339,281 @@ def test_route_recovery_cannot_hide_process_or_configuration_changes(monkeypatch
     assert not result['passed'] and result['failure_reason'] == reason
     assert result['restore_succeeded'] and result['restore_failure_reason'] is None
     assert guest.actions.count('change') == guest.actions.count('restore') == 1
+
+
+CONSOLE_FILE = 'installed-wan-identity-console.json'
+CONSOLE_VALUES = {'private_sshd_pid_alive': '1', 'sshd_process_count': '3', 'lan_nic_up_running': '1',
+                  'lan_address_present': '1', 'pf_enabled': '1', 'pf_rule_lines': '42',
+                  'newwanip_last_200_lines': '2', 'linkup_last_200_lines': '0',
+                  'filter_reload_last_200_lines': '500000', 'openssh_last_200_lines': '1',
+                  'webgui_last_200_lines': '7', 'load_1min_bucket': 'ge4',
+                  'nethub_lock_holder_lines': '1', 'second_of_minute': '58'}
+
+
+def console_output(**changes):
+    values = dict(CONSOLE_VALUES, **changes)
+    lines = ['console noise', 'NH_WANID_BEGIN'] + ['NHWANID %s=%s\r' % item for item in values.items()]
+    return '\r\n'.join(lines + ['NH_WANID_END', 'NH_shell> '])
+
+
+class FakeConsole:
+    def __init__(self, output=None, error=None):
+        self.output, self.error, self.scripts = output, error, []
+
+    def command(self, script, timeout=60):
+        self.scripts.append((script, timeout))
+        if self.error is not None:
+            raise self.error
+        return self.output
+
+
+class IdentityGuest(Guest):
+    """Fails the first post-restore inspection with the original banner-timeout category."""
+    def __init__(self, console=None, fail='identity'):
+        super().__init__()
+        self.console = console
+        self.process = SimpleNamespace(poll=lambda: None)
+        self.fail = fail
+
+    def ssh(self, script, *args, **kwargs):
+        action = script.split()[-2]
+        late = (self.actions.count('restore') and action == 'inspect'
+                and self.actions[self.actions.index('restore'):].count('inspect') >= 1)
+        if (self.fail == 'identity' and late) or (self.fail == 'change' and action == 'change'):
+            error = RECOVERY.GuestError('owned native WAN ' + action + ' failed: guest_ssh_banner_timeout')
+            error.ssh_failure_kind = 'guest_ssh_banner_timeout'
+            if action == 'change':
+                self.address = '10.0.2.16'
+            self.actions.append(action)
+            raise error
+        return super().ssh(script, *args, **kwargs)
+
+
+def run_identity(monkeypatch, tmp_path, guest):
+    with pytest.raises(RECOVERY.GuestError) as caught:
+        exercise(monkeypatch, tmp_path, guest)
+    assert str(caught.value) == 'Native WAN recovery failed at identity'
+    return json.loads((tmp_path / 'installed-wan-recovery.json').read_text())
+
+
+def test_identity_failure_writes_closed_console_evidence_and_keeps_the_original_failure(monkeypatch, tmp_path):
+    console = FakeConsole(console_output())
+    guest = IdentityGuest(console)
+    result = run_identity(monkeypatch, tmp_path, guest)
+    assert result['phase'] == 'identity' and result['failure_reason'] == 'guest_operation'
+    assert result['failure_ssh_kind'] == 'guest_ssh_banner_timeout' and result['restore_failure_reason'] is None
+    path = tmp_path / CONSOLE_FILE
+    assert path.stat().st_mode & 0o777 == 0o600
+    value = json.loads(path.read_text())
+    sys.modules['wan_identity_console'].validate(value)
+    assert value == {'version': 1, 'collected': True, 'collection_failure': None,
+                     'private_sshd_pid_alive': True, 'sshd_process_count': 3,
+                     'lan_nic_up_running': True, 'lan_address_present': True, 'pf_enabled': True,
+                     'pf_rules_present': True, 'newwanip_last_200_lines': 2, 'linkup_last_200_lines': 0,
+                     'filter_reload_last_200_lines': 999, 'openssh_last_200_lines': 1,
+                     'webgui_last_200_lines': 7, 'load_1min_bucket': '>=4',
+                     'nethub_lock_holder_present': True, 'second_of_minute': 58, 'second_near_cron_start': True}
+    assert len(console.scripts) == 1 and console.scripts[0][1] == 30
+    assert guest.actions.count('change') == guest.actions.count('restore') == 1
+
+
+@pytest.mark.parametrize('console,failure', [
+    (None, 'console_unavailable'),
+    (FakeConsole(error=RECOVERY.GuestError('Owned guest serial deadline exceeded: LEAK-SENTINEL')), 'console_error'),
+    (FakeConsole(error=RuntimeError('LEAK-SENTINEL')), 'console_error'),
+    (FakeConsole('NH_WANID_BEGIN\nLEAK-SENTINEL\nNH_WANID_END\n'), 'invalid_output'),
+    (FakeConsole('no markers LEAK-SENTINEL'), 'invalid_output'),
+    (FakeConsole(console_output(second_of_minute='60')), 'invalid_output'),
+    (FakeConsole(console_output(load_1min_bucket='private')), 'invalid_output'),
+])
+def test_console_collection_failure_is_closed_and_preserves_the_original_failure(
+        monkeypatch, tmp_path, console, failure):
+    result = run_identity(monkeypatch, tmp_path, IdentityGuest(console))
+    assert result['failure_ssh_kind'] == 'guest_ssh_banner_timeout' and result['phase'] == 'identity'
+    raw = (tmp_path / CONSOLE_FILE).read_text()
+    assert 'LEAK' not in raw
+    value = json.loads(raw)
+    sys.modules['wan_identity_console'].validate(value)
+    assert value['collected'] is False and value['collection_failure'] == failure
+
+
+def test_stopped_guest_process_yields_unavailable_console_without_a_command(monkeypatch, tmp_path):
+    console = FakeConsole(console_output())
+    guest = IdentityGuest(console)
+    guest.process = SimpleNamespace(poll=lambda: 1)
+    run_identity(monkeypatch, tmp_path, guest)
+    assert json.loads((tmp_path / CONSOLE_FILE).read_text())['collection_failure'] == 'console_unavailable'
+    assert console.scripts == []
+
+
+def test_unwritable_console_evidence_never_replaces_the_original_failure(monkeypatch, tmp_path):
+    (tmp_path / CONSOLE_FILE).write_bytes(b'earlier attempt\n')
+    result = run_identity(monkeypatch, tmp_path, IdentityGuest(FakeConsole(console_output())))
+    assert result['failure_ssh_kind'] == 'guest_ssh_banner_timeout'
+    assert (tmp_path / CONSOLE_FILE).read_bytes() == b'earlier attempt\n'
+
+
+def test_console_evidence_is_only_collected_for_the_identity_phase(monkeypatch, tmp_path):
+    console = FakeConsole(console_output())
+    exercise(monkeypatch, tmp_path, IdentityGuest(console, fail=None))
+    assert not (tmp_path / CONSOLE_FILE).exists() and console.scripts == []
+    other = tmp_path / 'change'
+    other.mkdir()
+    with pytest.raises(RECOVERY.GuestError, match='failed at change'):
+        exercise(monkeypatch, other, IdentityGuest(console, fail='change'))
+    assert not (other / CONSOLE_FILE).exists() and console.scripts == []
+    restore = tmp_path / 'restore'
+    restore.mkdir()
+
+    class RestoreFails(IdentityGuest):
+        def ssh(self, script, *args, **kwargs):
+            if script.split()[-2] == 'restore':
+                raise RECOVERY.GuestError('owned native WAN restore failed: fixture_wan_route_missing')
+            return super().ssh(script, *args, **kwargs)
+    with pytest.raises(RECOVERY.GuestError, match='failed at restore'):
+        exercise(monkeypatch, restore, RestoreFails(console, fail=None))
+    assert not (restore / CONSOLE_FILE).exists() and console.scripts == []
+
+
+def test_console_evidence_validator_refuses_extra_or_out_of_range_values():
+    helper = sys.modules['wan_identity_console']
+    good = helper.parse(console_output())
+    helper.validate(good)
+    for key, bad in [('sshd_process_count', 65), ('sshd_process_count', True),
+                     ('newwanip_last_200_lines', 1000), ('linkup_last_200_lines', -1),
+                     ('load_1min_bucket', '3'), ('second_of_minute', 60), ('second_of_minute', True),
+                     ('second_near_cron_start', False), ('pf_enabled', 1), ('version', 2),
+                     ('collection_failure', 'private text'), ('collected', 1)]:
+        with pytest.raises(ValueError):
+            helper.validate(dict(good, **{key: bad}))
+    with pytest.raises(ValueError):
+        helper.validate(dict(good, extra='private text'))
+    with pytest.raises(ValueError):
+        helper.validate({key: item for key, item in good.items() if key != 'pf_enabled'})
+    uncollected = helper.uncollected('invalid_output')
+    helper.validate(uncollected)
+    for changes in ({'pf_enabled': False}, {'collection_failure': 'other'}, {'collection_failure': None}):
+        with pytest.raises(ValueError):
+            helper.validate(dict(uncollected, **changes))
+    with pytest.raises(ValueError):
+        helper.validate(dict(good, collection_failure='console_error'))
+
+
+def test_console_parser_ignores_noise_but_refuses_duplicate_missing_or_malformed_lines():
+    helper = sys.modules['wan_identity_console']
+    assert helper.parse('NHWANID pf_enabled=0\n' + console_output(pf_enabled='0'))['pf_enabled'] is False
+    duplicate = console_output().replace('NH_WANID_END', 'NHWANID pf_enabled=1\r\nNH_WANID_END')
+    for bad in (duplicate, console_output().replace('NHWANID pf_enabled=1', 'x'),
+                console_output(pf_enabled='2'), console_output(second_of_minute='07'),
+                console_output() + console_output(), 'NH_WANID_END\nNH_WANID_BEGIN\n', None):
+        with pytest.raises(ValueError):
+            helper.parse(bad)
+    assert helper.parse(console_output(second_of_minute='7'))['second_near_cron_start'] is False
+    assert helper.parse(console_output(second_of_minute='25'))['second_near_cron_start'] is True
+    assert helper.parse(console_output(second_of_minute='35'))['second_near_cron_start'] is True
+
+
+ALLOWED_COMMANDS = {'export', 'printf', 'head', 'kill', 'pgrep', 'wc', 'tr', 'ifconfig', 'sed', 'case', 'grep',
+                    'pfctl', 'tail', 'awk', 'sysctl', 'fstat', 'date', 'test', 'true', 'if', 'then', 'else', 'fi',
+                    'esac', 'out', 'logs', 'count'}
+
+
+def script_segments(script):
+    text = re.sub(r"'[^']*'", 'Q', script)           # single-quoted data (sed/awk/printf programs)
+    text = re.sub(r'\w+\(\)', ' ', text)                # function definitions
+    text = re.sub(r'\*,[^)\n]*\)|\*\)', ' ', text)         # case patterns
+    text = text.replace('"', ' ').replace(';;', ';')
+    return text, [part.split() for part in re.split(r'\$\(|[()|;{}`&\n]+', text)]
+
+
+def test_console_observation_script_is_read_only():
+    script = sys.modules['wan_identity_console'].SCRIPT
+    text, segments = script_segments(script)
+    commands = set()
+    for words in segments:
+        while words and words[0] in ('then', 'else', 'if', '!'):
+            commands.add(words[0])
+            words = words[1:]
+        if words and re.fullmatch(r'[A-Za-z_]+=\S*', words[0]):
+            words = words[1:]
+        if not words:
+            continue
+        name = words[0].rsplit('/', 1)[-1]
+        assert name in ALLOWED_COMMANDS, name
+        commands.add(name)
+        args = ' '.join(words[1:]).replace('2>/dev/null', '').strip()
+        if name == 'kill':
+            assert args == '-0 $pid'
+        elif name == 'pfctl':
+            assert args in ('-si', '-sr')
+        elif name == 'sysctl':
+            assert args == '-n vm.loadavg'
+        elif name == 'ifconfig':
+            assert args in ('em0', 'em0 inet')
+        assert '-w' not in words[1:]
+    assert {'kill', 'pfctl', 'sysctl', 'ifconfig', 'pgrep', 'fstat'} <= commands
+    assert not commands & {'tee', 'touch', 'rm', 'mv', 'cp', 'service', 'configctl', 'pluginctl'}
+    for redirection in re.finditer(r'\d*>+[^\s;)]*', text):
+        assert redirection[0] == '2>/dev/null', redirection[0]
+    assert '<<' not in text and '>' not in text.replace('2>/dev/null', '')
+
+
+def test_console_evidence_is_written_after_the_original_recovery_record(monkeypatch, tmp_path):
+    seen = []
+
+    class OrderedConsole(FakeConsole):
+        def command(self, script, timeout=60):
+            record = tmp_path / 'installed-wan-recovery.json'
+            seen.append((record.exists(), record.stat().st_mode & 0o777, json.loads(record.read_text())['phase']))
+            return super().command(script, timeout)
+    run_identity(monkeypatch, tmp_path, IdentityGuest(OrderedConsole(console_output())))
+    assert seen == [(True, 0o600, 'identity')]
+    assert (tmp_path / CONSOLE_FILE).exists()
+
+
+def test_console_observation_restores_the_serial_wait_phase():
+    helper = sys.modules['wan_identity_console']
+
+    class PhaseConsole(FakeConsole):
+        phase = 'native_inspection'
+
+        def command(self, script, timeout=60):
+            self.phase = 'serial_command'
+            raise RuntimeError('boom')
+    console = PhaseConsole()
+    guest = SimpleNamespace(console=console, process=SimpleNamespace(poll=lambda: None))
+    import tempfile
+    with tempfile.TemporaryDirectory() as directory:
+        helper.retain(guest, directory)
+        assert json.loads((Path(directory) / CONSOLE_FILE).read_text())['collection_failure'] == 'console_error'
+    assert console.phase == 'native_inspection'
+
+
+def test_console_is_skipped_without_guest_activity_when_it_cannot_be_recorded(tmp_path):
+    helper = sys.modules['wan_identity_console']
+    console = FakeConsole(console_output())
+    guest = SimpleNamespace(console=console, process=SimpleNamespace(poll=lambda: None))
+    helper.retain(guest, tmp_path / 'missing')
+    assert not (tmp_path / 'missing').exists()
+    (tmp_path / CONSOLE_FILE).write_bytes(b'earlier\n')
+    helper.retain(guest, tmp_path)
+    assert console.scripts == [] and (tmp_path / CONSOLE_FILE).read_bytes() == b'earlier\n'
+    dangling = tmp_path / 'dangling'
+    dangling.mkdir()
+    (dangling / CONSOLE_FILE).symlink_to(dangling / 'nowhere')
+    helper.retain(guest, dangling)
+    assert console.scripts == [] and not (dangling / 'nowhere').exists()
+
+
+def test_console_write_failure_leaves_no_temporary_or_partial_file(monkeypatch, tmp_path):
+    helper = sys.modules['wan_identity_console']
+    console = FakeConsole(console_output())
+    guest = SimpleNamespace(console=console, process=SimpleNamespace(poll=lambda: None))
+    for name in ('fsync', 'link'):
+        monkeypatch.setattr(helper.os, name, Mock(side_effect=OSError('disk')))
+        helper.retain(guest, tmp_path)
+        monkeypatch.undo()
+        assert list(tmp_path.iterdir()) == []
+    helper.retain(guest, tmp_path)
+    assert [item.name for item in tmp_path.iterdir()] == [CONSOLE_FILE]
+    assert (tmp_path / CONSOLE_FILE).stat().st_mode & 0o777 == 0o600

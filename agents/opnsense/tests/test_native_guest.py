@@ -319,6 +319,9 @@ def test_package_snapshot_host_key_failure_never_recovers_or_replays():
     (b'Authentication failed\nConnection timed out', 'guest_ssh_authentication'),
     (b'Connection refused', 'guest_ssh_connection_refused'),
     (b'Connection timed out', 'guest_ssh_connect_timeout'),
+    (b'Connection timed out during banner exchange', 'guest_ssh_banner_timeout'),
+    (b'Connection to 127.0.0.1 port 2222 TIMED OUT DURING BANNER EXCHANGE', 'guest_ssh_banner_timeout'),
+    (b'Connection refused\nConnection timed out during banner exchange', 'guest_ssh_connection_refused'),
     (b'Connection reset', 'guest_ssh_connection_reset'),
 ])
 @pytest.mark.parametrize('transfer', [False, True])
@@ -458,3 +461,17 @@ def test_invalid_staging_name_is_refused_before_boundary_probe(tmp_path):
     with pytest.raises(GUEST.GuestError, match='Invalid private guest staging name'):
         guest.put(tmp_path / 'input.json', '../foreign-input.json')
     guest.ssh.assert_not_called()
+
+
+def test_banner_timeout_is_distinct_but_keeps_the_connect_timeout_recovery_behaviour():
+    assert GUEST.ssh_transport_failure(b'ssh: Connection timed out during banner exchange') == 'guest_ssh_banner_timeout'
+    assert GUEST.ssh_transport_failure(b'ssh: connect to host 127.0.0.1 port 2222: Connection timed out') == 'guest_ssh_connect_timeout'
+    assert GUEST.validate_ssh_failure_kind('guest_ssh_banner_timeout') == 'guest_ssh_banner_timeout'
+    item = {'operation': 'GUI_inspection', 'first_transport_failure': 'guest_ssh_banner_timeout', 'phase': 'completed',
+            'listener_recovery': 'probe_only', 'read_completed': True, 'elapsed_ms': 1}
+    GUEST.validate_read_only_inspection_recoveries([item], require_completed=True)
+    guest = inspection_guest()
+    guest.ssh = Mock(side_effect=[GUEST.GuestError('native fixture inspect failed: guest_ssh_banner_timeout'), b'verified read'])
+    assert guest.ssh_read_only_inspection(INSPECT) == b'verified read'
+    guest.ensure_ssh.assert_called_once_with()
+    assert guest.read_only_inspection_recoveries[0]['first_transport_failure'] == 'guest_ssh_banner_timeout'
