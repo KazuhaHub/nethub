@@ -584,7 +584,39 @@ address/control source, runtime/XML fingerprints, independent witness and verifi
 native TLS. Original first-recovery timing fields are preserved; the separate
 `installed-wan-settling.json` records the additional observation interval and
 missing-route sample count. It performs no route repair, network change, agent
-start/reconcile or package operation. The original package-probe route assertion,
+start/reconcile or package operation.
+
+Stock OPNsense `rc.newwanip` runs about 10-14 s after a WAN address event
+(twice: change and restore) and regenerates openssh, killing every sshd,
+including the fixture's private observer sshd (port 2222). That is not a
+product failure, so one bounded observer recovery is allowed inside this
+window. Only when the readiness read fails with `guest_ssh_connection_refused`,
+`guest_ssh_connect_timeout`, `guest_ssh_banner_timeout` or
+`guest_ssh_connection_reset`, `Guest.recover_settle_observer` uses the serial
+console alone to read `/root/nethub-ci/sshd.pid` (`kill -0`) and classify the
+last private sshd log line (`sigterm`, `none`, `other`). If the pid is alive,
+nothing is restarted and the original error is kept; this is the gate that
+prevents masking a real network or product failure. If it is dead, the same
+private sshd command that `ensure_ssh` uses is started with the original
+configuration and pinned host key (a replacement key is never accepted) and
+verified over SSH as root. Every console and SSH wait is capped by the
+original restoration deadline (restore start + 60 s); a console command is only
+sent with at least 10 s left (otherwise nothing is sent), and a console command
+that still fails marks the console unusable, so the later identity console
+evidence records `console_unusable` instead of writing into it. The failed sample is not
+re-read: it counts as a restart, resets the stable window, and the fifteen-second
+window must lie entirely after the last restart. Two restarts are tolerated; on a
+third loss the dead pid is confirmed but never restarted, and phase
+`observer_lost` is recorded and fails. A restart whose SSH verification failed
+is counted in `observer_recovery_failures` while the original error is kept. Any other outcome or error
+re-raises the original failure. Unclassified or fixture errors, process or
+runtime changes of frpc, route checks and deadlines are unchanged. Evidence:
+`installed-wan-settling.json` version 2 adds `observer_restarts`,
+`last_observer_recovery_ms`, `observer_recovery_failures` and `observer_recoveries` (closed entries with the
+first transport failure kind, sshd pid state, log category, listener outcome
+and start/end offsets from the restore start); `installed-wan-recovery.json`
+version 4 mirrors `observer_restarts`. Versions 1 and 3 remain valid
+historical records. The original package-probe route assertion,
 all migration invariants and all rollback/upgrade phases remain required.
 
 An SSH `Connection timed out during banner exchange` now reports the closed

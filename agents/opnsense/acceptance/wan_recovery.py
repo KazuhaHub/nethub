@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 import time
 
-from guest import Guest, GuestError, validate_ssh_failure_kind
+from guest import Guest, GuestError, SETTLE_OBSERVER_TRANSPORT_KINDS, validate_ssh_failure_kind
 from wan_identity_console import retain as retain_identity_console
 from wan_settling import settle
 
@@ -48,13 +48,19 @@ def validate(value):
     if (not isinstance(value, dict) or set(value) != set(FLAGS + LIMITS) | {
             'version', 'passed', 'phase', 'limit_ms', 'change_ms', 'restore_ms',
             'restore_attempted', 'restore_succeeded', 'failure_reason', 'restore_failure_reason',
-            'failure_ssh_kind', 'restore_ssh_kind'}
-            or type(value['version']) is not int or value['version'] != 3
+            'failure_ssh_kind', 'restore_ssh_kind'} | (
+                {'observer_restarts'} if isinstance(value.get('version'), int) and value.get('version') == 4 else set())
+            or type(value['version']) is not int or value['version'] not in (3, 4)
             or value['phase'] not in PHASES or type(value['passed']) is not bool
             or type(value['limit_ms']) is not int or value['limit_ms'] != 60000
             or any(type(value[key]) is not bool for key in FLAGS + LIMITS + ('restore_attempted', 'restore_succeeded'))
             or any(value[key] is not False for key in LIMITS)):
         raise ValueError('Unexpected native WAN outcome')
+    if value['version'] == 4:
+        restarts = value['observer_restarts']
+        if (type(restarts) is not int or not 0 <= restarts <= 2
+                or (restarts and value['phase'] not in ('identity', 'completed'))):
+            raise ValueError('Unexpected native WAN observer restart count')
     if any(value[key] is not None and value[key] not in reasons
            for key in ('failure_reason', 'restore_failure_reason')):
         raise ValueError('Unexpected native WAN failure reason')
@@ -97,7 +103,7 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
     if not isinstance(guest, Guest) or re.fullmatch('[a-f0-9]{32}', nonce) is None:
         raise GuestError('Owned native WAN fixture required')
     result = {key: False for key in FLAGS + LIMITS}
-    result.update(version=3, passed=False, phase='baseline', limit_ms=60000,
+    result.update(version=4, observer_restarts=0, passed=False, phase='baseline', limit_ms=60000,
                   failure_reason=None, restore_failure_reason=None,
                   failure_ssh_kind=None, restore_ssh_kind=None,
                   change_ms=None, restore_ms=None, restore_attempted=False, restore_succeeded=False)
@@ -106,6 +112,7 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
     before, model, gui, failure = None, None, None, None
     identity_failed = False
     changed = False
+    recoveries, recovery_failures = [], []
 
     def reason(error):
         if isinstance(error, WANError):
@@ -196,7 +203,38 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
                     except GuestError as error:
                         if reason(error) == 'wan_route_missing':
                             return 'route_missing'
-                        raise
+                        kind = ssh_kind(error)
+                        if kind not in SETTLE_OBSERVER_TRANSPORT_KINDS:
+                            raise
+                        # Stock service regeneration may have killed only the fixture's
+                        # private observer sshd. Recover it once per sample or keep the
+                        # original failure; the sample itself is never re-read.
+                        lost = len(recoveries) >= 2
+                        try:
+                            began = time.monotonic()
+                            outcome = guest.recover_settle_observer(deadline=started + 60, restart=not lost)
+                            ended = time.monotonic()
+                        except Exception:
+                            raise error from None
+                        if (not isinstance(outcome, dict) or outcome.get('sshd_pid_state') != 'dead'
+                                or outcome.get('sshd_log_category') not in ('sigterm', 'none', 'other')):
+                            raise error
+                        if lost:
+                            # Third loss: dead pid confirmed; never restart it again.
+                            if outcome.get('listener_recovery') != 'not_attempted':
+                                raise error
+                            return 'observer_lost'
+                        if outcome.get('listener_recovery') == 'failed':
+                            recovery_failures.append(kind)
+                        if outcome.get('listener_recovery') != 'started_and_verified':
+                            raise error
+                        recoveries.append({
+                            'first_transport_failure': kind, 'sshd_pid_state': 'dead',
+                            'sshd_log_category': outcome['sshd_log_category'],
+                            'listener_recovery': 'started_and_verified',
+                            'started_ms': round((began - started) * 1000),
+                            'elapsed_ms': round((ended - started) * 1000)})
+                        return 'observer_restarted'
                     unchanged(value)
                     return ('ready' if value['address'] == '10.0.2.15'
                             and value['control_sources'] == ['10.0.2.15'] and route() else 'not_ready')
@@ -205,7 +243,7 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
                 # address reapplication can briefly remove the default route;
                 # require closely sampled readiness before package operations.
                 # This uses the original restore deadline and no network repair.
-                settle(evidence, started, readiness)
+                settle(evidence, started, readiness, recoveries, recovery_failures)
                 if native_read('native-wan-after-private.json') != model or gui_read() != gui:
                     raise WANError('model_or_gui_changed')
                 check_witness()
@@ -220,6 +258,7 @@ def exercise(guest, evidence, nonce, native_read, route, gui_read, check_witness
         if failure is not None:
             result['phase'] = failure
     finally:
+        result['observer_restarts'] = len(recoveries)
         validate(result)
         path = evidence / 'installed-wan-recovery.json'
         path.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')

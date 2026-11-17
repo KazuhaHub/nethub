@@ -475,3 +475,167 @@ def test_banner_timeout_is_distinct_but_keeps_the_connect_timeout_recovery_behav
     assert guest.ssh_read_only_inspection(INSPECT) == b'verified read'
     guest.ensure_ssh.assert_called_once_with()
     assert guest.read_only_inspection_recoveries[0]['first_transport_failure'] == 'guest_ssh_banner_timeout'
+
+
+# ---- settle observer recovery ----------------------------------------------------------------
+
+def observer_guest(outputs, ssh=None, now=100.0, monkeypatch=None):
+    guest = GUEST.Guest.__new__(GUEST.Guest)
+    guest.process = SimpleNamespace(poll=lambda: None)
+    guest.console = Mock()
+    guest.console.command = Mock(side_effect=outputs)
+    guest.ssh = ssh or Mock(return_value=b'')
+    monkeypatch.setattr(GUEST.time, 'monotonic', lambda: now)
+    return guest
+
+
+def observation(state, category):
+    return 'noise\r\nNH_SSHD_STATE=%s\r\nNH_SSHD_LOG=%s\r\n' % (state, category)
+
+
+@pytest.mark.parametrize('broken', ['process', 'exited', 'console'])
+def test_observer_recovery_sends_nothing_without_a_live_console(monkeypatch, broken):
+    guest = observer_guest([], monkeypatch=monkeypatch)
+    if broken == 'process':
+        guest.process = None
+    elif broken == 'exited':
+        guest.process = SimpleNamespace(poll=lambda: 1)
+    else:
+        guest.console = None
+    with pytest.raises(GUEST.GuestError):
+        guest.recover_settle_observer(deadline=160)
+    guest.ssh.assert_not_called()
+
+
+@pytest.mark.parametrize('deadline', [90.0, 100.0, 109.9])
+def test_observer_recovery_below_the_console_budget_sends_nothing(monkeypatch, deadline):
+    guest = observer_guest([], monkeypatch=monkeypatch)
+    result = guest.recover_settle_observer(deadline=deadline)
+    assert result == {'sshd_pid_state': 'unknown', 'sshd_log_category': 'none',
+                      'listener_recovery': 'not_attempted', 'reason': 'insufficient_budget'}
+    guest.console.command.assert_not_called()
+    guest.ssh.assert_not_called()
+    assert not getattr(guest.console, 'unusable', False) is True
+
+
+def test_restart_is_skipped_when_the_budget_ran_out_after_observation(monkeypatch):
+    clock = [100.0]
+    guest = observer_guest([observation('dead', 'none')], monkeypatch=monkeypatch)
+    monkeypatch.setattr(GUEST.time, 'monotonic', lambda: clock[0])
+    def observe(script, timeout):
+        clock[0] += 5
+        return observation('dead', 'none')
+    guest.console.command = Mock(side_effect=observe)
+    result = guest.recover_settle_observer(deadline=112)
+    assert result['listener_recovery'] == 'not_attempted' and result['reason'] == 'insufficient_budget'
+    guest.console.command.assert_called_once()
+    guest.ssh.assert_not_called()
+
+
+def test_observe_only_mode_never_restarts_a_dead_pid(monkeypatch):
+    guest = observer_guest([observation('dead', 'sigterm')], monkeypatch=monkeypatch)
+    result = guest.recover_settle_observer(deadline=160, restart=False)
+    assert result == {'sshd_pid_state': 'dead', 'sshd_log_category': 'sigterm',
+                      'listener_recovery': 'not_attempted'}
+    guest.console.command.assert_called_once()
+    guest.ssh.assert_not_called()
+
+
+@pytest.mark.parametrize('which', [0, 1])
+def test_console_command_failure_marks_the_console_unusable_and_restores_phase(monkeypatch, which):
+    outputs = [observation('dead', 'none'), GUEST.GuestError('serial deadline')]
+    if which == 0:
+        outputs = [GUEST.GuestError('serial deadline')]
+    guest = observer_guest(outputs, monkeypatch=monkeypatch)
+    guest.console.phase = 'before'
+    def run(script, timeout):
+        guest.console.phase = 'serial_command'
+        item = outputs.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+    guest.console.command = Mock(side_effect=run)
+    try:
+        result = guest.recover_settle_observer(deadline=160)
+    except GUEST.GuestError:
+        result = None
+    assert (result is None) == (which == 0)
+    if result is not None:
+        assert result['listener_recovery'] == 'failed'
+    assert guest.console.unusable is True and guest.console.phase == 'before'
+    guest.ssh.assert_not_called()
+
+
+def test_successful_recovery_leaves_console_usable_and_restores_phase(monkeypatch):
+    guest = observer_guest([observation('dead', 'none'), ''], monkeypatch=monkeypatch)
+    guest.console.phase = 'before'
+    guest.console.unusable = False
+    guest.recover_settle_observer(deadline=160)
+    assert guest.console.unusable is False and guest.console.phase == 'before'
+
+
+@pytest.mark.parametrize('category', ['sigterm', 'none', 'other'])
+def test_live_private_sshd_is_never_restarted(monkeypatch, category):
+    guest = observer_guest([observation('alive', category)], monkeypatch=monkeypatch)
+    result = guest.recover_settle_observer(deadline=160)
+    assert result == {'sshd_pid_state': 'alive', 'sshd_log_category': category,
+                      'listener_recovery': 'not_attempted'}
+    guest.console.command.assert_called_once()
+    guest.ssh.assert_not_called()
+    script = guest.console.command.call_args.args[0]
+    assert 'kill -0' in script and 'sshd.pid' in script and 'sshd-private.log' in script
+    assert '"$ssh_daemon"' not in script and 'kill -' not in script.replace('kill -0', '')
+
+
+def test_dead_private_sshd_restarts_with_the_ensure_ssh_command_and_verifies(monkeypatch):
+    guest = observer_guest([observation('dead', 'sigterm'), ''], monkeypatch=monkeypatch)
+    result = guest.recover_settle_observer(deadline=160)
+    assert result == {'sshd_pid_state': 'dead', 'sshd_log_category': 'sigterm',
+                      'listener_recovery': 'started_and_verified'}
+    restart = guest.console.command.call_args_list[1]
+    assert restart.args[0] == GUEST.SSHD_RESTART_SCRIPT
+    guest.ssh.assert_called_once_with('test "$(id -u)" = 0\n', 'restored owned SSH boundary', timeout=15)
+    assert all(token not in restart.args[0] for token in ('configctl', 'agentctl', 'frpc', 'ssh-keygen', 'known_hosts'))
+
+
+def test_restart_command_is_the_one_ensure_ssh_sends():
+    guest = GUEST.Guest.__new__(GUEST.Guest)
+    guest.process = SimpleNamespace(poll=lambda: None)
+    guest.console = Mock()
+    guest.ssh = Mock(side_effect=[GUEST.GuestError('existing owned SSH probe failed: guest_ssh_connect_timeout'), b''])
+    guest.ensure_ssh()
+    assert guest.console.command.call_args.args == (GUEST.SSHD_RESTART_SCRIPT,)
+
+
+def test_observer_recovery_timeouts_are_capped_by_the_deadline(monkeypatch):
+    guest = observer_guest([observation('dead', 'none'), ''], monkeypatch=monkeypatch)
+    guest.recover_settle_observer(deadline=112.5)
+    assert [call.kwargs['timeout'] for call in guest.console.command.call_args_list] == [12.5, 12.5]
+    assert guest.ssh.call_args.kwargs['timeout'] == 12.5
+
+
+@pytest.mark.parametrize('fail', ['restart', 'verify'])
+def test_failed_restart_or_verification_is_reported_closed(monkeypatch, fail):
+    error = GUEST.GuestError('private detail')
+    outputs = [observation('dead', 'other'), error if fail == 'restart' else '']
+    guest = observer_guest(outputs, ssh=Mock(side_effect=error), monkeypatch=monkeypatch)
+    result = guest.recover_settle_observer(deadline=160)
+    assert result['listener_recovery'] == 'failed' and result['sshd_pid_state'] == 'dead'
+    assert 'private' not in repr(result)
+
+
+@pytest.mark.parametrize('output', ['', 'NH_SSHD_STATE=maybe\nNH_SSHD_LOG=other\n',
+                                    'NH_SSHD_STATE=dead\nNH_SSHD_LOG=private\n'])
+def test_unrecognised_observation_refuses_without_restart(monkeypatch, output):
+    guest = observer_guest([output], monkeypatch=monkeypatch)
+    with pytest.raises(GUEST.GuestError):
+        guest.recover_settle_observer(deadline=160)
+    guest.console.command.assert_called_once()
+    guest.ssh.assert_not_called()
+
+
+def test_observer_recovery_never_replaces_the_pinned_host_key(monkeypatch):
+    guest = observer_guest([observation('dead', 'sigterm'), ''], monkeypatch=monkeypatch)
+    guest.recover_settle_observer(deadline=160)
+    scripts = ' '.join(call.args[0] for call in guest.console.command.call_args_list)
+    assert 'host-key' not in scripts and 'ssh-keygen' not in scripts and 'known_hosts' not in scripts

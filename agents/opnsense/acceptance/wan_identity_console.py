@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 
 FILENAME = 'installed-wan-identity-console.json'
-COLLECTION_FAILURES = ('console_unavailable', 'console_error', 'invalid_output')
+COLLECTION_FAILURES = ('console_unavailable', 'console_unusable', 'console_error', 'invalid_output')
 LOAD_BUCKETS = ('<1', '1-2', '2-4', '>=4')
 BOOLS = ('private_sshd_pid_alive', 'lan_nic_up_running', 'lan_address_present', 'pf_enabled',
          'pf_rules_present', 'nethub_lock_holder_present', 'second_near_cron_start')
@@ -127,6 +127,8 @@ def observe(guest):
         process = getattr(guest, 'process', None)
         if console is None or process is None or process.poll() is not None:
             return uncollected('console_unavailable')
+        if getattr(console, 'unusable', False) is True:
+            return uncollected('console_unusable')
         try:
             output = console.command(SCRIPT, timeout=30)
         except Exception:

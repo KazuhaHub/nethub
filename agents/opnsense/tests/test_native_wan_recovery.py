@@ -182,7 +182,7 @@ def test_wan_inspection_retains_original_closed_ssh_kind_without_replay(monkeypa
     with pytest.raises(RECOVERY.GuestError):
         exercise(monkeypatch, tmp_path, guest)
     result = json.loads((tmp_path / 'installed-wan-recovery.json').read_text())
-    assert result['version'] == 3 and result['phase'] == 'identity' and not result['passed']
+    assert result['version'] == 4 and result['phase'] == 'identity' and not result['passed']
     assert result['failure_ssh_kind'] == kind and result['restore_ssh_kind'] is None
     assert guest.actions.count('change') == guest.actions.count('restore') == 1
     assert 'private' not in json.dumps(result)
@@ -617,3 +617,301 @@ def test_console_write_failure_leaves_no_temporary_or_partial_file(monkeypatch, 
     helper.retain(guest, tmp_path)
     assert [item.name for item in tmp_path.iterdir()] == [CONSOLE_FILE]
     assert (tmp_path / CONSOLE_FILE).stat().st_mode & 0o777 == 0o600
+
+
+# ---- bounded settle-observer recovery ------------------------------------------------------
+
+def banner_error(kind='guest_ssh_banner_timeout'):
+    error = RECOVERY.GuestError('owned native WAN inspect failed: ' + kind)
+    error.ssh_failure_kind = kind
+    return error
+
+
+class ObserverGuest(Guest):
+    """Late inspections fail at the scheduled fake-clock instants until recovered."""
+    def __init__(self, kills=(5.0,), outcome=None, kind='guest_ssh_banner_timeout', clock=None, cost=0.0):
+        super().__init__()
+        self.kills, self.kind, self.clock, self.cost = list(kills), kind, clock, cost
+        self.broken = False
+        self.recoveries, self.restart_flags = [], []
+        self.outcome = outcome or {'sshd_pid_state': 'dead', 'sshd_log_category': 'sigterm',
+                                   'listener_recovery': 'started_and_verified'}
+
+    def ssh(self, script, *args, **kwargs):
+        action = script.split()[-2]
+        if action == 'inspect' and self.actions.count('restore'):
+            if self.kills and self.clock.stamp >= self.kills[0]:
+                self.kills.pop(0)
+                self.broken = True
+            if self.broken:
+                self.actions.append('inspect')
+                raise banner_error(self.kind)
+        return super().ssh(script, *args, **kwargs)
+
+    def recover_settle_observer(self, deadline, restart=True):
+        self.recoveries.append(deadline)
+        self.restart_flags.append(restart)
+        self.clock.stamp += self.cost
+        if not restart:
+            return dict(self.outcome, listener_recovery='not_attempted')
+        if self.outcome.get('listener_recovery') == 'started_and_verified':
+            self.broken = False
+        return dict(self.outcome)
+
+
+def settling_record(tmp_path):
+    return json.loads((tmp_path / 'installed-wan-settling.json').read_text())
+
+
+def test_observer_restart_passes_with_window_entirely_after_restart(monkeypatch, tmp_path, fake_clock):
+    guest = ObserverGuest(clock=fake_clock, cost=3)
+    result = exercise(monkeypatch, tmp_path, guest)
+    settling = settling_record(tmp_path)
+    assert result['passed'] and result['version'] == 4 and result['observer_restarts'] == 1
+    assert settling['version'] == 2 and settling['observer_restarts'] == 1 and settling['passed']
+    assert settling['last_observer_recovery_ms'] <= settling['elapsed_ms'] - settling['stable_ms']
+    assert len(guest.recoveries) == 1
+    item, = settling['observer_recoveries']
+    assert item['first_transport_failure'] == 'guest_ssh_banner_timeout' and item['sshd_log_category'] == 'sigterm'
+    assert item['sshd_pid_state'] == 'dead' and item['listener_recovery'] == 'started_and_verified'
+    assert item['started_ms'] < item['elapsed_ms'] <= settling['last_observer_recovery_ms']
+    assert guest.actions.count('change') == guest.actions.count('restore') == 1
+    RECOVERY.validate(result)
+    sys.modules['wan_settling'].validate(settling)
+
+
+def test_recovery_deadline_is_the_original_restore_budget(monkeypatch, tmp_path, fake_clock):
+    guest = ObserverGuest(clock=fake_clock)
+    exercise(monkeypatch, tmp_path, guest)
+    restore_started = guest.recoveries[0] - 60
+    assert 0 <= restore_started < 5
+
+
+def test_two_observer_kills_pass(monkeypatch, tmp_path, fake_clock):
+    guest = ObserverGuest(kills=(5.0, 12.0), clock=fake_clock, cost=1)
+    result = exercise(monkeypatch, tmp_path, guest)
+    settling = settling_record(tmp_path)
+    assert result['passed'] and result['observer_restarts'] == settling['observer_restarts'] == 2
+    assert len(settling['observer_recoveries']) == 2
+    assert settling['last_observer_recovery_ms'] <= settling['elapsed_ms'] - settling['stable_ms']
+
+
+def test_third_observer_loss_is_terminal_and_never_restarted(monkeypatch, tmp_path, fake_clock):
+    guest = ObserverGuest(kills=(5.0, 7.0, 9.0), clock=fake_clock)
+    with pytest.raises(RECOVERY.GuestError, match='failed at identity'):
+        exercise(monkeypatch, tmp_path, guest)
+    settling = settling_record(tmp_path)
+    result = json.loads((tmp_path / 'installed-wan-recovery.json').read_text())
+    assert settling['phase'] == 'observer_lost' and not settling['passed']
+    assert settling['observer_restarts'] == 2 and len(settling['observer_recoveries']) == 2
+    assert result['observer_restarts'] == 2 and not result['passed']
+    assert len(guest.recoveries) == 3 and guest.restart_flags == [True, True, False]
+    assert guest.broken
+
+
+def test_restart_counts_agree_in_both_records(monkeypatch, tmp_path, fake_clock):
+    guest = ObserverGuest(kills=(5.0, 12.0), clock=fake_clock, cost=1)
+    result = exercise(monkeypatch, tmp_path, guest)
+    settling = settling_record(tmp_path)
+    assert result['observer_restarts'] == settling['observer_restarts'] == len(settling['observer_recoveries']) == 2
+
+
+def test_restart_counts_agree_when_the_clock_fails_right_after_a_restart(monkeypatch, tmp_path, fake_clock):
+    guest = ObserverGuest(clock=fake_clock)
+    original = guest.recover_settle_observer
+    armed = []
+
+    def recover(deadline, restart=True):
+        armed.append(1)  # the very next clock read after the recorded end time goes backwards
+        return original(deadline, restart)
+    guest.recover_settle_observer = recover
+    reads = []
+
+    def monotonic():
+        if armed:
+            reads.append(1)
+            if len(reads) == 2:
+                fake_clock.stamp -= 3
+        return fake_clock.stamp
+    monkeypatch.setattr(RECOVERY.time, 'monotonic', monotonic)
+    with pytest.raises(RECOVERY.GuestError, match='failed at identity'):
+        exercise(monkeypatch, tmp_path, guest)
+    settling = settling_record(tmp_path)
+    result = json.loads((tmp_path / 'installed-wan-recovery.json').read_text())
+    assert settling['phase'] == 'clock'
+    assert result['observer_restarts'] == settling['observer_restarts'] == len(settling['observer_recoveries']) == 1
+
+
+def test_restart_with_failed_verification_is_counted_and_keeps_the_original_failure(monkeypatch, tmp_path, fake_clock):
+    guest = ObserverGuest(clock=fake_clock, outcome={
+        'sshd_pid_state': 'dead', 'sshd_log_category': 'none', 'listener_recovery': 'failed'})
+    with pytest.raises(RECOVERY.GuestError, match='failed at identity'):
+        exercise(monkeypatch, tmp_path, guest)
+    settling = settling_record(tmp_path)
+    result = json.loads((tmp_path / 'installed-wan-recovery.json').read_text())
+    assert settling['observer_recovery_failures'] == 1 and settling['phase'] == 'observation'
+    assert settling['observer_restarts'] == result['observer_restarts'] == 0
+    assert result['failure_ssh_kind'] == 'guest_ssh_banner_timeout'
+    sys.modules['wan_settling'].validate(settling)
+
+
+def test_recovery_console_timeout_makes_identity_console_unusable_without_writing(monkeypatch, tmp_path, fake_clock):
+    console = FakeConsole(console_output())
+    console.unusable = False
+    guest = IdentityGuest(console)
+
+    def recover(deadline, restart=True):
+        console.unusable = True
+        raise RECOVERY.GuestError('Owned guest serial deadline exceeded: serial_command/unclassified')
+    guest.recover_settle_observer = recover
+    result = run_identity(monkeypatch, tmp_path, guest)
+    assert result['failure_ssh_kind'] == 'guest_ssh_banner_timeout' and result['phase'] == 'identity'
+    value = json.loads((tmp_path / CONSOLE_FILE).read_text())
+    sys.modules['wan_identity_console'].validate(value)
+    assert value['collected'] is False and value['collection_failure'] == 'console_unusable'
+    assert console.scripts == []
+
+
+@pytest.mark.parametrize('outcome', [
+    {'sshd_pid_state': 'alive', 'sshd_log_category': 'other', 'listener_recovery': 'not_attempted'},
+    {'sshd_pid_state': 'dead', 'sshd_log_category': 'none', 'listener_recovery': 'failed'},
+    {'sshd_pid_state': 'dead', 'sshd_log_category': 'private', 'listener_recovery': 'started_and_verified'},
+    None])
+def test_unproven_recovery_keeps_the_original_failure(monkeypatch, tmp_path, fake_clock, outcome):
+    guest = ObserverGuest(clock=fake_clock, outcome=outcome or {})
+    if outcome is None:
+        def boom(deadline):
+            raise RECOVERY.GuestError('console unavailable')
+        guest.recover_settle_observer = boom
+    with pytest.raises(RECOVERY.GuestError, match='failed at identity'):
+        exercise(monkeypatch, tmp_path, guest)
+    settling = settling_record(tmp_path)
+    result = json.loads((tmp_path / 'installed-wan-recovery.json').read_text())
+    assert settling['phase'] == 'observation' and settling['observer_restarts'] == 0
+    assert settling['observer_recoveries'] == [] and result['observer_restarts'] == 0
+    assert result['failure_ssh_kind'] == 'guest_ssh_banner_timeout'
+
+
+@pytest.mark.parametrize('kind', ['guest_ssh_authentication', 'guest_ssh_host_key', 'command_timeout', 'unclassified',
+                                  'fixture_native_gui_identity'])
+def test_other_failures_never_recover(monkeypatch, tmp_path, fake_clock, kind):
+    guest = ObserverGuest(clock=fake_clock, kind=kind)
+    with pytest.raises(RECOVERY.GuestError):
+        exercise(monkeypatch, tmp_path, guest)
+    assert guest.recoveries == [] and settling_record(tmp_path)['observer_restarts'] == 0
+
+
+def test_error_without_a_kind_never_recovers(monkeypatch, tmp_path, fake_clock):
+    class Plain(ObserverGuest):
+        def ssh(self, script, *args, **kwargs):
+            if script.split()[-2] == 'inspect' and self.actions.count('restore') and fake_clock.stamp >= 5:
+                self.actions.append('inspect')
+                raise RECOVERY.GuestError('anything')
+            return Guest.ssh(self, script, *args, **kwargs)
+    guest = Plain(clock=fake_clock)
+    with pytest.raises(RECOVERY.GuestError):
+        exercise(monkeypatch, tmp_path, guest)
+    assert guest.recoveries == []
+
+
+def test_frpc_process_change_after_restart_is_refused(monkeypatch, tmp_path, fake_clock):
+    class Changed(ObserverGuest):
+        def ssh(self, script, *args, **kwargs):
+            value = super().ssh(script, *args, **kwargs)
+            if self.recoveries and script.split()[-2] == 'inspect':
+                value = json.dumps(dict(json.loads(value), pid=999))
+            return value
+    guest = Changed(clock=fake_clock)
+    with pytest.raises(RECOVERY.GuestError, match='failed at identity'):
+        exercise(monkeypatch, tmp_path, guest)
+    assert json.loads((tmp_path / 'installed-wan-recovery.json').read_text())['failure_reason'] == 'process_changed'
+    assert settling_record(tmp_path)['phase'] == 'observation'
+
+
+def test_recovery_overrunning_the_budget_is_a_deadline(monkeypatch, tmp_path, fake_clock):
+    guest = ObserverGuest(clock=fake_clock, cost=70)
+    with pytest.raises(RECOVERY.GuestError, match='failed at identity'):
+        exercise(monkeypatch, tmp_path, guest)
+    settling = settling_record(tmp_path)
+    assert settling['phase'] == 'deadline' and not settling['passed']
+    assert settling['observer_restarts'] == 1
+
+
+def good_settling():
+    return {'version': 2, 'passed': True, 'phase': 'completed', 'limit_ms': 60000, 'required_stable_ms': 15000,
+            'maximum_sample_gap_ms': 1000, 'read_only_observation': True,
+            'network_or_package_operation_replayed': False, 'public_or_release_accepted': False,
+            'elapsed_ms': 30000, 'stable_ms': 15500, 'samples': 40, 'missing_route_samples': 0,
+            'not_ready_samples': 0, 'window_max_gap_ms': 300, 'observer_restarts': 1,
+            'observer_recovery_failures': 0,
+            'last_observer_recovery_ms': 12000,
+            'observer_recoveries': [{'first_transport_failure': 'guest_ssh_banner_timeout',
+                                     'sshd_pid_state': 'dead', 'sshd_log_category': 'sigterm',
+                                     'listener_recovery': 'started_and_verified',
+                                     'started_ms': 11000, 'elapsed_ms': 12000}]}
+
+
+def test_settling_validator_binds_the_window_to_the_last_restart():
+    helper = sys.modules['wan_settling']
+    helper.validate(good_settling())
+    recovery = good_settling()['observer_recoveries'][0]
+    three = [dict(recovery, started_ms=1000 * n, elapsed_ms=1000 * n + 500) for n in (1, 2, 3)]
+    two = three[:2]
+    cases = [dict(last_observer_recovery_ms=15000),
+             dict(observer_restarts=3, observer_recoveries=three),
+             dict(observer_restarts=0),
+             dict(observer_restarts=0, observer_recoveries=[]),
+             dict(last_observer_recovery_ms=0),
+             dict(last_observer_recovery_ms=11999),
+             dict(observer_restarts=True),
+             dict(observer_recoveries=[]),
+             dict(observer_recoveries=[dict(recovery, sshd_log_category='private text')]),
+             dict(observer_recoveries=[dict(recovery, first_transport_failure='guest_ssh_authentication')]),
+             dict(observer_recoveries=[dict(recovery, sshd_pid_state='alive')]),
+             dict(observer_recoveries=[dict(recovery, listener_recovery='failed')]),
+             dict(observer_recoveries=[dict(recovery, started_ms=13000)]),
+             dict(observer_recoveries=[dict(recovery, extra=1)]),
+             dict(phase='observer_lost'), dict(observer_recovery_failures=1), dict(observer_recovery_failures=2),
+             dict(observer_recovery_failures=True),
+             dict(version=3), dict(version=True)]
+    for changes in cases:
+        with pytest.raises(ValueError):
+            helper.validate(dict(good_settling(), **changes))
+    lost = dict(good_settling(), passed=False, phase='observer_lost', observer_restarts=2,
+                observer_recoveries=two, last_observer_recovery_ms=2500, stable_ms=0, window_max_gap_ms=0)
+    helper.validate(lost)
+    helper.validate(dict(lost, phase='observation', observer_recovery_failures=1))
+    with pytest.raises(ValueError):
+        helper.validate(dict(lost, phase='deadline', observer_recovery_failures=1))
+    with pytest.raises(ValueError):
+        helper.validate(dict(lost, passed=True))
+    with pytest.raises(ValueError):
+        helper.validate(dict(lost, observer_restarts=1, observer_recoveries=two[:1]))
+    with pytest.raises(ValueError):
+        helper.validate(dict(lost, observer_restarts=3, observer_recoveries=three))
+
+
+def test_historical_versions_remain_valid_and_cannot_carry_new_fields():
+    helper = sys.modules['wan_settling']
+    old = {key: value for key, value in good_settling().items()
+           if key not in ('observer_restarts', 'last_observer_recovery_ms', 'observer_recoveries',
+                       'observer_recovery_failures')}
+    helper.validate(dict(old, version=1))
+    with pytest.raises(ValueError):
+        helper.validate(dict(old, version=1, observer_restarts=0))
+    with pytest.raises(ValueError):
+        helper.validate(dict(old, version=2))
+
+
+def test_recovery_record_versions_and_restart_mirror(monkeypatch, tmp_path):
+    result = exercise(monkeypatch, tmp_path, Guest())
+    old = {key: value for key, value in result.items() if key != 'observer_restarts'}
+    RECOVERY.validate(dict(old, version=3))
+    for bad in (dict(old, version=4), dict(result, version=3), dict(result, observer_restarts=3),
+                dict(result, observer_restarts=1, phase='restore'), dict(result, observer_restarts=1, phase='baseline'),
+                dict(result, observer_restarts=-1), dict(result, observer_restarts=False),
+                dict(result, version=5)):
+        with pytest.raises(ValueError):
+            RECOVERY.validate(bad)
+    RECOVERY.validate(dict(result, observer_restarts=2))
+    RECOVERY.validate(dict(result, observer_restarts=1, passed=False, phase='identity', failure_reason='guest_operation'))

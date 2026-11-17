@@ -31,7 +31,7 @@ GROUPS = {
         'agents/opnsense/plugin/tests/test_scheduler.py::test_enrollment_handoff_has_no_credentials_or_cached_output',
         'agents/opnsense/tests/test_enrollment.py::test_php_controller_keeps_credentials_private_and_saves_under_native_lock',
     ]),
-    'service': (194, [
+    'service': (217, [
         'server/tests/test_relay_fleet.py',
         'agents/opnsense/tests/test_native_reconcile_failure_probe.py',
         'agents/opnsense/tests/test_native_reconcile_failure.py',
@@ -82,6 +82,11 @@ REQUIRED_NATIVE_CASES = {'test_restart_and_lost_reply_keep_identical_original_ev
                          'test_unwritable_console_evidence_never_replaces_the_original_failure',
                          'test_late_route_gap_delays_readiness_without_replaying_or_changing_first_recovery_time',
                          'test_persistent_late_missing_route_stays_failed_at_the_original_deadline',
+                         'test_observer_restart_passes_with_window_entirely_after_restart',
+                         'test_third_observer_loss_is_terminal_and_never_restarted',
+                         'test_restart_counts_agree_when_the_clock_fails_right_after_a_restart',
+                         'test_recovery_console_timeout_makes_identity_console_unusable_without_writing',
+                         'test_settling_validator_binds_the_window_to_the_last_restart',
                          'test_revoke_stop_precedes_backlog_delivery_and_clear_requires_ack',
                          'test_enrollment_lock_interoperates_with_native_scheduler_lockf',
                          'test_native_install_guard_and_reconcile_share_the_original_lock',

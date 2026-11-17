@@ -184,6 +184,25 @@ def verified_image(directory):
     return disk, checked
 
 
+SSHD_RESTART_SCRIPT = ("set -eu\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n"
+                       "export PATH\nssh_daemon=$(command -v sshd)\n"
+                       "case \"$ssh_daemon\" in /usr/local/sbin/sshd|/usr/sbin/sshd) ;; *) exit 127 ;; esac\n"
+                       "\"$ssh_daemon\" -f /root/nethub-ci/sshd.conf -E /root/nethub-ci/sshd-private.log\n")
+SSHD_OBSERVE_SCRIPT = (
+    "pid=$(cat /root/nethub-ci/sshd.pid 2>/dev/null || true)\n"
+    "state=dead\n"
+    "case \"$pid\" in ''|*[!0-9]*) ;; *) if kill -0 \"$pid\" 2>/dev/null; then state=alive; fi ;; esac\n"
+    "last=$(tail -n 1 /root/nethub-ci/sshd-private.log 2>/dev/null || true)\n"
+    "category=other\n"
+    "case \"$last\" in '') category=none ;; *'signal 15'*) category=sigterm ;; esac\n"
+    "printf '\\nNH_SSHD_STATE=%s\\nNH_SSHD_LOG=%s\\n' \"$state\" \"$category\"\n")
+SETTLE_OBSERVER_TRANSPORT_KINDS = ('guest_ssh_connection_refused', 'guest_ssh_connect_timeout',
+                                   'guest_ssh_banner_timeout', 'guest_ssh_connection_reset')
+
+
+CONSOLE_MIN_BUDGET = 10
+
+
 class Console:
     def __init__(self, path, log):
         self.connection = socket.socket(socket.AF_UNIX)
@@ -199,6 +218,7 @@ class Console:
                     raise GuestError('Owned guest serial socket unavailable') from None
                 time.sleep(.2)
         self.buffer = ''
+        self.unusable = False
         self.log = log.open('xb')
 
     def close(self):
@@ -450,12 +470,67 @@ cat /root/nethub-ci/host-key.pub
             # OPNsense service regeneration can stop all openssh listener
             # processes. Restart only our private configuration through serial;
             # retain its original host key and never accept a replacement key.
-            self.console.command("set -eu\nPATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n"
-                                 "export PATH\nssh_daemon=$(command -v sshd)\n"
-                                 "case \"$ssh_daemon\" in /usr/local/sbin/sshd|/usr/sbin/sshd) ;; *) exit 127 ;; esac\n"
-                                 "\"$ssh_daemon\" -f /root/nethub-ci/sshd.conf -E /root/nethub-ci/sshd-private.log\n")
+            self.console.command(SSHD_RESTART_SCRIPT)
             self.ssh('test "$(id -u)" = 0\n', 'restored owned SSH boundary', timeout=15)
             return True
+
+    def recover_settle_observer(self, deadline, restart=True):
+        """Restart only the fixture's private sshd after stock service regeneration killed it.
+
+        Serial console only. A live private sshd pid is never touched (the caller keeps
+        the original transport failure); every wait is capped by the absolute deadline.
+        With restart=False the pid is only observed. A console call needs at least
+        CONSOLE_MIN_BUDGET seconds, so no command is sent that could time out mid-heredoc;
+        a console command that still fails marks the console unusable for later diagnostics.
+        """
+        if self.process is None or self.process.poll() is not None or self.console is None:
+            raise GuestError('Owned guest console unavailable for observer recovery')
+        console = self.console
+        phase = getattr(console, 'phase', None)
+
+        def remaining():
+            return deadline - time.monotonic()
+
+        def command(script):
+            try:
+                return console.command(script, timeout=remaining())
+            except BaseException:
+                try:
+                    console.unusable = True
+                except Exception:
+                    pass
+                raise
+
+        try:
+            if remaining() < CONSOLE_MIN_BUDGET:
+                return {'sshd_pid_state': 'unknown', 'sshd_log_category': 'none',
+                        'listener_recovery': 'not_attempted', 'reason': 'insufficient_budget'}
+            observed = command(SSHD_OBSERVE_SCRIPT)
+            state = re.search(r'NH_SSHD_STATE=(alive|dead)\r?\n', observed)
+            category = re.search(r'NH_SSHD_LOG=(sigterm|none|other)\r?\n', observed)
+            if state is None or category is None:
+                raise GuestError('Unexpected private sshd observation')
+            result = {'sshd_pid_state': state.group(1), 'sshd_log_category': category.group(1),
+                      'listener_recovery': 'not_attempted'}
+            if result['sshd_pid_state'] == 'alive' or not restart:
+                return result
+            if remaining() < CONSOLE_MIN_BUDGET:
+                result['reason'] = 'insufficient_budget'
+                return result
+            result['listener_recovery'] = 'failed'
+            try:
+                command(SSHD_RESTART_SCRIPT)
+                self.ssh('test "$(id -u)" = 0\n', 'restored owned SSH boundary',
+                         timeout=max(1, min(15, remaining())))
+                result['listener_recovery'] = 'started_and_verified'
+            except GuestError:
+                pass
+            return result
+        finally:
+            try:
+                console.phase = phase
+            except Exception:
+                pass
 
     def ssh_read_only_inspection(self, script):
         expected = ('/usr/local/bin/php -d register_argc_argv=1 /root/nethub-ci/native-fixture.php '
