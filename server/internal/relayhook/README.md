@@ -41,6 +41,14 @@ identity and revoked/missing assignments share a fixed rejection. Log only a
 known operation and decision code, never raw metadata, claims, credentials, query
 values or dependency errors.
 
+Each response carries an explicit length and is flushed inside the handler, so
+a failed write is observable. A write that misses the connection's write
+deadline (twice the budget from the request start) reaches frps as EOF; it is logged as
+`Relay hook response write failed` with `reason` `deadline` or `other`. A
+callback whose handling, before the write, takes longer than the budget is logged as `Relay hook slow` with
+`duration` `over_budget` or `over_write_deadline`. Both carry only the
+operation and that fixed code.
+
 Both listeners stop if either fails. SIGTERM drains both; a hook bind failure
 does not leave the public API running alone. With no hook flags, enrollment-only
 startup remains available and explicitly reports hooks disabled.
