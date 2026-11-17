@@ -206,9 +206,7 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 		defer hookListener.Close()
-		hooks = &http.Server{Handler: hookHandler, ReadHeaderTimeout: time.Second, ReadTimeout: time.Second,
-			WriteTimeout: 2 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16 * 1024,
-			ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError)}
+		hooks = newHookServer(hookHandler, logger)
 	}
 	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second,
 		WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024,
@@ -264,4 +262,12 @@ func closeAuthzDatabase(closeDatabase func() error) {
 	case <-done:
 	case <-timer.C:
 	}
+}
+
+// newHookServer bounds the loopback relay hook listener. Its idle timeout
+// outlasts the frps plugin client's pooled connections (see relayhook).
+func newHookServer(handler http.Handler, logger *slog.Logger) *http.Server {
+	return &http.Server{Handler: handler, ReadHeaderTimeout: time.Second, ReadTimeout: time.Second,
+		WriteTimeout: 2 * time.Second, IdleTimeout: relayhook.ServerIdleTimeout, MaxHeaderBytes: 16 * 1024,
+		ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError)}
 }
