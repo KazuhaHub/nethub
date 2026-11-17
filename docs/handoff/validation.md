@@ -6,6 +6,47 @@ continuation's later results come first; the handoff sections follow unchanged. 
 were terminal when reviewed. The numeric `source71`/`source72` directory names
 are evidence labels, not release versions.
 
+## Main integration: 0dafb70 through 2a2c2fa
+
+The continuation chain was merged into `main` on 2026-11-17 as `0dafb70`
+(through #272). Its tree is byte-identical to `6e948e9`, whose CI
+[44048514837](https://github.com/KazuhaHub/nethub/actions/runs/44048514837)
+and native filesystem contracts
+[44048514709](https://github.com/KazuhaHub/nethub/actions/runs/44048514709)
+passed. Side
+branches #256 and #262 were not merged; #242 and #244 were closed as
+superseded by content already on `main`. Every run below is a first attempt;
+none was rerun.
+
+| Change | Gates on the pull request head (tree identical to the merge) | Result |
+| --- | --- | --- |
+| #241 dependency refresh (`35eacc4`, merged as `9fad6ab`) | CI [44056735913](https://github.com/KazuhaHub/nethub/actions/runs/44056735913), contracts [44056735623](https://github.com/KazuhaHub/nethub/actions/runs/44056735623), preparation [44056735716](https://github.com/KazuhaHub/nethub/actions/runs/44056735716), cold recovery [44056735747](https://github.com/KazuhaHub/nethub/actions/runs/44056735747), installed native [44056735791](https://github.com/KazuhaHub/nethub/actions/runs/44056735791) | All passed; native Revoke 1,326 ms, reconcile audit with zero busy retries |
+| #273 migration client classification (`aaa662e`, merged as `33b473b`) | CI [44067927567](https://github.com/KazuhaHub/nethub/actions/runs/44067927567), contracts [44067927496](https://github.com/KazuhaHub/nethub/actions/runs/44067927496), installed native [44067927669](https://github.com/KazuhaHub/nethub/actions/runs/44067927669) | All passed; native Revoke 1,841 ms |
+| #274 bounded FreeBSD package fetch (`c49c339`, merged as `2a2c2fa`) | CI [44084955438](https://github.com/KazuhaHub/nethub/actions/runs/44084955438), contracts [44084961029](https://github.com/KazuhaHub/nethub/actions/runs/44084961029) | Both passed; packages fetched in 9 s and installed from cache |
+
+The other completed `main` push runs passed. Three did not; they are
+retained, not rerun:
+
+- `0dafb70` CI [44056416105](https://github.com/KazuhaHub/nethub/actions/runs/44056416105)
+  **failed** in Deployment checks. The heartbeat migration's command-line
+  check on a freshly started frpc client failed with no recorded cause. The
+  identical tree passed on its pull request. #273 makes that check report a
+  closed category; the cause remains unknown.
+- Native filesystem contracts on `9fad6ab`
+  ([44067897336](https://github.com/KazuhaHub/nethub/actions/runs/44067897336))
+  and `33b473b`
+  ([44078984712](https://github.com/KazuhaHub/nethub/actions/runs/44078984712))
+  were **cancelled** at the 15-minute job timeout. The FreeBSD mirror took 7
+  and 10 minutes to serve `rust-1.99.1`. Both trees were identical to pull
+  request heads whose contracts passed. #274 bounds and classifies that fetch.
+
+Like the 5cf0f8e section, these results were verified outside the
+repository against the official artifacts; the repository verifiers do not
+check them. The push runs on `2a2c2fa` were still in progress when this was
+written and are not recorded here. This is isolated hosted acceptance, not
+public-network, mobile,
+formal package or release acceptance.
+
 ## Continuation acceptance: be3d67c, 9c6713b and 95dbf20
 
 Every run below is an original first attempt (`run_attempt` 1); none was
