@@ -9,16 +9,36 @@ import signal
 import subprocess
 import sys
 
-from guest import GuestError, invoke
+from guest import GuestError, invoke, validate_read_only_inspection_recoveries
 from compose_tail import read_phase
 from compose_setup import inspect as inspect_setup
 from compose_setup import project as project_setup
+from wan_recovery import validate as validate_wan_recovery
+from wan_settling import validate as validate_wan_settling
+from wan_identity_console import validate as validate_wan_identity_console
+from route_failure import validate as validate_route_failure
+from native_model_probe import validate_rotation_conditions
+from console_probe import validate_result as validate_console_probe
+from package_migration import validate as validate_package_migration
+from post_wan_failure import validate as validate_post_wan_failure
+from reconcile_failure import validate as validate_reconcile_audit
+from reconcile_failure import validate_browser as validate_audit_browser
+from reconcile_failure import require_evidence as require_reconcile_audit
 
 
 ROOT = Path(__file__).resolve().parents[3]
 JOBS = {'workflow lint', 'Go vulnerability checks', 'weekend0 kit checks',
         'OPNsense plugin checks', 'Control plane checks', 'Deployment checks'}
 PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installed-rotation.json',
+                'native/installed-console-revoke.json', 'native/installed-console-revoke.png',
+                'native/installed-wan-recovery.json',
+                'native/installed-wan-settling.json',
+                'native/installed-wan-identity-console.json',
+                'native/installed-reconcile-audit.json',
+                'native/installed-reconcile-audit-browser.json',
+                'native/installed-reconcile-audit.png',
+                'native/installed-package-migration.json',
+                'native/installed-route-failure.json',
                 'native/installed-shared-token.json', 'native/installed-trust-publication.json',
                 'native/installed-committed-trust-replay.json',
                 'native/installed-rotate-publication-committed-lost-page.json',
@@ -36,6 +56,8 @@ PUBLIC_FILES = ('deployment-result.json', 'native/result.json', 'native/installe
                 'native/installed-rotate-publication-recovered.png',
                 'native/compose-tail.json', 'native/installed-remove-page.json', 'native/installed-remove.png',
                 'native/guest-console-probe.json',
+                'native/guest-console-after-wan-probe.json',
+                'native/post-wan-console-failure.json',
                 'native/native-model-probe.json',
                 'native/rotation-recovery-probe.json',
                 'native/native-storage-probe.json',
@@ -62,6 +84,39 @@ def publish_evidence(directory):
         if path.exists():
             if path.is_symlink() or not path.is_file() or path.stat().st_nlink != 1:
                 raise GuestError('Linked native evidence refused')
+            if name == 'native/installed-route-failure.json':
+                if not 0 < path.stat().st_size <= 8192:
+                    raise GuestError('Failed route evidence exceeds bound')
+                validate_route_failure(json.loads(path.read_text(encoding='utf-8')))
+            if name == 'native/installed-package-migration.json':
+                if not 0 < path.stat().st_size <= 16384:
+                    raise GuestError('Native package migration evidence exceeds bound')
+                validate_package_migration(json.loads(path.read_text(encoding='utf-8')))
+            if name == 'native/installed-wan-settling.json':
+                if not 0 < path.stat().st_size <= 2048:
+                    raise GuestError('Native WAN settling evidence exceeds bound')
+                validate_wan_settling(json.loads(path.read_text(encoding='utf-8')))
+            if name == 'native/installed-wan-identity-console.json':
+                if not 0 < path.stat().st_size <= 2048:
+                    raise GuestError('Native WAN identity console evidence exceeds bound')
+                validate_wan_identity_console(json.loads(path.read_text(encoding='utf-8')))
+            if name in ('native/installed-reconcile-audit.json', 'native/installed-reconcile-audit-browser.json'):
+                if not 0 < path.stat().st_size <= 4096:
+                    raise GuestError('Installed reconcile audit evidence exceeds bound')
+                validator = validate_audit_browser if name.endswith('-browser.json') else validate_reconcile_audit
+                validator(json.loads(path.read_text(encoding='utf-8')))
+            if name == 'native/rotation-recovery-probe.json':
+                if not 0 < path.stat().st_size <= 8192:
+                    raise GuestError('Rotation recovery evidence exceeds bound')
+                validate_rotation_conditions(json.loads(path.read_text(encoding='utf-8')))
+            if name in ('native/guest-console-probe.json', 'native/guest-console-after-wan-probe.json'):
+                if not 0 < path.stat().st_size <= 1024:
+                    raise GuestError('Console probe evidence exceeds bound')
+                validate_console_probe(json.loads(path.read_text(encoding='utf-8')))
+            if name == 'native/post-wan-console-failure.json':
+                if not 0 < path.stat().st_size <= 2048:
+                    raise GuestError('Post-WAN diagnostic exceeds bound')
+                validate_post_wan_failure(json.loads(path.read_text(encoding='utf-8')))
             files.append(path)
     for path in files:
         os.chown(path, uid, gid)
@@ -87,6 +142,8 @@ def main():
     parser.add_argument('--directory', type=Path, required=True)
     parser.add_argument('--evidence', type=Path, required=True)
     args = parser.parse_args()
+    if 'NETHUB_NATIVE_FOCUS' in os.environ:
+        raise GuestError('A focused native diagnostic is never acceptance')
     if (sys.platform != 'linux' or os.geteuid() != 0 or os.environ.get('GITHUB_ACTIONS') != 'true'
             or os.environ.get('RUNNER_ENVIRONMENT') != 'github-hosted'
             or not re.fullmatch(r'[1-9][0-9]{0,19}', args.run)):
@@ -153,7 +210,7 @@ def main():
             child = subprocess.Popen(['sh', str(ROOT / 'server/tests/compose.sh')], env=environment,
                                      stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
             try:
-                child.wait(timeout=2100)
+                child.wait(timeout=2700)
             except BaseException:
                 # Signal only the session created above, giving the owned shell's
                 # cleanup trap and its native guest a bounded termination window.
@@ -184,6 +241,18 @@ def main():
         native = json.loads((evidence / 'native/installed-rotation.json').read_text(encoding='utf-8'))
         if native.get('passed') is not True:
             raise GuestError('Installed native rotation proof missing')
+        wan = json.loads((evidence / 'native/installed-wan-recovery.json').read_text(encoding='utf-8'))
+        validate_wan_recovery(wan)
+        if wan['passed'] is not True or native.get('installed_wan_recovery') != wan:
+            raise GuestError('Installed native WAN recovery proof missing')
+        settling = json.loads((evidence / 'native/installed-wan-settling.json').read_text(encoding='utf-8'))
+        validate_wan_settling(settling)
+        if settling['passed'] is not True or native.get('installed_wan_settling') != settling:
+            raise GuestError('Installed native WAN settling proof missing')
+        require_reconcile_audit(evidence / 'native', native)
+        prepared = json.loads((evidence / 'native/result.json').read_text(encoding='utf-8'))
+        validate_read_only_inspection_recoveries(prepared['read_only_inspection_recoveries'], require_completed=True)
+        result['read_only_inspection_recoveries'] = prepared['read_only_inspection_recoveries']
         restored = native.get('clean_host_restoration')
         if not isinstance(restored, dict) or restored.get('passed') is not True:
             raise GuestError('Installed native clean-host restoration proof missing')

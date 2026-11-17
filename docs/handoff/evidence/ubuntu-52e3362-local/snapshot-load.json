@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "source_head": "52e3362625b1de18399bb7ff6a68aeaca516aabb",
+  "scope": "Local isolated actual PostgreSQL boundaries and bounded snapshot load",
+  "passed": true,
+  "exit_code": 0,
+  "elapsed_seconds": 101.16,
+  "revocation_load_enabled": true,
+  "metrics": [
+    {
+      "allocated_bytes": 896128,
+      "case": "row-scaling",
+      "live_client_capacity_accepted": false,
+      "memory_predicate_triplets": 10000,
+      "memory_predicate_us": 5503,
+      "process_CPU_us": 10230,
+      "refresh_budget_ms": 1000,
+      "refresh_succeeded": true,
+      "refresh_us": 18431,
+      "revoked_rows": 1000,
+      "rotation_floors": 1000,
+      "tenants": 22
+    },
+    {
+      "allocated_bytes": 9459736,
+      "case": "row-scaling",
+      "live_client_capacity_accepted": false,
+      "memory_predicate_triplets": 10000,
+      "memory_predicate_us": 6219,
+      "process_CPU_us": 41093,
+      "refresh_budget_ms": 1000,
+      "refresh_succeeded": true,
+      "refresh_us": 36599,
+      "revoked_rows": 10000,
+      "rotation_floors": 10000,
+      "tenants": 22
+    },
+    {
+      "allocated_bytes": 96415856,
+      "case": "row-scaling",
+      "live_client_capacity_accepted": false,
+      "memory_predicate_triplets": 10000,
+      "memory_predicate_us": 6096,
+      "process_CPU_us": 313908,
+      "refresh_budget_ms": 1000,
+      "refresh_succeeded": true,
+      "refresh_us": 291132,
+      "revoked_rows": 100000,
+      "rotation_floors": 100000,
+      "tenants": 22
+    },
+    {
+      "allocated_bytes": 100692832,
+      "case": "maximum-row-and-tenant-bounds",
+      "live_client_capacity_accepted": false,
+      "memory_predicate_triplets": 10000,
+      "memory_predicate_us": 5845,
+      "process_CPU_us": 425871,
+      "refresh_budget_ms": 1000,
+      "refresh_succeeded": true,
+      "refresh_us": 460288,
+      "revoked_rows": 100000,
+      "rotation_floors": 100000,
+      "tenants": 1024
+    }
+  ],
+  "public_or_native_acceptance": false,
+  "online_fleet_capacity_accepted": false,
+  "decoded_log_sha256": "fb9a9290fc75eee15df080f2bebd08dbe2dbb872b685460cf941aae4d16be712",
+  "ordinary_top_level_passed": 8,
+  "explicit_load_passed": true,
+  "tenant_overflow_denial_retained": true,
+  "owned_container_cleanup_confirmed": true,
+  "compiler": "go1.26.11",
+  "compiled_cli_build": {
+    "CGO_ENABLED": "0",
+    "GOARCH": "amd64",
+    "GOOS": "linux",
+    "vcs.revision": "52e3362625b1de18399bb7ff6a68aeaca516aabb",
+    "vcs.modified": "false"
+  },
+  "source_files": {
+    "server/.go-version": "8c17d6c935046cbac3e214b44956b226d1662ad18f0e7182b3e2f5ab2bbf6e65",
+    "server/tests/postgres.sh": "d1a390d4d1fae92990c9223b92ec00c3e4f7e44e9f49a374bdb586a34cc7beda",
+    "server/tests/start-postgres.sh": "7c4f62d27aaf79e3b98834b60e1548a00103ac752bf9e3b9c97fa55037caa024",
+    "server/internal/store/revocation_load_linux_test.go": "2f7a644dc3f07ee9a46e978d7788df3da959f9adb75c3c3a3390e290f2ee6303",
+    "deploy/images/postgres/Dockerfile": "1b74ddd2b1c91c82f63f715397226707bf89a84cdee259ff1d58e23e9964ef6e",
+    "deploy/postgres/00-nethub-roles.sh": "25d28d0514784b24ae16d135adff3f19882ef11e52bca7fcac643ba04be6ff0d"
+  },
+  "compiled_test_binary_sha256": "d1c4e226f13a55d14dbf0da20da278ac7a41afef379f36d38d523d82abe46f4a",
+  "compiled_cli_sha256": "33a957c2ca2606b35d5f59d45ad8b8ece4cb5c96f5ff8c35ab06d0d6a648cce0"
+}

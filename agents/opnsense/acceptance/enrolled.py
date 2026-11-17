@@ -4,6 +4,7 @@ from contextlib import ExitStack
 import hashlib
 import http.server
 import ipaddress
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,12 @@ from guest import GuestError, invoke
 from rotation_recovery import exercise_response_loss, exercise_save_interruption
 from trust_publication_recovery import exercise_publication_conflict
 from shared_token import exercise_shared_token
+from console_revoke_result import validate as validate_console_revoke
+from wan_recovery import exercise as exercise_wan_recovery
+from wan_recovery import require_witness
+from package_migration import exercise as exercise_package_migration
+from wan_settling import validate as validate_wan_settling
+from reconcile_failure import exercise as exercise_reconcile_failure
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -30,12 +37,24 @@ def private_json(path, value):
     path.chmod(0o600)
 
 
-def exercise(guest, stage, port, project, evidence):
+def exercise(guest, stage, port, project, evidence, packages, focus=None):
     with ExitStack() as cleanup:
-        return _exercise(guest, stage, port, project, evidence, cleanup)
+        try:
+            return _exercise(guest, stage, port, project, evidence, packages, cleanup, focus)
+        except Exception:
+            try:
+                spec = importlib.util.spec_from_file_location('native_failure_context', ROOT / 'server/tests/relay_fleet.py')
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                module.report_failure_context(Path(stage), ['docker', 'compose', '-p', project,
+                    '-f', str(Path(stage) / 'deployment/docker-compose.yml'),
+                    '-f', str(Path(stage) / 'deployment/docker-compose.override.yml'), '-f', str(Path(stage) / 'test.yml')])
+            except Exception:
+                print('NETHUB_NATIVE_HINT=relay_failure_context_unavailable', flush=True)
+            raise
 
 
-def _exercise(guest, stage, port, project, evidence, cleanup):
+def _exercise(guest, stage, port, project, evidence, packages, cleanup, focus=None):
     stage = Path(stage).resolve(strict=True)
     if (os.geteuid() != 0 or not re.fullmatch(r'nethub-stack-test-[a-z0-9-]+', project)
             or not 1 <= port <= 65535 or stage.parent not in (Path('/tmp'), Path('/var/tmp'))):
@@ -82,6 +101,10 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     marker.chmod(0o600)
     guest.put(marker, marker.name)
     guest.put(Path(__file__).with_name('native-fixture.php'), 'native-fixture.php')
+    # Stage the read-only observer before enrollment and WAN changes. Package
+    # observations must not depend on a later file transfer succeeding.
+    guest.put(Path(__file__).with_name('package_probe.py'), 'package_probe.py')
+    guest.put(Path(__file__).with_name('reconcile_failure_probe.py'), 'reconcile_failure_probe.py')
     guest.ssh('chmod 0600 /root/nethub-ci/native-fixture-nonce\n', 'private native fixture identity')
     host_probe = guest.ssh("/usr/local/bin/php -r 'echo json_encode(["
         "\"argument_count_available\"=>isset($argc),"
@@ -109,9 +132,13 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     def fixture(action, **values):
         path = work / 'native-fixture-input.json'
         private_json(path, dict(action=action, nonce=nonce, **values))
+        if action == 'inspect':
+            guest.ssh_read_only_inspection('test "$(id -u)" = 0\n')
         guest.put(path, path.name)
-        raw = guest.ssh('/usr/local/bin/php -d register_argc_argv=1 /root/nethub-ci/native-fixture.php '
-                        '< /root/nethub-ci/native-fixture-input.json\n', 'native fixture ' + action)
+        script = ('/usr/local/bin/php -d register_argc_argv=1 /root/nethub-ci/native-fixture.php '
+                  '< /root/nethub-ci/native-fixture-input.json\n')
+        raw = (guest.ssh_read_only_inspection(script) if action == 'inspect'
+               else guest.ssh(script, 'native fixture ' + action))
         value = json.loads(raw)
         if value.get('success') is not True or not isinstance(value.get('result'), dict):
             raise GuestError('Native fixture preparation was not confirmed')
@@ -120,8 +147,8 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     ca = (stage / 'console-ca.pem').read_text(encoding='ascii')
     if fixture('trust', ca_pem=ca) != {'trusted': True}:
         raise GuestError('Native console system trust unavailable')
-    guest.ssh("printf '\\n10.0.2.100 console.example.com\\n' >> /etc/hosts\n",
-              'owned canonical console name')
+    from console_dns import provision as provision_console_dns
+    provision_console_dns(guest, fixture)
     guest.put(Path(__file__).with_name('console_probe.py'), 'console_probe.py')
     from console_probe import validate_result
     probe = json.loads(guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/console_probe.py\n',
@@ -147,18 +174,16 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         except GuestError:
             try:
                 from native_lock_probe import validate as validate_lock
-                snapshot = json.loads(guest.ssh(
-                    '/usr/local/bin/python3.13 /root/nethub-ci/native_lock_probe.py\n',
-                    'read-only native lock snapshot', timeout=12))
+                snapshot = json.loads(guest.ssh_read_only_inspection(
+                    '/usr/local/bin/python3.13 /root/nethub-ci/native_lock_probe.py\n'))
                 validate_lock(snapshot)
                 private_json(evidence / 'native-lock-probe.json', snapshot)
             except (GuestError, ValueError, TypeError, OSError):
                 pass
             try:
                 from native_model_probe import validate_rotation_conditions
-                conditions = json.loads(guest.ssh(
-                    '/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py rotation\n',
-                    'read-only native recovery conditions'))
+                conditions = json.loads(guest.ssh_read_only_inspection(
+                    '/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py rotation\n'))
                 validate_rotation_conditions(conditions)
                 private_json(evidence / 'rotation-recovery-probe.json', conditions)
             except (GuestError, ValueError, TypeError, OSError):
@@ -166,9 +191,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             raise
 
     def native_read(name):
-        guest.put(Path(__file__).with_name('native_model_probe.py'), 'native_model_probe.py')
-        raw = guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py\n',
-                        'native model readback')
+        raw = guest.ssh_read_only_inspection('/usr/local/bin/python3.13 /root/nethub-ci/native_model_probe.py\n')
         value = json.loads(raw)
         if isinstance(value, dict) and set(value) == {'native_model_failure'}:
             from native_model_probe import validate_projection
@@ -296,7 +319,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         'loginFailExit': False, 'auth': {'method': 'token', 'token': other['frp_token']},
         'log': {'to': 'console', 'level': 'warn'},
         'metadatas': {'device_id': other['device_id'], 'domain_claim': other['domain_claim']},
-        'transport': {'heartbeatInterval': 10, 'heartbeatTimeout': 30,
+        'transport': {'heartbeatInterval': 1, 'heartbeatTimeout': 3,
                       'tls': {'enable': True, 'serverName': other['server_name'], 'trustedCaFile': str(work / 'relay-ca.pem')}},
         'proxies': [{'name': 'nethub-' + other['device_id'] + '-web', 'type': 'https',
                      'localIP': '127.0.0.1', 'localPort': backend.server_port, 'subdomain': other['subdomain']}]})
@@ -326,13 +349,16 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             response.returncode == 0 and status == b'200' and raw == assigned.encode('ascii'))
 
     def survivor_sockets():
-        raw = invoke(['ss', '-tnpH'], 'independent original control socket evidence').decode()
+        raw = invoke(['ss', '-tnpeH'], 'independent original control socket evidence').decode()
         peers = set()
         for line in raw.splitlines():
             fields = line.split()
             if (len(fields) >= 6 and fields[0] == 'ESTAB' and fields[4].endswith(':7000')
                     and re.search(r'pid=' + str(survivor.pid) + r'[,)]', line)):
-                peers.add((fields[3], fields[4]))
+                inode = re.search(r'\bino:([0-9]+)\b', line)
+                if inode is None:
+                    raise GuestError('Independent original control inode unavailable')
+                peers.add((fields[3], fields[4], inode[1]))
         return peers
 
     for _ in range(30):
@@ -351,6 +377,41 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
     stable = sql(stable_query)
     grants_query = "SELECT source_ip::text||expires_at::text FROM device_access_grants WHERE device_id='" + device + "' ORDER BY source_ip;"
     grants = sql(grants_query)
+
+    def check_wan_witness():
+        require_witness(survivor, original_survivor, survivor_sockets, survivor_route)
+
+    def check_wan_database():
+        if sql(stable_query) != stable or sql(grants_query) != grants:
+            raise GuestError('Native WAN change altered identity or source grants')
+
+    wan_recovery = exercise_wan_recovery(guest, evidence, nonce, native_read, route,
+        lambda: fixture('inspect', host=host), check_wan_witness, check_wan_database)
+    wan_settling = json.loads((evidence / 'installed-wan-settling.json').read_text())
+    validate_wan_settling(wan_settling)
+    if wan_settling['passed'] is not True:
+        raise GuestError('Native WAN settling proof missing')
+    probe = json.loads(guest.ssh('/usr/local/bin/python3.13 /root/nethub-ci/console_probe.py\n',
+                                 'closed guest console probe after WAN recovery'))
+    validate_result(probe)
+    private_json(evidence / 'guest-console-after-wan-probe.json', probe)
+    if probe['passed'] is not True:
+        from post_wan_failure import refuse
+        refuse(probe, guest, stage, port, evidence, nonce, os.environ.get('NETHUB_SOURCE_HEAD', ''))
+    if focus == 'wan':
+        return {'passed': True, 'diagnostic_only': True, 'acceptance': False, 'focus': 'wan',
+                'installed_wan_recovery': wan_recovery, 'installed_wan_settling': wan_settling,
+                'console_after_wan_passed': True}
+    package_migration = exercise_package_migration(guest, stage, compose, evidence, nonce, packages,
+        native_read, route, lambda: fixture('inspect', host=host), check_wan_database,
+        survivor, survivor_route, survivor_sockets)
+    # Planned relay outages replace controls, while the witness process survives.
+    # Bind later rotation/revocation checks to the recovered original process.
+    original_survivor = survivor_sockets()
+    if not original_survivor or not survivor_route():
+        raise GuestError('Package migration witness control was not restored')
+    reconcile_audit = exercise_reconcile_failure(guest, stage, evidence, nonce, device, port, sql, request,
+        lambda: fixture('inspect', host=host), route, check_wan_database, check_wan_witness)
     started = time.monotonic()
     page_action('rotate')
     after = native_read('native-after.json')
@@ -365,6 +426,12 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
             break
         time.sleep(1)
     else:
+        from route_failure import retain as retain_route_failure
+        try:
+            retain_route_failure(guest, evidence, route_observations)
+        except OSError:
+            # Evidence storage failure must not replace the original route failure.
+            pass
         raise GuestError('Rotated native assigned route did not recover verified TLS')
     elapsed = round((time.monotonic() - started) * 1000)
     checked = fixture('inspect', host=host)
@@ -377,7 +444,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         'loginFailExit': True, 'auth': {'method': 'token', 'token': before['frp_token']},
         'log': {'to': 'console', 'level': 'warn'},
         'metadatas': {'device_id': device, 'domain_claim': before['domain_claim']},
-        'transport': {'heartbeatInterval': 10, 'heartbeatTimeout': 30,
+        'transport': {'heartbeatInterval': 1, 'heartbeatTimeout': 3,
                       'tls': {'enable': True, 'serverName': before['server_name'], 'trustedCaFile': str(relay_ca)}},
         'proxies': [{'name': 'nethub-' + device + '-web', 'type': 'https', 'localIP': '127.0.0.1',
                      'localPort': 1, 'subdomain': before['subdomain']}]})
@@ -398,7 +465,7 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
                 events.append(value)
         return events
 
-    # The existing heartbeat snapshot publishes claim floors every five seconds.
+    # The heartbeat snapshot refreshes claim floors every second.
     # This new Login probe must fail on authorization rather than on TLS/setup.
     time.sleep(6)
     count = len(hook_events())
@@ -533,6 +600,37 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
         original_survivor = survivor_sockets()
         if not original_survivor:
             raise GuestError('Returned witness control was not observed after recovery')
+    # Exercise the actual console confirmation against this live native client.
+    # Keep the clock and all deadline observations in the browser orchestrator.
+    active_grant_query = ("SELECT count(*) FROM device_access_grants WHERE device_id='" + device
+        + "' AND source_ip='" + gateway + "'::inet AND expires_at>clock_timestamp();")
+    if not route() or sql(active_grant_query) != '1' or not original_survivor.issubset(survivor_sockets()):
+        raise GuestError('Console Revoke baseline lacked the original verified routes')
+    items = request('/api/v1/console/devices?limit=200')['items']
+    targets = [item for item in items if item['id'] == device and not item['revoked']]
+    if len(targets) != 1:
+        raise GuestError('Exactly one current native console device required')
+    target = targets[0]
+    revoke_config = work / 'native-console-revoke-private.json'
+    private_json(revoke_config, {'console_port': port, 'device_id': device,
+        'device_name': target['label'] or target['hostname'] or target['subdomain'],
+        'gateway': gateway, 'password_file': str(stage / 'admin-password'),
+        'frps_secrets': str(stage / 'deployment/secrets/frps'), 'evidence': str(evidence)})
+    invoke([os.environ['NETHUB_NODE_BINARY'], str(Path(__file__).with_name('console-revoke-browser.mjs')),
+            str(revoke_config)], 'normal console Revoke against installed native agent', timeout=75)
+    console_revoke = json.loads((evidence / 'installed-console-revoke.json').read_text(encoding='utf-8'))
+    validate_console_revoke(console_revoke)
+    if (sql("SELECT count(*) FROM devices WHERE id='" + device + "' AND revoked AND revoked_by_user_id IS NOT NULL;") != '1'
+            or sql(stable_query) != stable or sql(grants_query) != grants
+            or sql(active_grant_query) != '1'
+            or route() or not survivor_route() or not original_survivor.issubset(survivor_sockets())):
+        raise GuestError('Native console Revoke deadline, identity, grants or survivor evidence differed')
+    console_revoke['native_identity_and_grants_retained'] = True
+    console_revoke['fresh_verified_native_route_refused'] = True
+    console_revoke['independent_original_control_and_verified_TLS_retained'] = True
+    console_revoke['valid_source_grant_retained_during_TLS_refusal'] = True
+    validate_console_revoke(console_revoke, native=True)
+    private_json(evidence / 'installed-console-revoke.json', console_revoke)
     native_logs = guest.ssh("/usr/local/bin/python3.13 - <<'PY'\n"
         "import os,pathlib,stat,sys\n"
         "for name in ('frpc.log','scheduler.log'):\n"
@@ -589,6 +687,11 @@ def _exercise(guest, stage, port, project, evidence, cleanup):
               'installed_committed_trust_replay': committed_replay,
               'shared_token_incident_native_recovery': shared_token,
               'clean_host_restoration': host_restore,
+              'installed_console_revoke_deadline': console_revoke,
+              'installed_wan_recovery': wan_recovery,
+              'installed_wan_settling': wan_settling,
+              'installed_package_migration': package_migration,
+              'installed_reconcile_audit': reconcile_audit,
               'fixture_removed_through_native_page': True,
               'removed_fixture_revoked_model_cleared_service_stopped_route_closed': True,
               'independent_device_preserved_after_fixture_removal': True,

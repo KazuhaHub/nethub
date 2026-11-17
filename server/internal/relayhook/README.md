@@ -5,8 +5,10 @@ W4 implements `Login` and `NewProxy`, and W5 adds `NewUserConn` and `Ping` on
 device listener does not serve this route. Enable the separate listener with
 `--hook-listen` and repeatable `--hook-peer` flags. The bind must be an exact
 private or loopback IP; peers are exact socket addresses without CIDRs or DNS.
-Do not publish this port or proxy public requests to it. Forwarding headers do
-not establish relay authority.
+Do not expose this port publicly or proxy public requests to it. Generated
+Compose publishes it only on host loopback for host-network frps; the authz
+listener still binds its private bridge address and checks the configured peer.
+Forwarding headers do not establish relay authority.
 
 The adapter follows frp 0.71.1's [request types](https://github.com/fatedier/frp/blob/v0.71.1/pkg/plugin/server/types.go)
 and [HTTP caller](https://github.com/fatedier/frp/blob/v0.71.1/pkg/plugin/server/http.go).
@@ -65,7 +67,7 @@ issuance floors, keyed by tenant and device. It still verifies the signed login
 metadata and trusted socket peer. Claims older than a known rotation floor are
 denied; rotation alone does not mark a device revoked or complete a revocation
 disconnect request. Authz loads the initial snapshot before serving hooks and
-refreshes it every five seconds through bounded read-only, repeatable-read scans
+refreshes it every second through bounded read-only, repeatable-read scans
 with tenant-local RLS. Revocations and rotation floors are read separately within
 the shared refresh budget, not as one cross-query database snapshot.
 Database failures retain the last good snapshot; known one-way revocations never
@@ -73,26 +75,32 @@ disappear and out-of-order reads cannot lower a known issuance floor. Login and
 proxy admission continue to query current database state. Successful Ping decisions
 log at debug level; denials keep the fixed operation/decision log.
 
-Refresh has a two-second database budget and a 250 ms cancellation grace. An
+Refresh has a one-second database budget and a 250 ms cancellation grace. An
 unresponsive loader or a failed in-memory self-check stops both authz listeners
 and exits unsuccessfully, allowing the container restart policy to act. There
-is at most one refresh request in flight. Normal database errors do not trigger
-this exit. HTTP draining retains its ten-second bound; observation cleanup and
+is at most one refresh request in flight. Normal database errors retain known
+denials, but snapshots expire 2.5 seconds after their read started. Expired state
+cannot admit Ping, and a failed freshness self-check stops the worker. Disconnect
+acknowledgements run independently with their own bounded pass. HTTP draining retains its ten-second bound; observation cleanup and
 database cleanup each wait at most one additional second so an unresponsive
 dependency cannot trap process exit.
 Snapshot reads are limited to 1,024 tenants, 100,000 revoked device IDs and
 100,000 rotated-device floors. Exceeding a limit refuses the refresh instead of
 discarding existing denials.
 
-Clients retain the explicit 10-second heartbeat interval and 30-second timeout.
+The development agent uses a one-second heartbeat and three-second timeout.
 frp's [Ping handler](https://github.com/fatedier/frp/blob/v0.71.1/server/control.go)
 processes plugin refusal through its heartbeat error path. Authz restart or outage
 therefore affects every connected tunnel. Deploy authz changes with that
 interruption in mind; clients reconnect after service recovery. A suspended
 process can delay callbacks, and refusing a heartbeat does not promise immediate
 closure of every established browser stream. Newly revoked IDs wait for a
-successful refresh and their next heartbeat. Database outage can delay that
-refresh while new Login/proxy/user connections already fail closed.
+successful refresh and their next heartbeat; expired-cache refusal is independent
+of a successful read. New Login/proxy/user connections check current SQL. These
+settings target the owner-retained five-second cutoff. Scoped installed and public
+desktop samples have passed; complete W5 acceptance still requires the remaining
+mobile, phase, fleet, fault and migration checks. Nominal timer values are not
+acceptance. See [current measurements and limits](../../../docs/w5-revocation-deadline.md).
 
 The official-client deployment fixture checks actual frps proxy control states
 through its private admin API, not only TLS failures (which could instead be
@@ -109,8 +117,8 @@ shutdown. These native cases passed in run 39219581415 on 3c24e5e; that historic
 suite sends callback HTTP directly. The additional W5 suite exercises current source grants, role
 isolation, expiry during an unchanged row-lock wait, and two actual official
 clients through generated frps. Later [installed heartbeat measurements](../../../deploy/validation-native-w5-heartbeat.md)
-record actual outage/recovery and console revocation, including the unresolved
-W0 timing comparison. [Device rotation](../../../deploy/device-rotation.md) records
+record actual outage/recovery and console revocation, preserving the original
+failed 17.218-second timing comparison. [Device rotation](../../../deploy/device-rotation.md) records
 the installed credential-cutover scope. These later records do not complete
 the remaining combined public/operator W5 acceptance.
 

@@ -1,7 +1,9 @@
 # Console HTTP API
 
-W3 implements health, local login/logout/session, device listing, and enrollment
-token issuance. See the [API contract](../../../docs/console-api.md). Embedded React
+W3 implemented health, local login/logout/session, device listing, and enrollment
+token issuance. Later routes add users, invitations (issue, list, withdraw, inspect, accept),
+traffic and its settings, audit, OIDC and SAML providers and login, and device
+Open, revoke and disconnect; [`server.go`](server.go) is authoritative for the current set. See the [API contract](../../../docs/console-api.md). Embedded React
 assets, first-admin creation, Compose/Caddy startup, and real deployed browser
 flows pass their checks, including clean-host public deployment acceptance;
 see [deployment validation](../../../deploy/validation-w3.md).

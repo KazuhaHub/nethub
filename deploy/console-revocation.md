@@ -19,14 +19,19 @@ An audit failure rolls back the device update. A committed actor demotion wins o
 a request waiting for the actor lock. Existing Open grants cannot bypass revocation.
 
 Login, NewProxy and NewUserConn refuse the revoked identity through current SQL.
-Ping refuses it after the next successful five-second cache refresh. Heartbeat
+Once a successful cache refresh observes the revocation, Ping refuses it. Refresh
+is scheduled every second. Heartbeat
 disconnection can take time, and established browser streams are not promised to
-close immediately. Database outage can delay publication to Ping's last-good
-cache; see [the availability limits](revocation-and-heartbeats.md).
+close immediately. A snapshot older than 2.5 seconds cannot admit Ping, even if a
+database outage prevents publication. The one/three-second heartbeat candidate
+has scoped native and public desktop results; complete five-second acceptance
+still needs the remaining mobile, phase, fleet, fault and migration checks. See
+[current measurements](../docs/w5-revocation-deadline.md) and
+[the availability limits](revocation-and-heartbeats.md).
 
 The [disconnect request](disconnect-requests.md) and
 [anomaly confirmation](relay-anomalies.md) have separate implementations and
 fixture evidence. The [installed Revoke measurement](validation-native-w5-heartbeat.md)
-records actual cutoff and recovery scope, including the unresolved W0 timing
-comparison. Combined public/mobile W5 acceptance remains open; browser and
+records actual cutoff and recovery scope, including the original 17.218-second
+installed comparison against the W0 target. Full W5 acceptance remains open; browser and
 SQL fixtures establish only their tested UI and authorization scope.

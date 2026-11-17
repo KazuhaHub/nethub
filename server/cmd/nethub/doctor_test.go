@@ -7,6 +7,26 @@ import (
 	"testing"
 )
 
+func TestDoctorExternalTCPModeBoundary(t *testing.T) {
+	for _, args := range [][]string{
+		{"--external-tcp-check-host"},
+		{"--external-tcp-check-host", "--expected-address", "127.0.0.1"},
+		{"--external-tcp-check-host", "--expected-address", "10.0.0.1"},
+		{"--external-tcp-check-host", "--expected-address", "fe80::1%eth0"},
+		{"--external-tcp-check-host", "--expected-address", "https://example.com"},
+		{"--external-tcp-check-host", "--expected-address", "203.0.113.10", "--directory", "."},
+		{"--external-tcp-check-host", "--expected-address", "203.0.113.10", "--public-tls"},
+		{"--external-tcp-check-host", "--expected-address", "203.0.113.10", "--relay-hook"},
+		{"--external-tcp-check-host", "--expected-address", "203.0.113.10", "--recent-backup"},
+		{"--external-tcp-check-host", "--expected-address", "203.0.113.10", "--password-file", "unused"},
+	} {
+		var out, diagnostic bytes.Buffer
+		if status := run(append([]string{"doctor"}, args...), &out, &diagnostic); status != 2 || out.Len() != 0 {
+			t.Fatal("ambiguous external TCP mode reached provider execution", args, status)
+		}
+	}
+}
+
 func TestDoctorLoopbackHealthBoundary(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) }))
 	defer server.Close()

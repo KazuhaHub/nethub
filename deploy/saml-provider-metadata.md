@@ -31,9 +31,12 @@ establish ownership of an IdP or allow an untrusted metadata URL to install keys
 Runtime provider management must enforce the saved metadata deadline and the
 deployment's endpoint/DNS policy before starting a browser login.
 
-The direct authcore dependency is pinned to verified upstream PR #34 merge
-`ee68d852d973`. Both its PR and matching-tree main runs passed full Linux/race,
-supported compiler, vulnerability and API checks. Shared AuthnRequest signing
+This preparation checkpoint used verified authcore PR #34 merge `ee68d852d973`.
+Both its PR and matching-tree main runs passed full Linux/race, supported
+compiler, vulnerability and API checks. The current server pin and interim SAML
+replacement are recorded in [the dependency record](saml-dependency-security.md)
+and [module manifest](../server/go.mod); the earlier pin is not the active graph.
+Shared AuthnRequest signing
 handles RSA/ECDSA, the trusted IdP signing requirement and exact Redirect binding
 octets. NetHub does not implement assertion signature verification itself.
 

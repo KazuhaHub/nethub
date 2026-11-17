@@ -165,7 +165,7 @@ func runWeb(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Console listener could not be opened")
 		return 1
 	}
-	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024, ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError)}
+	server := newProxiedServer(handler, logger)
 	fmt.Fprintln(stdout, "Console API started")
 	if err := serveHTTP(ctx, server, listener); err != nil {
 		fmt.Fprintln(stderr, "Console HTTP service stopped unexpectedly")
@@ -206,4 +206,18 @@ func serveHTTP(ctx context.Context, server *http.Server, listener net.Listener) 
 		}
 		return err
 	}
+}
+
+// proxiedServerIdleTimeout outlasts the upstream keep-alive pool of the bundled
+// Caddy (2 minutes by default in the pinned v2.11.9). Reverse-proxied POSTs are
+// not replayable, so a server that closes a pooled connection as the proxy
+// reuses it turns the request into a 502.
+const proxiedServerIdleTimeout = 150 * time.Second
+
+// newProxiedServer returns the bounds shared by the console and device API
+// listeners, both of which sit behind the deployment's reverse proxy.
+func newProxiedServer(handler http.Handler, logger *slog.Logger) *http.Server {
+	return &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second,
+		WriteTimeout: 20 * time.Second, IdleTimeout: proxiedServerIdleTimeout, MaxHeaderBytes: 16 * 1024,
+		ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError)}
 }

@@ -1,6 +1,8 @@
 # NetHub threat model
 
 > Implementation review: 2026-10-29 UTC; recovery evidence updated 2026-11-06 UTC.
+> Revocation evidence and the waived network sample clarified 2026-11-15 UTC;
+> latest isolated native checkpoint added 2026-11-16 UTC.
 > NetHub is pre-alpha, without a signed
 > production release. This review reconciles the original 2026-10-16 design
 > draft with current sources and accepted records. It is not an independent
@@ -266,10 +268,24 @@ offline fleet and complete restoration gates remain open.
 
 One-way database revocation, combined Ping/Login/NewProxy denial and fresh
 connection denial provide observed cutoff for the tested normal clients. The
-installed measurement was 17.218 seconds from console confirmation dispatch;
-its 374.172-second no-reconnect observation is bounded evidence. It exceeds W0's
-2.136-4.958-second probe range, so the PLAN comparison remains open. It is not a
-guarantee for modified clients, existing streams or a frozen dependency.
+original installed measurement took 17.218 seconds from console confirmation
+dispatch and failed the retained five-second target; its 374.172-second
+no-reconnect observation remains separately bounded evidence. The owner retained
+that target on 2026-11-12. The current 1/3-second heartbeat and expiring-cache
+candidate has later scoped measurements, including a 1.638-second installed
+cutoff and a separate 1.811-second public fresh-TLS refusal. See the
+[source-bound measurements and failures](w5-revocation-deadline.md).
+The later exact-source isolated checkpoint at
+`ea173c660a38bd6c61f37f013e58761da4f337ae`, installed run `43783251698`,
+completed the old/current package migration and measured 1952 ms from normal
+console confirmation to native proxy cutoff. Fresh verified TLS was refused,
+the independent original control/TLS survived and no reconnect was observed for
+30068 ms. The [continuation record](handoff/ubuntu-continuation.md) retains the
+closed receipts and earlier failed runs. This qualifies that source's isolated
+package gate; it does not identify the historical `a29` migration failure's
+cause. Public/mobile, changed-source qualification and formal-release gates
+remain open. None of these samples guarantees modified-client, old-stream or
+arbitrary frozen-dependency cutoff.
 
 ### 4.11 Supply chain
 
@@ -327,11 +343,14 @@ be substituted for that release process.
 
 ### F3. Revocation timing and public/mobile coverage remain open
 
-The stock/native measurements prove cutoff in their recorded cases. The W5
-product sample is slower than the W0 probe range. Mobile console Open,
-company/campus filtering and broader dual-stack/modified-client coverage remain
-unmeasured or incomplete. Preserve the actual limits rather than declaring all
-networks or a universal deadline covered.
+The five-second requirement remains in force. The original slower installed
+failure and later scoped native/public successes are retained separately;
+neither isolated SQL measurements nor green CI closes full W5. Mobile console
+Open, complete native package migration and broader fault/fleet acceptance
+remain open. The owner waived the third company/campus sample; it remains
+unmeasured and is not a required replacement gate. Broader dual-stack and
+modified-client behavior remains unverified. Preserve these limits rather than
+claiming every network or an unconditional deadline is covered.
 
 ### F4. Complete restore and remaining operational checks
 
@@ -412,7 +431,7 @@ not solved by this single-host v1 model.
 | Audit serialization/hash links                                        | [append_audit](../server/internal/store/migrations/00002_scoped_operations.sql) locks the tenant row across writers. The [read-only checker](../deploy/audit-chain.md) and [version 2 encoding](../server/internal/store/migrations/00026_audit_hash_encoding.sql) retain the non-forensic scope; exact-head SQL acceptance is separate.   |
 | GUI issuance and native/public application                            | [Native public certificate record](../deploy/validation-native-public-certificate.md), with its exact images, device package and cleanup limits.                                                                                                                                                                                           |
 | Relay trust transition/recovery                                       | [Authority operations](../deploy/relay-authority-operations.md) and the handoff's accepted runtime records; not a promise that arbitrary stale backups or expired originals can recover.                                                                                                                                                   |
-| Real native cutoff and recovery                                       | [Installed heartbeat/Revoke](../deploy/validation-native-w5-heartbeat.md), including the slower bound and missing mobile sample.                                                                                                                                                                                                           |
+| Real native cutoff and recovery                                       | [Historical installed heartbeat/Revoke](../deploy/validation-native-w5-heartbeat.md) retains the slower bound; the [continuation](handoff/ubuntu-continuation.md) records the exact-source isolated 1952-ms sample. Public/mobile scope remains open.                                                                                                                                                                                                           |
 | Two actual OIDC issuers                                               | [Two-Dex deployment](../deploy/validation-two-dex.md). Public-provider acceptance is separate.                                                                                                                                                                                                                                             |
 | Actual signed SAML vendor                                             | [Keycloak deployment](../deploy/validation-keycloak-saml.md). Fixture inventory is not agent/tunnel evidence; no assertion-encryption or public/mobile claim.                                                                                                                                                                              |
 | Scheduled database archives and worker isolation                      | [Backup service checkpoint](../deploy/validation-database-backups.md). Its restored device is a database fixture; the separate retained-client drill is listed below.                                                                                                                                                                      |

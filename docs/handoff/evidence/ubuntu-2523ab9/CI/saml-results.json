@@ -1,0 +1,45 @@
+{
+  "passed": true,
+  "checks": [
+    "actual provider UI metadata import and actual SP public certificate registered with required signed requests",
+    "actual Keycloak signed email admits invited SAML member even when its OIDC emailVerified flag is false",
+    "actual Web restart preserves the database-backed SAML member session",
+    "actual signed response replay with original browser cookie creates no new session",
+    "fresh Keycloak session preserves persistent NameID binding without another invitation",
+    "genuine parked IdP POST rejects a wrong browser without consuming its flow, then admits its original binding after the parking header is removed",
+    "modifying signed email in the actual Keycloak response is refused without another account or session",
+    "two actual SAML members see separate deliberate inventory fixtures, not agent or tunnel acceptance",
+    "valid signed existing administrator mailbox cannot attach or sign in without invitation",
+    "live account disable rejects existing session and new valid SAML login while local administrator recovery works"
+  ],
+  "screenshots": [
+    {
+      "name": "keycloak-alice-login.png",
+      "sha256": "f5c9e448490dbe5d9b501c05949e97f08198c7562166d3460b1cc188fab053ff"
+    },
+    {
+      "name": "keycloak-bob-login.png",
+      "sha256": "dd5f5d37ad86a9a7029730634cc15340ca64eb7e9c5cb179f875c12d0376b7eb"
+    }
+  ],
+  "normal_TLS_verification": true,
+  "required_signed_AuthnRequests": true,
+  "genuine_Keycloak_signed_responses": true,
+  "unexpectedRequests": 0,
+  "cspViolations": 0,
+  "browserErrors": 0,
+  "cookieLeaks": 0,
+  "full_W6_acceptance_claimed": false,
+  "all_service_logs_checked_for_secret_absence": true,
+  "idp_image": "quay.io/keycloak/keycloak:26.8.1@sha256:a78d6b79572168cb25886b80a8b5b8d4ed4390743e3eecb810538683e209dd6b",
+  "idp_image_id": "sha256:a78d6b79572168cb25886b80a8b5b8d4ed4390743e3eecb810538683e209dd6b",
+  "deployed_images": {
+    "runtime": "sha256:b594424b75d232c2aabb05eb825162f5de2f2750c875d2006a699f110cf6afac",
+    "postgres": "sha256:3787b29e9b3055f0da662b1491f3607a72cc824674ecd6429e41ea0d1014d7e2",
+    "caddy": "sha256:6fd268743a6e3266808f34c1ea8d9c0ca78bee6f36f2a07be1dd653536681d86",
+    "frps": "sha256:7bdefd21caad13c4061e2da936951919877be42ff710febee0f179298a522079",
+    "backup": "sha256:e06910acbd49fff913fa14e31c945175dffafbdeb6f54bf5cb777a027ab7f444"
+  },
+  "owned_services_removed": true,
+  "private_material_removed": true
+}

@@ -17,7 +17,13 @@ def test_install_scopes_native_migration_before_reconcile_and_preserves_unrelate
     commands=tmp_path/'bin';commands.mkdir()
     events=tmp_path/'events.jsonl'
     helper=commands/'native-command'
-    helper.write_text('#!'+sys.executable+'\nimport json,sys\nfrom pathlib import Path\nwith Path('+repr(str(events))+').open("a") as f:f.write(json.dumps(sys.argv[1:])+"\\n")\n')
+    helper.write_text('#!'+sys.executable+'\nimport json,sys,subprocess\nfrom pathlib import Path\nwith Path('+repr(str(events))+').open("a") as f:f.write(json.dumps(sys.argv[1:])+"\\n")\n'
+        'if sys.argv[1]=="locked":\n'
+        ' args=sys.argv[2:]\n'
+        ' while args[0].startswith("-"):\n'
+        '  option=args.pop(0)\n'
+        '  if option=="-t":args.pop(0)\n'
+        ' raise SystemExit(subprocess.run(args[1:]).returncode)\n')
     helper.chmod(0o755)
     unrelated=tmp_path/'unrelated-plugin.xml';unrelated.write_text('retain unrelated plugin configuration')
     state=tmp_path/'state';logs=tmp_path/'logs';config=tmp_path/'config';requests=state/'requests'
@@ -28,6 +34,7 @@ def test_install_scopes_native_migration_before_reconcile_and_preserves_unrelate
         '/usr/local/opnsense/scripts/firmware/register.php':shlex.quote(str(helper))+' register',
         '/usr/local/opnsense/mvc/script/run_migrations.php':shlex.quote(str(helper))+' migrate',
         '/usr/bin/lockf':shlex.quote(str(helper))+' locked',
+        '/usr/local/bin/python3.13 /usr/local/opnsense/scripts/nethub-agent/agentctl.py':shlex.quote(str(helper))+' reconcile',
         '/usr/local/etc/nethub-agent':str(config),'/var/db/nethub-agent':str(state),'/var/log/nethub-agent':str(logs),
         '/var/lib/php/tmp':str(cache),
         'service configd restart':shlex.quote(str(helper))+' service configd restart',
@@ -39,7 +46,7 @@ def test_install_scopes_native_migration_before_reconcile_and_preserves_unrelate
     calls=[json.loads(line) for line in events.read_text().splitlines()]
     assert calls[:2]==[['register','install','os-nethub-agent'],['migrate','OPNsense/NetHubAgent/']]
     assert calls[2]==['service','configd','restart']
-    assert calls[3][0]=='locked' and calls[3][-2:]==['--locked','reconcile']
+    assert calls[3][0]=='locked' and calls[4]==['reconcile','--locked','reconcile']
     assert unrelated.read_text()=='retain unrelated plugin configuration'
     assert not (state/'uninstalling').exists() and requests.is_dir()
     assert (logs/'scheduler.log').stat().st_mode&0o777==0o600

@@ -39,3 +39,5 @@ Validation must include genuine PostgreSQL role/tenant/member boundaries and
 populated browser checks. Synthetic browser fixtures exercise presentation and
 interaction only. Implementation and local unit tests do not complete those
 deployment acceptance requirements.
+
+Reconcile failure and overflow entries expose only a typed exact decimal count, device-reported flag and observation interval. Those times come from the device clock; audit append time comes from the server. An overflow summary explicitly means individual event details were not retained. See the [delivery and compatibility limits](../proto/RECONCILE-AUDIT.md). Current-source native/public validation remains separate.

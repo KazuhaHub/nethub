@@ -11,7 +11,8 @@ FIELDS = {'passed', 'phase', 'failure', 'http_status', 'verify_code',
           'default_CA_file_available', 'default_CA_directory_available'}
 PHASES = ('dns', 'tcp', 'tls', 'http', 'complete')
 FAILURES = ('', 'dns_resolution', 'dns_mismatch', 'tcp_refused', 'tcp_timeout', 'tcp_connect',
-            'tls_verify', 'tls_handshake', 'http_status', 'http_failure', 'unexpected')
+            'tls_verify', 'tls_handshake', 'tls_timeout', 'tls_io',
+            'http_status', 'http_failure', 'unexpected')
 
 
 def validate_result(value):
@@ -40,8 +41,8 @@ def probe():
         result['phase'] = 'tcp'
         with socket.create_connection(('console.example.com', 443), timeout=5):
             pass
-        result['phase'] = 'tls'
         with socket.create_connection(('console.example.com', 443), timeout=5) as connection:
+            result['phase'] = 'tls'
             with ssl.create_default_context().wrap_socket(connection, server_hostname='console.example.com'):
                 pass
         result['phase'] = 'http'
@@ -61,10 +62,12 @@ def probe():
     except socket.gaierror:
         result['failure'] = 'dns_resolution'
     except TimeoutError:
-        result['failure'] = 'tcp_timeout' if result['phase'] == 'tcp' else 'http_failure'
+        result['failure'] = {'tcp': 'tcp_timeout', 'tls': 'tls_timeout'}.get(result['phase'], 'http_failure')
     except OSError as error:
         if result['phase'] == 'tcp':
             result['failure'] = 'tcp_refused' if error.errno == errno.ECONNREFUSED else 'tcp_connect'
+        elif result['phase'] == 'tls':
+            result['failure'] = 'tls_io'
         else:
             result['failure'] = 'http_failure'
     except Exception:

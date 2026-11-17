@@ -44,6 +44,70 @@ relay recovery remain separate acceptance work.
 
 ## Combined installed-device acceptance
 
+The reconcile-audit fixture adds a genuine failure after package migration and
+before credential rotation. Its initial installed run at `6d73b5b` failed during
+WAN readiness before this case; fresh exact-source execution is still required.
+Its guest entry requires the existing root/nonce/private-SSH/NIC
+boundary. Under the original persistent mutation lock, it verifies the installed
+template against the admitted source, durably records an original backup and
+intent, then adds one fixed invalid top-level frpc option. The actual installed
+CLI must reject that candidate, preserve live configuration and retain one real
+outbox event. It restores the exact original template before releasing the lock;
+an interrupted or failed attempt stays failed and is never re-armed automatically.
+Unrelated edits are not overwritten.
+
+The ordinary report action must acknowledge the original event. Read-only SQL
+checks require one additional exact receipt and audit without deleting prior
+history; normal console API reads must expose only the typed count and original
+device-reported interval. One explicitly journaled authenticated replay of the
+same captured UUID must add no audit. A new normal browser login filters that
+device/action and checks the actual row and details. Its CONNECT proxy admits
+only the owned console; the isolated console CA exception is explicit and does
+not qualify public TLS. The recorded view masks actor/device/source identifiers.
+
+After acknowledgement, one explicit normal reconcile must report unchanged
+configuration. Package/runtime identity, original process/control, native GUI,
+trust, source grants and independent original witness remain exact throughout.
+This case invokes normal reconcile twice deliberately and is separate from the
+WAN/package observation windows, whose no-manual-reconcile limits remain intact.
+The closed `installed-reconcile-audit.json`, browser outcome and masked image are
+mandatory consumer evidence. Filesystem/fake-controller tests do not prove this
+installed path, and this invalid-template fixture does not establish formal
+published bad-canary/channel/rollback acceptance.
+
+The fixture probe shares the plugin's nonblocking `reconcile.lock`. When a
+normal cron holder has it, the probe answers `mutation_busy` before any change
+and the caller retries only that answer, sleeping 1 s between attempts, for at
+most 100 s per action. Record version 2 keeps `mutation_busy_retries` and `max_busy_wait_ms`.
+Other probe refusals stay failures with closed `reconcile_failure_*` phases,
+including the route verifier's `boundary_route_{table,missing,mismatch}` codes.
+
+Failure diagnosis keeps witness process, original control and TLS-route refusal
+as separate fixed WAN reasons. The pinned
+[frp client closes its control after a Pong error](https://github.com/fatedier/frp/blob/v0.71.1/client/control.go#L174).
+Changed-client logs therefore project only four exact known error suffixes;
+unknown text remains an unclassified Pong-error observation, never raw output.
+On fleet or native failure, one read of the owned authz service's last 100 log
+lines can add fixed recent Ping-unavailable/device-denied/busy or snapshot-refresh
+categories. These recent service observations do not identify a particular
+client and cannot prove the historical failure cause. One further bounded read
+of the owned frps log's last 200 lines, independent of the authz read outcome, projects only fixed Ping-plugin failure
+categories (HTTP status 403/404/405/other, EOF, truncated body, reset, refused, timeout, closed
+idle connection, decode or unclassified); these are recent observations that do
+not identify a client and cannot prove the root cause. No request/configuration,
+address, PID, secret or dependency error text is exported. Diagnostic failure
+does not replay any mutation or turn the first failure into success. All original
+controls, deadlines, package assertions and cleanup remain required.
+
+The next WAN evidence schema (version 3) also retains the SSH probe's existing
+structured failure category, separately for the first operation and restoration.
+The previous generic WAN reason discarded that category. Only the existing
+closed SSH validator's codes are accepted; exception/dependency text is never
+copied. A restoration error cannot replace the first failure. This is additional
+failure evidence, not permission to retry inspection, mutate a network again,
+increase a deadline or replay an uncertain change. Historical version-2 records
+remain bound to their original source and are not upgraded or rewritten.
+
 The installed publication-conflict case passed the
 [PR #205 combination](../../../deploy/validation-native-trust-conflict.md).
 It prepares and verifies an independent authority backup through the
@@ -301,9 +365,321 @@ not disprove earlier contention. Probe failure preserves the original page failu
 The fixture does not replay Rotate, modify the scheduler or convert a failed
 installation run into acceptance.
 
+The fixed lock snapshot and rotation-condition read share the same four-event
+read-only SSH recovery budget as model/GUI inspection. They use already staged
+helpers and never replay the failed action. The Rotate API classifies additional
+exact local error messages into closed request, binding, runtime, service and
+timeout categories; unknown messages still remain unclassified and private.
+
+A failed first post-Rotate route check retains its last existing curl status and
+one read-only native snapshot in `installed-route-failure.json`. The snapshot
+compares the live claim/token with the native model, records service and local
+stop state, and exports only fixed reconciliation actions and recognized log
+events. It exports no credential, endpoint, arbitrary log line or child error.
+The probe does not retry SSH, replay Rotate, restart frpc or extend the route
+budget. A missing or malformed snapshot remains diagnostic failure; the original
+route failure still fails the run. A later snapshot cannot prove the state at the
+instant of the failed route request.
+
+The installed fixture now also stages the immutable `c9e74abb1fb1` package source
+before enrollment and builds its unsigned 0.0.18 package with the same pinned Go
+toolchain as the current 0.0.19 package. During planned outages of the owned relay,
+it reinstalls the old package and then the current package through their normal
+package hooks. Relay timeout is widened before rollback and shortened only after
+the current native heartbeat profile is observed. Read-only probes require package
+checksums, saved enrollment, GUI certificate/key, relay trust, source grants and
+the other five service identities to remain intact. The old and current steady
+windows require 35 and 10 seconds respectively with their recovered original
+controls and verified routes.
+
+The witness process must survive these planned relay restarts; its TCP control
+connections deliberately reconnect. Later rotation/revocation checks bind to its
+recovered control. An unconfirmed package installation fails without replaying it.
+On failure the relay stays stopped with its original configuration restored until
+the enclosing fixture destroys the owned guest and services. Only a closed report
+of versions, hashes, phase timings and boolean results is published; native model
+values, private keys and command transcripts remain private.
+
+This new package scenario is pending actual hosted execution. Portable orchestration
+and publication-rejection tests do not establish native package compatibility.
+Both packages use frp 0.71.1 on the same firmware; this is neither firmware rollback
+nor a signed release, fleet/offline-device rollout or arbitrary network-loss test.
+The extended workflow budget does not change the five-second revocation target.
+
+The first installed package attempt, source `da5da34`, failed at its immediate
+planned-outage check after successful enrollment and WAN recovery. Only baseline
+and relay widening completed; no old-package installation or new console Revoke
+measurement was reached. Its failed report, official archive, complete logs and
+cleanup remain retained. The combined boolean check did not identify which
+outage condition remained true.
+
+The revised version-2 package report records the first and last closed outage
+observations: relay running, native control present, native route and witness
+route. A single relay-stop operation is followed by read-only observations for
+the installed client's heartbeat timeout plus ten seconds (13 seconds for the
+current profile, 40 for the legacy profile). All four conditions must become
+false within that bound before any package installation. The stop, package hooks
+and reconcile are not replayed. This planned-outage preparation budget is
+separate from the unchanged five-second console revocation requirement. The
+revised scenario still needs its own actual installed execution.
+
+Source `ecdb305` did not reach this package scenario: its image-producing CI
+failed at the combined-fault reference-log precondition, so the installed-native
+consumer was skipped. Its revised outage observer has no native acceptance from
+that run. The failed producer and skipped consumer are recorded separately.
+
+The corrected producer, source `d7c0c4e`, passed complete CI, including genuine
+combined packet loss and revocation with twelve original reference controls.
+Its protected-host recovery passed complete source-bound log/archive/view and
+cleanup review. The installed-native run failed transferring the package probe
+after enrollment/WAN recovery, before any migration baseline step or outage.
+Its complete failure evidence and clean teardown remain retained; no package
+switch or later console Revoke was reached. The underlying SSH timeout cause
+is unproven.
+
+The fixture now stages that immutable observer before enrollment and WAN changes.
+Later package observations perform only nonce-bound reads, using the same narrow
+SSH recovery boundary and shared four-event budget as other read-only probes.
+Malformed commands and host-key failures cannot trigger recovery. No input
+transfer or package mutation is retried. This transport correction still requires
+actual installed acceptance and does not change the five-second revoke target.
+
+The handoff source `a29fbfe` progressed through old-package rollback, recovery,
+the legacy steady window and the second planned outage, then failed the upgrade
+invariant. The aggregate error did not identify the differing comparison; its
+cause remains unknown. See the source-bound [handoff validation](../../../docs/handoff/validation.md).
+
+Version-3 migration reports add `invariant_failures`, an ordered list restricted
+to the five existing package-probe fingerprint category names plus
+`lifecycle_markers`, `gui_readback` and `witness_process`. A mismatch saves those
+categories before failing, without exporting either compared value, a new hash,
+marker details or exception text. All original comparisons, timing bounds and
+failure cleanup remain enforced; installation is never replayed. Empty diagnosis
+does not establish success: a command, probe, database or service check can fail
+separately. Portable injected failures cover each category during both rollback
+and upgrade, but a fresh exact-source hosted run is required to diagnose the
+original native failure. Historical version-2 reports remain unchanged.
+
+The first diagnostic source, `870eb57`, passed six-job CI and isolated cold
+recovery, but installed run `43723295382` failed during the dedicated heartbeat
+client's verified-TLS preparation, before native package migration. No migration
+category was observed in that run. Its failure and owned-image cleanup remain
+recorded; it is not an upgrade result. A failed heartbeat preparation now emits
+only allowlisted curl exit, exact-body-match, process-alive and successful-Pong
+presence hints through the existing closed setup projection. It reuses the last
+probe result and reads the existing process/log once, without repeating a probe,
+enrollment, Open, SQL, client start or revocation. The preparation and five-second
+revocation budgets are unchanged.
+
+Later installed runs `43727962910` (`38bec4d`) and `43730193174` (`b2bfb50`)
+passed their WAN recovery substeps but failed before a package migration baseline
+step. The former failed a private input transfer; the latter failed the package
+probe's environment boundary. Neither executed rollback or upgrade, so neither
+diagnoses the historical upgrade invariant. Both failures and their cleanup
+remain failed records. The package probe now projects the failing boundary
+checkpoint: host, nonce, marker, interface configuration, LAN address, default
+route or WAN address. These are fixed names only; all original boundary checks
+remain mandatory and no failed read, transfer or mutation is replayed by this
+diagnostic change.
+
+Installed run `43760255139` at `52e3362` failed still earlier, at its separate
+console probe after the successful WAN-recovery substep. Its reported phase was
+`tls` with failure `http_failure`; no migration baseline or package switch ran.
+That old projection conflated TLS timeout/I/O with HTTP failure, and labeled the
+second TCP connect as TLS before the connection was established. The observer
+now distinguishes those failures without changing its three connections, normal
+system trust, five-second socket bounds, ten-second HTTP bound or success rule.
+
+On that same refusal path, one read-only package snapshot and one credential-free
+host console GET retain only closed process/control-presence flags, known probe
+failure kinds, curl exit/HTTP status and elapsed time. The package read uses the
+existing narrow SSH transport-recovery allowance; its four-event budget does not
+change. No enrollment, Open, package operation or original console probe is
+replayed. The original console failure is raised even when both diagnostic reads
+succeed or diagnostic storage fails. The new bounded report is validated before
+publication; private values, fingerprints, commands and exception messages are
+excluded. These observations do not establish causality or upgrade acceptance.
+
+Installed run `43766613555` at `359bf94` failed before creating the guest: the
+heartbeat scenario could not parse an authz log record as JSON. The retained
+source location identifies the parser but does not establish whether the record
+was malformed, a partial tail, a runtime fault or a client warning. That run
+remains failed with owned-image cleanup confirmed; its package/post-WAN
+diagnostics were not reached.
+
+A separate local Docker experiment demonstrated a framing defect in the reader's
+atomic-snapshot assumption: an unfinished 20043-byte JSON record was first
+returned as 16384 bytes without its newline. The complete later record retained
+the entire prefix. The reader now permits at most one second to finish only an
+unterminated, unparsable final record, using the same container ID and retaining
+every observed byte. A terminated bad record, changed history, invalid shape,
+oversized output, read error or expired completion budget still fails. All records
+are parsed again from the preserved prefix, so events are neither lost nor
+duplicated. Original cutoff clocks and five-second requirements are unchanged;
+any observation wait within a timed scenario consumes its existing budget.
+Only fixed log-shape/runtime/client/failure hints leave the private fixture.
+The local reproduction and framing fix do not prove the old native failure's
+cause or qualify the installed appliance.
+
+Run `43772146507` at `2523ab9` subsequently failed before guest creation with
+`relay_hook_log_plain_prefix`, `relay_hook_log_service_failure` and
+`relay_hook_log_invalid_record`. The new reader therefore refused a complete
+fixed service-failure line; it did not accept or identify an incomplete tail.
+That category combines initial database failure, initial snapshot failure and
+unexpected runtime exit, so its exact service-exit reason remains unknown.
+
+Unexpected runtime exits now use the existing structured JSON logger, with only
+`service_failure` or `revocation_liveness` as the reason. The process still
+returns nonzero and both listeners still close through the unchanged supervisor.
+The observer retains fixed hints when it reads that event and continues counting
+only actual hook decisions, as with other structured non-hook records. Legacy
+plain startup/runtime failures still fail parsing, with distinct closed hints.
+No bad JSON record is discarded or added to the startup exception list. Worker
+liveness, original control continuity, route recovery and cutoff assertions are
+unchanged. This format correction does not establish why the earlier service
+failed or qualify package migration.
+
+Installed run `43776401967` at `d33302f` failed earlier in the genuine small-fleet
+steady window: an established control socket differed from its original
+endpoint/inode identity. This run did not reach the heartbeat/exit-log diagnostic
+or create the guest, so it does not validate the hypothesized prior service-exit
+cause or package migration. Its owned-image cleanup passed; the run stays failed.
+
+That same socket comparison now retains only fixed hints for the five-client,
+ten-client or snapshot-pressure stage, and whether an original reference or
+dedicated client control changed. For affected dedicated clients, a single
+bounded read of their existing private logs reports only presence of the pinned
+heartbeat-timeout, Pong-error and successful-Pong messages. No PID, address,
+inode, raw log or exception is exported. Passing comparisons perform no new
+reads. A failed/missing diagnostic log never hides the original continuity
+refusal. The control comparison, 30-second window, 200-ms polling, all deadlines,
+client enrollment/cleanup and other assertions remain unchanged. No failed case
+is retried and no new route probe or mutation is introduced.
+
 Pinned upstream sources:
 
 - [OPNsense 26.7 announcement and image checksums](https://raw.githubusercontent.com/opnsense/changelog/fd539a8f722f56354e117faa5ab1495a4ad14d5b/community/26.7/26.7)
 - [Go release archive checksums](https://go.dev/dl/?mode=json&include=all)
 - [OPNsense factory interface assignments](https://docs.opnsense.org/manual/interfaces.html)
 - [FreeBSD canonical terminal limits](https://raw.githubusercontent.com/freebsd/freebsd-src/releng/15.1/sys/sys/syslimits.h)
+
+
+## Post-WAN route readiness before package migration
+
+Source `c5a7060` passed six-job CI `43838772887` but installed run
+`43838772910` failed before the first package snapshot with the fixed diagnosis
+`native_package_boundary_route_missing`. The preceding WAN recovery and console
+probe passed. This failure did not execute rollback/upgrade and remains failed.
+Its separate cold recovery does not qualify the failed installed sequence.
+
+An owned OPNsense 26.7.9_1/FreeBSD 15.1-RELEASE-p6 guest, without NetHub, reproduced
+a late route gap after one same-address reset and one observed-missing gateway
+restoration. The initial approximately six-second sampling saw no later gap. A
+separate 100 ms sampling experiment observed the route missing at 7726 ms and
+present again at 9618 ms, with unchanged configuration XML and normal shutdown.
+The [closed diagnostic](route-gap-reproduction.json) omits addresses, credentials
+and raw kernel output. Neither the late reset actor nor the original historical
+package-invariant failure is identified by this diagnostic.
+
+After first restored control/TLS recovery, the combined fixture now requires a
+separate fifteen-second window of closely sampled readiness within the original
+sixty-second restoration budget. Sample gaps over one second reset that window.
+Only the fixed missing-route diagnosis is retained as pending readiness; wrong
+routes, unexpected observations and original process/configuration changes still
+refuse immediately. Every ready sample requires the original native process,
+address/control source, runtime/XML fingerprints, independent witness and verified
+native TLS. Original first-recovery timing fields are preserved; the separate
+`installed-wan-settling.json` records the additional observation interval and
+missing-route sample count. It performs no route repair, network change, agent
+start/reconcile or package operation.
+
+Stock OPNsense `rc.newwanip` runs about 10-14 s after a WAN address event
+(twice: change and restore) and regenerates openssh, killing every sshd,
+including the fixture's private observer sshd (port 2222). That is not a
+product failure, so one bounded observer recovery is allowed inside this
+window. Only when the readiness read fails with `guest_ssh_connection_refused`,
+`guest_ssh_connect_timeout`, `guest_ssh_banner_timeout` or
+`guest_ssh_connection_reset`, `Guest.recover_settle_observer` uses the serial
+console alone to read `/root/nethub-ci/sshd.pid` (`kill -0`) and classify the
+last private sshd log line (`sigterm`, `none`, `other`). If the pid is alive,
+nothing is restarted and the original error is kept; this is the gate that
+prevents masking a real network or product failure. If it is dead, the same
+private sshd command that `ensure_ssh` uses is started with the original
+configuration and pinned host key (a replacement key is never accepted) and
+verified over SSH as root. Every console and SSH wait is capped by the
+original restoration deadline (restore start + 60 s); a console command is only
+sent with at least 10 s left (otherwise nothing is sent), and a console command
+that still fails marks the console unusable, so the later identity console
+evidence records `console_unusable` instead of writing into it. The failed sample is not
+re-read: it counts as a restart, resets the stable window, and the fifteen-second
+window must lie entirely after the last restart. Two restarts are tolerated; on a
+third loss the dead pid is confirmed but never restarted, and phase
+`observer_lost` is recorded and fails. A restart whose SSH verification failed
+is counted in `observer_recovery_failures` while the original error is kept. Any other outcome or error
+re-raises the original failure. Unclassified or fixture errors, process or
+runtime changes of frpc, route checks and deadlines are unchanged. Evidence:
+`installed-wan-settling.json` version 2 adds `observer_restarts`,
+`last_observer_recovery_ms`, `observer_recovery_failures` and `observer_recoveries` (closed entries with the
+first transport failure kind, sshd pid state, log category, listener outcome
+and start/end offsets from the restore start); `installed-wan-recovery.json`
+version 4 mirrors `observer_restarts`. Versions 1 and 3 remain valid
+historical records. The original package-probe route assertion,
+all migration invariants and all rollback/upgrade phases remain required.
+
+An SSH `Connection timed out during banner exchange` now reports the closed
+kind `guest_ssh_banner_timeout` instead of `guest_ssh_connect_timeout`; every
+existing recovery rule treats the two identically. Only when the identity phase
+fails, one fixed read-only serial-console observation is retained in
+`installed-wan-identity-console.json` (private sshd pid and total sshd process count, LAN NIC/address, pf, bounded
+last-200-line log counts, load bucket, scheduler lock and second-of-minute, or a
+fixed collection-failure category). It is written only after
+`installed-wan-recovery.json`, atomically and never over an existing file. The
+second-of-minute, near-cron-start flag and last-200-line log counts are
+observation-time values taken after the failure (up to about 30 s later), not
+values at the failure instant. It repairs nothing, replays nothing, never
+replaces the original failure, and cannot by itself prove the cause.
+
+This is a readiness correction under validation. New exact-source native evidence
+is required; earlier failures are not relabeled, and no full W5/W7, public/mobile
+network or formal-package acceptance follows.
+
+## Focused native diagnostic (never acceptance)
+
+`.github/workflows/native-focus.yml` runs only the installed-WAN part of the combined
+flow: the owned six-service stack, the two-device relay enrollment and verified tunnels,
+the fresh signed guest and unsigned package, native enrollment, the WAN change/restore with
+its settling observation, and the guest console probe after WAN recovery. It skips the
+package baseline and migration, every later rotation/revocation/removal case, the HTTP-01,
+GUI-issuer, frps-smoke, backup, provider-key, privileged-service, external-proxy and
+migration-failure checks, and the rest of the relay fault matrix. It is a faster way to
+diagnose a WAN failure; it proves nothing about acceptance, and `with_images.py` refuses to
+run while `NETHUB_NATIVE_FOCUS` is set. Every retained file is named `focus-*.json`, wrapped
+as `{"diagnostic_only": true, "acceptance": false, "focus": ..., "record": ...}` and kept
+for three days under the artifact `native-focus-diagnostic-<focus>`; no wrapper is accepted
+by the acceptance validators or uploaded by any other workflow.
+
+Request one by pushing a branch named `diag/native-focus/<name>` whose tip commits
+`.github/native-focus-request.json` (workflow_dispatch is only offered for workflows on the
+default branch, so a push is the trigger until this file lands there; it accepts the same
+two values as inputs):
+
+    {"image_run": "<digits of a successful six-job CI run>", "focus": "wan"}
+
+The file must contain exactly those two keys; only that workflow reads it. The images are
+reused only when the earlier run is a successful exact six-job CI run and the image inputs
+(`.dockerignore`, `LICENSE`, `NOTICE`, `deploy/Dockerfile`, `deploy/images/`, and `server/`
+except its Python/shell/Markdown test harness) are identical between that run's commit and the
+checked-out source; otherwise it refuses. Changes to the harness, the acceptance code, the
+plugin or the workflow itself are exactly what such a run is for.
+
+Further conditions: the earlier run must be a `push` or a `pull_request` whose head repository
+is the repository running the workflow (never a fork), `.github/workflows/ci.yml` must be
+identical, and the build, scan and image-export sections of `server/tests/compose.sh` (with the
+focus guards removed) must be identical to that run's commit.
+
+Limits of a focused run: the WAN step starts on a relay with no traffic, maintenance or fault
+history and on a guest without the package baseline, so a failure that depends on that earlier
+state will not reproduce here and must be confirmed by the full workflow. The child
+`compose.sh` deadline stays 1200 s; that value is still to be measured against real focused
+runs. On a zero exit the run still requires the compose tail to report phase `completed` with
+`passed` true.

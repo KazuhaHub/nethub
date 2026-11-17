@@ -72,6 +72,17 @@ class Agent:
     def record(self, success, message, action):
         result = {'success': success, 'message': message, 'action': action,
                   'updated_at': datetime.now(timezone.utc).isoformat()}
+        if success is False:
+            from reconcile_audit import Outbox, AuditOutboxError
+            try:
+                model = self.lifecycle_model()
+                device_id = model.findtext('device_id')
+                if device_id:
+                    Outbox(self.state, device_id).record_failure()
+                    result['audit_recorded'] = True
+            except (AuditOutboxError, AgentError, OSError, ValueError, ET.ParseError):
+                result['audit_recorded'] = False
+                syslog.syslog(syslog.LOG_ERR, 'nethub-agent: reconcile audit storage unavailable; retain local state')
         self.atomic(self.state / 'state.json', (json.dumps(result) + '\n').encode())
         syslog.syslog(syslog.LOG_INFO if success else syslog.LOG_ERR,
                       'nethub-agent: ' + action + ': ' + message)
@@ -187,7 +198,7 @@ class Agent:
             if model is not None and model.findtext('relay_trust_state'):
                 raise AgentError('Former relay trust metadata cleanup is incomplete; retry removal first')
             remnants = [self.config / name for name in ('gui-apply', 'gui-request', 'gui-certificate.json', 'relay-trust')]
-            remnants.append(self.state / 'rotation.json')
+            remnants.extend(self.state / name for name in ('rotation.json', 'reconcile-audit.json'))
             if any(path.exists() or path.is_symlink() for path in remnants):
                 raise AgentError('Previous enrollment runtime cleanup is incomplete; retry Remove enrollment before enrolling')
             version = self.command(['/usr/local/sbin/opnsense-version', '-v'], timeout=5)
@@ -324,7 +335,15 @@ class Agent:
         try:
             result = TrustSynchronizer(self.trust_transaction()).sync(model.findtext('console_url'),
                 model.findtext('device_secret'), model.findtext('device_id'), model.findtext('server_name'))
-        except TrustSyncError:
+        except TrustSyncError as error:
+            if for_rotation:
+                # Keep only closed local metadata. Diagnostics must not replace
+                # the original failure or retry any trust/rotation mutation.
+                try:
+                    raw = json.dumps(error.diagnostic(), sort_keys=True, separators=(',', ':')) + '\n'
+                    self.atomic(self.state / 'rotation-trust-diagnostic.json', raw.encode())
+                except OSError:
+                    pass
             raise AgentError('Relay trust synchronization failed; inspect trust and recovery status') from None
         return self.trust_result(result)
 
@@ -414,10 +433,28 @@ class Agent:
             raise AgentError('The tunnel did not stop; local review is required')
 
     def lifecycle_result(self, result):
-        public = {key: result[key] for key in ('success', 'message', 'action', 'revoked', 'device_id') if key in result}
+        public = {key: result[key] for key in ('success', 'message', 'action', 'revoked', 'device_id', 'audit_pending') if key in result}
         public['updated_at'] = datetime.now(timezone.utc).isoformat()
         self.atomic(self.state / 'health.json', json.dumps(public).encode())
         return result
+
+    def flush_reconcile_events(self, model, server_version, secret=None):
+        from reconcile_audit import Outbox, AuditOutboxError, supported, report_events
+        from protocol import ProtocolError
+        try:
+            box = Outbox(self.state, model.findtext('device_id'))
+            batch = box.batch()
+            if batch:
+                if not supported(server_version):
+                    return True
+                revoked = report_events(model.findtext('console_url'), secret or model.findtext('device_secret'),
+                                        model.findtext('device_id'), batch)
+                if revoked:
+                    self.stop_revoked()
+                box.acknowledge([item['event_id'] for item in batch])
+            return bool(box.batch())
+        except (AuditOutboxError, ProtocolError):
+            raise AgentError('Reconcile audit delivery unconfirmed; retain local events and retry explicitly') from None
 
     def report_locked(self):
         from lifecycle import health_request, report_health
@@ -440,7 +477,8 @@ class Agent:
             raise AgentError('Device health report failed; check enrollment and console connectivity') from None
         if reply['revoked']:
             self.stop_revoked()
-        return self.lifecycle_result({'success': True, 'action': 'report', 'revoked': reply['revoked'], 'message': 'Device health acknowledged'})
+        pending = self.flush_reconcile_events(model, reply.get('agent_protocol_version'))
+        return self.lifecycle_result({'success': True, 'action': 'report', 'revoked': reply['revoked'], 'audit_pending': pending, 'message': 'Device health acknowledged; audit pending, report again or upgrade the console' if pending else 'Device health acknowledged'})
 
     def unenroll_locked(self):
         from lifecycle import request_removal
@@ -457,16 +495,25 @@ class Agent:
         self.recover_trust()
         try:
             try:
-                request_removal(model.findtext('console_url'), model.findtext('device_secret'), device_id)
+                audit_secret = model.findtext('device_secret')
+                removal = request_removal(model.findtext('console_url'), audit_secret, device_id)
             except ProtocolError:
                 path = self.state / 'rotation.json'
                 if not path.exists() and not path.is_symlink():
                     raise
                 candidate = RotationJournal(self.state).removal_candidate(
                     model.findtext('console_url'), device_id, model.findtext('device_secret'))
-                request_removal(model.findtext('console_url'), candidate, device_id)
+                audit_secret = candidate
+                removal = request_removal(model.findtext('console_url'), candidate, device_id)
         except (ProtocolError, RotationError):
             raise AgentError('Tunnel stopped; server removal is unconfirmed. Retry Remove enrollment') from None
+        if self.flush_reconcile_events(model, removal.get('agent_protocol_version'), audit_secret):
+            raise AgentError('Tunnel stopped and revocation confirmed; retain pending audit events and retry Remove, upgrading an older console if required')
+        from reconcile_audit import Outbox, AuditOutboxError
+        try:
+            Outbox(self.state, device_id).clear_confirmed_removal()
+        except AuditOutboxError:
+            raise AgentError('Revocation confirmed; audit cleanup unconfirmed, retain local state') from None
         self.atomic(self.state / 'unenroll-confirmed.json', json.dumps({'device_id': device_id, 'revoked': True}).encode())
         return {'success': True, 'action': 'unenroll', 'device_id': device_id, 'revoked': True}
 
@@ -480,6 +527,9 @@ class Agent:
         if model.findtext('enabled') == '1' or any(model.findtext(key) for key in ('device_id', 'device_secret', 'frp_token', 'domain_claim', 'relay_trust_state')):
             raise AgentError('Native configuration must be cleared before removing runtime credentials')
         self.stop_revoked()
+        audit = self.state / 'reconcile-audit.json'
+        if audit.exists() or audit.is_symlink():
+            raise AgentError('Retained reconcile audit history needs confirmed delivery before runtime cleanup')
         try:
             rotation = self.state / 'rotation.json'
             if rotation.exists() or rotation.is_symlink():
@@ -502,7 +552,7 @@ class Agent:
         except (CertificateKeyError, CertificateTransactionError, TrustTransactionError, RotationError) as error:
             raise AgentError(str(error)) from None
         paths = [self.live, self.candidate, self.backup, self.config / 'relay-ca.pem']
-        paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'certificate.json', 'trust.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
+        paths += [self.state / name for name in ('state.json', 'recovery.json', 'rollback-attempt', 'health.json', 'certificate.json', 'trust.json', 'rotation-trust-diagnostic.json', 'unenroll-confirmed.json', 'stopped', 'revoked')]
         for path in paths:
             if path.is_symlink():
                 raise AgentError('Runtime credential path needs local review')
@@ -564,11 +614,19 @@ class Agent:
             directory.chmod(0o700)
         os.umask(0o077)
         with self.open_mutation_lock() as lock:
-            try:
-                if not locked:
-                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
+            if not locked:
+                # Interactive rotation may wait briefly for scheduled work.
+                # Other actions keep their existing nonblocking admission.
+                deadline = time.monotonic() + (3 if action == 'rotate' else 0)
+                while True:
+                    try:
+                        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        break
+                    except BlockingIOError:
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            return {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
+                        time.sleep(min(0.1, remaining))
             try:
                 self.protect_mutation_lock(lock)
                 if action == 'disable':
@@ -631,7 +689,7 @@ class Agent:
             state = None
         try:
             health = json.loads((self.state / 'health.json').read_text())
-            health = {key: value for key, value in health.items() if key in ('success', 'message', 'action', 'revoked', 'updated_at')}
+            health = {key: value for key, value in health.items() if key in ('success', 'message', 'action', 'revoked', 'updated_at', 'audit_pending')}
         except (OSError, ValueError, AttributeError):
             health = None
         try:

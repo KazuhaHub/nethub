@@ -1,0 +1,17 @@
+{
+  "name": "test-nethub-tcp-doctor",
+  "vCPU": 1,
+  "memory_MiB": 1024,
+  "pinned_Canonical_image_verified": true,
+  "uploaded_image_and_seed_sha256_verified": true,
+  "pinned_SSH_host_key_verified": true,
+  "private_TCP_ports_verified": [
+    14443,
+    17000,
+    18443
+  ],
+  "powered_off_waiting_owner": true,
+  "public_exposure_authorized": false,
+  "public_forward_mutated": false,
+  "scope": "Owned NAT fixture readiness only; no public TCP, TLS, router, W5 or release acceptance"
+}

@@ -15,7 +15,8 @@ def main():
     if (os.environ.get('GITHUB_ACTIONS') != 'true' or os.environ.get('RUNNER_ENVIRONMENT') != 'github-hosted'
             or not re.fullmatch(r'[a-f0-9]{40}', head)):
         raise GuestError('Exact hosted PR source required')
-    deadline = time.monotonic() + 32 * 60
+    # Allow the bounded 35-minute producer plus metadata publication overhead.
+    deadline = time.monotonic() + 37 * 60
     selected = None
     while time.monotonic() < deadline:
         if selected is None:

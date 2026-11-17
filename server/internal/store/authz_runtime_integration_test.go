@@ -208,6 +208,7 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, webRole *sql.DB, tenan
 	if err := f.owner.QueryRowContext(f.ctx, `SELECT owner_user_id FROM devices WHERE id=$1 AND tenant_id=$2`, result.DeviceID, tenant).Scan(&storedActor); err != nil || storedActor != actor {
 		t.Fatal("runtime did not register with the token's owner and tenant")
 	}
+	testRuntimeReconcileAudit(t, f, client, address, result)
 	certificatePost := testRuntimeCertificateRequest(t, f, client, address, result, certificateKey)
 	observation, err := json.Marshal(map[string]any{"proxies": []map[string]any{{"name": relayhook.ProxyName(result.DeviceID), "status": "online",
 		"conf": map[string]string{"name": relayhook.ProxyName(result.DeviceID), "type": "https", "subdomain": result.Subdomain}}}})
@@ -344,15 +345,15 @@ func testAuthzRuntime(t *testing.T, f *enrollmentFixture, webRole *sql.DB, tenan
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
-	t.Log("Compiled authz Ping used its initialized memory snapshot and published revocation on the five-second production refresh interval")
+	t.Log("Compiled authz Ping used its initialized memory snapshot and published revocation on the one-second production refresh interval")
 	consoleRepo := &ConsoleStore{AuthStore: AuthStore{DB: webRole, Tenant: tenant}}
 	requestReceipt, err := consoleRepo.RequestDisconnect(f.ctx, actor, result.DeviceID, netip.MustParseAddr("192.0.2.188"))
 	if err != nil {
 		t.Fatal("compiled runtime cutoff request failed", err)
 	}
-	// The next tick runs Refresh and ProcessDisconnects in sequence, each with
-	// its own production budget. Keep the separate five-second cadence checks.
-	deadline = time.Now().Add(relayhook.RevocationInterval + 2*relayhook.RevocationBudget + time.Second)
+	// Independent workers publish denial and then acknowledge it on a later tick.
+	// Relay discovery above retains its separate five-second observation cadence.
+	deadline = time.Now().Add(2*relayhook.RevocationInterval + 2*relayhook.RevocationBudget + time.Second)
 	for {
 		var armed bool
 		if err = f.owner.QueryRowContext(f.ctx, `SELECT processed_at IS NOT NULL FROM device_disconnect_requests WHERE id=$1`, requestReceipt.RequestID).Scan(&armed); err != nil {

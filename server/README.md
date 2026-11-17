@@ -18,7 +18,7 @@ Changed sources and rebuilt clients need their own applicable checks.
 - Go 1.26.11 builds one nethub binary. The module is
   github.com/KazuhaHub/nethub/server; Go 1.26.0 is its language floor.
 - React, TypeScript and Vite build the embedded SPA, using shadcn/ui and native
-  dialog. Generated web/dist is not committed.
+  dialog. Generated server/internal/webui/dist output is not committed (only its .gitkeep placeholder).
 - PostgreSQL 16 stores accounts, devices, jobs and operation/audit history.
 - Bundled Caddy or an administrator-managed proxy owns console HTTPS.
 - Unmodified frp 0.71.1 supplies frps and the separately packaged frpc; pins agree.
@@ -34,7 +34,7 @@ Deployment targets one Docker Compose host, with no Kubernetes target for v1.
 | web | Console API/SPA, sessions, administration, source grants, audit and traffic. |
 | authz | Device lifecycle/certificate/trust APIs, relay hooks and observations. |
 | migrate | One-shot schema migration using the owner role. |
-| admin-bootstrap | One-time initial local administrator; preserves break-glass access. |
+| admin-bootstrap (Compose service running `nethub admin create`) | One-time initial local administrator; preserves break-glass access. |
 | init | New deployment files, independent secret backup and acknowledgement; refuses overwrite. |
 | doctor | Explicit file/DNS, TLS, role, container, hook, archive and audit checks. |
 | backup | Restricted archive production, daily worker and health checks. |
@@ -65,28 +65,36 @@ polling do not renew it. The gate identifies network position, not a person:
 shared NAT, IPv4/IPv6 differences and existing streams remain limitations.
 Router authentication and normal GUI certificate verification remain required.
 
-Ping checks an initialized in-memory revocation/rotated-claim snapshot, refreshed
-every five seconds. Ordinary database failure retains the last good state; new
-connection admission still checks SQL. Unresponsive refresh or failed self-check
+Ping checks initialized in-memory revocations and rotated-claim floors, refreshed
+every second within a shared one-second budget. Known denials/floors remain
+monotonic, but a snapshot can admit Ping only for 2.5 seconds from its read start.
+Database failure cannot extend that authority indefinitely. New connection
+admission still checks SQL. Unresponsive refresh or failed freshness self-check
 stops authz rather than leaving a partially live API.
 
-The 10-second heartbeat and 30-second timeout make authz an availability dependency
-for existing tunnels. Restart/outage interrupts access; suspended processes and
+The current development candidate uses a one-second heartbeat and three-second
+client/server timeout. Old agents need the coordinated upgrade/rollback order;
+replacing only the server does not migrate their timing. Authz remains an
+availability dependency for existing tunnels. Restart/outage interrupts access;
+suspended processes and
 stale snapshots can delay observations. There is no instantaneous browser-stream
 cutoff guarantee. Display polling runs every five seconds; anomaly confirmation
 separately requires three 15-second observations. See
 [hooks](internal/relayhook/README.md),
 [availability](../deploy/revocation-and-heartbeats.md),
 [anomalies](../deploy/relay-anomalies.md) and the
-[installed timing discrepancy](../deploy/validation-native-w5-heartbeat.md).
+[original installed timing discrepancy](../deploy/validation-native-w5-heartbeat.md)
+and [current scoped measurements](../docs/w5-revocation-deadline.md). Native/public
+samples do not complete mobile, fleet, fault or migration acceptance.
 
 ## Ports
 
 - Public TCP 80/443: reverse proxy and reviewed HTTP-01 device-certificate route.
 - Public TCP 7000: relay TLS control; 8443: relayed device GUI TLS.
-- PostgreSQL and application HTTP origins remain private. Generated hook/admin
-  publications bind only to host loopback for host-network frps; authz also
-  validates its configured peer. These are not public APIs.
+- PostgreSQL and application HTTP origins remain private. The generated hook
+  publication binds to host loopback for host-network frps. Its admin API binds
+  the deployment's private edge gateway; authz uses that address and checks its
+  configured hook peer. Neither interface is a public API.
 
 [External-proxy mode](../deploy/external-proxy.md) must preserve reviewed routing
 and forwarding policy. GUI issuance additionally requires a separately provisioned

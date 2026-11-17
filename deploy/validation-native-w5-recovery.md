@@ -122,3 +122,163 @@ The subsequent [heartbeat and console Revoke record](validation-native-w5-heartb
 contains actual cutoff and no-reconnect measurements. Its W0 timing comparison
 and the W5 mobile Open sample remain open. The failed combined recovery operation
 above remains failed; W5-W7 are incomplete.
+
+## Current 0.0.19 local recovery sample
+
+The unsigned source `f08585d` package passed a real router reboot on the approved
+OPNsense 26.7.7/1 GiB VM, against retained source `d5c0d5f` server images. The
+same enrollment, model, GUI identity and all 51 installed source files survived.
+No manual agent start or reconcile followed reboot. Dispatch to observed running
+service was 164.640 seconds, including a scheduled 60-second delay; this is not
+measured tunnel downtime. Normal public console Open, router login, eleven
+dashboard widgets, recurring API calls and reload passed afterward, with normal
+public roots and exact hostname/leaf/key checks.
+
+One native configuration-restore trial then downloaded the active backup through
+the stock GUI, saved disabled intent through the plugin Settings API, observed
+normal cron stop, and uploaded the backup through the stock configuration page.
+No reboot or direct config.xml replacement was requested. Enabled intent and the
+running service recovered through normal cron in 51.281 seconds from restore
+acknowledgement, without manual agent start or reconcile. Enrollment, GUI key and
+kernel boot identity stayed equal.
+
+That combined observer remains failed: its raw certificate-record comparison
+detected XML serialization changes before the public browser stage. Independent
+comparison of the downloaded backup and actual restored configuration verified
+all three certificate records semantically and all certificate/private-key bytes.
+The only other differences were revision metadata and an empty `system/serialusb`
+field added by the stock restore page's keep-console path. Native Config removed
+only that empty field, preserving all other semantic configuration. A separate
+same-leaf public GUI check then passed the complete Open/login/widgets/API/reload
+flow; it did not repeat restoration or issuance. The original failed observer and
+earlier captured-shutdown timeout remain retained.
+
+Independent cleanup normally stopped the client before restoring original relay
+services. All sixty container/image identities and fifty-nine unaffected process
+states were checked. Four actual views and their hashes were reviewed for each
+successful public GUI flow. The new enrollment and selected public leaf remain
+installed and normally stopped for later tests. These local recovery observations
+do not complete current hosted rotation/revocation, mobile, migration/rollback or
+W5/W7 acceptance.
+
+## New-heartbeat hosted WAN candidate
+
+The hosted acceptance candidate changes the fixed WAN address of its disposable
+OPNsense guest, using independent LAN SSH. A root-owned nonce, expected native
+LAN/WAN assignments, the fixed private subnet and gateway bind the operation to
+that guest. It checks the original frpc PID/start time and the actual established
+control socket's new source address, then verifies the existing HTTPS route.
+Socket state and process ownership are read through the stock
+[FreeBSD sockstat interface](https://raw.githubusercontent.com/freebsd/freebsd-src/releng/14.3/usr.bin/sockstat/sockstat.1).
+The unrelated witness must retain its original TCP inode and verified route.
+
+The harness restores the original address even if the change response is lost.
+Both changes have a separate 60-second recovery limit; this does not extend the
+five-second revocation target. A late observation or partially recovered trial
+stays failed. No manual agent start, restart, reconcile or grant renewal is used.
+The native model, runtime configuration, native XML, GUI identity and database
+identity/grants must remain unchanged.
+
+The original candidate `d6f1b43` failed at the change phase in
+[installed run 43371274201](https://github.com/KazuhaHub/nethub/actions/runs/43371274201).
+Restoration was attempted but not verified. The retained outcome did not identify
+the failing operation; it cannot establish whether the default route disappeared.
+Keep that trial failed. Review separately found that the fixture replaced the
+primary address without restoring a dependent default route. The follow-up checks
+the IPv4 route table and reinstates only the absent fixed fixture gateway after
+each address change, within the original recovery clock. An unexpected gateway,
+interface, duplicate route or malformed table is refused, never overwritten.
+Address configuration and default-router configuration are separate steps in the
+[FreeBSD network handbook](https://docs.freebsd.org/en/books/handbook/network/).
+Version-two outcomes retain closed failure reasons for the original operation and
+restoration separately, without publishing child output. A successful restoration
+does not turn the original failed operation into a passing trial.
+
+The follow-up `1624ff9` passed CI, 217 actual FreeBSD cases, preparation and
+isolated cold recovery, but its
+[installed run 43377788624](https://github.com/KazuhaHub/nethub/actions/runs/43377788624)
+failed in the relay prerequisite before starting a native guest. It did not
+execute the WAN change and cannot validate or refute the gateway fix. The retained
+projection identified only the broad relay phase; previous successful Go source
+locations do not establish the later Python failure's cause. The diagnostic
+follow-up adds fixed relay component phases and allowlisted Python traceback
+locations and deadline hints without exporting child output or repeating a timed
+action inside a failed run. It changes no cutoff limit, workload or recovery guard.
+
+Source `d5c0d5f` executed that gateway fixture in
+[installed run 43382960772](https://github.com/KazuhaHub/nethub/actions/runs/43382960772).
+The version-two WAN outcome passed: the changed address recovered in 3,102 ms
+and restoration in 4,053 ms. The original frpc process, native model, runtime
+configuration, XML, GUI identity and independent control/TLS witness were retained.
+These are WAN recovery measurements, separate from revocation timing.
+
+That overall run remains failed. After the first normal Rotate succeeded, a
+read-only native fixture inspection timed out connecting to SSH. The retained
+transport category does not establish whether the private listener stopped or
+the connection failed transiently. No later full-tail acceptance is inferred.
+The follow-up allows only that fixed inspection to recover the disposable CI
+guest's original private SSH listener and repeat the same read once. It retains
+the initial transport category, listener recovery status and elapsed recovery
+time, with a four-event budget for the entire guest. Host-key, authentication
+and command failures remain fatal; Rotate, Revoke and other mutations are never
+replayed. The original failed run is preserved.
+
+The next source `2e76868` passed CI, native filesystem checks, preparation and
+isolated cold recovery, but
+[installed run 43391262433](https://github.com/KazuhaHub/nethub/actions/runs/43391262433)
+failed at private input transfer after its first successful Rotate. Its standalone
+WAN change and restoration passed in 2,925 and 4,542 ms. Its read-only recovery
+inventory was empty: the failure preceded the recovery helper. SCP's retained
+error did not distinguish a transport problem from another transfer failure.
+Both the model readback and GUI inspection had a preceding upload, so the exact
+failed upload and daemon cause remain unconfirmed.
+
+The follow-up reuses the model probe staged before enrollment instead of uploading
+it again for every read. Model readback uses the same bounded, fixed-command
+recovery boundary. A pinned read-only root probe checks that boundary before
+staging GUI inspection input. Closed recovery records distinguish those three
+read-only operations. SCP failures retain private child logs and export only an
+allowlisted category; SCP and mutations are not retried. Host-key and authentication
+refusals take priority over accompanying reset messages, and child stdout cannot
+claim an SSH transport failure. These fixture changes need their own hosted
+execution; neither failed run becomes accepted.
+
+Source `c0ff774` passed CI, native filesystem checks, preparation and isolated
+cold recovery. Its
+[installed run 43398908870](https://github.com/KazuhaHub/nethub/actions/runs/43398908870)
+remains failed. The first ordinary Rotate succeeded. Its subsequent model-read
+SSH connect timeout recovered through the fixed read-only boundary in 10,580 ms;
+the read completed and native credential/assignment and database-preservation
+checks passed. The assigned route then failed to recover verified TLS within
+the existing probe budget.
+Its WAN change/restoration passed in 2,980/4,536 ms. Those observations do not
+establish why the route failed, and the run never reached console revocation.
+
+The follow-up retains the last existing curl outcome and one read-only native
+snapshot on that route failure: service/stop state, live-versus-model credential
+equality, fixed reconciliation action and recognized log events. It adds no
+route retry, configuration change or longer budget. Arbitrary errors, logs and
+credential values stay out of uploaded evidence. Local projection checks do not
+establish installed recovery; a new original execution is required.
+
+Source `954f053` passed CI, native filesystem checks, preparation and isolated
+cold recovery, but
+[installed run 43407885702](https://github.com/KazuhaHub/nethub/actions/runs/43407885702)
+failed earlier at the first native Rotate response: HTTP 200, `success=false`,
+phase `error`, reason `unclassified`. Its standalone WAN change/restoration
+passed in 3,470/4,460 ms. Neither post-failure native snapshot was available,
+and the post-Rotate route diagnostic was not reached. The retained response does
+not establish the failed operation's cause; that run remains failed.
+
+The next follow-up classifies more exact local runtime/service/request failures
+without returning backend text. Both fixed post-failure snapshot commands now
+share the existing four-event read-only SSH recovery budget. No failed Rotate is
+replayed, no scheduler or mutation timeout changes, and no failed record becomes
+accepted. These changes need their own exact-source appliance execution.
+
+This is a runtime address change behind the fixture's NAT, not a public-network
+or ISP DHCP-renewal sample. Local parser/orchestrator tests do not establish
+automatic recovery on an actual appliance. The candidate must execute with the
+new one/three-second heartbeat settings, retain its closed outcome and pass the
+later normal Remove/full-tail/cleanup checks before accepting that scope.
+Reboot, Core restore, public/mobile, migration and rollback remain separate.

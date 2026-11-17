@@ -35,15 +35,19 @@ def test_unowned_guest_is_refused_before_paths_compiler_or_commands():
         BOOTSTRAP.install_current_package(None, Path('/unrelated-source'), Path('/unrelated-sdk'), {})
 
 
-def test_lost_native_enrollment_reply_is_not_replayed():
+def test_lost_native_enrollment_reply_is_not_replayed(monkeypatch):
+    monkeypatch.syspath_prepend(str(DIRECTORY))
     native = object.__new__(NATIVE.ColdNative)
-    native.guest = SimpleNamespace(ssh=lambda *args: None, gui_port=18443)
-    with patch.object(native, 'page', side_effect=GUEST.GuestError('fixture uncertain reply')) as page:
+    native.guest = SimpleNamespace(ssh=Mock(), put=Mock(), gui_port=18443)
+    with patch.object(native, 'fixture', return_value={'configured': True}) as fixture, \
+            patch.object(native, 'page', side_effect=GUEST.GuestError('fixture uncertain reply')) as page:
         with pytest.raises(GUEST.GuestError):
             native.enroll('private fixture token')
         with pytest.raises(GUEST.GuestError):
             native.enroll('private fixture token')
         assert page.call_count == 1
+        fixture.assert_called_once_with('console-dns')
+        assert native.guest.put.call_count == 1 and native.guest.ssh.call_count == 1
 
 
 def test_initial_submission_retries_only_an_explicit_busy_result_before_baseline():

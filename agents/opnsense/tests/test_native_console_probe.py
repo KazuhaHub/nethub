@@ -38,6 +38,39 @@ def test_canonical_system_trust_probe_complete(network):
     assert result['passed'] is True and result['phase'] == 'complete' and result['http_status'] == 200
 
 
+@pytest.mark.parametrize('phase', ['second_tcp', 'tls', 'http'])
+@pytest.mark.parametrize('kind', ['timeout', 'io'])
+def test_failure_categories_follow_the_actual_operation(network, monkeypatch, phase, kind):
+    calls = []
+
+    def refuse(*_args, **_kwargs):
+        calls.append('refused')
+        if kind == 'timeout':
+            raise TimeoutError('private-host-and-response')
+        raise ConnectionResetError(PROBE.errno.ECONNRESET, 'private-host-and-response')
+
+    if phase == 'second_tcp':
+        def connect(*_args, **_kwargs):
+            if calls:
+                return refuse()
+            calls.append('initial_tcp')
+            return Connection()
+        monkeypatch.setattr(PROBE.socket, 'create_connection', connect)
+    elif phase == 'tls':
+        monkeypatch.setattr(PROBE.ssl, 'create_default_context', lambda: SimpleNamespace(wrap_socket=refuse))
+    else:
+        monkeypatch.setattr(PROBE.urllib.request, 'urlopen', refuse)
+    value = PROBE.probe()
+    PROBE.validate_result(value)
+    assert value['passed'] is False
+    assert value['phase'] == {'second_tcp': 'tcp', 'tls': 'tls', 'http': 'http'}[phase]
+    assert value['failure'] == {
+        ('second_tcp', 'timeout'): 'tcp_timeout', ('second_tcp', 'io'): 'tcp_connect',
+        ('tls', 'timeout'): 'tls_timeout', ('tls', 'io'): 'tls_io',
+        ('http', 'timeout'): 'http_failure', ('http', 'io'): 'http_failure'}[phase, kind]
+    assert calls.count('refused') == 1 and 'private-host' not in json.dumps(value)
+
+
 @pytest.mark.parametrize('failure', ['dns', 'certificate', 'http'])
 def test_failures_return_only_closed_categories(network, monkeypatch, failure):
     def refuse(*_args, **_kwargs):

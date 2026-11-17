@@ -64,6 +64,19 @@ namespace {
         ['Rotation interrupted; retain the private journal and retry.', 'interrupted'],
         ['private-fixture-value', 'unclassified'],
         [['private-fixture-value'], 'unclassified'],
+        ['Rotation response unavailable; retain the journal and retry', 'rotation_request'],
+        ['Console does not support recoverable rotation', 'rotation_protocol'],
+        ['Rotation response changed the original device binding', 'rotation_response'],
+        ['Native settings changed during rotation; retain the journal for review', 'rotation_binding'],
+        ['Stored relay trust differs; review local trust before applying', 'runtime_trust'],
+        ['Private mutation lock changed; local review is required', 'mutation_lock'],
+        ['Rotation is unavailable after revocation or during removal', 'inactive'],
+        ['Relay certificate verification is required', 'runtime_configuration'],
+        ['Template rendering failed; live configuration was retained', 'runtime_template'],
+        ['frpc rejected the candidate configuration; live configuration was retained', 'runtime_verify'],
+        ['Tunnel service action failed', 'service_action'],
+        ['Tunnel process did not remain running', 'service_exit'],
+        ['Device operation timed out; inspect status before retrying', 'operation_timeout'],
     ];
     $reasons = [];
     foreach ($failures as [$message, $reason]) {

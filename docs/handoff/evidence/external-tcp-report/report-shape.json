@@ -1,0 +1,16 @@
+{
+  "command_matches_tcp": true,
+  "creation_clock_delta_seconds": 0,
+  "host_matches_exact_http_URL": false,
+  "host_matches_exact_target": false,
+  "host_matches_exact_tcp_URL": false,
+  "observed_nodes": 3,
+  "observer_identities_match": true,
+  "public_positive_or_closed_sample_accepted": false,
+  "report_sha256": "aa14c378d24b9f64ea840ffb275d20ccda78d50ea4bf680a86e2c108f77b64f3",
+  "scheduled_nodes": 3,
+  "report_host_is_exact_owned_IP": true,
+  "report_port_is_exact_requested_decimal": true,
+  "report_port_type": "str",
+  "cause": "The genuine TCP report separates host and decimal-string port; the original fixture incorrectly embedded port in host."
+}

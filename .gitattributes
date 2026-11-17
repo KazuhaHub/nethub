@@ -5,3 +5,7 @@ deploy/images/backup/passwd text eol=lf
 deploy/images/backup/group text eol=lf
 agents/opnsense/plugin/packaging/freebsd/+* text eol=lf
 agents/opnsense/** text=auto eol=lf
+
+# Preserve evidence checksums and literal unified-diff context across checkouts.
+docs/handoff/evidence/** -text
+docs/handoff/patches/*.patch -text whitespace=-blank-at-eol,-space-before-tab

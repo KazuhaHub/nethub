@@ -15,6 +15,10 @@ export type AuditEntry = {
   target_device_id: string | null;
   client_ip?: string;
   details: {
+    failure_count?: string;
+    device_reported?: boolean;
+    first_reported_at?: string;
+    last_reported_at?: string;
     target_user_id?: string;
     role?: "admin" | "member";
     disabled?: boolean;
@@ -85,6 +89,17 @@ export function validAuditPage(value: unknown): value is AuditPage {
     ids.add(entry.id as string);
     return Object.entries(entry.details).every(([key, v]) => {
       switch (key) {
+        case "failure_count":
+          return (
+            typeof v === "string" &&
+            /^[1-9][0-9]{0,18}$/.test(v) &&
+            BigInt(v) <= 9223372036854775807n
+          );
+        case "device_reported":
+          return v === true;
+        case "first_reported_at":
+        case "last_reported_at":
+          return stamp(v);
         case "target_user_id":
         case "request_id":
           return uuid(v);

@@ -1,0 +1,10 @@
+{
+  "source_head": "898c3e0e474aaf03c294c78c37d9e6c96630b6fb",
+  "clean_build": true,
+  "go_version": "1.26.11",
+  "network": "none",
+  "CPU_limit": 2,
+  "binary_sha256": "8eba57de4048aa318db5103aed4efdc00b06ee367b213443365b78adc237745b",
+  "public_probe_executed": false,
+  "formal_release": false
+}

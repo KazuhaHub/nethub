@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "source_head": "898c3e0e474aaf03c294c78c37d9e6c96630b6fb",
+  "parent_source": "16708e35443fbbe93344bd897f8d5ab3ef6749d0",
+  "provider_API_reference": "https://check-host.net/about/api",
+  "scope": "Real owned-host TCP 443 negative and bounded API-shape diagnosis; no all-port public positive, TLS, native, published-package or full W7 acceptance",
+  "public_positive_sample_accepted": false,
+  "full_project_complete": false,
+  "files": [
+    {
+      "path": "NAT-fixture-ready.json",
+      "bytes": 491,
+      "sha256": "a8fb3d2e29c2619cbe922c3216fd248c5fb1199cf824964c1c03b23640d4202b"
+    },
+    {
+      "path": "clean-build.json",
+      "bytes": 301,
+      "sha256": "7f8768f64d13c59ab7a7abf965cf569e96dff491fb434e5cddaf720a15eb473a"
+    },
+    {
+      "path": "fixed-refusal.json",
+      "bytes": 660,
+      "sha256": "f08ce43c48eeeb18638114b7c594bb548ccac0ed4bc9176da7c44607d8d5434d"
+    },
+    {
+      "path": "local-checks.json",
+      "bytes": 2510,
+      "sha256": "a282f51fe24f797bde57db269783616a2d033cc0e86019a9e1291b60fc27269e"
+    },
+    {
+      "path": "parent-refusal.json",
+      "bytes": 660,
+      "sha256": "028470820dd8053df3e03b7795390876a1e1e0cd74597fc48c916cfcc5b992ea"
+    },
+    {
+      "path": "python-diagnostic-refusal.json",
+      "bytes": 230,
+      "sha256": "f0f9139bc6d8671bf1525efa317ef85a8b04dd14c80b6d61cad24bcf5e0bf6a5"
+    },
+    {
+      "path": "report-shape.json",
+      "bytes": 666,
+      "sha256": "7d6a32aa186e8b36df1900d54449a512b93570c36b52e2b48e649025828c4e55"
+    },
+    {
+      "path": "retained-report-final.json",
+      "bytes": 477,
+      "sha256": "f1fd0a76181fda2ae6a0278669f394cde12438066e272b2bad0cac471c7448b9"
+    }
+  ]
+}

@@ -24,6 +24,10 @@ type AuditQuery struct {
 }
 
 type AuditDetails struct {
+	FailureCount    *string    `json:"failure_count,omitempty"`
+	DeviceReported  *bool      `json:"device_reported,omitempty"`
+	FirstReportedAt *time.Time `json:"first_reported_at,omitempty"`
+	LastReportedAt  *time.Time `json:"last_reported_at,omitempty"`
 	TargetUserID    *string    `json:"target_user_id,omitempty"`
 	Role            *string    `json:"role,omitempty"`
 	Disabled        *bool      `json:"disabled,omitempty"`

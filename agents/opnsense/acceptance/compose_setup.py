@@ -8,7 +8,9 @@ import sys
 PHASES = ('preflight', 'build_inputs', 'http01', 'gui_issuer', 'gui_acme_build',
           'pebble_primitives', 'gui_host_source_checks', 'gui_host_runtime', 'gui_host_build', 'setup_build',
           'frps_smoke', 'initialization', 'stack_start', 'backup_fixture',
-          'provider_key', 'administrator', 'relay', 'native_guest')
+          'provider_key', 'administrator', 'relay', 'relay_fleet', 'relay_heartbeat',
+          'relay_token_probe', 'relay_rotation', 'relay_token_runtime', 'relay_migration', 'relay_network_blip',
+          'relay_cache_phase', 'native_guest')
 ERRORS = {'dependency_timeout': (b'TLS handshake timeout', b'i/o timeout', b'context deadline exceeded'),
           'dependency_rate_limit': (b'429 Too Many Requests', b'toomanyrequests:'),
           'storage_full': (b'no space left on device',),
@@ -25,6 +27,51 @@ ERRORS.update({'host_' + name: (b'NETHUB_HOST_PROOF_MISSING=' + name.encode(),)
                for name in HOST_PROOFS})
 ERRORS['host_test_exit'] = (b'NETHUB_HOST_TEST_EXIT=nonzero',)
 SOURCES = {'gui-issuer-host.py': 'gui_issuer_host', 'test_gui_issuer_host.py': 'gui_host_source_checks'}
+SOURCES.update({name: name.removesuffix('.py').replace('-', '_') for name in (
+    'relay-deployment.py', 'relay_fleet.py', 'relay_heartbeat.py', 'relay_maintenance.py',
+    'relay_traffic.py', 'relay_rotation.py', 'relay_token_probe.py', 'relay_token_runtime.py', 'relay_migration.py',
+    'relay_cache_phase.py', 'relay_network_blip.py', 'relay_combined_fault.py')})
+SOURCES['relay_log.py'] = 'relay_log'
+ERRORS.update({name: () for name in (
+    'relay_hook_log_json_prefix', 'relay_hook_log_plain_prefix', 'relay_hook_log_runtime_fault',
+    'relay_hook_log_client_warning', 'relay_hook_log_service_failure',
+    'relay_hook_log_runtime_exit', 'relay_hook_log_initial_snapshot_failure',
+    'relay_hook_log_initial_database_failure', 'relay_hook_log_revocation_liveness',
+    'relay_hook_log_invalid_record', 'relay_hook_log_invalid_shape',
+    'relay_hook_log_invalid_size', 'relay_hook_log_history_changed', 'relay_hook_log_read_failed',
+    'relay_hook_log_budget_expired', 'relay_hook_log_pending_tail_observed',
+    'relay_hook_log_pending_tail_completed')})
+ERRORS.update({
+    'relay_cutoff_late': (b'official control-session state was observed after its deadline',
+                          b'official control-session state exceeded the heartbeat deadline'),
+    'relay_revocation_denial_missing': (b'revoked control session lacked its actual Pong error, Ping and reconnect Login denials',),
+    'relay_snapshot_seed_timeout': (b'isolated fleet-pressure seed exceeded its caller budget',),
+})
+ERRORS.update({name: () for name in (
+    'relay_fleet_stage_five', 'relay_fleet_stage_ten', 'relay_fleet_stage_pressure', 'relay_fleet_stage_unknown',
+    'relay_fleet_original_control_changed', 'relay_fleet_dedicated_control_changed',
+    'relay_fleet_inventory_changed', 'relay_fleet_changed_client_heartbeat_timeout',
+    'relay_fleet_changed_client_Pong_error', 'relay_fleet_changed_client_Pong_observed',
+    'relay_fleet_changed_client_Pong_unavailable', 'relay_fleet_changed_client_Pong_not_authorized',
+    'relay_fleet_changed_client_Pong_generic', 'relay_fleet_changed_client_Pong_plugin_transport',
+    'relay_recent_Ping_unavailable', 'relay_recent_Ping_device_denied', 'relay_recent_hook_busy',
+    'relay_recent_snapshot_refresh_failed', 'relay_failure_context_unavailable',
+    'relay_frps_Ping_plugin_status_403', 'relay_frps_Ping_plugin_status_404',
+    'relay_frps_Ping_plugin_status_405', 'relay_frps_Ping_plugin_status_other',
+    'relay_frps_Ping_plugin_EOF', 'relay_frps_Ping_plugin_truncated',
+    'relay_frps_Ping_plugin_reset', 'relay_frps_Ping_plugin_refused',
+    'relay_frps_Ping_plugin_timeout', 'relay_frps_Ping_plugin_closed_idle',
+    'relay_frps_Ping_plugin_decode', 'relay_frps_Ping_plugin_unclassified',
+    'relay_frps_context_unavailable',
+    'relay_fleet_failure_log_unavailable')})
+# These markers carry only closed curl/process/body/Pong observations. Empty
+# needles require exact marker lines rather than substring matches (e.g. 3/35).
+ERRORS.update({name: () for name in (
+    'relay_preparation_observation_unavailable',
+    'relay_preparation_body_matched', 'relay_preparation_body_unmatched',
+    'relay_preparation_client_running', 'relay_preparation_client_exited',
+    'relay_preparation_Pong_observed', 'relay_preparation_Pong_unobserved',
+    *('relay_preparation_curl_exit_' + str(code) for code in range(256)))})
 SOURCES.update({name: name.removesuffix('.go') for name in (
     'pebble_integration_test.go', 'pebble_http01_test.go', 'pebble_host_linux_test.go',
     'pebble_host_enrollment_linux_test.go', 'pebble_database_test.go', 'pebble_coordinator_test.go')})

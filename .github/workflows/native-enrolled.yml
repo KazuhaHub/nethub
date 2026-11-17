@@ -8,6 +8,7 @@ on:
       - server/web/package-lock.json
       - agents/opnsense/acceptance/**
       - agents/opnsense/plugin/src/**
+      - agents/opnsense/plugin/packaging/**
       - server/internal/device/**
       - server/internal/protocol/**
       - server/internal/relayhook/**
@@ -15,6 +16,7 @@ on:
       - server/internal/store/migrations/00029*
       - proto/**
       - server/tests/compose.sh
+      - server/tests/relay*.py
       - server/tests/recovery/**
   workflow_dispatch:
     inputs:
@@ -34,7 +36,7 @@ jobs:
     name: exact-source tested image gate
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 40
     permissions:
       actions: read
       contents: read
@@ -57,7 +59,7 @@ jobs:
     needs: accepted-images
     if: always() && (github.event_name == 'workflow_dispatch' || needs.accepted-images.result == 'success')
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 55
     permissions:
       actions: read
       contents: read
@@ -70,6 +72,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Fetch the immutable previous package source
+        run: git fetch --no-tags --depth=1 origin c9e74abb1fb1c060ab32ee880d20f32d8d7a653b
       - name: Check fresh hosted resources
         run: |
           test "$RUNNER_ENVIRONMENT" = github-hosted
@@ -120,6 +124,16 @@ jobs:
             ${{ runner.temp }}/native-enrolled-evidence/deployment-result.json
             ${{ runner.temp }}/native-enrolled-evidence/native/result.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-rotation.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-console-revoke.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-wan-recovery.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-wan-settling.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-wan-identity-console.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-reconcile-audit.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-reconcile-audit-browser.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-reconcile-audit.png
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-package-migration.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-route-failure.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/installed-console-revoke.png
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-shared-token.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-trust-publication.json
             ${{ runner.temp }}/native-enrolled-evidence/native/installed-committed-trust-replay.json
@@ -127,6 +141,8 @@ jobs:
             ${{ runner.temp }}/native-enrolled-evidence/native/compose-tail.json
             ${{ runner.temp }}/native-enrolled-evidence/native/native-fixture-host.json
             ${{ runner.temp }}/native-enrolled-evidence/native/guest-console-probe.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/guest-console-after-wan-probe.json
+            ${{ runner.temp }}/native-enrolled-evidence/native/post-wan-console-failure.json
             ${{ runner.temp }}/native-enrolled-evidence/native/native-model-probe.json
             ${{ runner.temp }}/native-enrolled-evidence/native/rotation-recovery-probe.json
             ${{ runner.temp }}/native-enrolled-evidence/native/native-storage-probe.json

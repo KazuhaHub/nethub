@@ -24,6 +24,13 @@ import (
 const Path = "/api/v1/frp/hooks"
 const Budget = 500 * time.Millisecond
 
+// ServerIdleTimeout must exceed the idle timeout of the frps plugin client so
+// the client always closes a pooled connection first. The pinned frps HTTP
+// plugin uses Go's default transport (90s idle) and its Ping POST is not
+// replayable; a server that closes a keep-alive connection at the moment frps
+// reuses it yields EOF, which frps returns to the router as a Pong error.
+const ServerIdleTimeout = 120 * time.Second
+
 var ErrDenied = errors.New("relay identity denied")
 var ErrSourceDenied = fmt.Errorf("relay source access denied: %w", ErrDenied)
 var ErrUnavailable = errors.New("relay authorization unavailable")

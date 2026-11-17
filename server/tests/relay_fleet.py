@@ -1,0 +1,362 @@
+"""Observe small genuine frp fleets without inferring a larger capacity limit."""
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import time
+
+
+CONTEXT_HINTS = frozenset(('relay_recent_Ping_unavailable', 'relay_recent_Ping_device_denied',
+    'relay_recent_hook_busy', 'relay_recent_snapshot_refresh_failed', 'relay_failure_context_unavailable'))
+PONG_REASONS = {b'unavailable': 'unavailable', b'not_authorized': 'not_authorized',
+                b'invalid ping': 'generic', b'send Ping request to plugin error': 'plugin_transport'}
+
+
+def recent_failure_hints(raw):
+    """These recent service observations do not identify a particular client."""
+    if not isinstance(raw, bytes) or len(raw) > 1024**2:
+        raise ValueError('Bounded private failure context required')
+    hints = set()
+    for line in raw.splitlines():
+        try:
+            item = json.loads(line)
+        except (ValueError, UnicodeError):
+            continue
+        if not isinstance(item, dict):
+            continue
+        if item.get('msg') == 'Revocation refresh failed; retaining previous snapshot':
+            hints.add('relay_recent_snapshot_refresh_failed')
+        if item.get('msg') == 'Relay hook decision':
+            if item.get('operation') == 'Ping' and item.get('decision') in ('unavailable', 'device_denied'):
+                hints.add('relay_recent_Ping_' + item['decision'])
+            if item.get('decision') == 'busy':
+                hints.add('relay_recent_hook_busy')
+    return hints
+
+
+FRPS_PLUGIN_SUFFIXES = (
+    (b'connection reset by peer', 'reset'), (b'connection refused', 'refused'),
+    (b'i/o timeout', 'timeout'), (b'context deadline exceeded', 'timeout'),
+    (b'Client.Timeout exceeded', 'timeout'), (b'server closed idle connection', 'closed_idle'),
+    (b'unexpected end of JSON input', 'decode'), (b'invalid character', 'decode'),
+    (b'unmarshal', 'decode'), (b'json', 'decode'))
+
+
+def frps_plugin_failure_hints(raw):
+    """Recent frps observations; only fixed Ping-plugin categories are exported."""
+    if not isinstance(raw, bytes) or len(raw) > 1024**2:
+        raise ValueError('Bounded private failure context required')
+    hints = set()
+    for line in raw.splitlines():
+        _head, marker, rest = line.partition(b'send Ping request to plugin [')
+        if not marker:
+            continue
+        _name, marker, reason = rest.partition(b'] error: ')
+        if not marker:
+            continue
+        reason = reason.strip()
+        code = re.search(rb'do http request error code: (\d+)', reason)
+        if code:
+            value = code.group(1).decode()
+            category = 'status_' + (value if value in ('403', '404', '405') else 'other')
+        elif reason.endswith(b'unexpected EOF'):
+            category = 'truncated'
+        elif reason.endswith(b'EOF'):
+            category = 'EOF'
+        else:
+            category = next((name for needle, name in FRPS_PLUGIN_SUFFIXES if needle in reason), 'unclassified')
+        hints.add('relay_frps_Ping_plugin_' + category)
+    return hints
+
+
+def report_failure_context(stage, compose):
+    """Read owned service logs once each; preserve the first failure if this fails."""
+    try:
+        stage = Path(stage)
+        if (stage.parent not in (Path('/tmp'), Path('/var/tmp')) or stage.resolve() != stage
+                or len(compose) != 10 or compose[:2] != ['docker', 'compose']
+                or compose[2] not in ('-p', '--project-name')
+                or not re.fullmatch('nethub-stack-test-[a-z0-9-]+', compose[3])
+                or compose[4::2] not in (['-f'] * 3, ['--file'] * 3)
+                or compose[5::2] != [str(stage / name) for name in (
+                    'deployment/docker-compose.yml', 'deployment/docker-compose.override.yml', 'test.yml')]):
+            raise ValueError('Owned isolated failure context required')
+    except Exception:
+        hints = {'relay_failure_context_unavailable'}
+    else:
+        try:
+            result = subprocess.run(compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '100', 'nethub-authz'],
+                                    capture_output=True, timeout=5)
+            if result.returncode:
+                raise ValueError('Owned service context unavailable')
+            hints = recent_failure_hints(result.stdout)
+        except Exception:
+            hints = {'relay_failure_context_unavailable'}
+        # Ownership is established above; the frps read is independent of the
+        # authz outcome so "not read" is never confused with "nothing found".
+        try:
+            result = subprocess.run(compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '200', 'frps'],
+                                    capture_output=True, timeout=5)
+            if result.returncode:
+                raise ValueError('Owned service context unavailable')
+            hints |= frps_plugin_failure_hints(result.stdout)
+        except Exception:
+            hints.add('relay_frps_context_unavailable')
+    for hint in sorted(hints):
+        try:
+            print('NETHUB_NATIVE_HINT=' + hint, flush=True)
+        except (OSError, ValueError):
+            return
+
+
+def require_original_controls(actual, baseline, originals, owned, stage_index):
+    """Keep the exact socket assertion; export only fixed failure categories."""
+    if actual == baseline:
+        return
+    stage = {0: 'five', 1: 'ten', 2: 'pressure'}.get(stage_index, 'unknown')
+    hints = {'relay_fleet_stage_' + stage}
+    original_pids = {client.pid for client in originals}
+    changed = {pid for pid in baseline if actual.get(pid) != baseline[pid]}
+    if changed & original_pids:
+        hints.add('relay_fleet_original_control_changed')
+    if changed - original_pids:
+        hints.add('relay_fleet_dedicated_control_changed')
+    if set(actual) != set(baseline):
+        hints.add('relay_fleet_inventory_changed')
+    for _, log, client in owned:
+        if client.pid not in changed:
+            continue
+        try:
+            if log is None or log.is_symlink() or not log.is_file() or log.stat().st_size > 4 * 1024**2:
+                raise ValueError('Bounded private fleet log required')
+            with log.open('rb') as stream:
+                raw = stream.read(4 * 1024**2 + 1)
+            if len(raw) > 4 * 1024**2:
+                raise ValueError('Private fleet log grew beyond its bound')
+            if b'heartbeat timeout' in raw:
+                hints.add('relay_fleet_changed_client_heartbeat_timeout')
+            if b'pong message contains error' in raw:
+                hints.add('relay_fleet_changed_client_Pong_error')
+                for line in raw.splitlines():
+                    _prefix, marker, reason = line.rpartition(b'pong message contains error: ')
+                    if marker and reason.strip() in PONG_REASONS:
+                        hints.add('relay_fleet_changed_client_Pong_' + PONG_REASONS[reason.strip()])
+            if b'receive heartbeat from server' in raw:
+                hints.add('relay_fleet_changed_client_Pong_observed')
+        except (OSError, ValueError):
+            hints.add('relay_fleet_failure_log_unavailable')
+    for hint in sorted(hints):
+        print('NETHUB_NATIVE_HINT=' + hint, flush=True)
+    raise AssertionError('fleet control disconnected or reconnected under bounded load')
+
+
+def require_retained_controls(actual, retained, originals, owned, stage_index):
+    """New batch members are allowed; every previously retained socket is exact."""
+    previous = {pid: actual[pid] for pid in retained if pid in actual}
+    require_original_controls(previous, retained, originals, owned, stage_index)
+
+
+def exercise_fleet(stage, compose, originals, create_client, stop_client,
+                   revoke_clients, check_tunnels, probe, source, seed_pressure, combined_fault):
+    work = Path(stage) / 'fleet-test'
+    work.mkdir(mode=0o700)
+    owned, attempts = [], []
+    ticks = os.sysconf('SC_CLK_TCK')
+    page_size = os.sysconf('SC_PAGE_SIZE')
+
+    def sockets(clients):
+        result = subprocess.run(['ss', '-tnpeH'], capture_output=True, text=True, timeout=3)
+        assert result.returncode == 0, 'fleet control inventory unavailable'
+        peers = {client.pid: set() for client in clients}
+        for line in result.stdout.splitlines():
+            fields = line.split()
+            if len(fields) < 6 or fields[0] != 'ESTAB' or not fields[4].endswith(':7000'):
+                continue
+            inode = re.search(r'\bino:([0-9]+)\b', line)
+            assert inode is not None, 'fleet TCP inode unavailable'
+            for pid, values in peers.items():
+                if re.search(r'pid=' + str(pid) + r'[,)]', line):
+                    values.add((fields[3], fields[4], inode[1]))
+        assert all(len(values) == 1 for values in peers.values()), 'one original multiplexed control per fleet client required'
+        return peers
+
+    def process(role):
+        result = subprocess.run(compose + ['ps', '--quiet', role], capture_output=True, text=True, timeout=5)
+        identifier = result.stdout.strip()
+        assert result.returncode == 0 and re.fullmatch('[a-f0-9]{64}', identifier)
+        result = subprocess.run(['docker', 'inspect', '--format', '{{.State.Pid}}', identifier],
+                                capture_output=True, text=True, timeout=5)
+        assert result.returncode == 0 and result.stdout.strip().isdecimal()
+        pid = int(result.stdout.strip())
+        expected = 'nethub' if role == 'nethub-authz' else 'frps'
+        assert Path(f'/proc/{pid}/comm').read_text().strip() == expected, 'actual fleet service process required'
+        return pid
+
+    def usage(pid):
+        value = Path(f'/proc/{pid}/stat').read_text()
+        fields = value[value.rindex(')') + 2:].split()
+        assert len(fields) >= 22
+        return {'start_ticks': int(fields[19]), 'CPU_ticks': int(fields[11]) + int(fields[12]),
+                'resident_bytes': int(fields[21]) * page_size}
+
+    def cgroup(role):
+        identifier = subprocess.run(compose + ['ps', '--quiet', role], capture_output=True, text=True, timeout=5)
+        assert identifier.returncode == 0 and re.fullmatch('[a-f0-9]{64}', identifier.stdout.strip())
+        identifier = identifier.stdout.strip()
+        result = subprocess.run(['docker', 'inspect', '--format', '{{.State.Pid}}', identifier],
+                                capture_output=True, text=True, timeout=5)
+        assert result.returncode == 0 and result.stdout.strip().isdecimal()
+        pid = int(result.stdout.strip())
+        membership = Path(f'/proc/{pid}/cgroup').read_text().splitlines()
+        assert len(membership) == 1, 'one unified container cgroup required'
+        hierarchy, controllers, relative = membership[0].split(':', 2)
+        assert hierarchy == '0' and controllers == '' and relative.startswith('/'), 'unified container cgroup required'
+        assert re.fullmatch(r'/(?:system.slice/docker-' + identifier + r'\.scope|docker/' + identifier + ')', relative), 'dedicated Docker cgroup required'
+        root = Path('/sys/fs/cgroup').resolve(strict=True)
+        folder = (root / relative.lstrip('/')).resolve(strict=True)
+        assert folder.is_relative_to(root) and folder != root
+        assert pid in [int(item) for item in (folder / 'cgroup.procs').read_text().split()]
+        return folder, folder.stat().st_ino
+
+    def container_usage(binding):
+        folder, inode = binding
+        assert folder.stat().st_ino == inode, 'original container cgroup replaced'
+        raw = (folder / 'cpu.stat').read_text()
+        assert len(raw) <= 4096
+        values = dict(line.split() for line in raw.splitlines())
+        assert values['usage_usec'].isdecimal()
+        memory = (folder / 'memory.current').read_text().strip()
+        assert memory.isdecimal()
+        return {'CPU_us': int(values['usage_usec']), 'memory_bytes': int(memory),
+                'sampled_at': time.monotonic()}
+
+    roles = {role: process(role) for role in ('nethub-authz', 'frps')}
+    groups = {role: cgroup(role) for role in ('nethub-authz', 'frps', 'postgres')}
+    original_controls = sockets(originals)
+    retained_controls = original_controls
+    try:
+        for stage_index, total in enumerate((5, 10, 10)):
+            sample = {'passed': False, 'phase': 'preparation', 'dedicated_clients': total,
+                      'unrelated_original_clients': len(originals), 'measurement_seconds': 30,
+                      'larger_fleet_capacity_accepted': False, 'full_W5_acceptance': False}
+            attempts.append(sample)
+            try:
+                # Use ordinary authenticated enrollment. Clear the five-token
+                # minute window once per batch, never retry a failed load case.
+                if stage_index < 2:
+                    time.sleep(60)
+                else:
+                    sample['phase'] = 'snapshot_pressure_preparation'
+                    sample['snapshot_fixture'] = seed_pressure()
+                while len(owned) < total:
+                    assignment, log, client = create_client(len(owned))
+                    owned.append((assignment, log, client))
+                    deadline = time.monotonic() + 15
+                    while True:
+                        result = probe(assignment, source)
+                        if result.returncode == 0 and result.stdout.decode() == assignment['subdomain'] + '.router.example.com':
+                            break
+                        assert client.poll() is None and time.monotonic() < deadline, 'genuine fleet route did not become available'
+                        time.sleep(0.1)
+                clients = originals + [entry[2] for entry in owned]
+                baseline = sockets(clients)
+                require_retained_controls(baseline, retained_controls, originals, owned, stage_index)
+                retained_controls = baseline
+                check_tunnels()
+                for assignment, _, _ in owned:
+                    result = probe(assignment, source)
+                    assert result.returncode == 0 and result.stdout.decode() == assignment['subdomain'] + '.router.example.com'
+                require_original_controls(sockets(clients), baseline, originals, owned, stage_index)
+                before = {role: usage(pid) for role, pid in roles.items()}
+                peak = {role: value['resident_bytes'] for role, value in before.items()}
+                container_before = {role: container_usage(binding) for role, binding in groups.items()}
+                container_peak = {role: value['memory_bytes'] for role, value in container_before.items()}
+                counts, initial, observed, gaps = {}, {}, {}, []
+                for index, (_, log, _) in enumerate(owned):
+                    counts[index] = log.read_bytes().count(b'receive heartbeat from server')
+                    initial[index] = counts[index]
+                sample['phase'] = 'steady_state'
+                started = time.monotonic()
+                while time.monotonic() - started < 30:
+                    assert all(client.poll() is None for client in clients), 'fleet client exited under bounded load'
+                    require_original_controls(sockets(clients), baseline, originals, owned, stage_index)
+                    now = time.monotonic()
+                    for index, (_, log, _) in enumerate(owned):
+                        assert log.stat().st_size <= 4 * 1024**2, 'bounded private fleet log required'
+                        raw = log.read_bytes()
+                        assert b'pong message contains error' not in raw and b'heartbeat timeout' not in raw
+                        count = raw.count(b'receive heartbeat from server')
+                        if count > counts[index]:
+                            assert count == counts[index] + 1, 'Pong observation missed an interval'
+                            if index in observed:
+                                gaps.append(now - observed[index])
+                            observed[index], counts[index] = now, count
+                    for role, pid in roles.items():
+                        value = usage(pid)
+                        assert value['start_ticks'] == before[role]['start_ticks'], 'fleet service process changed'
+                        peak[role] = max(peak[role], value['resident_bytes'])
+                    for role, binding in groups.items():
+                        value = container_usage(binding)
+                        container_peak[role] = max(container_peak[role], value['memory_bytes'])
+                    time.sleep(0.2)
+                elapsed = time.monotonic() - started
+                assert all(counts[index] - initial[index] >= 20 for index in initial), 'insufficient actual successful Pongs per live client'
+                assert gaps and max(gaps) < 3, 'successful Pong observation gap reached heartbeat timeout'
+                after = {role: usage(pid) for role, pid in roles.items()}
+                cpu = {}
+                for role in roles:
+                    assert after[role]['start_ticks'] == before[role]['start_ticks']
+                    used = (after[role]['CPU_ticks'] - before[role]['CPU_ticks']) / ticks
+                    assert used >= 0
+                    cpu[role] = {'process_CPU_ms': round(used * 1000),
+                                 'mean_CPU_cores': round(used / elapsed, 4),
+                                 'maximum_observed_resident_bytes': peak[role]}
+                containers = {}
+                for role, binding in groups.items():
+                    value = container_usage(binding)
+                    used = value['CPU_us'] - container_before[role]['CPU_us']
+                    window = value['sampled_at'] - container_before[role]['sampled_at']
+                    assert used >= 0
+                    assert window >= 30
+                    containers[role] = {'container_CPU_us': used, 'measurement_ms': round(window * 1000),
+                                        'mean_CPU_cores': round(used / 1000000 / window, 4),
+                                        'maximum_observed_charged_memory_bytes': max(container_peak[role], value['memory_bytes'])}
+                check_tunnels()
+                for assignment, _, _ in owned:
+                    result = probe(assignment, source)
+                    assert result.returncode == 0 and result.stdout.decode() == assignment['subdomain'] + '.router.example.com'
+                assert sockets(clients) == baseline
+                sample.update(passed=True, phase='completed', elapsed_ms=round(elapsed * 1000),
+                              successful_dedicated_Pongs=sum(counts[i] - initial[i] for i in initial),
+                              minimum_Pongs_per_dedicated_client=min(counts[i] - initial[i] for i in initial),
+                              maximum_observed_Pong_gap_ms=round(max(gaps) * 1000),
+                              original_controls_retained=len(clients), process_usage=cpu,
+                              container_usage=containers,
+                              container_scope='dedicated cgroup-v2 tasks and descendants; memory.current includes charged cache; excludes clients and observer',
+                              CPU_scope='authz and frps process only; excludes PostgreSQL, clients and observer',
+                              Pong_scope='successful pinned-client debug log observations, 200ms requested polling; not HTTP callback latency')
+                if stage_index == 2:
+                    def check_all_routes():
+                        check_tunnels()
+                        for assignment, _, _ in owned:
+                            response = probe(assignment, source)
+                            assert response.returncode == 0 and response.stdout.decode() == assignment['subdomain'] + '.router.example.com'
+                    combined_fault(clients, sample['snapshot_fixture'], check_all_routes)
+                    assert sockets(clients) == baseline, 'combined faults replaced a fleet reference control'
+            finally:
+                (work / 'attempts.json').write_text(json.dumps(attempts, indent=2))
+                key = 'official_frp_snapshot_pressure' if stage_index == 2 else 'official_frp_small_fleet'
+                print(json.dumps({key: sample}), flush=True)
+    except Exception:
+        report_failure_context(stage, compose)
+        raise
+    finally:
+        for _, _, client in owned:
+            stop_client(client)
+        # Irreversible cleanup of only identities created by this fixture. The
+        # enclosing owned Compose/database teardown remains the final boundary.
+        revoke_clients([assignment for assignment, _, _ in owned])
+    assert len(attempts) == 3 and all(item['passed'] for item in attempts)
+    assert sockets(originals) == original_controls
+    check_tunnels()

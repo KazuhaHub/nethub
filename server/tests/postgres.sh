@@ -70,3 +70,9 @@ docker cp "$root/proto" "$name:/tmp/nethub-proto"
 docker exec -u postgres -e NETHUB_DATABASE_TEST=1 -e NETHUB_PROTOCOL_FIXTURES=/tmp/nethub-proto -e NETHUB_AUTHZ_TEST_BINARY=/tmp/nethub "$name" /tmp/database.test -test.v -test.timeout=210s
 # Re-execute the actual bootstrap hook and verify repeat initialization is safe.
 docker exec -u postgres -e POSTGRES_USER=postgres "$name" sh /docker-entrypoint-initdb.d/00-nethub-roles.sh >/dev/null
+if [ "${NETHUB_REVOCATION_LOAD:-0}" = 1 ]; then
+    # Run after all ordinary boundaries and bootstrap checks. The load fixture's
+    # immutable synthetic history is removed with this owned disposable volume.
+    docker exec -u postgres -e NETHUB_DATABASE_TEST=1 -e NETHUB_REVOCATION_LOAD=1 \
+        "$name" /tmp/database.test -test.v -test.run '^TestRevocationSnapshotLoad$' -test.timeout=150s
+fi

@@ -1,0 +1,46 @@
+{
+  "source_head": "ea173c660a38bd6c61f37f013e58761da4f337ae",
+  "producer_run": 43783251653,
+  "scope": "Source-bound isolated real-frp controls and fault observations; not native package or public acceptance",
+  "native_upgrade_cause_proven": false,
+  "full_W5_or_goal_accepted": false,
+  "fleet": [
+    {
+      "dedicated_clients": 5,
+      "reference_clients": 2,
+      "elapsed_ms": 30113,
+      "minimum_Pongs": 30,
+      "maximum_Pong_gap_ms": 1111
+    },
+    {
+      "dedicated_clients": 10,
+      "reference_clients": 2,
+      "elapsed_ms": 30220,
+      "minimum_Pongs": 30,
+      "maximum_Pong_gap_ms": 1114
+    },
+    {
+      "dedicated_clients": 10,
+      "reference_clients": 2,
+      "elapsed_ms": 30060,
+      "minimum_Pongs": 29,
+      "maximum_Pong_gap_ms": 1122
+    }
+  ],
+  "phase_cutoff_ms": [
+    1057,
+    1823,
+    1698,
+    1432,
+    2315
+  ],
+  "official_config_migration_phases": 14,
+  "cache_samples": 5,
+  "combined_fault": {
+    "SQL_dispatch_to_original_control_and_proxy_offline_ms": 1007,
+    "SQL_dispatch_to_fresh_TLS_refusal_ms": 1013,
+    "no_reconnect_observation_ms": 30028,
+    "original_reference_controls_retained": true,
+    "owned_rules_restored": true
+  }
+}
