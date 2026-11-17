@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
 )
@@ -43,7 +44,7 @@ func TestConnectionDenialCausePreservesGenericResponseAndPrivacy(t *testing.T) {
 			}
 		}
 		logs.Reset()
-		server.respond(httptest.NewRecorder(), 200, "NewUserConn", "device_denied", "private-cause")
+		server.respond(httptest.NewRecorder(), time.Now(), 200, "NewUserConn", "device_denied", "private-cause")
 		if bytes.Contains(logs.Bytes(), []byte("private-cause")) {
 			t.Fatal("unknown cause reached diagnostics")
 		}
