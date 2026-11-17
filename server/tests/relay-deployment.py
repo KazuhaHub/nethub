@@ -30,6 +30,9 @@ from relay_log import hook_events as complete_hook_events
 
 
 stage, port = Path(sys.argv[1]), int(sys.argv[2])
+focus = os.environ.get("NETHUB_NATIVE_FOCUS", "") # focus-guard
+if focus not in ("", "wan"): # focus-guard
+    raise SystemExit("Unknown native focus") # focus-guard
 work = stage / "relay-test"
 work.mkdir(mode=0o700)
 clients = []
@@ -359,6 +362,10 @@ try:
     assert all(client.poll() is None for client in valid_clients)
     print("Deployed relay passed verified HTTPS enrollment, tampered-claim denial, two simultaneous TLS tunnels and actual frps-to-console observations")
     print("Both legitimate assigned subdomains passed verified TLS after the operation-specific Login and NewProxy denials")
+    if focus: # focus-guard
+        # The focused native run needs only the enrolled pair, grants and verified tunnels. # focus-guard
+        print("NETHUB_NATIVE_PHASE=relay_focus_stop", flush=True) # focus-guard
+        raise SystemExit(0) # focus-guard
     exercise_traffic(stage, port, assignments, gateway, curl, check_tunnels, sql)
     exercise(stage, sys.argv[3], assignments, check_tunnels)
 

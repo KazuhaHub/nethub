@@ -142,6 +142,8 @@ def main():
     parser.add_argument('--directory', type=Path, required=True)
     parser.add_argument('--evidence', type=Path, required=True)
     args = parser.parse_args()
+    if 'NETHUB_NATIVE_FOCUS' in os.environ:
+        raise GuestError('A focused native diagnostic is never acceptance')
     if (sys.platform != 'linux' or os.geteuid() != 0 or os.environ.get('GITHUB_ACTIONS') != 'true'
             or os.environ.get('RUNNER_ENVIRONMENT') != 'github-hosted'
             or not re.fullmatch(r'[1-9][0-9]{0,19}', args.run)):

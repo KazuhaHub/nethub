@@ -37,10 +37,10 @@ def private_json(path, value):
     path.chmod(0o600)
 
 
-def exercise(guest, stage, port, project, evidence, packages):
+def exercise(guest, stage, port, project, evidence, packages, focus=None):
     with ExitStack() as cleanup:
         try:
-            return _exercise(guest, stage, port, project, evidence, packages, cleanup)
+            return _exercise(guest, stage, port, project, evidence, packages, cleanup, focus)
         except Exception:
             try:
                 spec = importlib.util.spec_from_file_location('native_failure_context', ROOT / 'server/tests/relay_fleet.py')
@@ -54,7 +54,7 @@ def exercise(guest, stage, port, project, evidence, packages):
             raise
 
 
-def _exercise(guest, stage, port, project, evidence, packages, cleanup):
+def _exercise(guest, stage, port, project, evidence, packages, cleanup, focus=None):
     stage = Path(stage).resolve(strict=True)
     if (os.geteuid() != 0 or not re.fullmatch(r'nethub-stack-test-[a-z0-9-]+', project)
             or not 1 <= port <= 65535 or stage.parent not in (Path('/tmp'), Path('/var/tmp'))):
@@ -398,6 +398,10 @@ def _exercise(guest, stage, port, project, evidence, packages, cleanup):
     if probe['passed'] is not True:
         from post_wan_failure import refuse
         refuse(probe, guest, stage, port, evidence, nonce, os.environ.get('NETHUB_SOURCE_HEAD', ''))
+    if focus == 'wan':
+        return {'passed': True, 'diagnostic_only': True, 'acceptance': False, 'focus': 'wan',
+                'installed_wan_recovery': wan_recovery, 'installed_wan_settling': wan_settling,
+                'console_after_wan_passed': True}
     package_migration = exercise_package_migration(guest, stage, compose, evidence, nonce, packages,
         native_read, route, lambda: fixture('inspect', host=host), check_wan_database,
         survivor, survivor_route, survivor_sockets)

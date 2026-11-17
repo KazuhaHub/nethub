@@ -70,10 +70,13 @@ def main():
     parser.add_argument('--deployment-stage', type=Path)
     parser.add_argument('--console-port', type=int)
     parser.add_argument('--project')
+    parser.add_argument('--focus', choices=('wan',), default=None)
     args = parser.parse_args()
     if any(value is not None for value in (args.deployment_stage, args.console_port, args.project)) and not all(
             value is not None for value in (args.deployment_stage, args.console_port, args.project)):
         raise GuestError('Complete owned deployment binding required')
+    if args.focus is not None and args.deployment_stage is None:
+        raise GuestError('A focused native diagnostic requires the complete owned deployment binding')
     directory, evidence = args.directory.absolute(), args.evidence.absolute()
     if directory != directory.resolve() or evidence != evidence.resolve():
         raise GuestError('Aliased acceptance storage refused')
@@ -83,6 +86,9 @@ def main():
               'scope': 'Fresh installed package and native page preparation',
               'full_rotation_acceptance': False, 'formal_release': False,
               'public_network_acceptance': False, 'full_goal_complete': False}
+    if args.focus is not None:
+        result.update(scope='Focused native diagnostic; not acceptance', diagnostic_only=True,
+                      acceptance=False, focus=args.focus)
     owned = None
     try:
         actual = invoke(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], 'source identity').decode().strip()
@@ -106,7 +112,7 @@ def main():
             result['image'] = guest.image_receipt
             result['guest_memory_mib'] = 3072
             install_current_package(guest, source, sdk, result)
-            if args.deployment_stage is not None:
+            if args.deployment_stage is not None and args.focus is None:
                 from package_migration import prepare as prepare_package_baseline
                 result['phase'] = 'native_package_baseline_build'
                 result['package_baseline'] = prepare_package_baseline(guest, directory)
@@ -126,7 +132,8 @@ def main():
                 from enrolled import exercise
                 result['phase'] = 'installed_enrollment_rotation'
                 result['installed_rotation'] = exercise(guest, args.deployment_stage, args.console_port,
-                                                       args.project, evidence, result['package_baseline'])
+                                                       args.project, evidence, result.get('package_baseline'),
+                                                       focus=args.focus)
             result['passed'] = True
             result['phase'] = 'completed'
     except Exception as error:
@@ -139,7 +146,10 @@ def main():
                                                      require_completed=result['passed'])
             result['read_only_inspection_recoveries'] = owned.read_only_inspection_recoveries
         (evidence / 'result.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
-    print('Fresh OPNsense package and native page preparation passed; enrollment/rotation/relay acceptance remains separate')
+    if args.focus is not None:
+        print('Focused native diagnostic completed; it is not acceptance')
+    else:
+        print('Fresh OPNsense package and native page preparation passed; enrollment/rotation/relay acceptance remains separate')
 
 
 if __name__ == '__main__':

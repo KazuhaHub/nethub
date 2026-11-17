@@ -36,6 +36,12 @@ python3 "$root/server/tests/test_relay_cache_phase.py"
 python3 "$root/server/tests/test_relay_network_blip.py"
 python3 "$root/server/tests/test_relay_control_drop.py"
 python3 "$root/server/tests/test_relay_combined_fault.py"
+native_focus=${NETHUB_NATIVE_FOCUS:-} # focus-guard
+case "$native_focus" in # focus-guard
+    '') ;; # focus-guard
+    wan) [ "${NETHUB_NATIVE_TEST:-0}" = 1 ] || { echo 'A native focus requires the owned native guest run' >&2; exit 2; } ;; # focus-guard
+    *) echo 'Unknown native focus' >&2; exit 2 ;; # focus-guard
+esac # focus-guard
 stage=$(mktemp -d)
 project="nethub-stack-test-$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"
 image=${NETHUB_RUNTIME_TEST_IMAGE:-"nethub-stack-test:$(basename "$stage" | tr '[:upper:].' '[:lower:]-')"}
@@ -128,6 +134,7 @@ fi
 if [ -z "${NETHUB_BACKUP_TEST_IMAGE:-}" ]; then
     docker build --target backup -f "$root/deploy/Dockerfile" -t "$backup_image" "$root" > "$stage/backup-build.log" 2>&1
 fi
+if [ -z "$native_focus" ]; then # focus-guard
 native_setup_phase http01
 docker build --target http01-acceptance -f "$root/deploy/Dockerfile" -t "$http01_test_image" "$root" > "$stage/http01-build.log" 2>&1
 docker create --name "$http01_binary_holder" --network none "$http01_test_image" /http01.test >/dev/null
@@ -168,6 +175,7 @@ docker create --name "$setup_binary_holder" --network none "$setup_test_image" /
 docker cp "$setup_binary_holder:/setup.test" "$stage/setup.test"
 docker rm "$setup_binary_holder" >/dev/null
 chmod 0700 "$stage/setup.test"
+fi # focus-guard
 if [ "${NETHUB_SCAN_IMAGES:-0}" = 1 ]; then
     mkdir "$stage/scans"
     scan_image() {
@@ -204,7 +212,9 @@ PY
     echo 'All five assembled deployment images passed HIGH/CRITICAL vulnerability checks'
 fi
 native_setup_phase frps_smoke
+if [ -z "$native_focus" ]; then # focus-guard
 python3 "$root/server/tests/frps-smoke.py" "$stage" "$frps_image" "$frps_container"
+fi # focus-guard
 native_setup_phase initialization
 printf '%s\n' 'I HAVE VERIFIED THE NETHUB SECRET BACKUP' | docker run --rm -i --network none --user 0 \
     -v "$root:$root:ro" -v "$stage:$stage" "$image" init --offline \
@@ -288,6 +298,7 @@ for service in ('nethub-web','nethub-authz','frps'):
 for name in ('runtime/relay/relay-cert.pem','runtime/relay/relay-key.pem','runtime/trust/relay-ca.pem'):
     path=s/'deployment'/name;assert path.stat().st_uid==65532 and path.stat().st_mode&0o777==0o600
 PY
+if [ -z "$native_focus" ]; then # focus-guard
 python3 "$root/deploy/frp/fetch.py" "$stage/official/frps"
 docker run --rm --network none --entrypoint /frps-official \
     -v "$stage/official/frps:/frps-official:ro" \
@@ -296,6 +307,7 @@ docker run --rm --network none --entrypoint /frps-official \
     "$frps_image" verify -c /run/secrets/frps.toml > "$stage/frps-official-verify.log" 2>&1
 echo 'Official checksum-verified frps accepted the generated production configuration'
 python3 "$root/server/tests/backup-deployment.py" --image-only "$stage" "$project" "$backup_image"
+fi # focus-guard
 echo 'Starting the isolated Compose services (210-second command deadline, 150-second health wait)'
 native_setup_phase stack_start
 compose up -d --wait --wait-timeout 150 > "$stage/start.log" 2>&1
@@ -306,6 +318,7 @@ compose exec -T caddy /bin/sh -ec '
         test "$(stat -c "%u:%g:%a" "$directory")" = "0:0:700"
     done'
 echo 'Actual Caddy named storage directories are root-owned with mode 0700'
+if [ -z "$native_focus" ]; then # focus-guard
 postgres_id=$(compose ps --all --quiet postgres)
 native_setup_phase backup_fixture
 python3 "$root/server/tests/backup-deployment.py" "$stage" "$project" "$image" "$backup_image" "$postgres_id"
@@ -334,18 +347,21 @@ for key_case in missing malformed unsafe; do
 done
 chmod 600 "$stage/provider-key-fixture"
 echo 'Actual web container loaded its generated provider key and refused missing, malformed and unsafe keys without database or network access'
+fi # focus-guard
 echo 'Isolated Compose startup completed; creating the initial administrator (90-second deadline)'
 openssl rand -hex 24 > "$stage/admin-password"
 native_setup_phase administrator
 compose_for 90 run --rm -T admin-bootstrap --email compose-admin@example.com --password-stdin < "$stage/admin-password" > "$stage/admin.log" 2>&1
 echo 'Initial administrator created; verifying that repeat initialization is closed'
 repeat_status=0
+if [ -z "$native_focus" ]; then # focus-guard
 compose_for 90 run --rm -T admin-bootstrap --email second@example.com --password-stdin < "$stage/admin-password" > "$stage/repeat-admin.log" 2>&1 || repeat_status=$?
 if [ "$repeat_status" -ne 1 ] || ! grep -Fqx 'Accounts already exist; initial administrator creation is closed' "$stage/repeat-admin.log"; then
     echo "Repeated administrator bootstrap did not return the expected account-state refusal (exit $repeat_status)" >&2
     exit 1
 fi
 echo 'Repeated administrator bootstrap returned the expected account-state refusal'
+fi # focus-guard
 python3 - "$stage" <<'PY'
 import json,pathlib,sys
 s=pathlib.Path(sys.argv[1]);(s/'login.json').write_text(json.dumps({'email':'compose-admin@example.com','password':(s/'admin-password').read_text().rstrip('\n')}))
@@ -385,16 +401,22 @@ print('Compose first-start, isolated secret mounts, admin login, empty inventory
 PY
 python3 "$root/agents/opnsense/plugin/frp_artifact.py" --platform linux_amd64 --binary frpc --output "$stage/official/frpc"
 docker cp "$(compose ps -q caddy):/data/caddy/pki/authorities/local/root.crt" "$stage/console-ca.pem" >/dev/null
+if [ -z "$native_focus" ]; then # focus-guard
 NETHUB_TEST_TOKEN_DEPLOYMENT="$stage/deployment" NETHUB_TEST_TOKEN_PROJECT="$project" \
 NETHUB_TEST_TOKEN_COMPOSE="$stage/test.yml" NETHUB_TEST_TOKEN_CLI="$stage/http01-nethub" \
     "$stage/setup.test" -test.v -test.run '^TestNativeRelayTokenMissingIdentityCLI$' -test.timeout=90s
+fi # focus-guard
 native_setup_phase relay
 python3 "$root/server/tests/relay-deployment.py" "$stage" "$port" "$project"
 if [ "${NETHUB_NATIVE_TEST:-0}" = 1 ]; then
     native_setup_phase native_guest
+if [ -n "$native_focus" ]; then # focus-guard
+    python3 "$root/agents/opnsense/acceptance/bootstrap.py" --directory "$NETHUB_NATIVE_DIRECTORY" --evidence "$NETHUB_NATIVE_EVIDENCE" --deployment-stage "$stage" --console-port "$port" --project "$project" --focus "$native_focus" # focus-guard
+else # focus-guard
     python3 "$root/agents/opnsense/acceptance/bootstrap.py" \
         --directory "$NETHUB_NATIVE_DIRECTORY" --evidence "$NETHUB_NATIVE_EVIDENCE" \
         --deployment-stage "$stage" --console-port "$port" --project "$project"
+fi # focus-guard
 fi
 native_tail_phase runtime_log_scan
 compose logs --no-color > "$stage/relay-runtime.log"
@@ -418,6 +440,7 @@ for path in (s/'deployment/secrets').rglob('*'):
 print('Enrolled credentials, claims and deployment secrets are absent from runtime logs')
 print('Nested client auth tokens and original/tampered claims are absent from client and captured authz/frps logs')
 PY
+if [ -z "$native_focus" ]; then # focus-guard
 # Exercise the privileged host adapter against the live disposable database.
 # Missing fixture identity must fail here rather than silently skip the test.
 database_id=$(compose ps -q postgres)
@@ -444,8 +467,10 @@ NETHUB_GUIACME_PEBBLE_IMAGE="$pebble_image" NETHUB_GUIACME_CADDY_IMAGE="$caddy_i
 NETHUB_TEST_GUI_SQL_CONTAINER="$database_id" NETHUB_TEST_GUI_SQL_IMAGE="$database_image_id" \
 NETHUB_TEST_GUI_SQL_PROJECT="$project" "$stage/guiacme.test" -test.v \
     -test.run '^TestPebbleCoordinatorDatabaseRecovery$' -test.timeout=120s
+fi # focus-guard
 native_tail_phase stack_teardown
 compose down -v --remove-orphans > "$stage/down.log" 2>&1
+if [ -z "$native_focus" ]; then # focus-guard
 native_tail_phase external_proxy
 python3 "$root/server/tests/external-proxy.py" "$stage" "$root" "$image" "$postgres_image" "$caddy_image" "$frps_image" "$backup_image"
 native_tail_phase migration_failure
@@ -492,4 +517,5 @@ PY
         "$NETHUB_IMAGE_EVIDENCE/images.tar.gz" "$NETHUB_IMAGE_EVIDENCE/SHA256SUMS" "$NETHUB_IMAGE_EVIDENCE/images.json"
     echo 'Saved only tested immutable images and checksums; runtime credentials are excluded'
 fi
+fi # focus-guard
 native_tail_phase completed

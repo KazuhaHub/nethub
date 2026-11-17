@@ -603,3 +603,44 @@ replaces the original failure, and cannot by itself prove the cause.
 This is a readiness correction under validation. New exact-source native evidence
 is required; earlier failures are not relabeled, and no full W5/W7, public/mobile
 network or formal-package acceptance follows.
+
+## Focused native diagnostic (never acceptance)
+
+`.github/workflows/native-focus.yml` runs only the installed-WAN part of the combined
+flow: the owned six-service stack, the two-device relay enrollment and verified tunnels,
+the fresh signed guest and unsigned package, native enrollment, the WAN change/restore with
+its settling observation, and the guest console probe after WAN recovery. It skips the
+package baseline and migration, every later rotation/revocation/removal case, the HTTP-01,
+GUI-issuer, frps-smoke, backup, provider-key, privileged-service, external-proxy and
+migration-failure checks, and the rest of the relay fault matrix. It is a faster way to
+diagnose a WAN failure; it proves nothing about acceptance, and `with_images.py` refuses to
+run while `NETHUB_NATIVE_FOCUS` is set. Every retained file is named `focus-*.json`, wrapped
+as `{"diagnostic_only": true, "acceptance": false, "focus": ..., "record": ...}` and kept
+for three days under the artifact `native-focus-diagnostic-<focus>`; no wrapper is accepted
+by the acceptance validators or uploaded by any other workflow.
+
+Request one by pushing a branch named `diag/native-focus/<name>` whose tip commits
+`.github/native-focus-request.json` (workflow_dispatch is only offered for workflows on the
+default branch, so a push is the trigger until this file lands there; it accepts the same
+two values as inputs):
+
+    {"image_run": "<digits of a successful six-job CI run>", "focus": "wan"}
+
+The file must contain exactly those two keys; only that workflow reads it. The images are
+reused only when the earlier run is a successful exact six-job CI run and the image inputs
+(`.dockerignore`, `LICENSE`, `NOTICE`, `deploy/Dockerfile`, `deploy/images/`, and `server/`
+except its Python/shell/Markdown test harness) are identical between that run's commit and the
+checked-out source; otherwise it refuses. Changes to the harness, the acceptance code, the
+plugin or the workflow itself are exactly what such a run is for.
+
+Further conditions: the earlier run must be a `push` or a `pull_request` whose head repository
+is the repository running the workflow (never a fork), `.github/workflows/ci.yml` must be
+identical, and the build, scan and image-export sections of `server/tests/compose.sh` (with the
+focus guards removed) must be identical to that run's commit.
+
+Limits of a focused run: the WAN step starts on a relay with no traffic, maintenance or fault
+history and on a guest without the package baseline, so a failure that depends on that earlier
+state will not reproduce here and must be confirmed by the full workflow. The child
+`compose.sh` deadline stays 1200 s; that value is still to be measured against real focused
+runs. On a zero exit the run still requires the compose tail to report phase `completed` with
+`passed` true.
