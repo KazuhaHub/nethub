@@ -72,6 +72,14 @@ host proxy's peer after loopback publication. They do not trust all private
 networks. Do not add another proxy/CDN without reviewing that trust boundary and
 testing its actual source address. See [NGINX's header handling](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_set_header).
 
+The web and authz origins close idle keep-alive connections after 150 s. A
+proxy that pools upstream connections must close idle ones sooner, or a
+reused connection can be closed under a POST and return 502. Caddy's default
+upstream keep-alive (2 minutes in v2.11.9, the bundled version) satisfies this;
+check the default of the version you run and any `keepalive` override. The NGINX
+example above does not pool upstream connections; if you add an `upstream`
+`keepalive` pool, keep its `keepalive_timeout` (60 s by default) below 150 s.
+
 After deployment, verify the public certificate/hostname, login and secure
 session, device enrollment, private health/hook denial, and the recorded source
 address with a forged incoming X-Forwarded-For header. Confirm origins are

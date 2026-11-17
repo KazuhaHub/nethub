@@ -208,9 +208,7 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 		defer hookListener.Close()
 		hooks = newHookServer(hookHandler, logger)
 	}
-	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second,
-		WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024,
-		ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError)}
+	server := newProxiedServer(handler, logger)
 	if observer != nil {
 		observationContext, stopObservation := context.WithCancel(ctx)
 		done := make(chan struct{})
