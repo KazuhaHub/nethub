@@ -8,7 +8,9 @@ import time
 
 
 CONTEXT_HINTS = frozenset(('relay_recent_Ping_unavailable', 'relay_recent_Ping_device_denied',
-    'relay_recent_hook_busy', 'relay_recent_snapshot_refresh_failed', 'relay_failure_context_unavailable'))
+    'relay_recent_hook_busy', 'relay_recent_snapshot_refresh_failed', 'relay_failure_context_unavailable',
+    'relay_recent_hook_slow_over_budget', 'relay_recent_hook_slow_over_write_deadline',
+    'relay_recent_hook_write_failed_deadline', 'relay_recent_hook_write_failed_other'))
 PONG_REASONS = {b'unavailable': 'unavailable', b'not_authorized': 'not_authorized',
                 b'invalid ping': 'generic', b'send Ping request to plugin error': 'plugin_transport'}
 
@@ -32,6 +34,10 @@ def recent_failure_hints(raw):
                 hints.add('relay_recent_Ping_' + item['decision'])
             if item.get('decision') == 'busy':
                 hints.add('relay_recent_hook_busy')
+        if item.get('msg') == 'Relay hook slow' and item.get('duration') in ('over_budget', 'over_write_deadline'):
+            hints.add('relay_recent_hook_slow_' + item['duration'])
+        if item.get('msg') == 'Relay hook response write failed' and item.get('reason') in ('deadline', 'other'):
+            hints.add('relay_recent_hook_write_failed_' + item['reason'])
     return hints
 
 
@@ -86,7 +92,7 @@ def report_failure_context(stage, compose):
         hints = {'relay_failure_context_unavailable'}
     else:
         try:
-            result = subprocess.run(compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '100', 'nethub-authz'],
+            result = subprocess.run(compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '400', 'nethub-authz'],
                                     capture_output=True, timeout=5)
             if result.returncode:
                 raise ValueError('Owned service context unavailable')
