@@ -6,7 +6,7 @@ continuation's later results come first; the handoff sections follow unchanged. 
 were terminal when reviewed. The numeric `source71`/`source72` directory names
 are evidence labels, not release versions.
 
-## Main integration: 0dafb70 through 2a2c2fa
+## Main integration: 0dafb70 through 24b7f29
 
 The continuation chain was merged into `main` on 2026-11-17 as `0dafb70`
 (through #272). Its tree is byte-identical to `6e948e9`, whose CI
@@ -23,6 +23,7 @@ none was rerun.
 | #241 dependency refresh (`35eacc4`, merged as `9fad6ab`) | CI [44056735913](https://github.com/KazuhaHub/nethub/actions/runs/44056735913), contracts [44056735623](https://github.com/KazuhaHub/nethub/actions/runs/44056735623), preparation [44056735716](https://github.com/KazuhaHub/nethub/actions/runs/44056735716), cold recovery [44056735747](https://github.com/KazuhaHub/nethub/actions/runs/44056735747), installed native [44056735791](https://github.com/KazuhaHub/nethub/actions/runs/44056735791) | All passed; native Revoke 1,326 ms, reconcile audit with zero busy retries |
 | #273 migration client classification (`aaa662e`, merged as `33b473b`) | CI [44067927567](https://github.com/KazuhaHub/nethub/actions/runs/44067927567), contracts [44067927496](https://github.com/KazuhaHub/nethub/actions/runs/44067927496), installed native [44067927669](https://github.com/KazuhaHub/nethub/actions/runs/44067927669) | All passed; native Revoke 1,841 ms |
 | #274 bounded FreeBSD package fetch (`c49c339`, merged as `2a2c2fa`) | CI [44084955438](https://github.com/KazuhaHub/nethub/actions/runs/44084955438), contracts [44084961029](https://github.com/KazuhaHub/nethub/actions/runs/44084961029) | Both passed; packages fetched in 9 s and installed from cache |
+| #276 relay hook response diagnostics (`c13f8e1`, merged as `24b7f29`) | CI [44097794727](https://github.com/KazuhaHub/nethub/actions/runs/44097794727), contracts [44097794467](https://github.com/KazuhaHub/nethub/actions/runs/44097794467), preparation [44097794641](https://github.com/KazuhaHub/nethub/actions/runs/44097794641), cold recovery [44097794263](https://github.com/KazuhaHub/nethub/actions/runs/44097794263), installed native [44097794581](https://github.com/KazuhaHub/nethub/actions/runs/44097794581) | All passed; native Revoke 1,125 ms |
 
 The other completed `main` push runs passed. Three did not; they are
 retained, not rerun:
@@ -40,10 +41,26 @@ retained, not rerun:
   and 10 minutes to serve `rust-1.99.1`. Both trees were identical to pull
   request heads whose contracts passed. #274 bounds and classifies that fetch.
 
+The first CI run of this record's own pull request (#275, head `486d79b`,
+[44090800058](https://github.com/KazuhaHub/nethub/actions/runs/44090800058))
+**failed** at the relay fleet's ten-client stage: frps received EOF from the
+authz Ping hook (the `relay_frps_Ping_plugin_EOF` hint, seen in 2 of 44
+fleet runs collected before #276; the other is
+[43978549471](https://github.com/KazuhaHub/nethub/actions/runs/43978549471)).
+Pings run every second, so the earlier idle-timeout race is not expected to
+apply. authz left no evidence because allowed Pings log at debug and the
+harness read only its last 100 log lines. #276 makes slow handling
+and failed hook writes report closed categories; a handler that finishes
+after its write deadline reproduces the EOF in a test, but the cause of that
+run is unproven. It was retained, not rerun.
+
 Like the 5cf0f8e section, these results were verified outside the
 repository against the official artifacts; the repository verifiers do not
-check them. The push runs on `2a2c2fa` were still in progress when this was
-written and are not recorded here. This is isolated hosted acceptance, not
+check them. The `2a2c2fa` push runs passed (CI
+[44090246565](https://github.com/KazuhaHub/nethub/actions/runs/44090246565),
+contracts [44090246327](https://github.com/KazuhaHub/nethub/actions/runs/44090246327),
+packages fetched in 13 s). The `24b7f29` push runs were still in progress
+when this was written and are not recorded here. This is isolated hosted acceptance, not
 public-network, mobile,
 formal package or release acceptance.
 
