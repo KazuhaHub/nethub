@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_utc": "2026-11-16",
+  "updated_utc": "2026-11-17",
   "owner_requested_stop": true,
   "full_project_complete": false,
   "requirements": [
@@ -19,7 +19,7 @@
     {
       "id": "W5-3/revoke-five-seconds",
       "status": "partial",
-      "evidence_scope": "Installed native on `5cf0f8e` passed console Revoke: proxy offline 920 ms, no reconnect for 30 s, independent device unchanged. Isolated hosted scope only.",
+      "evidence_scope": "Installed native passed console Revoke on `5cf0f8e` (proxy offline 920 ms) and `9c6713b` (1,022 ms), with no reconnect for 30 s and the independent device unchanged. Isolated hosted scope only.",
       "next_action": "Repeat the normal confirmation-to-cutoff path on the public deployment and in mobile scope."
     },
     {
@@ -133,7 +133,7 @@
     {
       "id": "W7-6/docs",
       "status": "partial",
-      "evidence_scope": "Repository deployment/threat/validation guides and this portable handoff exist; bounded link/disclosure checks are not a complete semantic review.",
+      "evidence_scope": "Repository deployment/threat/validation guides and this portable handoff exist. A current-behavior review (`be3d67c`) corrected 18 files: guides, package READMEs and the plan; translations, external links and the complete ten-minute operator path are not independently verified.",
       "next_action": "Read every document for current behavior and translations/external links; correct unsupported claims and verify the complete ten-minute path with an independent operator."
     },
     {
@@ -169,7 +169,7 @@
     {
       "id": "W7/final-CI-and-dependencies",
       "status": "partial",
-      "evidence_scope": "The five exact-source gates triggered on `5cf0f8e` passed, installed native included; recovery database/target workflows were not triggered. PR241 dependency refresh and PR236 frp update remain unmerged.",
+      "evidence_scope": "The five exact-source gates triggered on `5cf0f8e` and on `9c6713b` passed, installed native included. `95dbf20` (server idle timeout) passed CI and native contracts only; no installed or cold run has exercised it. Installed native on documentation-only `be3d67c` failed unclassified at reconcile replay and was not rerun. Recovery database/target workflows were not triggered. PR241 dependency refresh and PR236 frp update remain unmerged.",
       "next_action": "Review dependency/security scope and source licenses, integrate approved changes, then run all final exact-source gates. Do not close bot PRs or claim advisory-free status without evidence."
     },
     {

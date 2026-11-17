@@ -6,6 +6,68 @@ continuation's later results come first; the handoff sections follow unchanged. 
 were terminal when reviewed. The numeric `source71`/`source72` directory names
 are evidence labels, not release versions.
 
+## Continuation acceptance: be3d67c, 9c6713b and 95dbf20
+
+Every run below is an original first attempt (`run_attempt` 1); none was
+rerun. Like the 5cf0f8e section, these results were verified outside the
+repository from local receipts and the official artifacts; the repository
+verifiers do not check them.
+
+**`be3d67c` (documentation corrections).** This commit corrected 18 files
+against current behavior: user and deployment guides, package READMEs,
+`docs/PLAN.md` and the dated `validation-w3.md` record. Its `proto/README.md`
+change matched the installed-native path filter. CI
+[44024374189](https://github.com/KazuhaHub/nethub/actions/runs/44024374189) and
+native contracts
+[44024373983](https://github.com/KazuhaHub/nethub/actions/runs/44024373983)
+(417 cases, 284 files) passed. Installed native
+[44024374047](https://github.com/KazuhaHub/nethub/actions/runs/44024374047)
+**failed** at the reconcile-failure audit replay. WAN settling and package
+migration had already passed in that run. The probe reported every refusal as
+one generic category, so the failing step is unknown. Contention for the
+plugin cron's `reconcile.lock` is a hypothesis, not a finding. The failure
+remains unclassified. Cold recovery and appliance preparation were not
+triggered.
+
+**`9c6713bae3fb653083e6d6bea4411d155ee1e180` (probe classification).** Each
+replay refusal now has its own closed category, and the probe waits out a busy
+cron lock for up to 100 s per action, recording the waits. All five triggered
+gates passed:
+
+| Workflow | Original run | Result |
+| --- | --- | --- |
+| Complete six-job CI | [44033054224](https://github.com/KazuhaHub/nethub/actions/runs/44033054224) | Passed; producer of the tested images |
+| Native FreeBSD contracts | [44033054206](https://github.com/KazuhaHub/nethub/actions/runs/44033054206) | Passed; 438 cases (new tests added) and all 284 source files bound |
+| Unsigned appliance preparation | [44033054362](https://github.com/KazuhaHub/nethub/actions/runs/44033054362) | Passed; source and installed binary checked; two of four views identical to earlier reviewed captures, two reviewed (same layout apart from timestamps) |
+| Protected-host cold recovery | [44033054210](https://github.com/KazuhaHub/nethub/actions/runs/44033054210) | Passed within the isolated scope; baseline route 90,681 ms, initial issuance 122,350 ms |
+| Installed native rotation | [44033054221](https://github.com/KazuhaHub/nethub/actions/runs/44033054221) | **Passed every phase of the run**; isolated scope, not full rotation acceptance |
+
+In the installed run, WAN change/restore took 3,526/4,492 ms. Bounded settling
+was stable for 15,367 ms within 34,409 ms over 33 samples (maximum gap
+657 ms). One sample had no route, and the fixture's private observer was
+restarted once (recovered in 18,464 ms), which reset the stable window. The
+reconcile-failure audit (record v2) passed with **zero** busy retries, so this
+run neither supports nor rules out the lock hypothesis. Console Revoke took
+the native proxy offline in **1,022 ms**, with no reconnect during a 30,056 ms
+observation.
+
+**`95dbf201ebff1a5d3e01cf3c8eae2495fdffafb0` (proxied origin idle timeout).**
+The bundled Caddy v2.11.9 keeps idle upstream connections for 2 minutes, but
+the web and authz origins closed them after 60 s. A reused connection could
+therefore be closed under a POST, which cannot be replayed, and return 502. In
+a scaled reproduction (origin idle 50 ms, client pool 2 s, 400 POSTs), 71
+requests failed. None failed once the origin outlasted the pool. The origins
+now keep idle connections for 150 s. CI
+[44043802223](https://github.com/KazuhaHub/nethub/actions/runs/44043802223)
+(six jobs, Deployment checks included) and native contracts
+[44043802167](https://github.com/KazuhaHub/nethub/actions/runs/44043802167)
+(438 cases, 284 files) passed. Its paths trigger no cold-recovery, preparation
+or installed-native gate, so no installed or cold run has exercised this
+server change yet.
+
+The same scope limits as below apply: this is isolated hosted acceptance, not
+public-network, mobile, formal package or release acceptance.
+
 ## Continuation acceptance: 5cf0f8e
 
 The handoff results below are retained unchanged. On
