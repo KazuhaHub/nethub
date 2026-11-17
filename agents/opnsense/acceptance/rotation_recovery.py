@@ -10,6 +10,66 @@ import uuid
 from guest import GuestError, invoke
 
 
+READBACK_KINDS = frozenset(('missing_module', 'import', 'missing', 'permission', 'json',
+                          'key_storage', 'protocol', 'rotation', 'invalid', 'type', 'storage', 'other'))
+READBACK_SOURCES = frozenset(('rotation.py', 'rotation_backend.py', 'certificate_key.py',
+                            'enrollment.py', 'protocol.py'))
+JOURNAL_READBACK = '''import json,sys,traceback
+stage='import'
+try:
+ from rotation import RotationJournal
+ stage='read'
+ journal=RotationJournal('/var/db/nethub-agent')._read()
+ stage='encode'
+ result=json.dumps({'version':1,'success':True,'journal':journal})
+except Exception as error:
+ names={'ModuleNotFoundError':'missing_module','ImportError':'import','FileNotFoundError':'missing',
+        'PermissionError':'permission','JSONDecodeError':'json','CertificateKeyError':'key_storage',
+        'ProtocolError':'protocol','RotationError':'rotation','ValueError':'invalid','TypeError':'type'}
+ kind=names.get(type(error).__name__,'storage' if isinstance(error,OSError) else 'other')
+ sources={'rotation.py','rotation_backend.py','certificate_key.py','enrollment.py','protocol.py'}
+ locations=[]
+ for frame in traceback.extract_tb(error.__traceback__):
+  name=frame.filename.rsplit('/',1)[-1]
+  if name in sources and 1<=frame.lineno<=20000:
+   locations.append({'source':name,'line':frame.lineno})
+ result=json.dumps({'version':1,'success':False,'stage':stage,'kind':kind,'locations':locations[-8:]})
+print(result)
+'''
+
+
+def prepared_journal(guest):
+    """Read once; retain only fixed diagnostics when the private read fails."""
+    raw = guest.ssh("set -eu\ncd /usr/local/opnsense/scripts/nethub-agent\n"
+                    "/usr/local/bin/python3.13 - <<'PY'\n" + JOURNAL_READBACK + "PY\n",
+                    'private prepared native rotation readback')
+    try:
+        if not 1 <= len(raw) <= 262144:
+            raise ValueError
+        value = json.loads(raw)
+        if (not isinstance(value, dict) or type(value.get('version')) is not int or value['version'] != 1
+                or type(value.get('success')) is not bool):
+            raise ValueError
+        if value['success']:
+            if set(value) != {'version', 'success', 'journal'} or not isinstance(value['journal'], dict):
+                raise ValueError
+            return value['journal']
+        if (set(value) != {'version', 'success', 'stage', 'kind', 'locations'}
+                or value['stage'] not in ('import', 'read', 'encode') or value['kind'] not in READBACK_KINDS
+                or not isinstance(value['locations'], list) or len(value['locations']) > 8):
+            raise ValueError
+        for frame in value['locations']:
+            if (not isinstance(frame, dict) or set(frame) != {'source', 'line'}
+                    or frame['source'] not in READBACK_SOURCES or type(frame['line']) is not int
+                    or not 1 <= frame['line'] <= 20000):
+                raise ValueError
+    except (ValueError, TypeError, KeyError):
+        raise GuestError('Private native journal readback outcome differs') from None
+    locations = ','.join(frame['source'] + ':' + str(frame['line']) for frame in value['locations'])
+    raise GuestError('Private native journal readback failed: ' + value['stage'] + '/' + value['kind']
+                     + ('/' + locations if locations else ''))
+
+
 def response_loss_config(original, *, unavailable=False):
     """Scope response interception to the exact public rotation endpoint."""
     boundary = '    @device path /api/v1/devices/*\n'
@@ -72,12 +132,7 @@ def exercise_response_loss(guest, stage, compose, page_action, native_read, sql,
     with owned_edge_fault(stage, compose):
         page_action('rotate', expected=False, label='rotate-lost')
         unchanged = native_read('native-response-loss-retained.json')
-        raw = guest.ssh("cd /usr/local/opnsense/scripts/nethub-agent\n"
-            "/usr/local/bin/python3.13 - <<'PY'\n"
-            "import json\nfrom rotation import RotationJournal\n"
-            "print(json.dumps(RotationJournal('/var/db/nethub-agent')._read()))\nPY\n",
-            'private prepared native rotation readback')
-        pending = json.loads(raw)
+        pending = prepared_journal(guest)
         operation = str(uuid.UUID(pending['operation_id']))
         candidate = pending['candidate']
         if (pending['phase'] != 'prepared' or pending['native_before'] != before or unchanged != before

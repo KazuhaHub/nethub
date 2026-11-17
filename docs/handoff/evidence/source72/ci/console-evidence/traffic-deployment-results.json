@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "genuine_deployed_console": true,
+  "actual_relay_totals_positive": true,
+  "warning_only": true,
+  "cspViolations": 0,
+  "browserErrors": 0,
+  "unexpectedProxyConnections": 0,
+  "public_TLS_or_native_appliance_claimed": false,
+  "screenshots": [
+    {
+      "name": "deployed-traffic.png",
+      "sha256": "70534196964c31da86ab33253dbcdc4f100bd8ba91e318498d443b024e740cde"
+    }
+  ]
+}

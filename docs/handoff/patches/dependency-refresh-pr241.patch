@@ -1,0 +1,398 @@
+diff --git a/.github/workflows/native-contracts.yml b/.github/workflows/native-contracts.yml
+index caa637f..d6a762c 100644
+--- a/.github/workflows/native-contracts.yml
++++ b/.github/workflows/native-contracts.yml
+@@ -45,3 +45,3 @@
+       - name: Execute contracts in isolated FreeBSD
+-        uses: vmactions/freebsd-vm@c46abacb49f09938ca4e1702d15d836285d694cc # v1.5.9
++        uses: vmactions/freebsd-vm@811efaaac0668df8bfb8308c3ec997b5ab50037b # v1.6.0
+         env:
+diff --git a/server/go.mod b/server/go.mod
+index 0f420a9..41a1b1f 100644
+--- a/server/go.mod
++++ b/server/go.mod
+@@ -12,3 +12,3 @@
+ 	github.com/mattermost/xml-roundtrip-validator v0.1.0
+-	github.com/pressly/goose/v3 v3.29.0
++	github.com/pressly/goose/v3 v3.30.0
+ 	github.com/russellhaering/goxmldsig v1.6.1
+@@ -16,4 +16,4 @@
+ 	golang.org/x/crypto v0.58.0
+-	golang.org/x/sys v0.49.0
+-	golang.org/x/term v0.47.0
++	golang.org/x/sys v0.50.0
++	golang.org/x/term v0.48.0
+ )
+@@ -30,4 +30,4 @@
+ 	golang.org/x/oauth2 v0.37.0 // indirect
+-	golang.org/x/sync v0.24.0 // indirect
+-	golang.org/x/text v0.43.0 // indirect
++	golang.org/x/sync v0.25.0 // indirect
++	golang.org/x/text v0.44.0 // indirect
+ )
+diff --git a/server/go.sum b/server/go.sum
+index e253628..5719c8a 100644
+--- a/server/go.sum
++++ b/server/go.sum
+@@ -42,4 +42,4 @@
+ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+-github.com/pressly/goose/v3 v3.29.0 h1:dtEnBCT7CqkHIUCdgrXsrmeisaN8gFkRU4Y5OEwif4o=
+-github.com/pressly/goose/v3 v3.29.0/go.mod h1:plA4aP4+u+Q3FMTgbFbhF8TuAWpAdfWpoFGkJsIFWh0=
++github.com/pressly/goose/v3 v3.30.0 h1:hmsrzlpLLKiIxukTV1YKCfSoM/F0QZGGmJLsbXcYD/I=
++github.com/pressly/goose/v3 v3.30.0/go.mod h1:aw7C4/P6xjcOoa3Nsj9H2xGmLyIs+JgSLTUImg2KaWE=
+ github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
+@@ -60,4 +60,4 @@
+ go.uber.org/multierr v1.11.0/go.mod h1:20+QtiLqy0Nd6FdQB9TLXag12DsQkrbs3htMFfDN80Y=
+-go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=
+-go.yaml.in/yaml/v3 v3.0.5/go.mod h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg=
++go.yaml.in/yaml/v3 v3.0.6 h1:zcDfvjXEqTQmpjniUBLc91xYJMB2c4QOFxEF/LCEckM=
++go.yaml.in/yaml/v3 v3.0.6/go.mod h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg=
+ golang.org/x/crypto v0.58.0 h1:COkYLr4k7nDI4r6QtMML2AfzeIswWHAJthLS6K/M/54=
+@@ -66,10 +66,10 @@
+ golang.org/x/oauth2 v0.37.0/go.mod h1:IxwZNxUULJmpBFf9K/9NTMSIfZZuvuTy1gGxhigP/58=
+-golang.org/x/sync v0.24.0 h1:iqiDrGoDgyuvAKrhLQthUEzU/R378N78gXbBjxed7oA=
+-golang.org/x/sync v0.24.0/go.mod h1:sUUOizhqBxiL6pEWpqNLUiaJn1ShEbZ6BBqskPbjZm0=
+-golang.org/x/sys v0.49.0 h1:XbzkgYJHdqh/8m2Uu0W/dQv8nktxx4BFHp1M0gROTXA=
+-golang.org/x/sys v0.49.0/go.mod h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og=
+-golang.org/x/term v0.47.0 h1:cpyOwQkr2Nzxe2p6KnrTG7Ei2wtzjsuSjhpXXepZ/BM=
+-golang.org/x/term v0.47.0/go.mod h1:efAfAuG6RKABvg1ArGebRkvX6LXul14SM67o2e4mUCY=
+-golang.org/x/text v0.43.0 h1:1QivrlhwAsnMOcqgOdl9my7s9OyZl8O5/UGUTJVXoWc=
+-golang.org/x/text v0.43.0/go.mod h1:hbSIYA/amXcRXTFSZqh8tWHEoqRvvbKPJ2uz/KU+a+s=
++golang.org/x/sync v0.25.0 h1:dJnifr0nMV8/SBnBvdo4eSGGnrc3O4FFx6IqvtLcmRs=
++golang.org/x/sync v0.25.0/go.mod h1:sUUOizhqBxiL6pEWpqNLUiaJn1ShEbZ6BBqskPbjZm0=
++golang.org/x/sys v0.50.0 h1:dkKZEFTEKaLr1sjhs0WiKqoi8Jj5nHbS3Njmx1UoMJs=
++golang.org/x/sys v0.50.0/go.mod h1:hNLxWAXmnKAxqDtdwIYC4bM9oQPEecfsnNMuSxOs3og=
++golang.org/x/term v0.48.0 h1:G6UU1eiSB8nl3DzeUGt7Mg+2SctI8tPS6Z5/mBt6cOk=
++golang.org/x/term v0.48.0/go.mod h1:BRDLHCZr2SUjIeBHHpRyQeC9xzSAVbzY2rvKgafnHf4=
++golang.org/x/text v0.44.0 h1:YItdp/mQNGnsmrgpcdA5yQ3bnRxCfo/Tj/iByGW9GGo=
++golang.org/x/text v0.44.0/go.mod h1:S4FR1waQ9LbjQTls97SyRjDaUUVkaM+cXwwuG/G+MwY=
+ gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+@@ -78,4 +78,4 @@
+ gotest.tools v2.2.0+incompatible/go.mod h1:DsYFclhRJ6vuDpmuTbkuFWG+y2sxOXAzmJt81HFBacw=
+-modernc.org/libc v1.78.0 h1:Lpm+e9K6ruVYEGwWfuBO1xXtYEaXDouFOG1SuWjFDP4=
+-modernc.org/libc v1.78.0/go.mod h1:wvxR55nOF2/66NkJoNV7/coXBTCvT3HR22rcqW6lOuA=
++modernc.org/libc v1.80.2 h1:3+a4fJZvvzg920ZC0mOepnKPGn7cqCaVeDxm/UnrM1A=
++modernc.org/libc v1.80.2/go.mod h1:pvo25Rs3OJEbDqhUV9jdEGevxeLJrJeDmNid/AcQV1g=
+ modernc.org/mathutil v1.7.1 h1:GCZVGXdaN8gTqB1Mf/usp1Y/hSqgI2vAGGP4jZMCxOU=
+@@ -84,3 +84,3 @@
+ modernc.org/memory v1.12.1/go.mod h1:/JP4VbVC+K5sU2wZi9bHoq2MAkCnrt2r98UGeSK7Mjw=
+-modernc.org/sqlite v1.60.1 h1:/blz53O951KWFOso4QQvEs/Fq6cDBKLtMVrYNSeJVKw=
+-modernc.org/sqlite v1.60.1/go.mod h1:1dIoEagfDE72QytD5scH1lxARtaUgKgHC/NuApA27r0=
++modernc.org/sqlite v1.62.0 h1:gMaCjSM1qpl+iOjiWhR1LYP3zqrYDI+5GYLGt6veP2g=
++modernc.org/sqlite v1.62.0/go.mod h1:Jzjh1mt4s0HuQ0KvtB1LIuHiGRmU2D5pgj8dUhW7/SE=
+diff --git a/server/web/package-lock.json b/server/web/package-lock.json
+index c469b91..036b9cd 100644
+--- a/server/web/package-lock.json
++++ b/server/web/package-lock.json
+@@ -14,3 +14,3 @@
+         "clsx": "2.1.1",
+-        "lucide-react": "1.70.0",
++        "lucide-react": "1.71.0",
+         "react": "19.3.1",
+@@ -24,3 +24,3 @@
+         "@types/react-dom": "19.3.0",
+-        "@vitejs/plugin-react": "6.1.2",
++        "@vitejs/plugin-react": "6.3.0",
+         "playwright": "1.65.0",
+@@ -29,3 +29,3 @@
+         "typescript": "7.0.2",
+-        "vite": "8.3.5"
++        "vite": "8.3.8"
+       },
+@@ -86,5 +86,5 @@
+     "node_modules/@oxc-project/types": {
+-      "version": "0.154.0",
+-      "resolved": "https://registry.npmjs.org/@oxc-project/types/-/types-0.154.0.tgz",
+-      "integrity": "sha512-KYOUGQFlLWR+s4QMV2Q9ko38TZm7EdO87Qm7rvZLqk/webse/cDjtyxKhg/47l0byCbs/k46LT8qc4PKjAikzA==",
++      "version": "0.156.0",
++      "resolved": "https://registry.npmjs.org/@oxc-project/types/-/types-0.156.0.tgz",
++      "integrity": "sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==",
+       "dev": true,
+@@ -175,5 +175,5 @@
+     "node_modules/@rolldown/binding-android-arm-eabi": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-android-arm-eabi/-/binding-android-arm-eabi-1.2.14.tgz",
+-      "integrity": "sha512-aWR+XKH9+rW7m5fWq/5360J3mHycrx/o6xZM2DQFdJnTMdyP7/WzxPjhtLbVWdKo2y612/4U1bWqb3HQhiF7vg==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-android-arm-eabi/-/binding-android-arm-eabi-1.2.18.tgz",
++      "integrity": "sha512-ubTG+4KlidvioxjOFdsdEa2F6JVGZb8m2ByJUqQ7fYzUeT1cEn194POcsQ10PKH4p//q0YQn4SB3YpSuzcA1Yg==",
+       "cpu": [
+@@ -192,5 +192,5 @@
+     "node_modules/@rolldown/binding-android-arm64": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-android-arm64/-/binding-android-arm64-1.2.14.tgz",
+-      "integrity": "sha512-QiVxHofl6A8lQU7WAtOUY4QMVZXohxwz7WJJoeh8NBEUyKfIkMRKhYyq8az/1RypNiIXzNTtiS6KwHz0erxYRQ==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-android-arm64/-/binding-android-arm64-1.2.18.tgz",
++      "integrity": "sha512-2Xa1t/JeFGTZn5TbzgPppcCftF8sCVnTNvrIvoSdcZhoFzAuVy1L3xxQUQ4sfWDtwVzg1u6Yi1R3SlJugRNV2Q==",
+       "cpu": [
+@@ -209,5 +209,5 @@
+     "node_modules/@rolldown/binding-darwin-arm64": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-darwin-arm64/-/binding-darwin-arm64-1.2.14.tgz",
+-      "integrity": "sha512-lTQOzHuBIooh3jIr5XINQkjPGEuGy+Dsy0meXDr6Sjty0b99kYgGh4uBC/8mJX1T0kC8d6S0aPP1Y+bHkh6aBw==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-darwin-arm64/-/binding-darwin-arm64-1.2.18.tgz",
++      "integrity": "sha512-iUzw9HshVvrWci9gVXjxWS7/M/IcLvNo67vu2c/w9zKBz4hIvPRixdUpIW/iCfhldLaq9ER2hecsI9UY5z0/yA==",
+       "cpu": [
+@@ -226,5 +226,5 @@
+     "node_modules/@rolldown/binding-darwin-x64": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-darwin-x64/-/binding-darwin-x64-1.2.14.tgz",
+-      "integrity": "sha512-hyMKEGatjmBYCs/Q4sbIcL/GqpFEqsX3wc+HYVQ/85A4rxc1o7rPm4DUI4GV4k/h0ITddwFSGpqQunI14GXjTA==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-darwin-x64/-/binding-darwin-x64-1.2.18.tgz",
++      "integrity": "sha512-XuDHFzbFEtZl0QGJi92+fmG67tfnp1iZ9VOeDkwasGyTq2VG3/5PnJnvAr+MTzFh/rNScJ3VhN+XpZyyGsN7Jw==",
+       "cpu": [
+@@ -243,5 +243,5 @@
+     "node_modules/@rolldown/binding-freebsd-x64": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-freebsd-x64/-/binding-freebsd-x64-1.2.14.tgz",
+-      "integrity": "sha512-u371GbXoVXrEgP20PwzoGNOdAOqAMhzo19JzzY+V4YmmnC+DTOoqdbMu+O+54emM59Mik/UdrtWgcuEDKWRPKA==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-freebsd-x64/-/binding-freebsd-x64-1.2.18.tgz",
++      "integrity": "sha512-MM8opLfsLK15oEXDz6iBc0t3ahu+ew9jsAmha+ovZ33hSwYgqo7YmpRITqFTfW7xA71BLEQ3jJdTsaCmhB1c9w==",
+       "cpu": [
+@@ -260,5 +260,5 @@
+     "node_modules/@rolldown/binding-linux-arm-gnueabihf": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-arm-gnueabihf/-/binding-linux-arm-gnueabihf-1.2.14.tgz",
+-      "integrity": "sha512-BqwKsdZQf6EqVWr8fv2MrDYzAvOZ7+NYFSJESRGs87fkseEhs0TU9TXgRJTkZoRRkxTizyEg1LKUXfU3/78uqg==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-arm-gnueabihf/-/binding-linux-arm-gnueabihf-1.2.18.tgz",
++      "integrity": "sha512-J6EoCWiy5RnFQzHrKyHXXevZ9lukQfGpnchX/zG/k/WC2nc9O9XyS1JgA8kI9VxMFggMbCPjpv7LcikriXfehw==",
+       "cpu": [
+@@ -277,5 +277,5 @@
+     "node_modules/@rolldown/binding-linux-arm64-gnu": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-arm64-gnu/-/binding-linux-arm64-gnu-1.2.14.tgz",
+-      "integrity": "sha512-SD9kY8M009x/7s57Z1dgUVlP5+uYBgKQK0Tkr1WIWngrtUJmRCW1RJFMY7QDla2khXhmg2i5Io7MUjcmZNZ/KQ==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-arm64-gnu/-/binding-linux-arm64-gnu-1.2.18.tgz",
++      "integrity": "sha512-HIkFuLF7CdDeki+1aCZLLbLq0hk/PHntb+z4/YCTo47JbksTD6jJEELIz92tYROmDmvMrNqUMqBi71BkJLDR+A==",
+       "cpu": [
+@@ -284,2 +284,5 @@
+       "dev": true,
++      "libc": [
++        "glibc"
++      ],
+       "license": "MIT",
+@@ -294,5 +297,5 @@
+     "node_modules/@rolldown/binding-linux-arm64-musl": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-arm64-musl/-/binding-linux-arm64-musl-1.2.14.tgz",
+-      "integrity": "sha512-BJ2CL19M6uuWesMgnqJzgxoI+N+eV7b0A9O9vLV42y+gitC41fNa8KElau1tHVzuLWX5GzEuxMPhAO0tQXQMkg==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-arm64-musl/-/binding-linux-arm64-musl-1.2.18.tgz",
++      "integrity": "sha512-4oqWItLLYt7IceOnElCct8T2ek5p7PmD7LN04TRJRXGo5f3HtKTgGH6PhYRFK4C2ICkq/LMUU0BVPvvlAKhm8g==",
+       "cpu": [
+@@ -301,2 +304,5 @@
+       "dev": true,
++      "libc": [
++        "musl"
++      ],
+       "license": "MIT",
+@@ -311,5 +317,5 @@
+     "node_modules/@rolldown/binding-linux-ppc64-gnu": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-ppc64-gnu/-/binding-linux-ppc64-gnu-1.2.14.tgz",
+-      "integrity": "sha512-4+Kl8daPV8NDHaD7mfCcc1pRM+Qg7ab8DyMm5FG5WoZgv4h2i3KFN1CybYBNbQqmuYm7ftJLvmMI1eHYJ22S/Q==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-ppc64-gnu/-/binding-linux-ppc64-gnu-1.2.18.tgz",
++      "integrity": "sha512-+AkRly5SrCEgnPhGRfub7pucASYEC2fTsxZg7VCcnozpA2+Wn/gCYy1t7LuJS67/xyJu/7noYBJncDUkbwgw2A==",
+       "cpu": [
+@@ -318,2 +324,5 @@
+       "dev": true,
++      "libc": [
++        "glibc"
++      ],
+       "license": "MIT",
+@@ -328,5 +337,5 @@
+     "node_modules/@rolldown/binding-linux-s390x-gnu": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-s390x-gnu/-/binding-linux-s390x-gnu-1.2.14.tgz",
+-      "integrity": "sha512-V/h8ePq1fKDrmtFMz6xcCN3DKvuvMRrwwD1q0PkBeeo4DpK64biaKvqWGVxqCeYKqeRk7gE7/iKPxLCn08O97A==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-s390x-gnu/-/binding-linux-s390x-gnu-1.2.18.tgz",
++      "integrity": "sha512-Ttg1r9vVykMnQrE/GwYO9icKtXiuiMfRe/w74xJkeoVuvhRG+WtT6LEMOf58Yl63yd77lhHzO8Y55R8CC3XALA==",
+       "cpu": [
+@@ -335,2 +344,5 @@
+       "dev": true,
++      "libc": [
++        "glibc"
++      ],
+       "license": "MIT",
+@@ -345,5 +357,5 @@
+     "node_modules/@rolldown/binding-linux-x64-gnu": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-x64-gnu/-/binding-linux-x64-gnu-1.2.14.tgz",
+-      "integrity": "sha512-WxalXzgrLVpKC93xfpaJ3gCXUWzeCr+FRCbDVD2mUAy4L6Vo3lNVz0epUEUpxPWJkLNYUwM4OSIikv36OJ9mLg==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-x64-gnu/-/binding-linux-x64-gnu-1.2.18.tgz",
++      "integrity": "sha512-xX1Tt4o5jUMma0vJsXp5eRZA9nOuyigb2dKJMMzZRmzMxLYGE9PaKKSqHPzPvSQgM8ZOEacSTQwDQcwWfh0xmQ==",
+       "cpu": [
+@@ -352,2 +364,5 @@
+       "dev": true,
++      "libc": [
++        "glibc"
++      ],
+       "license": "MIT",
+@@ -362,5 +377,5 @@
+     "node_modules/@rolldown/binding-linux-x64-musl": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-x64-musl/-/binding-linux-x64-musl-1.2.14.tgz",
+-      "integrity": "sha512-3G3tnAmTpdk9jO3GQtyHXqeFD2SlecfTws/Y3M2mmj9nMBwwuLT4kur8sZKeu7ENUHSpVO3cIsm5A52LEWWwlg==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-linux-x64-musl/-/binding-linux-x64-musl-1.2.18.tgz",
++      "integrity": "sha512-4VVlGI5K2kociZlW3lSN8VjG3TW5yQIlAcfCdBXMgGjJxZll15Fa4ocRHXHvIVVnwlibCw/NQajJrNDiqqpiiw==",
+       "cpu": [
+@@ -369,2 +384,5 @@
+       "dev": true,
++      "libc": [
++        "musl"
++      ],
+       "license": "MIT",
+@@ -379,5 +397,5 @@
+     "node_modules/@rolldown/binding-openharmony-arm64": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-openharmony-arm64/-/binding-openharmony-arm64-1.2.14.tgz",
+-      "integrity": "sha512-qyr5XiNGxm2ytx17vvtcJ9nXn6v1gENETi503bJx3OGwZ1tSonj7BosxbMa/xeAfSl5iS9X6KjEWYXLu6v1L7Q==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-openharmony-arm64/-/binding-openharmony-arm64-1.2.18.tgz",
++      "integrity": "sha512-PApTsgH1jLYuyy3tSCz9De82Gq5qXwi7vImVZhEzTgX1C4150Cp5M2ZfL3pLvbCvbEHL0oJeC6pd6podtv8Y5w==",
+       "cpu": [
+@@ -396,5 +414,5 @@
+     "node_modules/@rolldown/binding-win32-arm64-msvc": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-win32-arm64-msvc/-/binding-win32-arm64-msvc-1.2.14.tgz",
+-      "integrity": "sha512-oA4o5o0S2yB199YyYXDzKUv1Z56Rc+mgOjwm7Z/vJ9Z8igiDPYvoOuDyo6g7AK/ZaF09nPhDKVnGBcYHO11GXA==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-win32-arm64-msvc/-/binding-win32-arm64-msvc-1.2.18.tgz",
++      "integrity": "sha512-J2XjWjx/SP+4x0H4r6dz3Vzb5WVkg7re40Do9K7HJ3sK2/xcmZrWwakXlSwaMvOkvruLJCD4CL/3wqsIR/thgg==",
+       "cpu": [
+@@ -413,5 +431,5 @@
+     "node_modules/@rolldown/binding-win32-x64-msvc": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/@rolldown/binding-win32-x64-msvc/-/binding-win32-x64-msvc-1.2.14.tgz",
+-      "integrity": "sha512-9mE94bf2GZUaR/fUSXCMpBoWkctu421Mi0ORpm4zqfbkjKep7RxzPFa5etcGs5h+2KApoWBOA/hAJa/7saGgEQ==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/@rolldown/binding-win32-x64-msvc/-/binding-win32-x64-msvc-1.2.18.tgz",
++      "integrity": "sha512-XwRJxRQvkuEtS0hIIt29QrqPJ+JzMJSNYHJw4ae/mc6uEarfRG1ceyg4HmmWiBdL/YCb6g7N5BLbSvmRJRYZHw==",
+       "cpu": [
+@@ -1145,5 +1163,5 @@
+     "node_modules/@vitejs/plugin-react": {
+-      "version": "6.1.2",
+-      "resolved": "https://registry.npmjs.org/@vitejs/plugin-react/-/plugin-react-6.1.2.tgz",
+-      "integrity": "sha512-fhJNGUdscQa4HkI0xFxwonWyhnVReCPDbXI7FH7jmzpnVCrFQI7PRrhWecO263610vOrs9tr2Y4xcf8uAdFxbw==",
++      "version": "6.3.0",
++      "resolved": "https://registry.npmjs.org/@vitejs/plugin-react/-/plugin-react-6.3.0.tgz",
++      "integrity": "sha512-H9E955aVvD2F4zNHCw4eIZbIfF6xKldlh7MNu+hSU7xwQzh65lI/N+CJWqmfhi0PEjDXIt/H7T7J/4wU63KJiw==",
+       "dev": true,
+@@ -1157,5 +1175,5 @@
+       "peerDependencies": {
+-        "@rolldown/plugin-babel": "^0.1.7 || ^0.2.0",
++        "@rolldown/plugin-babel": "^0.1.7 || ^0.2.0 || ^0.3.0",
+         "babel-plugin-react-compiler": "^1.0.0",
+-        "oxc-transform-react": "^0.152.0",
++        "oxc-transform-react": ">=0.152.0 <0.157.0",
+         "vite": "^8.0.0"
+@@ -1523,5 +1541,5 @@
+     "node_modules/lucide-react": {
+-      "version": "1.70.0",
+-      "resolved": "https://registry.npmjs.org/lucide-react/-/lucide-react-1.70.0.tgz",
+-      "integrity": "sha512-gCTPPN1MlQUBtUgdsUv+0CAUj+X8hifRUiRBw4E5v7lvDIOIpx0EZezdGQMSimS8pKA6esvullJub4GYr0mCHA==",
++      "version": "1.71.0",
++      "resolved": "https://registry.npmjs.org/lucide-react/-/lucide-react-1.71.0.tgz",
++      "integrity": "sha512-8YtvF+bqT/EMqAXU7kWvYdRu+TV9j4kS1eIS7IbN1j1Z1DgupbrTL0nDIygdqgBDTD7AJPP607VdVgzDTar4zA==",
+       "license": "ISC",
+@@ -1616,5 +1634,5 @@
+     "node_modules/postcss": {
+-      "version": "8.5.31",
+-      "resolved": "https://registry.npmjs.org/postcss/-/postcss-8.5.31.tgz",
+-      "integrity": "sha512-YUbWYCgErwnMAVkjUnYa+KlMBzGpHwiIt/DE7f0G33AuX2LH9UcTk6KgWxd3zRU+pN3u/C+Xl3EnMLM4Hea7Sg==",
++      "version": "8.5.32",
++      "resolved": "https://registry.npmjs.org/postcss/-/postcss-8.5.32.tgz",
++      "integrity": "sha512-LJlKCCAUFKOuZxipUdYw1NzIITEsPcgyOG9LkvRJvuKj/bRzbuRY0ARXvL0pWGpsZvn8jku+LMep2eU0seHp8g==",
+       "dev": true,
+@@ -1682,5 +1700,5 @@
+     "node_modules/rolldown": {
+-      "version": "1.2.14",
+-      "resolved": "https://registry.npmjs.org/rolldown/-/rolldown-1.2.14.tgz",
+-      "integrity": "sha512-eTBTTqMR6uHKLgcUqpJP8ntzDI6V4LYA8negAMBEI7gkgVvOdrx6VsvS2Ym+83KhOPdLCHWJu0w7UQFJZhHKNw==",
++      "version": "1.2.18",
++      "resolved": "https://registry.npmjs.org/rolldown/-/rolldown-1.2.18.tgz",
++      "integrity": "sha512-C1uuT3UR60SShuCaPQFAAZyefJCWZlAKB02BV3BuPE2Rs4fevRQltEKoFO2tV5W9/eJhU5RieV6vJj3euulfNQ==",
+       "dev": true,
+@@ -1688,3 +1706,3 @@
+       "dependencies": {
+-        "@oxc-project/types": "=0.154.0",
++        "@oxc-project/types": "=0.156.0",
+         "@rolldown/pluginutils": "^1.0.0"
+@@ -1698,17 +1716,17 @@
+       "optionalDependencies": {
+-        "@rolldown/binding-android-arm-eabi": "1.2.14",
+-        "@rolldown/binding-android-arm64": "1.2.14",
+-        "@rolldown/binding-darwin-arm64": "1.2.14",
+-        "@rolldown/binding-darwin-x64": "1.2.14",
+-        "@rolldown/binding-freebsd-x64": "1.2.14",
+-        "@rolldown/binding-linux-arm-gnueabihf": "1.2.14",
+-        "@rolldown/binding-linux-arm64-gnu": "1.2.14",
+-        "@rolldown/binding-linux-arm64-musl": "1.2.14",
+-        "@rolldown/binding-linux-ppc64-gnu": "1.2.14",
+-        "@rolldown/binding-linux-s390x-gnu": "1.2.14",
+-        "@rolldown/binding-linux-x64-gnu": "1.2.14",
+-        "@rolldown/binding-linux-x64-musl": "1.2.14",
+-        "@rolldown/binding-openharmony-arm64": "1.2.14",
+-        "@rolldown/binding-win32-arm64-msvc": "1.2.14",
+-        "@rolldown/binding-win32-x64-msvc": "1.2.14"
++        "@rolldown/binding-android-arm-eabi": "1.2.18",
++        "@rolldown/binding-android-arm64": "1.2.18",
++        "@rolldown/binding-darwin-arm64": "1.2.18",
++        "@rolldown/binding-darwin-x64": "1.2.18",
++        "@rolldown/binding-freebsd-x64": "1.2.18",
++        "@rolldown/binding-linux-arm-gnueabihf": "1.2.18",
++        "@rolldown/binding-linux-arm64-gnu": "1.2.18",
++        "@rolldown/binding-linux-arm64-musl": "1.2.18",
++        "@rolldown/binding-linux-ppc64-gnu": "1.2.18",
++        "@rolldown/binding-linux-s390x-gnu": "1.2.18",
++        "@rolldown/binding-linux-x64-gnu": "1.2.18",
++        "@rolldown/binding-linux-x64-musl": "1.2.18",
++        "@rolldown/binding-openharmony-arm64": "1.2.18",
++        "@rolldown/binding-win32-arm64-msvc": "1.2.18",
++        "@rolldown/binding-win32-x64-msvc": "1.2.18"
+       }
+@@ -1822,5 +1840,5 @@
+     "node_modules/vite": {
+-      "version": "8.3.5",
+-      "resolved": "https://registry.npmjs.org/vite/-/vite-8.3.5.tgz",
+-      "integrity": "sha512-z1YpjieJ9g0ebTmQpLBv/oq9E3F9EIlOe+7LahW8SrE3LTiG3udBRUXQOlYXP9b+IC2q2phHeVxj9xGlw34OEQ==",
++      "version": "8.3.8",
++      "resolved": "https://registry.npmjs.org/vite/-/vite-8.3.8.tgz",
++      "integrity": "sha512-LzOn3h9rG/0vhLdXrV4yJ4QFA9eEoqCl+Yx+kGJd7aB9w6nfNgVHKSYwLPZUHrz4ZGa+t+kXjV9itvcHDLQouA==",
+       "dev": true,
+@@ -1830,4 +1848,4 @@
+         "picomatch": "^4.0.7",
+-        "postcss": "^8.5.30",
+-        "rolldown": "~1.2.14",
++        "postcss": "^8.5.32",
++        "rolldown": "~1.2.18",
+         "tinyglobby": "^0.2.17"
+diff --git a/server/web/package.json b/server/web/package.json
+index 64d1bb1..205e80f 100644
+--- a/server/web/package.json
++++ b/server/web/package.json
+@@ -19,3 +19,3 @@
+     "clsx": "2.1.1",
+-    "lucide-react": "1.70.0",
++    "lucide-react": "1.71.0",
+     "react": "19.3.1",
+@@ -29,3 +29,3 @@
+     "@types/react-dom": "19.3.0",
+-    "@vitejs/plugin-react": "6.1.2",
++    "@vitejs/plugin-react": "6.3.0",
+     "playwright": "1.65.0",
+@@ -34,3 +34,3 @@
+     "typescript": "7.0.2",
+-    "vite": "8.3.5"
++    "vite": "8.3.8"
+   }

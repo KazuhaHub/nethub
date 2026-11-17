@@ -76,7 +76,7 @@ class RotationJournal:
         if value['native_before'] is not None:
             from rotation_backend import assignment
             if (not isinstance(value['native_before'], dict)
-                    or assignment(value['native_before']) != previous
+                    or not self.same_native_assignment(assignment(value['native_before']), previous)
                     or value['native_before']['console_url'] != value['origin']):
                 raise ValueError('Invalid native model binding')
         build_rotate_request(previous['device_id'], value['operation_id'], value['candidate'],
@@ -128,13 +128,22 @@ class RotationJournal:
         finally:
             temporary.unlink(missing_ok=True)
 
+    @staticmethod
+    def same_native_assignment(current, retained):
+        # The model stores assignment fields, not the console protocol version.
+        # The backend reconstructs that metadata using the installed helper's
+        # version; a compatible helper upgrade cannot change the saved binding.
+        return (isinstance(retained, dict)
+                and {k: v for k, v in current.items() if k != 'agent_protocol_version'}
+                == {k: v for k, v in retained.items() if k != 'agent_protocol_version'})
+
     def prepare(self, origin, current, native_before=None):
         try:
             self._directory()
             origin, current = validate_origin(origin), validate_response(current)
             if self.path.exists() or self.path.is_symlink():
                 value = self._read()
-                if value['origin'] != origin or current not in [value['previous'], value['assignment']]:
+                if value['origin'] != origin or not any(self.same_native_assignment(current, saved) for saved in (value['previous'], value['assignment'])):
                     raise ValueError('Current model does not match pending rotation')
                 return value
             candidate = secrets.token_urlsafe(32)
@@ -188,7 +197,7 @@ class RotationJournal:
         try:
             value = self._read()
             if (value['phase'] != 'received' or validate_origin(origin) != value['origin']
-                    or validate_response(saved) != value['assignment']):
+                    or not self.same_native_assignment(validate_response(saved), value['assignment'])):
                 raise ValueError('Native model save is unconfirmed')
             self.path.unlink()
             self.files._sync(self.directory)

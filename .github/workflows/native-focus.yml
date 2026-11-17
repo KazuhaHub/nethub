@@ -1,0 +1,117 @@
+name: Focused native diagnostic
+
+# Diagnostic only, never acceptance. A push to diag/native-focus/** reads its request from
+# .github/native-focus-request.json (GitHub offers workflow_dispatch only for workflows on the
+# default branch); workflow_dispatch takes the same two values once this file is there.
+on:
+  push:
+    branches:
+      - diag/native-focus/**
+  workflow_dispatch:
+    inputs:
+      image_run:
+        description: Successful six-job CI run whose tested images are reused
+        required: true
+        type: string
+      focus:
+        description: Focused native diagnostic
+        required: true
+        type: choice
+        options:
+          - wan
+
+permissions: {}
+
+concurrency:
+  group: native-focus-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  focus:
+    name: focused installed OPNsense diagnostic
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      actions: read
+      contents: read
+    env:
+      NETHUB_SOURCE_HEAD: ${{ github.sha }}
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate the focused request
+        id: request
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_RUN: ${{ inputs.image_run }}
+          INPUT_FOCUS: ${{ inputs.focus }}
+        run: |
+          if [ "$EVENT_NAME" = push ]; then
+            python3 agents/opnsense/acceptance/focus.py --request-file .github/native-focus-request.json --resolve-output
+          else
+            python3 agents/opnsense/acceptance/focus.py --run "$INPUT_RUN" --focus "$INPUT_FOCUS" --resolve-output
+          fi
+      - name: Fetch the tested image source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_RUN: ${{ steps.request.outputs.image_run }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          IMAGE_SHA="$(gh api "repos/$REPOSITORY/actions/runs/$IMAGE_RUN" --jq .head_sha)"
+          printf '%s\n' "$IMAGE_SHA" | grep -Eqx '[a-f0-9]{40}'
+          git fetch --no-tags --depth=1 origin "$IMAGE_SHA"
+      - name: Check fresh hosted resources
+        run: |
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test -c /dev/kvm
+          test "$(awk '/MemAvailable/ {print int($2 / 1024)}' /proc/meminfo)" -ge 4500
+          sudo chmod a+rw /dev/kvm
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+          fi
+          printf '%s\n' \
+            'Acquire::Retries "2";' \
+            'Acquire::http::Timeout "15";' \
+            'Acquire::https::Timeout "15";' \
+            'APT::Update::Error-Mode "any";' \
+            | sudo tee /etc/apt/apt.conf.d/80-nethub-ci >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y qemu-system-x86 qemu-utils openssh-client netcat-openbsd cloud-image-utils gnupg
+      - name: Set up browser runtime
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: server/web/package-lock.json
+      - name: Install pinned browser dependencies
+        working-directory: server/web
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/native-focus-browsers
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Run the focused diagnostic against the tested images
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_RUN: ${{ steps.request.outputs.image_run }}
+          FOCUS: ${{ steps.request.outputs.focus }}
+          NETHUB_NATIVE_FOCUS: ${{ steps.request.outputs.focus }}
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/native-focus-browsers
+        run: |
+          export NETHUB_NODE_BINARY
+          NETHUB_NODE_BINARY="$(command -v node)"
+          sudo --preserve-env=GH_TOKEN,GITHUB_ACTIONS,GITHUB_EVENT_NAME,GITHUB_REF,RUNNER_ENVIRONMENT,RUNNER_TEMP,NETHUB_SOURCE_HEAD,NETHUB_NODE_BINARY,NETHUB_NATIVE_FOCUS,PLAYWRIGHT_BROWSERS_PATH,PYTHONDONTWRITEBYTECODE \
+            python3 agents/opnsense/acceptance/focus.py --run "$IMAGE_RUN" --focus "$FOCUS" \
+            --directory "$RUNNER_TEMP/native-focus-private" --evidence "$RUNNER_TEMP/native-focus-evidence"
+      - name: Retain only the diagnostic wrappers
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-focus-diagnostic-${{ steps.request.outputs.focus }}
+          path: ${{ runner.temp }}/native-focus-evidence/focus-*.json
+          if-no-files-found: warn
+          retention-days: 3

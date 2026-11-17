@@ -12,17 +12,19 @@ overwrite; explicit resume preserves an interrupted setup's keys. The generated
 Compose override contains deployment names and network/build configuration, never
 secret values. Host secrets and backup data stay outside Git and build layers.
 
-In bundled mode, only Caddy publishes ports (80/443). External mode publishes
-only the loopback origins described below. The Linux host-network frps
+In bundled mode, only Caddy publishes public ports (80/443); authz also
+publishes its relay-hook port on host loopback 127.0.0.1:9000 for the
+host-network frps. External mode publishes only the loopback origins described
+below, plus the same authz loopback port. The Linux host-network frps
 listener uses TCP 7000/8443 directly; its authenticated admin API binds only the
-private edge gateway, and callbacks bind only the private authz address.
+private edge gateway, and its callbacks reach authz only through that loopback port.
 PostgreSQL stays on an internal network. Web and authz wait for
 successful migration and mounts only its own secret directory. The initial admin
 runs separately with owner credentials; web never receives those credentials,
 the claim key, or relay credentials. The database initialization exception allows
 PostgreSQL to receive all database role passwords, as confirmed in W3 D11.
 
-The pinned three-stage Dockerfile builds React, then a static Go binary, then uses
+The pinned Dockerfile's default runtime target builds React, then a static Go binary, then uses
 distroless nonroot. Caddy's public certificate state persists in its own volumes.
 The version-3 initializer also backs up the private deployment CA, initial leaf
 snapshot and rendered private frps config. Mutable runtime leaf/trust directories
@@ -80,6 +82,10 @@ health denial, login/reload, inventory, token masking/clearing, mobile layout,
 and logout. Private failure diagnostics and token/session hashes remain beside
 the config; neither belongs in published evidence. Public reachability and
 clean-host provenance are separate claims; this script proves the former flows.
+
+The current [public console verification](validation-public-console-source48.md)
+records real public TLS, login, token clearing and independently checked restoration.
+Native public revocation timing remains separate.
 
 Scoped [native/public W4 acceptance](validation-native-public-certificate.md),
 [two-Dex OIDC](validation-two-dex.md) and [Keycloak SAML](validation-keycloak-saml.md)

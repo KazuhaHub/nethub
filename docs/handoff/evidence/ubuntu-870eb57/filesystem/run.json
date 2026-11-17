@@ -1,0 +1,73 @@
+{
+  "conclusion": "success",
+  "headSha": "870eb575cec13f4869e7848aac2cdc9b7c93307a",
+  "jobs": [
+    {
+      "completedAt": "2026-11-15T14:22:22Z",
+      "conclusion": "success",
+      "databaseId": 132839713683,
+      "name": "FreeBSD source contracts",
+      "startedAt": "2026-11-15T14:14:54Z",
+      "status": "completed",
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Checkout exact source",
+          "number": 2,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Bound host package downloads",
+          "number": 3,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Bind native source manifest",
+          "number": 4,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Execute contracts in isolated FreeBSD",
+          "number": 5,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Verify returned source and every native outcome",
+          "number": 6,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Retain only source hashes and bounded native outcomes",
+          "number": 7,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Checkout exact source",
+          "number": 14,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43723295424/job/132839713683"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/KazuhaHub/nethub/actions/runs/43723295424"
+}

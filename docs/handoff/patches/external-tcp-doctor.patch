@@ -1,0 +1,569 @@
+diff --git a/docs/deployment.md b/docs/deployment.md
+index 36cea8c..aa2ee4b 100644
+--- a/docs/deployment.md
++++ b/docs/deployment.md
+@@ -124,2 +124,20 @@
+ 
++For independent TCP observations, explicitly opt in to Check-Host:
++
++```sh
++./nethub doctor --external-tcp-check-host --expected-address 203.0.113.10
++```
++
++Replace the documentation address with the actual public ingress IP. This sends
++only that IP and ports 443/7000/8443 to the external provider; its report may be
++public. The [provider API](https://check-host.net/about/api) supplies three
++observers per port. Every observer must report a connection to the expected IP;
++wrong, incomplete, stale or unavailable results fail without partial success.
++Submissions are not retried automatically, and the check stops after 45 seconds.
++Run this mode separately from the initialized DNS, TLS, container and database
++checks. It proves TCP connectivity from those observers, not certificate or
++application health, successful device admission or every mobile network.
++The implementation's mocked protocol tests do not replace a real owned-public
++positive and closed-port drill, which remains pending.
++
+ The separate database metadata mode uses only the Web-role password:
+diff --git a/server/cmd/nethub/doctor.go b/server/cmd/nethub/doctor.go
+index 2968da0..c379556 100644
+--- a/server/cmd/nethub/doctor.go
++++ b/server/cmd/nethub/doctor.go
+@@ -16,2 +16,3 @@
+ 
++	"github.com/KazuhaHub/nethub/server/internal/externalprobe"
+ 	"github.com/KazuhaHub/nethub/server/internal/relayprobe"
+@@ -27,2 +28,3 @@
+ 	expected := flags.String("expected-address", "", "Also check console/wildcard DNS against this address")
++	externalTCP := flags.Bool("external-tcp-check-host", false, "Ask Check-Host to test public TCP 443/7000/8443; target IP and reports may be public")
+ 	publicTLS := flags.Bool("public-tls", false, "Verify the initialized console hostname on TCP 443 with system certificate trust")
+@@ -56,2 +58,27 @@
+ 	flags.Visit(func(f *flag.Flag) { selected[f.Name] = true })
++	if *externalTCP {
++		for name := range selected {
++			if name != "external-tcp-check-host" && name != "expected-address" {
++				fmt.Fprintln(stderr, "Run external TCP checks separately with only --expected-address; Check-Host receives the public IP and ports")
++				return 2
++			}
++		}
++		address, err := netip.ParseAddr(*expected)
++		if err != nil || address.Zone() != "" || !address.IsGlobalUnicast() || address.IsPrivate() || address.IsLoopback() || address.IsLinkLocalUnicast() {
++			fmt.Fprintln(stderr, "External TCP checks require --expected-address with the public ingress IP")
++			return 2
++		}
++		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
++		defer cancel()
++		ports, err := externalprobe.Check(ctx, address)
++		if err != nil {
++			fmt.Fprintf(stderr, "External TCP check failed: %v. Verify listeners, public firewall/NAT rules for 443/7000/8443 and Check-Host availability; retry explicitly after fixing the cause\n", err)
++			return 1
++		}
++		for _, port := range ports {
++			fmt.Fprintf(stdout, "TCP %d: all %d external observers connected to the expected public IP\n", port.Number, port.Nodes)
++		}
++		fmt.Fprintln(stdout, "TCP reachability only; run DNS, public TLS, relay admission and published appliance version checks separately")
++		return 0
++	}
+ 	if *recentBackup {
+diff --git a/server/cmd/nethub/doctor_test.go b/server/cmd/nethub/doctor_test.go
+index 26d5a70..1531aac 100644
+--- a/server/cmd/nethub/doctor_test.go
++++ b/server/cmd/nethub/doctor_test.go
+@@ -9,2 +9,22 @@
+ 
++func TestDoctorExternalTCPModeBoundary(t *testing.T) {
++	for _, args := range [][]string{
++		{"--external-tcp-check-host"},
++		{"--external-tcp-check-host", "--expected-address", "127.0.0.1"},
++		{"--external-tcp-check-host", "--expected-address", "10.0.0.1"},
++		{"--external-tcp-check-host", "--expected-address", "fe80::1%eth0"},
++		{"--external-tcp-check-host", "--expected-address", "https://example.com"},
++		{"--external-tcp-check-host", "--expected-address", "203.0.113.10", "--directory", "."},
++		{"--external-tcp-check-host", "--expected-address", "203.0.113.10", "--public-tls"},
++		{"--external-tcp-check-host", "--expected-address", "203.0.113.10", "--relay-hook"},
++		{"--external-tcp-check-host", "--expected-address", "203.0.113.10", "--recent-backup"},
++		{"--external-tcp-check-host", "--expected-address", "203.0.113.10", "--password-file", "unused"},
++	} {
++		var out, diagnostic bytes.Buffer
++		if status := run(append([]string{"doctor"}, args...), &out, &diagnostic); status != 2 || out.Len() != 0 {
++			t.Fatal("ambiguous external TCP mode reached provider execution", args, status)
++		}
++	}
++}
++
+ func TestDoctorLoopbackHealthBoundary(t *testing.T) {
+diff --git a/server/internal/externalprobe/README.md b/server/internal/externalprobe/README.md
+new file mode 100644
+index 0000000..d6863c0
+--- /dev/null
++++ b/server/internal/externalprobe/README.md
+@@ -0,0 +1,26 @@
++# External TCP observations
++
++`doctor --external-tcp-check-host --expected-address <public-IP>` explicitly asks
++[Check-Host's TCP API](https://check-host.net/about/api) to test only ports 443,
++7000 and 8443. The provider receives the target IP and ports, and its report may
++be public. No deployment credentials, device names, tokens, claims or keys are
++sent. Other doctor modes do not call this service.
++
++All three provider-selected observers must connect to the exact expected IP on
++each port. Responses are bounded and checked against the new request's protocol,
++target, observer identities and creation time. Pending results have a finite
++poll budget and the complete check has a 45-second context deadline. Submission
++is not retried; provider failures, rate limits, incomplete observations, wrong
++addresses and closed ports fail without partial success or raw provider errors.
++HTTPS uses normal system trust and refuses redirects.
++
++Run DNS checks separately against the initialized manifest. TCP observations
++do not verify a certificate, hostname routing, a source-IP grant, successful
++device admission or the published appliance version. Availability from three
++provider nodes does not imply availability from every operator network. The
++service is an optional external dependency, not a replacement for mobile and
++independent operator acceptance.
++
++Unit fixtures exercise the protocol and denial paths without contacting the
++provider. They do not establish real public reachability; the compiled command
++still requires a separate owned public positive/closed-port acceptance sample.
+diff --git a/server/internal/externalprobe/probe.go b/server/internal/externalprobe/probe.go
+new file mode 100644
+index 0000000..f0012a8
+--- /dev/null
++++ b/server/internal/externalprobe/probe.go
+@@ -0,0 +1,160 @@
++// Package externalprobe checks public TCP reachability through Check-Host.
++package externalprobe
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"io"
++	"math"
++	"net"
++	"net/http"
++	"net/netip"
++	"net/url"
++	"regexp"
++	"strconv"
++	"time"
++)
++
++const provider = "https://check-host.net"
++
++var requestID = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)
++var nodeID = regexp.MustCompile(`^[a-z0-9-]{1,40}\.node\.check-host\.net$`)
++
++type Port struct {
++	Number uint16
++	Nodes  int
++}
++
++// Check sends only the public IP and ports to the provider. Reports can be public.
++// TCP success does not establish TLS, Login admission or application health.
++func Check(ctx context.Context, address netip.Addr) ([]Port, error) {
++	client := &http.Client{
++		Timeout: 8 * time.Second,
++		CheckRedirect: func(*http.Request, []*http.Request) error {
++			return errors.New("external probe redirects refused")
++		},
++	}
++	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
++	defer cancel()
++	return check(ctx, address, client, time.Now, pause)
++}
++
++func pause(ctx context.Context) error {
++	timer := time.NewTimer(time.Second)
++	defer timer.Stop()
++	select {
++	case <-ctx.Done():
++		return ctx.Err()
++	case <-timer.C:
++		return nil
++	}
++}
++
++func read(ctx context.Context, client *http.Client, path string, target any) error {
++	req, err := http.NewRequestWithContext(ctx, http.MethodGet, provider+path, nil)
++	if err != nil {
++		return errors.New("invalid external probe request")
++	}
++	req.Header.Set("Accept", "application/json")
++	response, err := client.Do(req)
++	if err != nil {
++		return errors.New("external probe service unavailable")
++	}
++	defer response.Body.Close()
++	if response.StatusCode != http.StatusOK {
++		return errors.New("external probe service rejected the request")
++	}
++	raw, err := io.ReadAll(io.LimitReader(response.Body, 65537))
++	if err != nil || len(raw) == 0 || len(raw) > 65536 || !json.Valid(raw) {
++		return errors.New("invalid external probe response")
++	}
++	if err := json.Unmarshal(raw, target); err != nil {
++		return errors.New("invalid external probe response")
++	}
++	return nil
++}
++
++func check(ctx context.Context, address netip.Addr, client *http.Client, now func() time.Time, wait func(context.Context) error) ([]Port, error) {
++	if !address.IsValid() || address.Zone() != "" || !address.IsGlobalUnicast() || address.IsPrivate() || address.IsLoopback() || address.IsLinkLocalUnicast() {
++		return nil, errors.New("external TCP checks require a public expected address")
++	}
++	address = address.Unmap()
++	var result []Port
++	for _, port := range []uint16{443, 7000, 8443} {
++		if err := ctx.Err(); err != nil {
++			return nil, errors.New("external TCP check deadline exceeded")
++		}
++		target := net.JoinHostPort(address.String(), strconv.Itoa(int(port)))
++		started := now()
++		var created struct {
++			OK    int                          `json:"ok"`
++			ID    string                       `json:"request_id"`
++			Nodes map[string][]json.RawMessage `json:"nodes"`
++		}
++		query := url.Values{"host": {target}, "max_nodes": {"3"}}
++		if err := read(ctx, client, "/check-tcp?"+query.Encode(), &created); err != nil {
++			return nil, fmt.Errorf("TCP %d: %w", port, err)
++		}
++		if created.OK != 1 || !requestID.MatchString(created.ID) || len(created.Nodes) != 3 {
++			return nil, fmt.Errorf("TCP %d: external service did not schedule three observers", port)
++		}
++		for name := range created.Nodes {
++			if !nodeID.MatchString(name) {
++				return nil, errors.New("unexpected external observer identity")
++			}
++		}
++		for poll := 0; ; poll++ {
++			if poll >= 30 {
++				return nil, fmt.Errorf("TCP %d: external observers did not finish", port)
++			}
++			var observed struct {
++				Command string                     `json:"command"`
++				Created int64                      `json:"created"`
++				Host    string                     `json:"host"`
++				Results map[string]json.RawMessage `json:"results"`
++			}
++			if err := read(ctx, client, "/check-result-extended/"+created.ID, &observed); err != nil {
++				return nil, fmt.Errorf("TCP %d: %w", port, err)
++			}
++			if observed.Command != "tcp" || observed.Host != target || observed.Created < started.Unix()-10 || observed.Created > now().Unix()+10 || len(observed.Results) != len(created.Nodes) {
++				return nil, fmt.Errorf("TCP %d: external report does not match this request", port)
++			}
++			pending := false
++			for name, raw := range observed.Results {
++				if _, ok := created.Nodes[name]; !ok {
++					return nil, errors.New("external report changed observer identities")
++				}
++				if string(raw) == "null" {
++					pending = true
++					continue
++				}
++				var items []struct {
++					Time    *float64 `json:"time"`
++					Address string   `json:"address"`
++					Error   string   `json:"error"`
++				}
++				if err := json.Unmarshal(raw, &items); err != nil || len(items) != 1 {
++					return nil, errors.New("invalid external TCP observation")
++				}
++				item := items[0]
++				peer, err := netip.ParseAddr(item.Address)
++				if err != nil || peer.Zone() != "" || peer.Unmap() != address || item.Error != "" || item.Time == nil || math.IsNaN(*item.Time) || math.IsInf(*item.Time, 0) || *item.Time < 0 || *item.Time > 45 {
++					return nil, fmt.Errorf("TCP %d: an external observer could not connect to the expected address", port)
++				}
++			}
++			if !pending {
++				if ctx.Err() != nil {
++					return nil, errors.New("external TCP check deadline exceeded")
++				}
++				result = append(result, Port{Number: port, Nodes: len(created.Nodes)})
++				break
++			}
++			if err := wait(ctx); err != nil {
++				return nil, errors.New("external TCP check deadline exceeded")
++			}
++		}
++	}
++	return result, nil
++}
+diff --git a/server/internal/externalprobe/probe_test.go b/server/internal/externalprobe/probe_test.go
+new file mode 100644
+index 0000000..d5306e3
+--- /dev/null
++++ b/server/internal/externalprobe/probe_test.go
+@@ -0,0 +1,273 @@
++package externalprobe
++
++import (
++	"context"
++	"encoding/json"
++	"errors"
++	"io"
++	"net/http"
++	"net/netip"
++	"strings"
++	"testing"
++	"time"
++)
++
++type transportFunc func(*http.Request) (*http.Response, error)
++
++func (f transportFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
++
++func fixture(t *testing.T, change func(string, map[string]any)) (*http.Client, *int) {
++	t.Helper()
++	calls := new(int)
++	current := ""
++	nodes := map[string]any{"us1.node.check-host.net": []any{}, "de1.node.check-host.net": []any{}, "ch1.node.check-host.net": []any{}}
++	client := &http.Client{Transport: transportFunc(func(r *http.Request) (*http.Response, error) {
++		*calls++
++		if r.Method != "GET" || r.URL.Scheme != "https" || r.URL.Host != "check-host.net" || r.Header.Get("Accept") != "application/json" || r.Header.Get("Authorization") != "" || r.Header.Get("Cookie") != "" {
++			t.Fatal("unexpected outbound request or credentials")
++		}
++		var value map[string]any
++		if r.URL.Path == "/check-tcp" {
++			if len(r.URL.Query()) != 2 || r.URL.Query().Get("max_nodes") != "3" {
++				t.Fatal("unexpected probe options")
++			}
++			current = r.URL.Query().Get("host")
++			value = map[string]any{"ok": 1, "request_id": "abcdef", "nodes": nodes}
++		} else {
++			if r.URL.Path != "/check-result-extended/abcdef" || r.URL.RawQuery != "" {
++				t.Fatal("provider response controlled the outbound URL")
++			}
++			results := map[string]any{}
++			for name := range nodes {
++				results[name] = []any{map[string]any{"address": "203.0.113.10", "time": .025}}
++			}
++			value = map[string]any{"command": "tcp", "created": int64(1700000000), "host": current, "results": results}
++		}
++		if change != nil {
++			change(r.URL.Path, value)
++		}
++		raw, err := json.Marshal(value)
++		if err != nil {
++			t.Fatal(err)
++		}
++		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(string(raw))), Header: http.Header{}}, nil
++	})}
++	return client, calls
++}
++
++func TestThreeExternalPorts(t *testing.T) {
++	client, calls := fixture(t, nil)
++	result, err := check(context.Background(), netip.MustParseAddr("203.0.113.10"), client,
++		func() time.Time { return time.Unix(1700000000, 0) }, func(context.Context) error { t.Fatal("unexpected pending probe"); return nil })
++	if err != nil || len(result) != 3 || *calls != 6 {
++		t.Fatal("three independent port checks failed", err, result, *calls)
++	}
++	for i, port := range []uint16{443, 7000, 8443} {
++		if result[i] != (Port{Number: port, Nodes: 3}) {
++			t.Fatal("wrong port or observer count", result)
++		}
++	}
++}
++
++func TestExternalFailuresCannotBecomePartialSuccess(t *testing.T) {
++	for name, mutate := range map[string]func(string, map[string]any){
++		"wrong target": func(path string, v map[string]any) {
++			if path != "/check-tcp" {
++				v["host"] = "203.0.113.10:22"
++			}
++		},
++		"old report": func(path string, v map[string]any) {
++			if path != "/check-tcp" {
++				v["created"] = 1699999800
++			}
++		},
++		"future report": func(path string, v map[string]any) {
++			if path != "/check-tcp" {
++				v["created"] = 1700000200
++			}
++		},
++		"wrong command": func(path string, v map[string]any) {
++			if path != "/check-tcp" {
++				v["command"] = "ping"
++			}
++		},
++		"unsafe request id": func(path string, v map[string]any) {
++			if path == "/check-tcp" {
++				v["request_id"] = "../private?token=secret"
++			}
++		},
++		"missing observer": func(path string, v map[string]any) {
++			if path == "/check-tcp" {
++				delete(v["nodes"].(map[string]any), "ch1.node.check-host.net")
++			}
++		},
++		"missing result": func(path string, v map[string]any) {
++			if path != "/check-tcp" {
++				delete(v["results"].(map[string]any), "ch1.node.check-host.net")
++			}
++		},
++		"foreign result": func(path string, v map[string]any) {
++			if path != "/check-tcp" {
++				r := v["results"].(map[string]any)
++				r["foreign.node.check-host.net"] = r["ch1.node.check-host.net"]
++				delete(r, "ch1.node.check-host.net")
++			}
++		},
++		"wrong peer": func(path string, v map[string]any) {
++			if path != "/check-tcp" {
++				v["results"].(map[string]any)["ch1.node.check-host.net"] = []any{map[string]any{"address": "203.0.113.11", "time": .01}}
++			}
++		},
++		"missing timing": func(path string, v map[string]any) {
++			if path != "/check-tcp" {
++				v["results"].(map[string]any)["ch1.node.check-host.net"] = []any{map[string]any{"address": "203.0.113.10"}}
++			}
++		},
++		"negative timing": func(path string, v map[string]any) {
++			if path != "/check-tcp" {
++				v["results"].(map[string]any)["ch1.node.check-host.net"] = []any{map[string]any{"address": "203.0.113.10", "time": -1}}
++			}
++		},
++		"closed port": func(path string, v map[string]any) {
++			if path != "/check-tcp" {
++				v["results"].(map[string]any)["ch1.node.check-host.net"] = []any{map[string]any{"error": "secret provider error"}}
++			}
++		},
++	} {
++		t.Run(name, func(t *testing.T) {
++			client, _ := fixture(t, mutate)
++			result, err := check(context.Background(), netip.MustParseAddr("203.0.113.10"), client, func() time.Time { return time.Unix(1700000000, 0) }, func(context.Context) error { return nil })
++			if err == nil || result != nil || strings.Contains(err.Error(), "secret") {
++				t.Fatal("invalid provider result or raw error accepted", result, err)
++			}
++		})
++	}
++}
++
++func TestExternalPendingAndCancellation(t *testing.T) {
++	client, calls := fixture(t, func(path string, v map[string]any) {
++		if path != "/check-tcp" {
++			v["results"].(map[string]any)["ch1.node.check-host.net"] = nil
++		}
++	})
++	result, err := check(context.Background(), netip.MustParseAddr("203.0.113.10"), client, func() time.Time { return time.Unix(1700000000, 0) }, func(context.Context) error { return context.Canceled })
++	if result != nil || err == nil || *calls != 2 {
++		t.Fatal("pending cancellation retried or accepted", *calls, err)
++	}
++	client, calls = fixture(t, nil)
++	ctx, cancel := context.WithCancel(context.Background())
++	cancel()
++	_, err = check(ctx, netip.MustParseAddr("203.0.113.10"), client, time.Now, pause)
++	if err == nil || *calls != 0 {
++		t.Fatal("canceled command sent a request")
++	}
++}
++
++func TestPrivateTargetsAndUnavailableService(t *testing.T) {
++	client, calls := fixture(t, nil)
++	for _, raw := range []string{"127.0.0.1", "10.0.0.1", "169.254.1.1", "::1", "fc00::1", "::ffff:127.0.0.1", "fe80::1%eth0", "0.0.0.0"} {
++		if _, err := check(context.Background(), netip.MustParseAddr(raw), client, time.Now, pause); err == nil {
++			t.Fatal("private target accepted", raw)
++		}
++	}
++	if *calls != 0 {
++		t.Fatal("private address sent to provider")
++	}
++	client.Transport = transportFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("secret transport error") })
++	_, err := check(context.Background(), netip.MustParseAddr("203.0.113.10"), client, time.Now, pause)
++	if err == nil || strings.Contains(err.Error(), "secret") {
++		t.Fatal("transport error leaked or accepted", err)
++	}
++}
++
++func TestPendingObservationsFinishWithoutResubmission(t *testing.T) {
++	polls, submissions, waits := 0, 0, 0
++	client, _ := fixture(t, func(path string, value map[string]any) {
++		if path == "/check-tcp" {
++			submissions++
++			return
++		}
++		polls++
++		if polls == 1 {
++			value["results"].(map[string]any)["ch1.node.check-host.net"] = nil
++		}
++	})
++	result, err := check(context.Background(), netip.MustParseAddr("203.0.113.10"), client,
++		func() time.Time { return time.Unix(1700000000, 0) },
++		func(context.Context) error { waits++; return nil })
++	if err != nil || len(result) != 3 || submissions != 3 || polls != 4 || waits != 1 {
++		t.Fatal("pending results resubmitted or lost their bound", result, err, submissions, polls, waits)
++	}
++}
++
++func TestIPv6AndMappedIPv4Targets(t *testing.T) {
++	for _, address := range []string{"2001:db8::10", "::ffff:203.0.113.10"} {
++		t.Run(address, func(t *testing.T) {
++			expected := netip.MustParseAddr(address).Unmap()
++			client, _ := fixture(t, func(path string, value map[string]any) {
++				if path != "/check-tcp" {
++					for name := range value["results"].(map[string]any) {
++						value["results"].(map[string]any)[name] = []any{map[string]any{"address": expected.String(), "time": .01}}
++					}
++				}
++			})
++			result, err := check(context.Background(), netip.MustParseAddr(address), client,
++				func() time.Time { return time.Unix(1700000000, 0) }, pause)
++			if err != nil || len(result) != 3 {
++				t.Fatal("public address family failed", result, err)
++			}
++		})
++	}
++}
++
++func TestPendingObservationsHaveFiniteBudget(t *testing.T) {
++	client, calls := fixture(t, func(path string, value map[string]any) {
++		if path != "/check-tcp" {
++			value["results"].(map[string]any)["ch1.node.check-host.net"] = nil
++		}
++	})
++	result, err := check(context.Background(), netip.MustParseAddr("203.0.113.10"), client,
++		func() time.Time { return time.Unix(1700000000, 0) }, func(context.Context) error { return nil })
++	if result != nil || err == nil || *calls != 31 {
++		t.Fatal("unbounded pending report or repeated submission", *calls, err)
++	}
++}
++
++func TestFinalPortFailureDiscardsEarlierSuccess(t *testing.T) {
++	client, calls := fixture(t, func(path string, value map[string]any) {
++		if path != "/check-tcp" && value["host"] == "203.0.113.10:8443" {
++			value["results"].(map[string]any)["ch1.node.check-host.net"] = []any{map[string]any{"error": "secret"}}
++		}
++	})
++	result, err := check(context.Background(), netip.MustParseAddr("203.0.113.10"), client,
++		func() time.Time { return time.Unix(1700000000, 0) }, pause)
++	if result != nil || err == nil || *calls != 6 || strings.Contains(err.Error(), "secret") {
++		t.Fatal("partial ports were accepted or provider error leaked", result, err, *calls)
++	}
++}
++
++func TestProviderBodiesAndRedirectsAreBounded(t *testing.T) {
++	for _, body := range []string{"not json: secret", strings.Repeat(" ", 65537), "{}\n{}"} {
++		client := &http.Client{Transport: transportFunc(func(*http.Request) (*http.Response, error) {
++			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: http.Header{}}, nil
++		})}
++		_, err := check(context.Background(), netip.MustParseAddr("203.0.113.10"), client, time.Now, pause)
++		if err == nil || strings.Contains(err.Error(), "secret") {
++			t.Fatal("invalid body accepted or echoed", err)
++		}
++	}
++	previous := http.DefaultTransport
++	t.Cleanup(func() { http.DefaultTransport = previous })
++	calls := 0
++	http.DefaultTransport = transportFunc(func(r *http.Request) (*http.Response, error) {
++		calls++
++		if r.URL.Host != "check-host.net" {
++			t.Fatal("redirect reached another authority")
++		}
++		return &http.Response{StatusCode: 302, Request: r, Header: http.Header{"Location": {"https://other.example/private?secret=value"}}, Body: io.NopCloser(strings.NewReader("secret"))}, nil
++	})
++	_, err := Check(context.Background(), netip.MustParseAddr("203.0.113.10"))
++	if err == nil || calls != 1 || strings.Contains(err.Error(), "secret") {
++		t.Fatal("redirect followed or raw URL leaked", calls, err)
++	}
++}

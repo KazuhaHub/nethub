@@ -1,7 +1,7 @@
 # Device certificate request API
 
-`authz --device-domain <assigned-device-suffix>` enables two optional POST routes
-under the configured HTTPS console origin:
+`authz --device-domain <assigned-device-suffix>` enables four optional POST routes
+(settings, request, issued and applied) under the configured HTTPS console origin:
 
 - `/api/v1/devices/gui-certificate/settings` accepts the device identity and
   returns its live assigned hostname, enrollment key fingerprint and original
@@ -9,9 +9,14 @@ under the configured HTTPS console origin:
 - `/api/v1/devices/gui-certificate/request` additionally accepts `csr_der` and
   returns the exact committed public record. Identical retries are idempotent;
   another signed DER conflicts, even for the same key and hostname.
+- `/api/v1/devices/gui-certificate/issued` (protocol >= 1.3) accepts the device
+  ID, original request ID and CSR SHA256 fingerprint and returns the same signed
+  request/assignment with either `issued: null` or an immutable public generation; see [proto/README.md](../../../proto/README.md).
+- `/api/v1/devices/gui-certificate/applied` (protocol >= 1.4) reports a verified,
+  durably applied generation; it is described below.
 
-Both require the existing device-secret Bearer header and protocol >= 1.2 within
-major 1. They share lifecycle's bounded per-source rate budget and Argon2 worker
+All four require the existing device-secret Bearer header and, at least,
+protocol 1.2 within major 1. They share lifecycle's bounded per-source rate budget and Argon2 worker
 pool, with a ten-second operation deadline. Certificate jobs must not poll this
 admission boundary every heartbeat. Host/origin/proxy/body/media/method/query
 checks and fixed no-store responses follow the existing device API. No request

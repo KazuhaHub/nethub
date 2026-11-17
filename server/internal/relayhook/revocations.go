@@ -12,8 +12,9 @@ import (
 	"github.com/KazuhaHub/nethub/server/internal/protocol"
 )
 
-const RevocationInterval = 5 * time.Second
-const RevocationBudget = 2 * time.Second
+const RevocationInterval = time.Second
+const RevocationBudget = time.Second
+const RevocationMaxAge = 2500 * time.Millisecond
 const MaxRevocations = 100000
 
 var ErrRevocationLiveness = errors.New("revocation refresh or self-check stopped")
@@ -77,6 +78,7 @@ func (c *RevocationCache) ProcessDisconnects(ctx context.Context) error {
 }
 
 type revocationSnapshot struct {
+	readStartedAt time.Time
 	devices       map[RevokedDevice]struct{}
 	probe         RevokedDevice
 	rotated       map[RevokedDevice]time.Time
@@ -90,6 +92,8 @@ type RevocationCache struct {
 	snapshot                               atomic.Pointer[revocationSnapshot]
 	publish                                sync.Mutex
 	interval, budget, grace, checkInterval time.Duration
+	maxAge                                 time.Duration
+	now                                    func() time.Time
 }
 
 func NewRevocationCache(repository RevocationRepository, logger *slog.Logger) (*RevocationCache, error) {
@@ -97,7 +101,8 @@ func NewRevocationCache(repository RevocationRepository, logger *slog.Logger) (*
 		return nil, ErrUnavailable
 	}
 	return &RevocationCache{repository: repository, logger: logger, interval: RevocationInterval,
-		budget: RevocationBudget, grace: 250 * time.Millisecond, checkInterval: time.Second}, nil
+		budget: RevocationBudget, grace: 250 * time.Millisecond, checkInterval: time.Second,
+		maxAge: RevocationMaxAge, now: time.Now}, nil
 }
 
 func (c *RevocationCache) AuthorizePing(identity protocol.ClaimPayload) error {
@@ -120,12 +125,23 @@ func (c *RevocationCache) AuthorizePing(identity protocol.ClaimPayload) error {
 			return ErrDenied
 		}
 	}
+	if !c.fresh(snapshot) {
+		return ErrUnavailable
+	}
 	return nil
+}
+
+func (c *RevocationCache) fresh(snapshot *revocationSnapshot) bool {
+	if snapshot == nil || snapshot.readStartedAt.IsZero() || c.now == nil || c.maxAge <= 0 {
+		return false
+	}
+	age := c.now().Sub(snapshot.readStartedAt)
+	return age >= 0 && age <= c.maxAge
 }
 
 func (c *RevocationCache) selfCheck() bool {
 	snapshot := c.snapshot.Load()
-	if snapshot == nil || snapshot.devices == nil || len(snapshot.devices) > MaxRevocations {
+	if snapshot == nil || snapshot.devices == nil || len(snapshot.devices) > MaxRevocations || !c.fresh(snapshot) {
 		return false
 	}
 	err := c.AuthorizePing(protocol.ClaimPayload{TenantID: snapshot.probe.TenantID, DeviceID: snapshot.probe.DeviceID})
@@ -150,8 +166,9 @@ func (c *RevocationCache) selfCheck() bool {
 }
 
 // Refresh bounds both the database request and a dependency ignoring cancellation.
-// A stalled dependency is fatal; normal database failures retain the last snapshot.
+// Failures retain known denials, but an expired snapshot cannot admit any Ping.
 func (c *RevocationCache) Refresh(ctx context.Context) error {
+	started := c.now()
 	read, cancel := context.WithTimeout(ctx, c.budget)
 	defer cancel()
 	type result struct {
@@ -181,7 +198,8 @@ func (c *RevocationCache) Refresh(ctx context.Context) error {
 			return ErrRevocationLiveness
 		}
 	}
-	if value.err != nil || read.Err() != nil || len(value.devices) > MaxRevocations || len(value.rotated) > MaxRevocations {
+	age := c.now().Sub(started)
+	if value.err != nil || read.Err() != nil || age < 0 || age > c.maxAge || len(value.devices) > MaxRevocations || len(value.rotated) > MaxRevocations {
 		return ErrUnavailable
 	}
 	for _, device := range value.devices {
@@ -198,8 +216,11 @@ func (c *RevocationCache) Refresh(ctx context.Context) error {
 	c.publish.Lock()
 	defer c.publish.Unlock()
 	// Revocation is one-way. An older or incomplete read cannot re-admit a known ID.
-	next := &revocationSnapshot{devices: make(map[RevokedDevice]struct{}, len(value.devices)), rotated: make(map[RevokedDevice]time.Time)}
+	next := &revocationSnapshot{readStartedAt: started, devices: make(map[RevokedDevice]struct{}, len(value.devices)), rotated: make(map[RevokedDevice]time.Time)}
 	if previous := c.snapshot.Load(); previous != nil {
+		if previous.readStartedAt.After(next.readStartedAt) {
+			next.readStartedAt = previous.readStartedAt
+		}
 		for device := range previous.devices {
 			next.devices[device] = struct{}{}
 			next.probe = device
@@ -231,6 +252,24 @@ func (c *RevocationCache) Run(ctx context.Context) error {
 	if !c.selfCheck() {
 		return ErrRevocationLiveness
 	}
+	worker, cancel := context.WithCancel(ctx)
+	defer cancel()
+	done := make(chan error, 2)
+	go func() { done <- c.runRefresh(worker) }()
+	go func() { done <- c.runDisconnects(worker) }()
+	first := <-done
+	cancel()
+	second := <-done
+	if ctx.Err() != nil {
+		return nil
+	}
+	if first != nil {
+		return first
+	}
+	return second
+}
+
+func (c *RevocationCache) runRefresh(ctx context.Context) error {
 	refresh := time.NewTicker(c.interval)
 	defer refresh.Stop()
 	check := time.NewTicker(c.checkInterval)
@@ -254,7 +293,19 @@ func (c *RevocationCache) Run(ctx context.Context) error {
 			if err != nil {
 				c.logger.Warn("Revocation refresh failed; retaining previous snapshot")
 			}
-			err = c.ProcessDisconnects(ctx)
+		}
+	}
+}
+
+func (c *RevocationCache) runDisconnects(ctx context.Context) error {
+	ticker := time.NewTicker(c.interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			err := c.ProcessDisconnects(ctx)
 			if ctx.Err() != nil {
 				return nil
 			}

@@ -1,0 +1,760 @@
+{
+  "version": 1,
+  "updated_utc": "2026-11-15",
+  "owner_requested_stop": true,
+  "full_project_complete": false,
+  "code_snapshots": {
+    "source71": {
+      "head": "a4d8a1c456464bb3a5707ad8b5c4fa6071ea592e",
+      "CI": 43697195854,
+      "native": 43697195777,
+      "cold": 43697195787,
+      "filesystem": 43697195836,
+      "prep": 43697195778
+    },
+    "source72": {
+      "head": "a29fbfe52a1a7774a538a33081277be2a253ab97",
+      "CI": 43698475583,
+      "native": 43698475533,
+      "cold": 43698475660,
+      "filesystem": 43698475578,
+      "prep": 43698475767,
+      "database": 43698475548,
+      "fresh": 43698475611
+    }
+  },
+  "runs": [
+    {
+      "source": "source71",
+      "kind": "CI",
+      "id": 43697195854,
+      "attempt": 1,
+      "source_head": "a4d8a1c456464bb3a5707ad8b5c4fa6071ea592e",
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43697195854",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132760259570,
+          "name": "weekend0 kit checks",
+          "conclusion": "success",
+          "decoded_log_bytes": 16972,
+          "decoded_log_sha256": "017cee541e57eedcf37e468c561d35406a6da2fb31fc1409cfba7d6860ab9a53"
+        },
+        {
+          "id": 132760259714,
+          "name": "workflow lint",
+          "conclusion": "success",
+          "decoded_log_bytes": 50810,
+          "decoded_log_sha256": "804efce279dd2e48cf6350025aa70956fd355a779b2c2ecbaf2bbb556be13e7c"
+        },
+        {
+          "id": 132760259736,
+          "name": "Go vulnerability checks",
+          "conclusion": "success",
+          "decoded_log_bytes": 50734,
+          "decoded_log_sha256": "0a9944eb847ead6b44234cbecae16404453d1bf70285fa93c3d8ad5a87e7f48a"
+        },
+        {
+          "id": 132760259772,
+          "name": "OPNsense plugin checks",
+          "conclusion": "success",
+          "decoded_log_bytes": 25738,
+          "decoded_log_sha256": "273be7f5c05991a0975b5f2c39a901369c2416e7af4ffe33c5404500627a3ad1"
+        },
+        {
+          "id": 132760259776,
+          "name": "Deployment checks",
+          "conclusion": "success",
+          "decoded_log_bytes": 104220,
+          "decoded_log_sha256": "c36dc1dcc29783b4d832b06387748ffc71516f57fbeacc27e28f254e2a8703cd"
+        },
+        {
+          "id": 132760259782,
+          "name": "Control plane checks",
+          "conclusion": "success",
+          "decoded_log_bytes": 127218,
+          "decoded_log_sha256": "b52d9e7b18c33879866fdeef5f077674ac017c2fbbb2b5a681be3ef888958731"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14155937170,
+          "name": "deployed-two-dex-browser",
+          "digest": "sha256:bffc44bda69b29200468a1737584c6c9a02f80084dd985b545d1ce0c9814a4cd",
+          "bytes": 156142,
+          "full_archive_in_repository": false
+        },
+        {
+          "id": 14155378936,
+          "name": "deployed-console-browser",
+          "digest": "sha256:489102243ee4b6dee6fe88daa55552fb43f01c9dbbfbd24cf67f34ca23eed813",
+          "bytes": 421924,
+          "full_archive_in_repository": false
+        },
+        {
+          "id": 14155269363,
+          "name": "deployed-keycloak-saml-browser",
+          "digest": "sha256:2f2feda3b46c87b243b6cef485802563c2d334bd4094e512595bf5de8dd98f40",
+          "bytes": 156153,
+          "full_archive_in_repository": false
+        },
+        {
+          "id": 14154668362,
+          "name": "traffic-browser-evidence",
+          "digest": "sha256:04b1efb01e8cd7f69c990f5a85fb5d5d68d65f133f06bd3540f9a00d307c801a",
+          "bytes": 352982,
+          "full_archive_in_repository": false
+        },
+        {
+          "id": 14154583470,
+          "name": "audit-browser-evidence",
+          "digest": "sha256:835b9122b506d7a1308598dde14d39f141510c668de8977fb6fd9946d527cce4",
+          "bytes": 263629,
+          "full_archive_in_repository": false
+        }
+      ]
+    },
+    {
+      "source": "source71",
+      "kind": "native",
+      "id": 43697195777,
+      "attempt": 1,
+      "source_head": "a4d8a1c456464bb3a5707ad8b5c4fa6071ea592e",
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43697195777",
+      "conclusion": "failure",
+      "jobs": [
+        {
+          "id": 132760259294,
+          "name": "exact-source tested image gate",
+          "conclusion": "success",
+          "decoded_log_bytes": 16393,
+          "decoded_log_sha256": "b8f0f69fe8761d6c974d73b37ee44f70f0181e970fb8033feaa486a2c1b6bbd3"
+        },
+        {
+          "id": 132768458160,
+          "name": "installed OPNsense and six services",
+          "conclusion": "failure",
+          "decoded_log_bytes": 61011,
+          "decoded_log_sha256": "b24bea8fcc6a956b9909b3276a5fbd8f9c3a8bb9faf975c8bb0f7acf84fe8735"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14157086578,
+          "name": "installed-native-rotation",
+          "digest": "sha256:31363d5c58a5e23de2eac0c282a49a25122d58f74e4c80453c5b88c589562cb9",
+          "bytes": 70596,
+          "full_archive_in_repository": true,
+          "path": "source71/native/original.zip"
+        }
+      ]
+    },
+    {
+      "source": "source71",
+      "kind": "cold",
+      "id": 43697195787,
+      "attempt": 1,
+      "source_head": "a4d8a1c456464bb3a5707ad8b5c4fa6071ea592e",
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43697195787",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132760259366,
+          "name": "accepted-images",
+          "conclusion": "success",
+          "decoded_log_bytes": 16374,
+          "decoded_log_sha256": "29a5eae2e805f04828008651d71939d47d80fcf1b07d9271add633e1c35f9f76"
+        },
+        {
+          "id": 132768417535,
+          "name": "recovery",
+          "conclusion": "success",
+          "decoded_log_bytes": 65497,
+          "decoded_log_sha256": "7b7b8a31efc56dda5132ec91909d9764f74b35127b5e27cb084f07deefeb364b"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14155874247,
+          "name": "protected-host-cold-recovery",
+          "digest": "sha256:c70cfa489b425a07b18de94bdfc03f67075be04d448776f5ed902894535f53d9",
+          "bytes": 120758,
+          "full_archive_in_repository": true,
+          "path": "source71/cold/original.zip"
+        }
+      ]
+    },
+    {
+      "source": "source71",
+      "kind": "filesystem",
+      "id": 43697195836,
+      "attempt": 1,
+      "source_head": "a4d8a1c456464bb3a5707ad8b5c4fa6071ea592e",
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43697195836",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132760259533,
+          "name": "FreeBSD source contracts",
+          "conclusion": "success",
+          "decoded_log_bytes": 65873,
+          "decoded_log_sha256": "85bb8b0957f7b38d0e49e3e7841582f662671d8423649d991d515565505666c7"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14155073388,
+          "name": "native-source-contracts",
+          "digest": "sha256:7e0b5d89872091406c99dc8fd5f3e6e6c8d3548d0ae7d287ed111b6c21075af0",
+          "bytes": 13237,
+          "full_archive_in_repository": true,
+          "path": "source71/filesystem/original.zip"
+        }
+      ]
+    },
+    {
+      "source": "source71",
+      "kind": "prep",
+      "id": 43697195778,
+      "attempt": 1,
+      "source_head": "a4d8a1c456464bb3a5707ad8b5c4fa6071ea592e",
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43697195778",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132760259615,
+          "name": "fresh OPNsense package and page",
+          "conclusion": "success",
+          "decoded_log_bytes": 55989,
+          "decoded_log_sha256": "c86078237dfedff7b6f0cc6dbcc5b738df120a549a9f6ff8809e34c6936c72f9"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14154648792,
+          "name": "native-installed-package",
+          "digest": "sha256:7f495a684347fe6eaaf071b03ecaafedbdbad45644b95e76cea8ef90f33964ef",
+          "bytes": 259776,
+          "full_archive_in_repository": true,
+          "path": "source71/prep/original.zip"
+        }
+      ]
+    },
+    {
+      "source": "source72",
+      "kind": "CI",
+      "id": 43698475583,
+      "attempt": 1,
+      "source_head": "a29fbfe52a1a7774a538a33081277be2a253ab97",
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43698475583",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132764126679,
+          "name": "weekend0 kit checks",
+          "conclusion": "success",
+          "decoded_log_bytes": 16972,
+          "decoded_log_sha256": "790404e64ff88b57cb003266b24cff07afe2f573f4114bad0c0089a3af8370e5"
+        },
+        {
+          "id": 132764126908,
+          "name": "Control plane checks",
+          "conclusion": "success",
+          "decoded_log_bytes": 127124,
+          "decoded_log_sha256": "8a1552066e502bb860464bb4630fbf9ec4f03d67079609f994fea8cc86f730eb"
+        },
+        {
+          "id": 132764126927,
+          "name": "Go vulnerability checks",
+          "conclusion": "success",
+          "decoded_log_bytes": 50736,
+          "decoded_log_sha256": "80b576f4d38a5d13012809940dd0f986d6f1a3ab1114ba34322e3e3cce7a649b"
+        },
+        {
+          "id": 132764126979,
+          "name": "Deployment checks",
+          "conclusion": "success",
+          "decoded_log_bytes": 104214,
+          "decoded_log_sha256": "695b6d6d4da0504d043f997de6168adbdc6eab1ab81f4245d14a6d6792ae491e"
+        },
+        {
+          "id": 132764126992,
+          "name": "workflow lint",
+          "conclusion": "success",
+          "decoded_log_bytes": 50807,
+          "decoded_log_sha256": "52b64ded6d1ad7dd571f05f2080883e341a6074a2fc045b727f8d147faa0b657"
+        },
+        {
+          "id": 132764127040,
+          "name": "OPNsense plugin checks",
+          "conclusion": "success",
+          "decoded_log_bytes": 25738,
+          "decoded_log_sha256": "0b4181fb6f95988f88593dda69aa1bd1c4ed43ffe58c5dc964897a5eb211dfb4"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14157050017,
+          "name": "deployed-keycloak-saml-browser",
+          "digest": "sha256:49df71af388a2178d99477f9f8924f4f9012a033fb8be5e7d2ffda50e1823448",
+          "bytes": 156300,
+          "full_archive_in_repository": false
+        },
+        {
+          "id": 14156735798,
+          "name": "deployed-two-dex-browser",
+          "digest": "sha256:8533386208eba757f3e7dd51081de577cada484b149307962d21b97d89809369",
+          "bytes": 156358,
+          "full_archive_in_repository": false
+        },
+        {
+          "id": 14156099108,
+          "name": "deployed-console-browser",
+          "digest": "sha256:ac359aa5fe6a1e10cbe6bcb3cd5739fc28a0e34c487eb63c27af0e80ca6b93e3",
+          "bytes": 423686,
+          "full_archive_in_repository": false
+        },
+        {
+          "id": 14155800686,
+          "name": "audit-browser-evidence",
+          "digest": "sha256:3504aa81a437f8a44b96a7851abb2f02b22ba5b23cfbf4266e39b878f632b416",
+          "bytes": 263629,
+          "full_archive_in_repository": false
+        },
+        {
+          "id": 14155433385,
+          "name": "traffic-browser-evidence",
+          "digest": "sha256:70c6840ba0b3bf5442c8e45d2e42df1eadb39e30e6d99f45a236b8888853b171",
+          "bytes": 354835,
+          "full_archive_in_repository": false
+        }
+      ]
+    },
+    {
+      "source": "source72",
+      "kind": "native",
+      "id": 43698475533,
+      "attempt": 1,
+      "source_head": "a29fbfe52a1a7774a538a33081277be2a253ab97",
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43698475533",
+      "conclusion": "failure",
+      "jobs": [
+        {
+          "id": 132764126636,
+          "name": "exact-source tested image gate",
+          "conclusion": "success",
+          "decoded_log_bytes": 16400,
+          "decoded_log_sha256": "5f77d991c45a819b745123182257d98612d3f2b87148d9025d3d391d1d8223f1"
+        },
+        {
+          "id": 132772165841,
+          "name": "installed OPNsense and six services",
+          "conclusion": "failure",
+          "decoded_log_bytes": 58924,
+          "decoded_log_sha256": "5db6254ba9b9332082f89d868a08b3719a1cfb6e5acab58310558d9d6d1dcfe4"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14157298029,
+          "name": "installed-native-rotation",
+          "digest": "sha256:eb2c1b2c9a9e9f54eb32555029476c5c1185027a3c6b1ae346e1b5b2ec2bb290",
+          "bytes": 71537,
+          "full_archive_in_repository": true,
+          "path": "source72/native/original.zip"
+        }
+      ]
+    },
+    {
+      "source": "source72",
+      "kind": "cold",
+      "id": 43698475660,
+      "attempt": 1,
+      "source_head": "a29fbfe52a1a7774a538a33081277be2a253ab97",
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43698475660",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132764127042,
+          "name": "accepted-images",
+          "conclusion": "success",
+          "decoded_log_bytes": 16393,
+          "decoded_log_sha256": "2b365f02ef617159bd610b9de08d9b86a711c3a1249b8262c50affa36338f067"
+        },
+        {
+          "id": 132772157175,
+          "name": "recovery",
+          "conclusion": "success",
+          "decoded_log_bytes": 65508,
+          "decoded_log_sha256": "d9f1e1582823021de17de1aff9c89499c4ed1d690d459cb75f4ff67346fba847"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14157260996,
+          "name": "protected-host-cold-recovery",
+          "digest": "sha256:acaf4e854a3cabf7b5ebce71034b11c161f9c1de663d96d50fbefcaec39377b4",
+          "bytes": 120884,
+          "full_archive_in_repository": true,
+          "path": "source72/cold/original.zip"
+        }
+      ]
+    },
+    {
+      "source": "source72",
+      "kind": "filesystem",
+      "id": 43698475578,
+      "attempt": 1,
+      "source_head": "a29fbfe52a1a7774a538a33081277be2a253ab97",
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43698475578",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132764126907,
+          "name": "FreeBSD source contracts",
+          "conclusion": "success",
+          "decoded_log_bytes": 63747,
+          "decoded_log_sha256": "21a8c207c152f6f247ff7e26d0474e530b539c12b0b79b6bd6cfbf94e5b35243"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14155651632,
+          "name": "native-source-contracts",
+          "digest": "sha256:644f227d1b82567241b4935737ab8a64311b7e600d1fae5b1f242a7e37aa77ef",
+          "bytes": 13234,
+          "full_archive_in_repository": true,
+          "path": "source72/filesystem/original.zip"
+        }
+      ]
+    },
+    {
+      "source": "source72",
+      "kind": "prep",
+      "id": 43698475767,
+      "attempt": 1,
+      "source_head": "a29fbfe52a1a7774a538a33081277be2a253ab97",
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43698475767",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132764127010,
+          "name": "fresh OPNsense package and page",
+          "conclusion": "success",
+          "decoded_log_bytes": 56315,
+          "decoded_log_sha256": "57617c30ee8d889e641be6656ef71075372f09435f46c95e99ea3f76838146f4"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14155910733,
+          "name": "native-installed-package",
+          "digest": "sha256:e755d9981829c96b988d2fe6fd922b8a28937bfa9469ed84b32947e765cb9284",
+          "bytes": 259503,
+          "full_archive_in_repository": true,
+          "path": "source72/prep/original.zip"
+        }
+      ]
+    },
+    {
+      "source": "source72",
+      "kind": "database",
+      "id": 43698475548,
+      "attempt": 1,
+      "source_head": "a29fbfe52a1a7774a538a33081277be2a253ab97",
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43698475548",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132764126559,
+          "name": "Actual PostgreSQL restore comparison",
+          "conclusion": "success",
+          "decoded_log_bytes": 20685,
+          "decoded_log_sha256": "2c995082f73cd1526494f8bed24cfff92dbaf86b164a8c927ba7b21702cb0782"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14156000013,
+          "name": "recovery-database-diagnosis",
+          "digest": "sha256:6e88b0d8f018c3cd2ef483094795fcfff3c5ec0fe70fe00f6791ab79d69896e1",
+          "bytes": 628,
+          "full_archive_in_repository": true,
+          "path": "source72/database/original.zip"
+        }
+      ]
+    },
+    {
+      "source": "source72",
+      "kind": "fresh",
+      "id": 43698475611,
+      "attempt": 1,
+      "source_head": "a29fbfe52a1a7774a538a33081277be2a253ab97",
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43698475611",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132764126653,
+          "name": "Distinct empty Linux target",
+          "conclusion": "success",
+          "decoded_log_bytes": 36973,
+          "decoded_log_sha256": "47ecd87b01b0ad40accba4103e2771975a34d0be2076e9541be693a08d454467"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 14155715678,
+          "name": "recovery-target",
+          "digest": "sha256:642df5d9d9d49a3a0d197f3a772f0967b3596004639a6d14ed99d23c7d4f73c4",
+          "bytes": 512,
+          "full_archive_in_repository": true,
+          "path": "source72/fresh/original.zip"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "source71/ci/audit-layout-evidence/audit-desktop.png",
+      "bytes": 151547,
+      "sha256": "538a486fa059eb639c5ae2f58bca62f01b1645f606f2a25a879abf759abf41aa"
+    },
+    {
+      "path": "source71/ci/audit-layout-evidence/audit-member-mobile.png",
+      "bytes": 42556,
+      "sha256": "dd853bf18bc78e0413393a5a343882ac908a2390e4e434b9933e7dc19ca896e5"
+    },
+    {
+      "path": "source71/ci/audit-layout-evidence/audit-mobile-events.png",
+      "bytes": 56179,
+      "sha256": "4e6bbffa189fbf8dbecf3b22f43cd3d60de5d3d35bd094e04825d45672386aa5"
+    },
+    {
+      "path": "source71/ci/audit-layout-evidence/audit-mobile.png",
+      "bytes": 54472,
+      "sha256": "f0fbb9568db8f252e46b3a8a2fda7d61ea7df262dc1938d0c9fc629e8ba8fd72"
+    },
+    {
+      "path": "source71/ci/audit-layout-evidence/audit-results.json",
+      "bytes": 680,
+      "sha256": "b57081d3dd1f5c50f9e6b3f3b974840d7e113cb33d0e3ab5e0c7b1b3d6995196"
+    },
+    {
+      "path": "source71/ci/combined-fault.json",
+      "bytes": 1391,
+      "sha256": "7cadcfe99aca5b08bbc5756dbd88fdb95ebf93555735434066a50a89a32c57f7"
+    },
+    {
+      "path": "source71/ci/console-evidence/deployed-traffic.png",
+      "bytes": 118430,
+      "sha256": "5bff657268372407483d6df099536cfbcc47ad758e68c916aac613b31965ae94"
+    },
+    {
+      "path": "source71/ci/console-evidence/traffic-deployment-results.json",
+      "bytes": 407,
+      "sha256": "e8b81ae6d4483f7f4addac782ce756467e8f45b2b8091870721247f93e4ac1f3"
+    },
+    {
+      "path": "source71/ci/dex-evidence/dex-one-login.png",
+      "bytes": 84536,
+      "sha256": "d9369a1695773886e9205a49409bd12ca55c159d26619509ebdfbca2105abc14"
+    },
+    {
+      "path": "source71/ci/dex-evidence/dex-two-login.png",
+      "bytes": 84018,
+      "sha256": "8c5ac407ffd2b8dfa6594018104ca1427ba5f30082647e70719d97d96aeff807"
+    },
+    {
+      "path": "source71/ci/dex-evidence/results.json",
+      "bytes": 3430,
+      "sha256": "3bb239697f26e5b938c14cecfb888d9971e84810ae01a1436c44a595349660e1"
+    },
+    {
+      "path": "source71/ci/saml-evidence/keycloak-alice-login.png",
+      "bytes": 84575,
+      "sha256": "eedd05c2621b530d90a6028613c4ddc531287eb38d91683fb70ab3d2d365f232"
+    },
+    {
+      "path": "source71/ci/saml-evidence/keycloak-bob-login.png",
+      "bytes": 84147,
+      "sha256": "5c8cc796cdcce9932e06c7b8ea613a7079d2a151b38009c82a8830eb04063095"
+    },
+    {
+      "path": "source71/ci/saml-evidence/results.json",
+      "bytes": 2464,
+      "sha256": "1fd4002237241dfc8696516a67906d0af075ea18a77caefa88c266fe43ecbbbb"
+    },
+    {
+      "path": "source71/ci/traffic-layout-evidence/traffic-dark.png",
+      "bytes": 138060,
+      "sha256": "32c97cbdbef4bfe96577bee4dabfbe659a6cbe2df7d2ad861e53f870e15c4f59"
+    },
+    {
+      "path": "source71/ci/traffic-layout-evidence/traffic-light.png",
+      "bytes": 137908,
+      "sha256": "9b97d6c50b794a99c5871c2f4ed704c235f9c9c30d4d4ea7a3db5b16c08d3a43"
+    },
+    {
+      "path": "source71/ci/traffic-layout-evidence/traffic-mobile-dialog.png",
+      "bytes": 54992,
+      "sha256": "585338d08ec43ee22bbfc144123c2960bc25189177d6dfd2679b1861deb0cb2f"
+    },
+    {
+      "path": "source71/ci/traffic-layout-evidence/traffic-mobile.png",
+      "bytes": 48409,
+      "sha256": "c318ede4c83dd158c169ea8437abe893eb6cb06a1bed56909a9cc3c7eb08017d"
+    },
+    {
+      "path": "source71/ci/traffic-layout-evidence/traffic-results.json",
+      "bytes": 1032,
+      "sha256": "35fe88f61de1cd6200434132bff8096a97442f067e15df2dc8fc637523c8faed"
+    },
+    {
+      "path": "source71/cold/original.zip",
+      "bytes": 120758,
+      "sha256": "c70cfa489b425a07b18de94bdfc03f67075be04d448776f5ed902894535f53d9"
+    },
+    {
+      "path": "source71/filesystem/original.zip",
+      "bytes": 13237,
+      "sha256": "7e0b5d89872091406c99dc8fd5f3e6e6c8d3548d0ae7d287ed111b6c21075af0"
+    },
+    {
+      "path": "source71/native/original.zip",
+      "bytes": 70596,
+      "sha256": "31363d5c58a5e23de2eac0c282a49a25122d58f74e4c80453c5b88c589562cb9"
+    },
+    {
+      "path": "source71/prep/original.zip",
+      "bytes": 259776,
+      "sha256": "7f495a684347fe6eaaf071b03ecaafedbdbad45644b95e76cea8ef90f33964ef"
+    },
+    {
+      "path": "source72/ci/audit-layout-evidence/audit-desktop.png",
+      "bytes": 151547,
+      "sha256": "538a486fa059eb639c5ae2f58bca62f01b1645f606f2a25a879abf759abf41aa"
+    },
+    {
+      "path": "source72/ci/audit-layout-evidence/audit-member-mobile.png",
+      "bytes": 42556,
+      "sha256": "dd853bf18bc78e0413393a5a343882ac908a2390e4e434b9933e7dc19ca896e5"
+    },
+    {
+      "path": "source72/ci/audit-layout-evidence/audit-mobile-events.png",
+      "bytes": 56179,
+      "sha256": "4e6bbffa189fbf8dbecf3b22f43cd3d60de5d3d35bd094e04825d45672386aa5"
+    },
+    {
+      "path": "source72/ci/audit-layout-evidence/audit-mobile.png",
+      "bytes": 54472,
+      "sha256": "f0fbb9568db8f252e46b3a8a2fda7d61ea7df262dc1938d0c9fc629e8ba8fd72"
+    },
+    {
+      "path": "source72/ci/audit-layout-evidence/audit-results.json",
+      "bytes": 680,
+      "sha256": "b57081d3dd1f5c50f9e6b3f3b974840d7e113cb33d0e3ab5e0c7b1b3d6995196"
+    },
+    {
+      "path": "source72/ci/combined-fault.json",
+      "bytes": 1391,
+      "sha256": "02045f2111809d9d4b9eeb30d57bc401425a0fb420a55eab4e2c796cbf0d6ca4"
+    },
+    {
+      "path": "source72/ci/console-evidence/deployed-traffic.png",
+      "bytes": 119681,
+      "sha256": "70534196964c31da86ab33253dbcdc4f100bd8ba91e318498d443b024e740cde"
+    },
+    {
+      "path": "source72/ci/console-evidence/traffic-deployment-results.json",
+      "bytes": 407,
+      "sha256": "c3280f58942d86de310b8cf8059f209833c26212f9276dbfd389480a4a5f5a3b"
+    },
+    {
+      "path": "source72/ci/dex-evidence/dex-one-login.png",
+      "bytes": 84650,
+      "sha256": "e969e2233cc7862374c856e81c4a59430362899e5eb94add4925b3cbe611af4a"
+    },
+    {
+      "path": "source72/ci/dex-evidence/dex-two-login.png",
+      "bytes": 84128,
+      "sha256": "9bf6fdf09e22ef57be7a3e6820b9df9d4e20a5cc516a7936876f4a88726c620f"
+    },
+    {
+      "path": "source72/ci/dex-evidence/results.json",
+      "bytes": 3430,
+      "sha256": "b5adc3d3635da0e9335db1fa5a28b3c0390afe39ecce04ea6150b9879f0b3068"
+    },
+    {
+      "path": "source72/ci/saml-evidence/keycloak-alice-login.png",
+      "bytes": 84685,
+      "sha256": "8bdc220924aced18aae235cbb51250b6f0454972e9b0a20b960ee748f8559956"
+    },
+    {
+      "path": "source72/ci/saml-evidence/keycloak-bob-login.png",
+      "bytes": 84257,
+      "sha256": "1349f23eb77b8140f6827d5a5249dac3ddcfad5804a729fbc771ac51bb3bf8a3"
+    },
+    {
+      "path": "source72/ci/saml-evidence/results.json",
+      "bytes": 2464,
+      "sha256": "e7d507f41bb31edf4aa27ec222d7bfde9c05e36116e13e45671f215a66fe5a18"
+    },
+    {
+      "path": "source72/ci/traffic-layout-evidence/traffic-dark.png",
+      "bytes": 139130,
+      "sha256": "92d1aade20c1bb52fb531a2e849aab1917a5014cfc0bfbc66f59e73f4b540ae8"
+    },
+    {
+      "path": "source72/ci/traffic-layout-evidence/traffic-light.png",
+      "bytes": 138974,
+      "sha256": "132142612a3dd1d85d0a77500178f6576141a73370d12536e39618bf3c91ca21"
+    },
+    {
+      "path": "source72/ci/traffic-layout-evidence/traffic-mobile-dialog.png",
+      "bytes": 54992,
+      "sha256": "585338d08ec43ee22bbfc144123c2960bc25189177d6dfd2679b1861deb0cb2f"
+    },
+    {
+      "path": "source72/ci/traffic-layout-evidence/traffic-mobile.png",
+      "bytes": 48409,
+      "sha256": "c318ede4c83dd158c169ea8437abe893eb6cb06a1bed56909a9cc3c7eb08017d"
+    },
+    {
+      "path": "source72/ci/traffic-layout-evidence/traffic-results.json",
+      "bytes": 1032,
+      "sha256": "ba68a28ec750f8e42d30823da2a51975f951d53fd15b5768cb8293f0b885357d"
+    },
+    {
+      "path": "source72/cold/original.zip",
+      "bytes": 120884,
+      "sha256": "acaf4e854a3cabf7b5ebce71034b11c161f9c1de663d96d50fbefcaec39377b4"
+    },
+    {
+      "path": "source72/database/original.zip",
+      "bytes": 628,
+      "sha256": "6e88b0d8f018c3cd2ef483094795fcfff3c5ec0fe70fe00f6791ab79d69896e1"
+    },
+    {
+      "path": "source72/filesystem/original.zip",
+      "bytes": 13234,
+      "sha256": "644f227d1b82567241b4935737ab8a64311b7e600d1fae5b1f242a7e37aa77ef"
+    },
+    {
+      "path": "source72/fresh/original.zip",
+      "bytes": 512,
+      "sha256": "642df5d9d9d49a3a0d197f3a772f0967b3596004639a6d14ed99d23c7d4f73c4"
+    },
+    {
+      "path": "source72/native/original.zip",
+      "bytes": 71537,
+      "sha256": "eb2c1b2c9a9e9f54eb32555029476c5c1185027a3c6b1ae346e1b5b2ec2bb290"
+    },
+    {
+      "path": "source72/prep/original.zip",
+      "bytes": 259503,
+      "sha256": "e755d9981829c96b988d2fe6fd922b8a28937bfa9469ed84b32947e765cb9284"
+    }
+  ],
+  "scope": "Completed original runs; scoped successes and native failures retained. This does not qualify a release.",
+  "log_identity": "Complete connector-decoded logs reencoded as UTF-8; not a compressed-log archive checksum."
+}

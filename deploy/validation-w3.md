@@ -6,7 +6,7 @@ Main CI run 39192294899 passed all six jobs on e27e908. The same source passed a
 fresh Linux guest deployment with real public HTTPS and browser verification.
 The closing documentation PR must retain the exact-head CI merge gate. Device
 protocol/enrollment and SSO remain W4/W6 work; full operational doctor coverage
-remains W7. Current secret manifests are v2 and PostgreSQL uses UID 70.
+remains W7. Secret manifests were v2 at this checkpoint (v3 since; see [images](images/README.md)); PostgreSQL uses UID 70.
 
 The dated sections below retain earlier observations, including the superseded
 UID 999 setup. The final clean-host section records the combined acceptance run.
@@ -58,7 +58,7 @@ database backups and final operational checks follow in W7.
 
 PR #36 replaces the initial Debian PostgreSQL/Caddy binaries with derived,
 checksum-pinned builds described in [image notes](images/README.md). Fresh
-setup now uses manifest v2 and PostgreSQL UID 70. Native PostgreSQL boundary
+setup used manifest v2 at that point (v3 since) and PostgreSQL UID 70. Native PostgreSQL boundary
 checks passed all thirteen groups in 3.87 seconds, including actual HTTP tests
 and read-only dump; repeated bootstrap passed. On the ephemeral Linux runner,
 CI run 39183393699 passed assembled-image HIGH/CRITICAL scans for runtime,

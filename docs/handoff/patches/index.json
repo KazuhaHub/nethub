@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "path": "authcore-pr37.patch",
+      "bytes": 11164,
+      "sha256": "207ca1b0769aa95e03738eb23baabbbff87c7c69d135a9c56be5304c375dd395"
+    },
+    {
+      "path": "dependency-refresh-pr241.patch",
+      "bytes": 21557,
+      "sha256": "1acd326dc42c7001d9c3393f9f6b915f4bf20d9f707e503773863e9d5a9a7dd3"
+    },
+    {
+      "path": "external-tcp-doctor.patch",
+      "bytes": 23771,
+      "sha256": "d5b313db66bf62b4fed55ca9c78ae9f1d4a6ee911159471efc8fc5c49e4f8a61"
+    },
+    {
+      "path": "packaging-pr52.patch",
+      "bytes": 65981,
+      "sha256": "dd54847fef46db4d00a9949daf34f20797eff04e2235e36b89b71a384bc9775c"
+    }
+  ]
+}

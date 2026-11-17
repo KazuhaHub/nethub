@@ -13,7 +13,256 @@
 这样你在任何地方都能打开在 NAT 或 CGNAT 后面的路由器的管理页面。
 项目负责人是 **Kazuha**。凡是要拍板的事都归他，你负责按计划执行，并拿出证据。
 
-### Current state (updated 2026-11-09 UTC)
+### Current state (updated 2026-11-15 UTC)
+
+The owner requested a stop after the current validation review and a repository-only
+Ubuntu handoff. [HANDOFF.md](../HANDOFF.md) and its linked evidence/remaining-work
+documents supersede the historical live-run wording below. Final a29 CI and cold
+recovery passed, but installed upgrade invariants failed after successful rollback
+and the second outage. No further product correction or runtime trial was started
+after that request. Do not rely on previous workstation files to continue.
+
+Source `d7c0c4e` passed complete six-job CI and four independent prerequisites;
+their complete logs, archive digests and required views were reviewed. Its
+genuine combined-fault scenario retained 99,000 revoked rows, 99,000 rotation
+floors and twelve original reference controls. During measured target packet
+loss, SQL revocation closed the original control/proxy in 1.436 seconds and
+refused fresh verified TLS in 1.446 seconds. No authenticated reconnect occurred
+for 30.050 seconds; every reference retained its route and at least 33 genuine
+Pongs. Service identities, valid source grants and original OUTPUT rules survived.
+This accepts the isolated combined scenario, not arbitrary public-network loss,
+a large online fleet, native package migration, mobile or complete W5 acceptance.
+Its protected-host cold recovery also passed: baseline routing recovered in
+128.216 seconds from source stop; original-request issuance, native acknowledgement
+and the served route took 172.033 seconds from that stop, or 186.100 seconds from
+checkpoint start. This remains isolated recovery, with public operator recovery,
+durable off-host custody, real renewal clocks and formal release still open.
+
+All seven original runs are terminal: six passed and one installed-native run
+failed. That failure occurred uploading the package probe after enrollment and
+WAN recovery: SSH reported a connect timeout despite its successful preceding
+read-only preflight. No migration baseline step, planned outage, old-package
+installation or new console Revoke was reached. Complete logs, the ten-entry
+official archive, actual enrollment view, exact source and cleanup were reviewed.
+The underlying timeout cause is unproven. The correction stages the immutable
+read-only probe before enrollment/WAN changes and routes its observations through
+the existing four-event SSH recovery budget. Transfers and package mutations are
+not replayed. This correction still needs genuine installed acceptance.
+
+Source `ecdb305` passed the database, distinct-target, unsigned preparation and
+actual FreeBSD prerequisites, with their logs, archive digests and native views
+reviewed. Its deployment CI failed before applying real packet loss or dispatching
+the combined target revocation: the two original references used warning-level
+logs, while the new scenario correctly required observable Pongs on all twelve
+references. The real failure was selected after its runtime phase marker;
+synthetic unit-test failure records were excluded. Both installed-native and
+cold-recovery consumers were skipped by their failed producer gate.
+
+The correction enables heartbeat logging when those original clients first
+start, preserving their processes and the twelve-client observation requirement.
+Synthetic unit failure summaries stay captured inside their tests. The revised
+package-outage observer still requires actual installed acceptance. The later
+combined result above does not turn this earlier failure into a pass; no new
+cutoff or package migration is claimed for `ecdb305`.
+
+Source `da5da34` passed six original prerequisites: complete CI, actual FreeBSD
+contracts, unsigned appliance preparation, distinct recovery target, PostgreSQL
+diagnosis and isolated protected-host cold recovery. Their full logs, exact
+official archive digests and actual views were reviewed. Cold baseline routing
+recovered in 90.183 seconds from source stop; the original request's issuance,
+native acknowledgement and served route took 147.654 seconds from that stop,
+or 158.801 seconds from checkpoint start. Public operator recovery, durable
+off-host custody, real renewal clocks and formal release remain separate.
+
+Its installed-native run failed at the immediate planned-outage check after
+successful enrollment, WAN recovery and relay widening. No old-package
+installation, subsequent rotation or new console Revoke measurement was reached.
+The failed ten-entry official archive, both full logs, actual enrollment view,
+exact source and owned cleanup were checked. The original test did not record
+which outage condition remained true; do not infer its cause or count the run
+as accepted. Earlier successful native/public samples retain their own scope.
+
+The revised package fixture observes all four outage conditions within the
+installed heartbeat timeout plus ten seconds before attempting installation.
+Its first/last closed observations distinguish relay state, native control and
+both routes. Pending combined-fault coverage also retains twelve actual reference
+clients and snapshot pressure while dropping one new target's control packets
+and revoking that target once. Neither revised fixture has actual hosted
+acceptance yet; the five-second revocation requirement remains unchanged.
+
+Source `1065999` passed actual FreeBSD execution: Python 3.12.16 and 3.13.18 both
+parsed XML using Expat 2.10.0, followed by 248 native cases over 255 bound source
+blobs. Its exact two-entry official archive and complete log were checked.
+CI, unsigned preparation, distinct target, PostgreSQL diagnosis and isolated cold
+recovery also passed with their logs, official archive digests and actual views
+reviewed. Cold baseline routing recovered in 125.432 seconds from source stop;
+the original request's issuance, native acknowledgement and served-leaf route
+completed in 258.967 seconds from that stop, or 276.371 seconds from checkpoint
+start. These are recovery intervals, not standalone CA-generation durations.
+The installed-native run also passed: normal console Revoke removed its proxy
+in 1.233 seconds from before confirmation, followed by 30.072 seconds without
+reconnect and fresh verified TLS refusal. WAN recovery took 4.123 and 4.741
+seconds with the same client process. Its complete logs, exact 41-entry official
+archive and fourteen image hashes covering eight unique views were reviewed.
+This remains isolated acceptance, not public-network or complete W5 acceptance.
+Earlier failures remain failed; the new FreeBSD result does not identify the
+old loaded library.
+
+Source `fd5638e` passed six-job CI and its actual fourteen-phase heartbeat
+configuration rollout/rollback. The two mixed-profile windows retained original
+controls for 45.081/45.167 seconds with genuine Pongs; planned relay restart
+recovery took at most 2.461 seconds. Identity, claims, credentials, TLS trust,
+source grants and the original authz process were preserved, and the exact relay
+configuration was restored. Complete logs, five official browser archives and
+thirteen image hashes/views were checked. Its FreeBSD, unsigned preparation,
+fresh-target and database prerequisites also passed. Its installed-native run
+passed with a 1.341-second cutoff from before confirmation, fresh TLS refusal,
+30.066 seconds without reconnect and WAN recovery of 3.653/4.584 seconds. Full
+logs, the exact 41-entry archive and fourteen image hashes over nine unique views
+were reviewed. Its isolated cold recovery passed at 91.920 seconds for baseline
+routing and 148.998 seconds for the original request's issuance, native
+acknowledgement and served route, both from source stop; the latter interval is
+159.551 seconds from checkpoint start. Both complete logs, the exact three-entry
+archive, actual views and owned cleanup were checked. All seven original runs
+are now terminal and accepted; native package/public/operator compatibility,
+durable off-host custody and real renewal clocks remain separate requirements.
+
+Source `c0cc0f7` passed all seven original hosted prerequisites with complete logs,
+official archive digests, closed inventories and actual views reviewed. Its
+installed normal console Revoke cut off the proxy in 0.919 seconds from before
+confirmation, followed by fresh verified TLS refusal and 30.065 seconds without
+reconnect. Native WAN change/recovery took 3.473/4.311 seconds with the same client.
+Cold baseline recovery took 106.761 seconds from source stop; the same original
+request's issuance, native acknowledgement and served route took 167.020 seconds
+from that stop, or 181.757 seconds from checkpoint start. These are isolated
+recovery intervals, not standalone certificate-generation times.
+
+Its new genuine-client cache fixture observed five preselected phases through
+the existing private Ping hook. Memory-admission transition brackets were at most
+12.148 milliseconds wide; SQL-dispatch-to-fresh-TLS refusal was at most 1.919
+seconds, followed by at least 30 seconds without reconnect. Exact internal
+publication timestamps, console clocks and public/native/fleet behavior remain
+outside that fixture's scope. The separate owned loopback short-loss sample
+dropped three packets over a 658-millisecond rule window, retained both original
+controls and verified routes, and restored the exact prior OUTPUT rules. These
+measurements do not complete mobile, larger combined faults, native package or
+offline migration, public operator, durable custody or real renewal acceptance.
+
+Source `dd84da2` passed all seven original hosted workflows: CI, 248 actual
+FreeBSD cases against 255 source blobs, unsigned package preparation, installed
+native rotation, distinct recovery target, PostgreSQL diagnosis and protected
+host cold recovery. Full logs, official archives and actual views were checked.
+The native Unbound fixture and default-CA HTTPS probes passed after resolver
+regeneration and WAN recovery. Normal native console Revoke cut off the target
+in 1.638 seconds, with fresh TLS refusal and 30.061 seconds without reconnect;
+the independent original reference control survived. This is hosted isolated
+acceptance, not public-network or complete W5 acceptance.
+
+A new genuine public enrollment passed a complete desktop sample on 2026-11-15 UTC:
+the original GUI TLS socket closed in 1.747 seconds, control/proxy disappeared
+in 1.776 seconds and fresh TLS was refused in 1.811 seconds, all measured from
+before normal console confirmation. No reconnect occurred during 30.171 seconds;
+sixty fresh public witness checks passed with its original process/control/socket.
+Normal public-root TLS, GUI login, eleven widgets, API activity and reload passed.
+This used native build `f08585d` and server images `d5c0d5f`, whose product inputs
+are unchanged in `dd84da2`, with the approved local 1 GiB deviation. Owned units
+stopped before original services were restored; container/image identities and
+unaffected processes were preserved. This is one desktop sample, not full W5.
+
+Documentation-only source `50557f2` retained these product inputs. Its FreeBSD
+workflow failed before project tests while installing test dependencies:
+Python 3.13.18 could not import `pyexpat`, reporting the missing dynamic symbol
+`XML_GetCurrentLineNumber64`. Full logs and the official source archive were
+retained; no native contract result exists for that run. The follow-up explicitly
+selects Expat and both interpreters, records linked libraries/package versions
+and requires actual XML imports/parsing before pip. The `1065999` execution above
+passed; the earlier guest's exact loaded library version remains unknown.
+
+An earlier separate public desktop trial on native build `f08585d` and server images
+`d5c0d5f` closed the original verified GUI TLS connection in 771 ms and removed
+the actual control/proxy in 816 ms, measured before normal confirmation. The
+subsequent fresh probe encountered a real SNI rejection that its classifier did
+not recognize. The overall trial remains failed: it recorded neither a fresh
+refusal duration nor a 30-second no-reconnect observation. Its stream/control
+results are accepted only as a partial sample. The classifier correction passed
+local positive and negative TLS controls before the new-cohort sample above.
+The earlier identity was normally removed and its original GUI selection/alias
+restored before the new enrollment. Never replay Revoke on a revoked identity.
+Original services were restored, and private evidence remains outside Git.
+
+Draft PR #241 isolates seven non-frp dependency updates. Four prerequisites
+passed; its original installed workflow failed at a later Rotate with an
+explicit `busy` response. A later empty lock snapshot does not identify the
+original holder. No dependency merge or frp 0.72.0 upgrade is accepted.
+
+The entries below retain earlier checkpoints and failures. A later successful
+run does not establish the cause of an earlier failure.
+
+Source `39501a0` passed six prerequisites, including isolated cold recovery, but
+its installed run failed at the first Rotate page with `request/protocol_dns`,
+before any pending journal or Revoke measurement. Enrollment and WAN recovery
+passed. The follow-up replaces the disposable fixture's generated hosts-file
+patch with a native Unbound override, plus default-CA HTTPS checks after native
+resolver regeneration and WAN recovery. Controlled native hosts regeneration
+removed the old mapping; exact resolver bytes were restored. Actual native-model
+validation passed in memory without saving configuration. These controls do not
+prove the original failed run's file contents or the earlier journal failure's
+cause. The fixture subsequently passed the `dd84da2` hosted run described above.
+
+Seven non-frp dependency updates are isolated in draft PR #241 on main, with
+local Go/frontend/browser checks passed. Its five original workflows are terminal;
+the installed failure above remains open. Approved frp 0.71.1 remains unchanged.
+
+Source `c0a0ee5` passed six-job CI, 248 actual FreeBSD cases/254 source blobs,
+package preparation, distinct empty target, PostgreSQL diagnosis and isolated
+cold recovery. Full logs, official archives and actual views were checked.
+Its installed run failed later, at private prepared-journal readback after normal
+Rotate and the expected lost-response page. The result does not identify the
+original Python error or establish native Revoke acceptance. The follow-up keeps
+only fixed readback stage/kind and allowlisted source locations, without retrying
+the read or any mutation. See [current timing scope](w5-revocation-deadline.md).
+
+A new independent reference fixture passed normal enrollment, genuine production
+certificate/application acknowledgement, console Open and three fresh public TLS
+nonce checks with the same control/process/socket. Independent cleanup passed;
+it remains inactive for the next guarded test. This is a baseline, not a new
+revocation timing result. Eight open dependency updates were observed, including
+a proposed frp 0.72.0 update that remains subject to D4; approved 0.71.1 is retained.
+
+Source `f08585d` passed six-job CI, 248 actual FreeBSD cases/254 source blobs and
+unsigned package preparation. Its later cold recovery failed at `native_baseline`
+before checkpoint/restore; the fixed exported category does not yet distinguish
+the native SSH transport from fixture refusal. Full logs, official archive and
+owned cleanup were checked. A follow-up adds only a closed SSH failure category;
+the original failure remains failed. See [cold recovery limits](../deploy/validation-protected-host-cold-recovery.md#retained-failures-and-limits).
+
+Its installed run also failed, after normal enrollment and the first Rotate page
+passed: staging a private fixture input timed out connecting to SSH. Both actual
+views, full logs/archive and cleanup were checked; WAN change/restoration passed
+in 2.614/4.497 seconds. The follow-up adds the existing bounded read-only root
+preflight before staging, without retrying uploads or native actions. Neither
+failed run completes current-source installed or recovery acceptance.
+
+The same unsigned native source, against retained `d5c0d5f` server images, passed
+actual local router reboot recovery and a separate normal-public-TLS GUI check.
+One native GUI backup/restore also recovered through normal cron in 51.281 seconds.
+Its original observer failed on serialized certificate XML; semantic certificate/
+key checks, stock empty-console-field cleanup and a separate same-leaf public GUI
+check passed. The new enrollment remains installed and normally stopped. Keep
+the 1 GiB/26.7.7 scope and all failed observations; these do not complete the
+current hosted native or full W5/W7 gates. See [recovery evidence](../deploy/validation-native-w5-recovery.md#current-0019-local-recovery-sample).
+
+A scoped public desktop Revoke on the retained source `d5c0d5f` unsigned
+OPNsense package observed actual control/proxy cutoff at 788 ms and fresh TLS
+refusal at 856 ms from before the normal confirmation click. No reconnect was
+observed for 30.113 seconds; the independent genuine reference control, process,
+TCP socket and public nonce route survived. Normal public TLS and the real native
+GUI passed; the local 1 GiB exception and all earlier failed samples remain.
+Original services were independently restored. This is one public timing sample,
+not full W5/W7 acceptance. Source `71742b6` passed CI, filesystem, preparation and
+cold recovery but failed fresh native Rotate with `trust_sync`, before a pending
+journal; its WAN change/restoration passed. The failed native run is not accepted.
+See [current timing scope](w5-revocation-deadline.md).
 
 NetHub has implemented OPNsense enrollment, source-IP-gated GUI access,
 certificate automation, local circuit breaking, revocation, account/invitation

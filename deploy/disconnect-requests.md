@@ -17,10 +17,10 @@ the first request ID, requester and timestamps, with one request audit. The cons
 reads a narrow owner/tenant-scoped status projection, without raw queue access.
 Web can neither mark a request processed nor change its identity.
 
-Authz checks pending requests after its five-second revocation refresh. It marks
+Authz checks pending requests in an independent one-second worker. It marks
 a request armed only when the corresponding tenant/device is already denied in
 the published memory snapshot. Pending devices and requests use skip-locked reads;
-each pass processes at most 128 requests with the existing two-second budget.
+each pass processes at most 128 requests with a one-second budget.
 An unresponsive processor has the same cancellation grace and process-exit path
 as an unresponsive refresh. Database or audit errors leave the request pending
 and preserve the memory denial. Processing status and its audit commit together;

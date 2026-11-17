@@ -76,6 +76,52 @@ The same exact source also passed:
 
 ## Retained failures and limits
 
+Source `dd84da2` passed
+[cold run 43602317091](https://github.com/KazuhaHub/nethub/actions/runs/43602317091)
+with all seven original prerequisites accepted. Baseline routing recovered in
+127.542 seconds from source stop. The original request's issuance, native
+acknowledgement and issued-leaf route completed in 182.571 seconds from the same
+stop, or 196.475 seconds from checkpoint start. These are recovery intervals,
+not standalone certificate-generation durations. Original identity/account/key/
+CSR/Open survived; normal native Remove, route closure and owned cleanup passed.
+Both full logs, exact official three-entry archive and both actual native views
+were checked. This isolated drill retains the public-operator, independently
+durable encrypted custody, real renewal-clock and formal-release limitations.
+
+The later source `c0a0ee5`
+[cold run 43554477104](https://github.com/KazuhaHub/nethub/actions/runs/43554477104)
+passed with six-job CI `43554477035`. The baseline route recovered in 90.225
+seconds from source stop. The original request's certificate issuance, native
+acknowledgement and issued-leaf route were verified in 119.063 seconds from that
+same stop, or 130.551 seconds from checkpoint start. Original identity/account/key/CSR/Open
+survived source removal and distinct-target restoration. Normal native Remove,
+revocation, route closure and owned cleanup passed. Both full logs, exact official
+three-entry archive bytes and both actual native views were checked. This retains
+the public operator, durable custody, renewal-clock and release limitations.
+
+Source `f08585d` failed a later independent
+[cold run 43549725074](https://github.com/KazuhaHub/nethub/actions/runs/43549725074)
+at `native_baseline`, before checkpoint or target restoration. Its closed trace
+ends in the native fixture's `install-bound-key` SSH call. The exported category
+was only `other`; it does not distinguish transport failure from fixture refusal.
+Both full job logs, the exact official result archive and source-bound closed
+failure/cleanup validation were retained. The operation cgroup, owned guests,
+private material and witness were removed. This failed run does not supersede
+earlier successful evidence or establish a new recovery result.
+
+The follow-up retains the SSH probe's existing fixed failure category as a typed
+optional field in the closed cold-failure result. It validates the category again
+before export, including the bounded fixture phase/context vocabulary. Labels,
+arguments, child text, addresses and credentials are excluded. This diagnostic
+does not establish the original failed run's cause.
+
+Separately, private input staging now checks the fixed read-only root boundary
+before its first upload. It shares the existing four-event inspection-recovery
+budget and preserves pinned host-key/authentication refusals. Only the owned
+guest's existing private listener may be recovered before staging. A failed or
+timed-out upload is not retried; native actions, deadlines and timed measurements
+are unchanged.
+
 Earlier cold attempts remain failed records. The prior source reached initial
 validation but retained a terminal policy failure. Its private CA response was
 not exported. The pinned Pebble validator constructs an explicit HTTP port 80;

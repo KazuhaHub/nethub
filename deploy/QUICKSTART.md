@@ -10,7 +10,7 @@ internal test CA, not a public certificate.
 Use a Linux Docker host with Docker Engine 28 or newer and Compose supporting `!override`
 ([Compose 2.24.4 or later](https://docs.docker.com/reference/compose-file/merge/#replace-value)). Keep the source checkout available for image builds.
 Build the console with Node 24.14.0, then the CLI with Go 1.26.11, or use the pinned
-three-stage deploy/Dockerfile. Runtime is static distroless nonroot (UID 65532).
+default runtime target of deploy/Dockerfile. Runtime is static distroless nonroot (UID 65532).
 Run host initialization/file checks as root because local Compose bind mounts
 preserve host ownership. The PostgreSQL 16 Alpine image uses UID 70; runtime secrets remain UID 65532.
 Docker's [file-based service secret model](https://docs.docker.com/compose/how-tos/use-secrets/)
@@ -103,7 +103,6 @@ Keep the source checkout and protected state/backup parents available.
    docker compose build migrate postgres caddy frps backup
    docker compose up -d
    docker compose run --rm admin-bootstrap --email YOUR_EMAIL
-   nethub doctor --directory . --expected-address YOUR_PUBLIC_RELAY_ADDRESS
    ```
 
    Enter the administrator password in the hidden prompt. Migrate must exit zero
@@ -111,6 +110,29 @@ Keep the source checkout and protected state/backup parents available.
    Admin-bootstrap is a separate
    opt-in one-shot service with owner credentials, and cannot reset an existing
    account. Web never gets owner, claim-signing, or relay credentials.
+
+   Check the initialized files and DNS as root with the host CLI:
+
+   ```sh
+   sudo nethub doctor --directory "$PWD" --expected-address YOUR_PUBLIC_RELAY_ADDRESS
+   ```
+
+   If you used the Docker-only initializer, the CLI is in the image rather than
+   on the host. For the example paths in step 3, use the same built image with
+   the deployment and backup parents mounted read-only at their original paths:
+
+   ```sh
+   sudo docker run --rm --user 0 \
+     -v /opt/nethub-state:/opt/nethub-state:ro \
+     -v /protected-backups:/protected-backups:ro \
+     nethub-local:dev doctor --directory /opt/nethub-state/deployment \
+     --expected-address YOUR_PUBLIC_RELAY_ADDRESS
+   ```
+
+   Substitute the actual absolute parents if you chose different paths. This
+   base file/DNS check needs no Docker socket mount and does not run the separate
+   runtime-container or relay-hook modes. Its success is not complete readiness.
+
 5. Check the public certificate and sign in through the configured HTTPS origin.
    Verify empty inventory, token generation, logout, session expiry, and browser CSP.
    `/healthz` is private to the Docker network; Caddy returns 404 publicly.

@@ -22,6 +22,60 @@ def test_only_closed_phase_and_hints_survive_private_output():
     assert secret not in str(result)
 
 
+def test_every_relay_log_hint_survives_without_unknown_values():
+    path = SOURCE.parents[3] / 'server/tests/relay_log.py'
+    spec = importlib.util.spec_from_file_location('relay_log_projection_source', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    expected = {'relay_hook_log_' + kind for kind in module.HINT_KINDS}
+    raw = b'\n'.join(('NETHUB_NATIVE_HINT=' + value).encode() for value in sorted(expected))
+    raw += b'\nNETHUB_NATIVE_HINT=relay_hook_log_private-value\n'
+    result = SETUP.project(raw, 1)
+    assert set(result['hints']) == expected
+    assert 'private-value' not in str(result)
+    assert SETUP.project(SETUP.emit(result).encode(), 1)['hints'] == result['hints']
+
+
+def test_fleet_control_failure_hints_are_exact_and_private_values_are_ignored():
+    expected = ['relay_fleet_dedicated_control_changed', 'relay_fleet_original_control_changed',
+                'relay_fleet_stage_pressure']
+    raw = b'\n'.join(('NETHUB_NATIVE_HINT=' + value).encode() for value in expected)
+    raw += b'\nNETHUB_NATIVE_HINT=relay_fleet_stage_pressure_private-secret\n'
+    value = SETUP.project(raw, 1)
+    assert value['hints'] == expected
+    assert SETUP.project(SETUP.emit(value).encode(), 1)['hints'] == expected
+    assert 'private-secret' not in str(value)
+
+
+def test_combined_reference_failure_retains_only_source_and_existing_hints():
+    value = SETUP.project(b'NETHUB_NATIVE_PHASE=relay_fleet\n'
+        b'  File "/private-secret/relay_combined_fault.py", line 193, in retained\n'
+        b'NETHUB_NATIVE_HINT=relay_fleet_original_control_changed\n'
+        b'NETHUB_NATIVE_HINT=relay_fleet_changed_client_heartbeat_timeout\n'
+        b'private-secret endpoint and log\n', 1)
+    assert value['phase'] == 'relay_fleet'
+    assert value['locations'] == [{'source': 'relay_combined_fault', 'line': 193}]
+    assert value['hints'] == ['relay_fleet_changed_client_heartbeat_timeout', 'relay_fleet_original_control_changed']
+    # Nested emission carries locations/hints; the enclosing runner owns phase.
+    assert SETUP.project(SETUP.emit(value).encode(), 1) == dict(value, phase='unclassified')
+    assert 'private-secret' not in str(value)
+
+
+def test_recent_service_and_exact_pong_categories_remain_closed_in_nested_output():
+    names = ['relay_recent_Ping_unavailable', 'relay_recent_Ping_device_denied', 'relay_recent_hook_busy',
+        'relay_recent_snapshot_refresh_failed', 'relay_failure_context_unavailable',
+        *('relay_fleet_changed_client_Pong_' + value for value in ('unavailable', 'not_authorized', 'generic', 'plugin_transport')),
+        *('relay_frps_Ping_plugin_' + value for value in ('status_403', 'status_404', 'status_405', 'status_other', 'truncated',
+            'EOF', 'reset', 'refused', 'timeout', 'closed_idle', 'decode', 'unclassified')),
+        'relay_frps_context_unavailable']
+    raw = '\n'.join('NETHUB_NATIVE_HINT=' + name for name in names)
+    raw += '\nNETHUB_NATIVE_HINT=relay_recent_private-secret\n'
+    projected = SETUP.project(raw.encode(), 1)
+    assert projected['hints'] == sorted(names)
+    assert SETUP.project(SETUP.emit(projected).encode(), 1)['hints'] == sorted(names)
+    assert 'private-secret' not in str(projected)
+
+
 @pytest.mark.parametrize('raw,code', [(b'x' * (4 * 1024**2 + 1), 1), ('private', 1), (b'', True)],
                          ids=['oversized', 'text', 'boolean-exit'])
 def test_unbounded_or_wrong_typed_input_refused(raw, code):
@@ -84,3 +138,26 @@ def test_hardlinked_log_refused(tmp_path):
     os.link(path, tmp_path / 'linked.log')
     with pytest.raises(ValueError):
         SETUP.inspect(path, 1)
+
+
+def test_relay_failure_phase_location_and_deadline_hint_survive_without_child_text():
+    raw = (b'NETHUB_NATIVE_PHASE=relay\n'
+           b'NETHUB_NATIVE_PHASE=relay_heartbeat\n'
+           b'  File "/private-endpoint/relay_heartbeat.py", line 49, in wait_online\n'
+           b'  File "/private-endpoint/unknown.py", line 1, in private_function\n'
+           b'RuntimeError: official control-session state was observed after its deadline\n')
+    value = SETUP.project(raw, 1)
+    assert value == {'version': 2, 'phase': 'relay_heartbeat', 'exit_code': 1,
+                     'locations': [{'source': 'relay_heartbeat', 'line': 49}],
+                     'failed_tests': [], 'hints': ['relay_cutoff_late']}
+    assert 'private-endpoint' not in str(value)
+    assert 'RuntimeError' not in str(value)
+    replay = SETUP.project(SETUP.emit(value).encode(), 1)
+    assert replay['locations'] == value['locations'] and replay['hints'] == value['hints']
+
+
+@pytest.mark.parametrize('phase', ['relay_fleet', 'relay_heartbeat', 'relay_token_probe',
+                                  'relay_rotation', 'relay_token_runtime', 'relay_migration', 'relay_network_blip', 'relay_cache_phase'])
+def test_relay_components_have_distinct_fixed_failure_phases(phase):
+    value = SETUP.project(('NETHUB_NATIVE_PHASE=' + phase + '\n').encode(), 1)
+    assert value['phase'] == phase

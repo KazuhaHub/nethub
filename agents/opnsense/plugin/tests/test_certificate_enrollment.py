@@ -202,3 +202,26 @@ def test_reenrollment_refuses_residual_native_trust_metadata_before_key_or_token
         result = case.agent.enroll(path)
     assert result['success'] is False and 'cleanup is incomplete' in result['message']
     network.assert_not_called(); key.assert_not_called()
+
+
+@pytest.mark.parametrize('retained', ['events', 'corrupt', 'linked'])
+def test_retained_audit_history_refuses_fresh_identity_before_network(case, retained):
+    from reconcile_audit import Outbox
+    directory = case.agent.state
+    directory.chmod(0o700)
+    path = directory / 'reconcile-audit.json'
+    if retained == 'events':
+        Outbox(directory, '11111111-1111-4111-8111-111111111111').record_failure()
+    elif retained == 'corrupt':
+        path.write_text('private retained diagnostic')
+    else:
+        path.symlink_to(directory / 'absent-private-state')
+    before = path.read_bytes() if not path.is_symlink() else path.readlink()
+    original = (case.root / 'conf/config.xml').read_bytes()
+    with mock.patch('enrollment.request_enrollment') as network, mock.patch('certificate_key.KeyStore.ensure') as key:
+        result = case.agent.enroll(request_file(case))
+    assert result['success'] is False and 'cleanup is incomplete' in result['message']
+    network.assert_not_called()
+    key.assert_not_called()
+    assert (path.read_bytes() if not path.is_symlink() else path.readlink()) == before
+    assert (case.root / 'conf/config.xml').read_bytes() == original

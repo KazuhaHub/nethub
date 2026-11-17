@@ -1,0 +1,187 @@
+diff --git a/README.md b/README.md
+index eb45c4e..8ba8cc8 100644
+--- a/README.md
++++ b/README.md
+@@ -442,3 +442,3 @@
+   currently covers (at the versions go.mod pins):
+-  - `github.com/crewjam/saml` **v0.5.1** — SAML orchestration (`saml`)
++  - `github.com/crewjam/saml` **v0.6.3** — SAML orchestration (`saml`)
+   - `github.com/russellhaering/goxmldsig` **v1.6.1** — XML digital signature
+diff --git a/go.mod b/go.mod
+index 5a85589..b0cd00f 100644
+--- a/go.mod
++++ b/go.mod
+@@ -5,5 +5,5 @@
+ require (
+-	github.com/beevik/etree v1.7.0
++	github.com/beevik/etree v1.8.1
+ 	github.com/coreos/go-oidc/v3 v3.21.0
+-	github.com/crewjam/saml v0.5.1
++	github.com/crewjam/saml v0.6.3
+ 	github.com/descope/virtualwebauthn v1.0.5
+@@ -37,5 +37 @@
+ )
+-
+-// Interim dependency fix proposed in crewjam/saml#674. Consumers must repeat
+-// this pinned replacement in their main module; see saml/SECURITY-NOTES.md.
+-replace github.com/crewjam/saml => github.com/openctemio/saml v0.5.2-0.20261106014128-2b3cdad337cd
+diff --git a/go.sum b/go.sum
+index 83960f0..a2641c8 100644
+--- a/go.sum
++++ b/go.sum
+@@ -1,5 +1,7 @@
+-github.com/beevik/etree v1.7.0 h1:xjBk9O4p4x7D1YajePjfLzdaFC4/uYUENA7P0pv6gXA=
+-github.com/beevik/etree v1.7.0/go.mod h1:bh4zJxiIr62SOf9pRzN7UUYaEDa9HEKafK25+sLc0Gc=
++github.com/beevik/etree v1.8.1 h1:MchsAnqPGCGsfQezhwcouHPlAHlcAOqWpyCVZoyWfjU=
++github.com/beevik/etree v1.8.1/go.mod h1:bh4zJxiIr62SOf9pRzN7UUYaEDa9HEKafK25+sLc0Gc=
+ github.com/coreos/go-oidc/v3 v3.21.0 h1:wZo4Q9Pum8dYEj0eMUPrqR+kvuGkeUplbLpNCkBqoWM=
+ github.com/coreos/go-oidc/v3 v3.21.0/go.mod h1:DYCf24+ncYi+XkIH97GY1+dqoRlbaSI26KVTCI9SrY4=
++github.com/crewjam/saml v0.6.3 h1:Hs1bP4ttHUsmFuBmCUJr/lwmLbnwey17PQyeouolad0=
++github.com/crewjam/saml v0.6.3/go.mod h1:7H5d46arM5wE5h/KXGIXFFEKq1Rv1H8jiwxzRUfQ3Ys=
+ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+@@ -38,4 +40,2 @@
+ github.com/mojocn/base64Captcha v1.3.8/go.mod h1:QFZy927L8HVP3+VV5z2b1EAEiv1KxVJKZbAucVgLUy4=
+-github.com/openctemio/saml v0.5.2-0.20261106014128-2b3cdad337cd h1:183XZldQpSyK3u/csI1WR6IanJNUWRRhZMRw895LLg4=
+-github.com/openctemio/saml v0.5.2-0.20261106014128-2b3cdad337cd/go.mod h1:o4V+qph7JlNAZuwyA8VZ8LjpYCmb5awsYh42SJ/qfi8=
+ github.com/oschwald/maxminddb-golang v1.13.1 h1:G3wwjdN9JmIK2o/ermkHM+98oX5fS+k5MbwsmL4MRQE=
+@@ -46,4 +46,2 @@
+ github.com/philhofer/fwd v1.2.0/go.mod h1:RqIHx9QI14HlwKwm98g9Re5prTQ6LdeRQn+gXJFxsJM=
+-github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
+-github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+@@ -135,3 +133,3 @@
+ gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
+-gotest.tools v2.2.0+incompatible h1:VsBPFP1AI068pPrMxtb/S8Zkgf9xEmTLJjfM+P5UIEo=
+-gotest.tools v2.2.0+incompatible/go.mod h1:DsYFclhRJ6vuDpmuTbkuFWG+y2sxOXAzmJt81HFBacw=
++gotest.tools/v3 v3.5.2 h1:7koQfIKdy+I8UTetycgUqXWSDwpgv193Ka+qRsmBY8Q=
++gotest.tools/v3 v3.5.2/go.mod h1:LtdLGcnqToBH83WByAAi/wiwSFCArdFIUV/xxN4pcjA=
+diff --git a/saml/SECURITY-NOTES.md b/saml/SECURITY-NOTES.md
+index b15649a..f3d2523 100644
+--- a/saml/SECURITY-NOTES.md
++++ b/saml/SECURITY-NOTES.md
+@@ -8,16 +8,15 @@
+ This hardening addresses the plaintext structural cases described in
+-[GO-2026-6909](https://pkg.go.dev/vuln/GO-2026-6909). The advisory currently records
+-no fixed dependency version. The pinned v0.5.1 source represents `Assertion.Issuer`
+-as a value, whereas the advisory describes a nil-pointer dereference; that panic
+-has not been reproduced here. Do not describe the preflight as a verified fix for
+-the dependency or suppress vulnerability scanning on that basis.
++[GO-2026-6909](https://pkg.go.dev/vuln/GO-2026-6909). Encrypted assertions remain
++opaque to this preflight, so dependency-level validation is also required.
+ 
+-Encrypted assertions are opaque to this preflight. The local module therefore
+-pins the dependency-level proposal in [crewjam/saml#674](https://github.com/crewjam/saml/pull/674):
+-`github.com/openctemio/saml v0.5.2-0.20261106014128-2b3cdad337cd`, exact Git commit
+-`2b3cdad337cdd14eeeeec91cd4c7405d6ec590ba`. This is an unmerged third-party fork,
+-not an official crewjam release. Its reviewed changes bind assertion elements to
+-their namespaces and check missing optional pointers before use. The proposal is
+-based on upstream `346540312f721498fc75e69637d9250dd89f230b`; the upstream JWT-v5
+-transition is also present relative to v0.5.1. Dependencies retain their licenses.
++The module now selects official `github.com/crewjam/saml v0.6.3`, tag commit
++`c5725cd857625e4c1f6dbbe5e0b3822def94b581`, without a replacement. The namespace
++and nil-pointer repair was merged through
++[crewjam/saml#679](https://github.com/crewjam/saml/pull/679), which superseded
++the closed, unmerged [#674](https://github.com/crewjam/saml/pull/674). The
++dependency binds assertion fields to their namespaces, checks missing pointers,
++and requires bearer confirmation and audience restrictions. The original Issuer
++nil-pointer claim was not reproduced against v0.5.1, whose field is a value;
++the independently reproduced NameID admission and missing-Subject panic remain
++the concrete original controls. Dependencies retain their licenses.
+ 
+@@ -27,25 +26,28 @@
+ cannot become an identity and missing Subject, Conditions or confirmation data
+-is rejected without a panic. Encryption fixtures use the dependency's existing
+-legacy RSA1_5/AES128-CBC support, not a new production policy. Its OAEP fixture
+-emits a nonstandard digest URI rejected by the existing signature allowlist;
+-that separate compatibility issue has not been repaired or allowed here.
++is rejected without a panic. Current positive fixtures use RSA-OAEP SHA-256 and
++AES-256-GCM. A separate signed encrypted fixture requires legacy RSA1_5 key
++transport to be refused by default; no legacy decrypter is registered. Enabling
++encrypted assertions does not enable that algorithm. The dependency now emits
++the standard OAEP digest URI, so the earlier fixture's digest-URI incompatibility
++does not require an allowlist exception.
+ 
+-Go does not propagate a dependency module's `replace` directives. Every consumer,
+-including NetHub, must repeat the exact pin in its main module and verify its own
+-graph, checksums, scans and runtime before acceptance. This pin has not yet passed
+-hosted CI or downstream deployment acceptance. Do not infer a complete repair
+-from a clean vulnerability scan: the database may not map the original advisory
+-to this fork. The independent signed/encrypted regressions and source audit remain
+-required. No advisory ignore or scanner exception is added. Remove the replacement
+-when an official release containing the reviewed fixes can pass the same checks.
++The new Redirect implementation escapes RelayState itself. Authcore passes the
++original value once, preserving both unsigned and independently verified
++RSA/ECDSA signed requests, endpoint query fields and reserved-parameter refusal.
+ 
+-Local validation passed the authcore SAML package, including both signed and
+-encrypted regressions. Running those encrypted negative cases against v0.5.1
+-with the same authcore source reproduced foreign NameID admission and a missing
+-Subject panic. The Linux-target source scan found no called vulnerabilities with
+-the pin; this remains separate from source-level evidence. The upstream package
+-suite under this graph rejected its XSW-7 and XSW-8 fixtures, but two tests failed
+-because their exact expected error text differs with the selected XML signature
+-library. They are not recorded as passing tests. A full local authcore test also
+-failed Windows GeoIP mapped-file replacement/cleanup cases. Linux CI and downstream
+-deployment validation are still required; no test or scanner failure is ignored.
++Consumers must remove their own interim fork replacement when adopting this
++version: Go does not propagate dependency replacements. They must verify the
++resolved official module, checksums, scans and actual runtime. Local SAML tests
++pass, including the genuine signed/encrypted controls and unsigned RelayState
++regression. Current-source hosted CI and downstream deployment remain acceptance
++gates. No advisory ignore or scanner exception is added.
++
++The interim fork and its evidence remain historical. Running its encrypted
++negative controls against v0.5.1 reproduced foreign NameID admission and a missing
++Subject panic. The interim Linux-target source scan found no called vulnerabilities;
++that result does not cover this dependency update. The old upstream package
++suite rejected its XSW-7 and XSW-8 fixtures, but two tests failed because their
++exact expected error text differed with the selected XML signature library.
++They are not recorded as passing tests. A full local authcore test also failed
++Windows GeoIP mapped-file replacement/cleanup cases. Linux CI and downstream
++deployment validation remain required; no test or scanner failure is ignored.
+diff --git a/saml/authn_request.go b/saml/authn_request.go
+index 1c59d12..3b32e3d 100644
+--- a/saml/authn_request.go
++++ b/saml/authn_request.go
+@@ -81,3 +81,3 @@
+ 	unsigned.SignatureMethod = ""
+-	redirect, err := request.Redirect(url.QueryEscape(relay), &unsigned)
++	redirect, err := request.Redirect(relay, &unsigned)
+ 	if err != nil || sp.SignatureMethod == "" {
+diff --git a/saml/encrypted_identity_test.go b/saml/encrypted_identity_test.go
+index 1adf4c8..564eb7e 100644
+--- a/saml/encrypted_identity_test.go
++++ b/saml/encrypted_identity_test.go
+@@ -15,3 +15,3 @@
+ func TestEncryptedAssertionIdentityAdmission(t *testing.T) {
+-	for _, change := range []string{"valid", "foreign-nameid", "missing-subject", "missing-conditions", "missing-confirmation-data"} {
++	for _, change := range []string{"valid", "foreign-nameid", "missing-subject", "missing-conditions", "missing-confirmation-data", "legacy-key-transport"} {
+ 		t.Run(change, func(t *testing.T) {
+@@ -55,7 +55,8 @@
+ 			}
+-			// Use an existing supported legacy transport for this identity
+-			// regression. The fixture does not select production encryption
+-			// policy; its outer signature remains RSA-SHA256.
+-			encrypter := xmlenc.PKCS1v15()
+-			encrypter.BlockCipher = xmlenc.AES128CBC
++			encrypter := xmlenc.OAEP_SHA256()
++			encrypter.BlockCipher = xmlenc.AES256GCM
++			if change == "legacy-key-transport" {
++				encrypter = xmlenc.PKCS1v15()
++				encrypter.BlockCipher = xmlenc.AES128CBC
++			}
+ 			encrypted, err := encrypter.Encrypt(sp.cert, plainBytes, nil)
+@@ -104,3 +105,3 @@
+ 			} else if err == nil {
+-				t.Fatal("encrypted missing required element was admitted")
++				t.Fatal("encrypted invalid structure or legacy key transport was admitted")
+ 			}
+diff --git a/saml/provider.go b/saml/provider.go
+index b359aee..0cc3fbc 100644
+--- a/saml/provider.go
++++ b/saml/provider.go
+@@ -190,2 +190,4 @@
+ 	// transport for the Web SSO profile.
++	// The dependency's default algorithm policy applies; this option does not
++	// enable legacy RSA1_5 key transport.
+ 	AllowEncryptedAssertions bool

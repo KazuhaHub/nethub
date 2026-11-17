@@ -1,0 +1,126 @@
+{
+  "conclusion": "failure",
+  "headSha": "870eb575cec13f4869e7848aac2cdc9b7c93307a",
+  "jobs": [
+    {
+      "completedAt": "2026-11-15T14:44:01Z",
+      "conclusion": "success",
+      "databaseId": 132839713543,
+      "name": "exact-source tested image gate",
+      "startedAt": "2026-11-15T14:15:53Z",
+      "status": "completed",
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Checkout exact PR source",
+          "number": 2,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Wait for complete image producer evidence",
+          "number": 3,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Checkout exact PR source",
+          "number": 6,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 7,
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43723295382/job/132839713543"
+    },
+    {
+      "completedAt": "2026-11-15T14:54:57Z",
+      "conclusion": "failure",
+      "databaseId": 132847805602,
+      "name": "installed OPNsense and six services",
+      "startedAt": "2026-11-15T14:44:02Z",
+      "status": "completed",
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Checkout exact source",
+          "number": 2,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Fetch the immutable previous package source",
+          "number": 3,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Check fresh hosted resources",
+          "number": 4,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Set up browser runtime",
+          "number": 5,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Install pinned browser dependencies",
+          "number": 6,
+          "status": "completed"
+        },
+        {
+          "conclusion": "failure",
+          "name": "Bind tested images and exercise the installed device",
+          "number": 7,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Retain only closed outcomes and native page images",
+          "number": 8,
+          "status": "completed"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Post Set up browser runtime",
+          "number": 15,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Checkout exact source",
+          "number": 16,
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 17,
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/KazuhaHub/nethub/actions/runs/43723295382/job/132847805602"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/KazuhaHub/nethub/actions/runs/43723295382"
+}

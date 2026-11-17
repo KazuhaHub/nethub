@@ -8,6 +8,7 @@ on:
       - server/web/package.json
       - server/web/package-lock.json
       - agents/opnsense/acceptance/**
+      - agents/opnsense/plugin/packaging/**
 
 permissions: {}
 

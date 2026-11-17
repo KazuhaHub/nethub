@@ -23,3 +23,15 @@ func TestAuditDetailsProjectsOnlyTypedNonsecretFields(t *testing.T) {
 		}
 	}
 }
+
+func TestReconcileAuditDetailsKeepExactCountAndDeviceClockLimit(t *testing.T) {
+	details := auditDetails([]byte(`{"failure_count":9223372036854775807,"device_reported":true,"first_reported_at":"2026-11-16T00:00:00.000001Z","last_reported_at":"2026-11-16T00:00:00.000002Z","private":"secret"}`))
+	if details.FailureCount == nil || *details.FailureCount != "9223372036854775807" || details.DeviceReported == nil || !*details.DeviceReported || details.FirstReportedAt == nil || details.LastReportedAt == nil {
+		t.Fatal("exact authenticated report projection missing")
+	}
+	for _, raw := range []string{`{"failure_count":1}`, `{"failure_count":1,"device_reported":false}`, `{"failure_count":9223372036854775808,"device_reported":true}`, `{"failure_count":true,"device_reported":true}`} {
+		if auditDetails([]byte(raw)).FailureCount != nil {
+			t.Fatal("unverified report projection admitted")
+		}
+	}
+}

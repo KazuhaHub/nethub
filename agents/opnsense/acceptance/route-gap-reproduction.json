@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "scope": "Owned local OPNsense network diagnostic, not a hosted native NetHub acceptance",
+  "OPNsense": "26.7.9_1",
+  "FreeBSD_running_installed_kernel_and_userland": "15.1-RELEASE-p6",
+  "coarse_experiment": {
+    "same_address_reset_requests": 1,
+    "observed_missing_gateway_add_requests": 1,
+    "post_repair_samples": 16,
+    "last_sample_ms": 94768,
+    "late_gap_observed": false
+  },
+  "fine_experiment": {
+    "same_address_reset_requests": 1,
+    "observed_missing_gateway_add_requests": 1,
+    "sampling": {
+      "sample_count": 340,
+      "sample_interval_ms": 100,
+      "duration_ms": 45077,
+      "transitions": [
+        {
+          "phase": "post_repair_observation",
+          "elapsed_ms": 27,
+          "default_route": "expected"
+        },
+        {
+          "phase": "post_repair_observation",
+          "elapsed_ms": 7726,
+          "default_route": "missing"
+        },
+        {
+          "phase": "post_repair_observation",
+          "elapsed_ms": 9618,
+          "default_route": "expected"
+        }
+      ]
+    },
+    "raw_monitor_sha256": "18656ef17dd7810e79f7286fd4819e3e57ce314a0f8d75ce9831eab9eb31d12f",
+    "configuration_XML_unchanged": true,
+    "gracefully_powered_off": true
+  },
+  "host_network_firewall_or_public_forward_changed": false,
+  "guest_package_or_SQL_operation_requests": 0,
+  "NetHub_installed_in_local_experiments": false,
+  "late_reset_actor_identified": false,
+  "original_a29_failure_cause_proven": false,
+  "native_route_failure_cause_proven": false,
+  "native_public_or_release_accepted": false
+}

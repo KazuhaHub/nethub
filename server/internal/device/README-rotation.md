@@ -23,8 +23,11 @@ snapshot also tracks monotonic issuance floors for rotated devices, separately
 from revoked IDs. Older reads and failed refreshes cannot lower a known floor.
 Ping stays memory-only. A rotated claim is not evidence that device revocation
 completed; disconnect processing still requires membership in the revoked set.
-The existing five-second refresh, bounded reads and last-good failure behavior
-mean this is not an instantaneous control-channel cutoff guarantee.
+The current one-second refresh has a shared one-second read budget; admission
+authority expires 2.5 seconds after its read starts. Known denials/floors survive
+failed reads, but an old snapshot cannot keep admitting Ping. These bounds and
+the one/three-second heartbeat candidate do not promise instantaneous cutoff.
+See the [current timing scope](../../../docs/w5-revocation-deadline.md).
 
 Genuine PostgreSQL, deployed relay and installed native rotation have
 [scoped acceptance](../../../deploy/device-rotation.md), including the durable

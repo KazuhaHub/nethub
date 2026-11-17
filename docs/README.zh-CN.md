@@ -2,6 +2,10 @@
 
 > 本文是 [`README.md`](../README.md) 的中文版。两者不一致时，以英文版为准。
 
+Ubuntu 交接快照见 [HANDOFF.md](../HANDOFF.md)，其中记录交接时的验证结果、
+已知原生升级失败和剩余范围。后续按源码版本记录的结果及暂时跳过的负责人操作，
+见[续接记录](handoff/ubuntu-continuation.md)。
+
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Stars](https://img.shields.io/github/stars/KazuhaHub/nethub?style=social)
 
@@ -108,7 +112,7 @@ NetHub 适合一个更窄的场景，同时满足下面三点：
 
 ```
 proto/            协议定义（JSON Schema），平台中立，唯一事实来源
-server/           控制面：Go，一个二进制 `nethub`（web | authz | migrate | init | doctor）
+server/           控制面：Go，一个二进制 `nethub`（web | authz | migrate | admin | init | doctor | backup | relay-token | certificates | version）
   web/              控制台源码：React + TypeScript + Vite（构建产物嵌入二进制）
 agents/opnsense/  OPNsense agent：os-nethub-agent 插件源码（PHP MVC、rc.d、agentctl.py）
 deploy/           docker-compose、Caddy 配置、按服务划分的密钥目录
@@ -195,7 +199,7 @@ SNI 透传保留设备自己的登录。正常运行时，新连接还需要匹�
 
 [交接记录](HANDOFF_PROMPT.md)将验收结果绑定到源代码、CI 和原生／公网测量。W0、W2 是历史基础，不代表后续产品流程全部完成。
 
-[原生公共证书记录](../deploy/validation-native-public-certificate.md)覆盖隔离环境的签发、定时安装、认证公网 GUI 访问和恢复。[心跳与撤销记录](../deploy/validation-native-w5-heartbeat.md)保留撤销速度偏差，以及尚未完成的手机 Open 样本。
+[原生公共证书记录](../deploy/validation-native-public-certificate.md)覆盖隔离环境的签发、定时安装、认证公网 GUI 访问和恢复。[心跳与撤销记录](../deploy/validation-native-w5-heartbeat.md)保留原先较慢的失败测量。[当前候选方案的测量](w5-revocation-deadline.md)包括 1.638 秒的原生撤销和另一次 1.811 秒的公网新 TLS 连接拒绝；这些样本不能代替手机 Open、设备群、故障及迁移验收。
 
 两家 Dex 已有 [OIDC 部署验收](../deploy/validation-two-dex.md)。SAML 后端、页面及独立 [Keycloak 部署](../deploy/validation-keycloak-saml.md)已有范围明确的验收；公开 IdP 和 W6 整体验收尚未完成。
 

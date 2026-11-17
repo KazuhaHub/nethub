@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "source_head": "2523ab981f953e0a4d5dce994fbdff593d09d8fe",
+  "reproducer_sha256": "91bf63f505fc97d46e61ed60239f47379dcb8de7ae0ddbbe54616fcf28f75b9a",
+  "files": [
+    {
+      "path": "result.json",
+      "bytes": 782,
+      "sha256": "e38c4a0c6bb75420314792b76bb3d854476e4467defb9287159c512cbd639bae"
+    }
+  ],
+  "native_failure_cause_proven": false
+}

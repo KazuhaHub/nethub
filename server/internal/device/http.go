@@ -95,7 +95,7 @@ func (s *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		deviceError(w, r, 400, "invalid_request", "Unrecognized console host")
 		return
 	}
-	lifecycle := r.URL.Path == "/api/v1/devices/status" || r.URL.Path == "/api/v1/devices/unenroll" || r.URL.Path == "/api/v1/devices/rotate"
+	lifecycle := r.URL.Path == "/api/v1/devices/reconcile-events" || r.URL.Path == "/api/v1/devices/status" || r.URL.Path == "/api/v1/devices/unenroll" || r.URL.Path == "/api/v1/devices/rotate"
 	certificate := s.certificates != nil && (r.URL.Path == "/api/v1/devices/gui-certificate/settings" || r.URL.Path == "/api/v1/devices/gui-certificate/request" || r.URL.Path == "/api/v1/devices/gui-certificate/issued" || r.URL.Path == "/api/v1/devices/gui-certificate/applied")
 	trust := s.relayTrust != nil && (r.URL.Path == "/api/v1/devices/relay-trust/settings" || r.URL.Path == "/api/v1/devices/relay-trust/applied")
 	if r.URL.EscapedPath() != r.URL.Path || r.URL.Path != enrollPath && !lifecycle && !certificate && !trust {
@@ -269,6 +269,12 @@ func (s *HTTPServer) lifecycle(w http.ResponseWriter, r *http.Request, data []by
 		if err == nil {
 			result, err = s.service.Report(ctx, input, secret, ip)
 		}
+	} else if r.URL.Path == "/api/v1/devices/reconcile-events" {
+		var input protocol.ReconcileAuditRequest
+		input, err = protocol.DecodeReconcileAudit(bytes.NewReader(data))
+		if err == nil {
+			result, err = s.service.ReportReconcileEvents(ctx, input, secret, ip)
+		}
 	} else if r.URL.Path == "/api/v1/devices/rotate" {
 		var input protocol.RotateRequest
 		input, err = protocol.DecodeRotate(bytes.NewReader(data))
@@ -295,6 +301,10 @@ func (s *HTTPServer) lifecycle(w http.ResponseWriter, r *http.Request, data []by
 
 func (s *HTTPServer) failure(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, protocol.ErrReconcileAuditVersion):
+		deviceError(w, r, 400, "incompatible_protocol", "Reconcile audit requires protocol 1.7 or later within major 1")
+	case errors.Is(err, ErrReconcileAuditConflict):
+		deviceError(w, r, 409, "reconcile_audit_conflict", "Retain the original reconcile event for local review")
 	case errors.Is(err, protocol.ErrRelayTrustVersion):
 		deviceError(w, r, 400, "incompatible_protocol", "Relay trust operations require protocol 1.5 or later within major 1")
 	case errors.Is(err, ErrRotationTrustChanged):

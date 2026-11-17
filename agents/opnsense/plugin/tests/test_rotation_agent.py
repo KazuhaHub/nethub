@@ -4,6 +4,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 import xml.etree.ElementTree as ET
 
@@ -88,11 +89,57 @@ def test_rotation_contention_returns_busy_before_any_native_or_network_work(case
     path.touch(mode=0o600)
     with path.open('r+b') as held:
         fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        with mock.patch.object(case.agent, 'rotate_locked') as rotate:
+        with (mock.patch.object(case.agent, 'rotate_locked') as rotate,
+              mock.patch.object(base.MODULE.time, 'monotonic', side_effect=[100.0, 103.1])):
             result = case.agent.apply('rotate')
         assert result == {'success': False, 'message': 'Another service operation is running', 'action': 'busy'}
         rotate.assert_not_called()
     assert not (case.agent.state / 'rotation.json').exists()
+
+
+def test_rotation_waits_for_short_contention_without_replaying_native_work(case):
+    case.agent.state.mkdir(parents=True, exist_ok=True)
+    case.agent.state.chmod(0o700)
+    path = case.agent.state / 'reconcile.lock'
+    path.touch(mode=0o600)
+    contested = threading.Event()
+    flock = base.MODULE.fcntl.flock
+
+    def observe_contention(*args):
+        try:
+            return flock(*args)
+        except BlockingIOError:
+            contested.set()
+            raise
+
+    expected = {'success': True, 'action': 'rotate', 'phase': 'applied'}
+
+    def rotate_once():
+        assert not (case.agent.state / 'rotation.json').exists()
+        with path.open('r+b') as other:
+            with pytest.raises(BlockingIOError):
+                flock(other, base.MODULE.fcntl.LOCK_EX | base.MODULE.fcntl.LOCK_NB)
+        return expected
+
+    with path.open('r+b') as held:
+        flock(held, base.MODULE.fcntl.LOCK_EX | base.MODULE.fcntl.LOCK_NB)
+
+        def release():
+            if contested.wait(5):
+                flock(held, base.MODULE.fcntl.LOCK_UN)
+
+        worker = threading.Thread(target=release)
+        worker.start()
+        try:
+            with (mock.patch.object(base.MODULE.fcntl, 'flock', side_effect=observe_contention),
+                  mock.patch.object(case.agent, 'rotate_locked', side_effect=rotate_once) as operation):
+                assert case.agent.apply('rotate') == expected
+            assert contested.is_set()
+            operation.assert_called_once_with()
+        finally:
+            contested.set()
+            worker.join(6)
+    assert not worker.is_alive()
 
 
 @pytest.mark.skipif(not sys.platform.startswith('freebsd'), reason='This case requires actual FreeBSD lockf')
@@ -110,8 +157,10 @@ def test_rotation_observes_actual_scheduler_lock_without_losing_busy_response(ca
         while not ready.exists():
             assert holder.poll() is None and time.monotonic() < deadline
             time.sleep(.02)
+        started = time.monotonic()
         with mock.patch.object(case.agent, 'rotate_locked') as rotate:
             result = case.agent.apply('rotate')
+        assert 2.8 <= time.monotonic() - started < 8
         assert result['success'] is False and result['action'] == 'busy'
         rotate.assert_not_called()
         assert not (case.agent.state / 'rotation.json').exists()

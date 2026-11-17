@@ -122,6 +122,24 @@ override flag. Runtime container separation, frps/authz loopback and recent
 database backup have separate modes below. Agreement with a formally published
 appliance package remains an unfinished W7-3 requirement.
 
+For independent TCP observations, explicitly opt in to Check-Host:
+
+```sh
+./nethub doctor --external-tcp-check-host --expected-address 203.0.113.10
+```
+
+Replace the documentation address with the actual public ingress IP. This sends
+only that IP and ports 443/7000/8443 to the external provider; its report may be
+public. The [provider API](https://check-host.net/about/api) supplies three
+observers per port. Every observer must report a connection to the expected IP;
+wrong, incomplete, stale or unavailable results fail without partial success.
+Submissions are not retried automatically, and the check stops after 45 seconds.
+Run this mode separately from the initialized DNS, TLS, container and database
+checks. It proves TCP connectivity from those observers, not certificate or
+application health, successful device admission or every mobile network.
+The implementation's mocked protocol tests do not replace a real owned-public
+positive and closed-port drill, which remains pending.
+
 The separate database metadata mode uses only the Web-role password:
 
 ```sh
@@ -224,16 +242,23 @@ green inventory row or installation report is not proof of that external path.
 ## Availability and revocation
 
 Authz is a single point of failure for remote access. Generated callbacks include
-Ping, and the agent uses a 10-second heartbeat/30-second timeout. Authz outage or
-restart can cut existing tunnels; recovery is not guaranteed on a suspended host.
+Ping. The current development candidate uses a nominal one-second heartbeat and
+three-second client/server timeout. Existing agents and bundles retain their old
+timing until a coordinated upgrade. Authz outage, restart or shorter stalls can
+cut existing tunnels; recovery is not guaranteed on a suspended host.
 Keep host/router access that does not depend on this tunnel before maintenance.
 
-Ping uses a revocation snapshot refreshed every five seconds. New admission still
-checks SQL, while database failure can delay a newly revoked ID entering the
-snapshot. Source-IP grants last 30 minutes and renew only on explicit Open;
+Ping uses memory denials/floors refreshed every second within a shared one-second
+read budget. Known denials remain monotonic, but admission authority expires
+2.5 seconds after the read starts: database failure cannot retain unlimited
+permission through an old snapshot. Stale state refuses Ping and a failed
+freshness self-check stops authz. New admission still checks current SQL.
+Source-IP grants last 30 minutes and renew only on explicit Open;
 inventory polling and router traffic do not extend them. The router keeps its own
 authentication. See [availability semantics](../deploy/revocation-and-heartbeats.md)
 and the [installed measurements](../deploy/validation-native-w5-heartbeat.md).
+The [current five-second measurements](w5-revocation-deadline.md) distinguish
+accepted native/public samples from the remaining mobile, fleet and fault gates.
 
 ## Upgrade and credential handling
 
@@ -247,6 +272,12 @@ Callback publication and Ping adoption require a coordinated Compose/frps change
 replacing only Web/authz does not enable them. Relay authority changes require the
 [protected operation procedure](../deploy/relay-authority-operations.md), not a
 manual CA-file substitution. Preserve overlap and offline-device recovery paths.
+
+For an older 10/30-second deployment, upgrade client timing while retaining the
+longer server timeout, then shorten the server timeout after participating agents
+are ready. Rollback must widen the server timeout before reverting clients.
+Follow the [coordinated order and remaining compatibility checks](w5-revocation-deadline.md#existing-development-deployments);
+changing only the server does not establish the target for an old or offline fleet.
 
 Preserve Web's `secrets_key` with the secret backup: it protects stored provider
 credentials, SAML signing identities and flow state. Changing it is not a password

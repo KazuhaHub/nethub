@@ -206,13 +206,9 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 		defer hookListener.Close()
-		hooks = &http.Server{Handler: hookHandler, ReadHeaderTimeout: time.Second, ReadTimeout: time.Second,
-			WriteTimeout: 2 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16 * 1024,
-			ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError)}
+		hooks = newHookServer(hookHandler, logger)
 	}
-	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second,
-		WriteTimeout: 20 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024,
-		ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError)}
+	server := newProxiedServer(handler, logger)
 	if observer != nil {
 		observationContext, stopObservation := context.WithCancel(ctx)
 		done := make(chan struct{})
@@ -238,10 +234,20 @@ func runAuthz(args []string, stdout, stderr io.Writer) int {
 		worker = revocations.Run
 	}
 	if err := serveAuthzMonitored(ctx, server, listener, hooks, hookListener, worker); err != nil {
-		fmt.Fprintln(stderr, "Authz HTTP service stopped unexpectedly")
+		logAuthzExit(logger, err)
 		return 1
 	}
 	return 0
+}
+
+// Keep runtime failures in the same JSON stream as hook decisions. Export only
+// a fixed classification, never the listener, database or worker error text.
+func logAuthzExit(logger *slog.Logger, err error) {
+	reason := "service_failure"
+	if errors.Is(err, relayhook.ErrRevocationLiveness) {
+		reason = "revocation_liveness"
+	}
+	logger.Error("Authz HTTP service stopped unexpectedly", "reason", reason)
 }
 
 // A stuck database driver must not prevent a failed authz process from exiting.
@@ -254,4 +260,12 @@ func closeAuthzDatabase(closeDatabase func() error) {
 	case <-done:
 	case <-timer.C:
 	}
+}
+
+// newHookServer bounds the loopback relay hook listener. Its idle timeout
+// outlasts the frps plugin client's pooled connections (see relayhook).
+func newHookServer(handler http.Handler, logger *slog.Logger) *http.Server {
+	return &http.Server{Handler: handler, ReadHeaderTimeout: time.Second, ReadTimeout: time.Second,
+		WriteTimeout: 2 * time.Second, IdleTimeout: relayhook.ServerIdleTimeout, MaxHeaderBytes: 16 * 1024,
+		ErrorLog: slog.NewLogLogger(logger.Handler(), slog.LevelError)}
 }

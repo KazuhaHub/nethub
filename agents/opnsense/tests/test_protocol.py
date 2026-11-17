@@ -91,6 +91,7 @@ def test_overlapping_ca_bundle_has_a_bounded_shape():
 
 def test_actual_rotation_request_retains_the_journal_candidate():
     expected = json.loads((PROTO / 'examples/valid/rotate-request.json').read_text(encoding='utf-8'))
+    expected['agent_protocol_version'] = AGENT.VERSION
     actual = AGENT.build_rotate_request(expected['device_id'], expected['operation_id'], expected['replacement_secret'], expected['expected_relay_ca_sha256'])
     assert actual == expected
     validator('rotate-request.schema.json').validate(actual)

@@ -1,8 +1,11 @@
 # NetHub console
 
-W3's React/TypeScript console implements local sign-in, session restoration,
+W3's React/TypeScript console began with local sign-in, session restoration,
 device listing/filtering/search/pagination, logout, and one-time enrollment-token
-issuance. It uses the approved shadcn/ui New York controls and native HTML dialog.
+issuance. It now also covers user and invitation administration, invite
+acceptance, OIDC and SAML sign-in and provider administration, device Open,
+revoke and disconnect actions, the audit view and traffic.
+It uses the approved shadcn/ui New York controls and native HTML dialog.
 The dialog keeps keyboard focus within its controls, supports Escape, and returns
 focus to its opener. CSS and scripts are local files; no inline styles, remote
 fonts, analytics, or external requests are required.

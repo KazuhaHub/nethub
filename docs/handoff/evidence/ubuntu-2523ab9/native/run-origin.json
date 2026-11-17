@@ -1,0 +1,11 @@
+{
+  "id": 43772146507,
+  "run_attempt": 1,
+  "head_sha": "2523ab981f953e0a4d5dce994fbdff593d09d8fe",
+  "path": ".github/workflows/native-enrolled.yml",
+  "event": "pull_request",
+  "status": "completed",
+  "conclusion": "failure",
+  "created_at": "2026-11-15T22:57:39Z",
+  "updated_at": "2026-11-15T23:40:56Z"
+}

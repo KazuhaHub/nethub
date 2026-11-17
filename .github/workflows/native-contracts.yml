@@ -59,7 +59,14 @@ jobs:
           prepare: |
             set -eu
             export PATH=/usr/local/bin:/usr/local/sbin:$PATH
-            env ASSUME_ALWAYS_YES=yes pkg install -y python313 py312-pip rust php85 php85-dom php85-simplexml php85-gettext
+            # Select the shared XML library explicitly: a new Python package can
+            # otherwise retain an older preinstalled Expat with the same soname.
+            env ASSUME_ALWAYS_YES=yes pkg install -y expat python312 python313 py312-pip rust php85 php85-dom php85-simplexml php85-gettext
+            pkg query '%n-%v' expat python312 python313
+            ldd /usr/local/lib/python3.1[23]/lib-dynload/pyexpat*.so
+            for native_python in /usr/local/bin/python3.12 /usr/local/bin/python3.13; do
+              "$native_python" -c 'import json, sys, pyexpat; import xml.etree.ElementTree as ET; assert ET.fromstring("<probe>native</probe>").text == "native"; print(json.dumps({"python": sys.version.split()[0], "expat": pyexpat.EXPAT_VERSION, "native_xml_import_and_parse": True}))'
+            done
             test ! -e /tmp/nethub-native-python
             python3.13 -m venv --without-pip /tmp/nethub-native-python
             CARGO_BUILD_JOBS=2 python3.12 -m pip --python /tmp/nethub-native-python install --disable-pip-version-check --no-cache-dir --retries 2 --timeout 30 pytest==8.3.5 Jinja2==3.1.6 jsonschema==4.25.1

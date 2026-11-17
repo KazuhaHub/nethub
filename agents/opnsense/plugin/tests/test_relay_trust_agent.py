@@ -53,6 +53,46 @@ def test_failed_trust_action_cannot_suppress_independent_revocation_report(case)
     assert not case.active and (case.agent.state/'revoked').exists()
 
 
+def test_rotation_failure_keeps_only_closed_private_trust_metadata(case):
+    configure_name(case)
+    before = (case.root/'conf/config.xml').read_bytes()
+    with mock.patch('relay_trust_sync.TrustSynchronizer.sync', side_effect=TrustSyncError('request', 'protocol')) as sync, \
+            mock.patch('rotation_transaction.rotate') as rotate:
+        result = case.agent.apply('rotate')
+    assert result['success'] is False and result['action'] == 'rotate'
+    assert result['message'] == 'Relay trust synchronization failed; inspect trust and recovery status'
+    diagnostic = case.agent.state/'rotation-trust-diagnostic.json'
+    assert diagnostic.stat().st_mode & 0o777 == 0o600
+    assert json.loads(diagnostic.read_bytes()) == {'version': 1, 'stage': 'request', 'kind': 'protocol'}
+    assert 'request' not in json.dumps(case.agent.status())
+    assert (case.root/'conf/config.xml').read_bytes() == before
+    assert not (case.agent.state/'rotation.json').exists()
+    assert case.mutations() == []
+    sync.assert_called_once(); rotate.assert_not_called()
+
+
+def test_private_diagnostic_write_failure_preserves_the_original_closed_error(case):
+    configure_name(case)
+    with mock.patch('relay_trust_sync.TrustSynchronizer.sync', side_effect=TrustSyncError('native_snapshot', 'native')), \
+            mock.patch.object(case.agent, 'atomic', side_effect=OSError('private path must not escape')):
+        result = case.agent.apply('rotate')
+    assert result == {'success': False, 'action': 'rotate', 'phase': 'error',
+                      'message': 'Relay trust synchronization failed; inspect trust and recovery status'}
+    assert not (case.agent.state/'rotation.json').exists()
+    assert case.mutations() == []
+
+
+def test_periodic_trust_failure_does_not_overwrite_rotation_diagnostic(case):
+    configure_name(case)
+    case.agent.state.mkdir(parents=True, exist_ok=True)
+    path = case.agent.state/'rotation-trust-diagnostic.json'
+    original = b'{"kind":"protocol","stage":"request","version":1}\n'
+    path.write_bytes(original)
+    with mock.patch('relay_trust_sync.TrustSynchronizer.sync', side_effect=TrustSyncError('recover', 'transaction')):
+        assert case.agent.apply('trust')['success'] is False
+    assert path.read_bytes() == original
+
+
 def test_ordinary_reconcile_restores_pending_trust_before_render(case):
     directory = case.agent.config/'relay-trust'; directory.mkdir(mode=0o700)
     events = []

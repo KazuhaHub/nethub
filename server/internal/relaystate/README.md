@@ -31,12 +31,18 @@ this poller does not prune them or call any mutation endpoint. The shared JSON
 reader's default 64 KiB/256-item device request limits remain unchanged.
 
 Storage gets tenant scope from existing database rows under the authz role and
-preserves forced RLS. It updates only `last_seen_at`, using the database clock,
+preserves forced RLS. Device observation updates only `last_seen_at`, using the database clock,
 where device ID/subdomain match and the device is not revoked. Unknown devices
 are not created. Busy device rows are skipped to avoid delaying authorization;
 they can be observed on the next poll. No secrets, claims, grants, identity fields
 or revocation state change. Admin status is a display signal, not signed identity
 or permission to access a router.
+
+The same poll also hands per-device `todayTrafficIn`/`todayTrafficOut` samples to
+the traffic repository ([`traffic.go`](traffic.go)). When configured, the poller
+also runs an anomaly worker every 15 s that confirms `unknown_proxy`,
+`revoked_online` and `domain_mismatch` after three consecutive observations
+([`anomaly.go`](anomaly.go)).
 
 Failures leave timestamps untouched. The console already labels a matching
 observation as recent for 45 seconds; missing observations naturally age out.

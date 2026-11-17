@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "agent_protocol_version": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        {
+          "pattern": "^1\\.(?:[7-9]|[1-9][0-9]+)\\."
+        }
+      ]
+    },
+    "device_id": {
+      "$ref": "common.schema.json#/$defs/uuid"
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "minLength": 36,
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            "not": {
+              "pattern": "[\\x00-\\x1f\\x7f]"
+            }
+          },
+          "kind": {
+            "enum": [
+              "reconcile_failed",
+              "reconcile_failure_overflow"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9223372036854775807
+          },
+          "first_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+            "minLength": 27,
+            "maxLength": 27
+          },
+          "last_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+            "minLength": 27,
+            "maxLength": 27
+          }
+        },
+        "required": [
+          "event_id",
+          "kind",
+          "count",
+          "first_at",
+          "last_at"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "reconcile_failed"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "count": {
+                  "const": 1
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "additionalProperties": true,
+  "$id": "https://schemas.example.com/nethub/v1/reconcile-audit-request.schema.json",
+  "required": [
+    "agent_protocol_version",
+    "device_id",
+    "events"
+  ],
+  "maxProperties": 19
+}

@@ -13,6 +13,7 @@ from cold_guard import read_json, save_once
 from cold_issuance import validate_status
 from host_layout import valid_tags
 from linux_guest import RecoveryTimeout, invoke
+from guest import GuestError, validate_ssh_failure_kind
 
 
 PROOFS = ('original_source_reaped_before_distinct_target',
@@ -55,6 +56,11 @@ def failure(error, head, phase):
             'phase': phase if phase in PHASES else 'unavailable',
             'failure_kind': 'timeout' if isinstance(error, (TimeoutError, RecoveryTimeout)) else 'other',
             'locations': locations[-16:], 'full_recovery_or_goal_accepted': False}
+    if isinstance(error, GuestError) and hasattr(error, 'ssh_failure_kind'):
+        try:
+            result['native_ssh_failure'] = validate_ssh_failure_kind(error.ssh_failure_kind)
+        except ValueError:
+            pass
     if phase == 'issued_generation' and hasattr(error, 'issuer_status'):
         try:
             result['issuer_status'] = validate_status(error.issuer_status)

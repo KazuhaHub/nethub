@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/netip"
+	"strconv"
 	"time"
 
 	"github.com/KazuhaHub/nethub/server/internal/auth"
@@ -46,6 +47,11 @@ func (s *ConsoleStore) Audit(ctx context.Context, actor string, query web.AuditQ
    'expires_at',CASE WHEN length(a.payload->>'expires_at')<=64 THEN a.payload->'expires_at' END)
  WHEN a.action='device.disconnect_requested' THEN jsonb_build_object(
    'request_id',CASE WHEN length(a.payload->>'request_id')=36 THEN a.payload->'request_id' END)
+ WHEN a.action IN ('device.reconcile_failed','device.reconcile_overflow') THEN jsonb_build_object(
+   'failure_count',CASE WHEN jsonb_typeof(a.payload->'failure_count')='number' AND length(a.payload->>'failure_count')<=19 THEN a.payload->'failure_count' END,
+   'device_reported',CASE WHEN jsonb_typeof(a.payload->'device_reported')='boolean' THEN a.payload->'device_reported' END,
+   'first_reported_at',CASE WHEN jsonb_typeof(a.payload->'first_reported_at')='string' AND length(a.payload->>'first_reported_at')<=64 THEN a.payload->'first_reported_at' END,
+   'last_reported_at',CASE WHEN jsonb_typeof(a.payload->'last_reported_at')='string' AND length(a.payload->>'last_reported_at')<=64 THEN a.payload->'last_reported_at' END)
  ELSE '{}'::jsonb END
  FROM audit_log a
  WHERE a.tenant_id=$3 AND ($4::bigint=0 OR a.sequence<$4)
@@ -109,6 +115,22 @@ func auditDetails(raw []byte) web.AuditDetails {
 	var result web.AuditDetails
 	if len(raw) > 1024 || json.Unmarshal(raw, &fields) != nil {
 		return result
+	}
+	var count int64
+	var reported bool
+	var firstText, lastText string
+	if json.Unmarshal(fields["failure_count"], &count) == nil && count > 0 && string(fields["device_reported"]) == "true" && json.Unmarshal(fields["device_reported"], &reported) == nil && reported && json.Unmarshal(fields["first_reported_at"], &firstText) == nil && json.Unmarshal(fields["last_reported_at"], &lastText) == nil {
+		first, e1 := time.Parse(time.RFC3339Nano, firstText)
+		last, e2 := time.Parse(time.RFC3339Nano, lastText)
+		if e1 == nil && e2 == nil && first.Year() >= 1 && last.Year() <= 9999 && !last.Before(first) {
+			decimal := strconv.FormatInt(count, 10)
+			first = first.UTC()
+			last = last.UTC()
+			result.FailureCount = &decimal
+			result.DeviceReported = &reported
+			result.FirstReportedAt = &first
+			result.LastReportedAt = &last
+		}
 	}
 	var target, role string
 	if json.Unmarshal(fields["target_user_id"], &target) == nil && (web.AuditQuery{UserID: target, Limit: 1}).Valid() && target != "" {

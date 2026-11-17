@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "full_project_complete": false,
+  "native_upgrade_cause_proven": false,
+  "checkpoints": [
+    {
+      "source_head": "38bec4dd17f7d63f330f958f163f5c61e43e8a64",
+      "runs": [
+        {
+          "kind": "CI",
+          "run_id": 43727962907,
+          "attempt": 1,
+          "conclusion": "success",
+          "directory": "38bec4d/CI"
+        },
+        {
+          "kind": "native",
+          "run_id": 43727962910,
+          "attempt": 1,
+          "conclusion": "failure",
+          "directory": "38bec4d/native",
+          "artifact": {
+            "id": 14168568714,
+            "digest": "sha256:e15da40ad039e6962c0b13c2e787ae372b24035e3d743424a89348461dcd866c",
+            "bytes": 71640
+          }
+        },
+        {
+          "kind": "cold",
+          "run_id": 43727962999,
+          "attempt": 1,
+          "conclusion": "success",
+          "directory": "38bec4d/cold",
+          "artifact": {
+            "id": 14168213352,
+            "digest": "sha256:fba50e177c16607fc904bfe09a76b1b9b652879dc8f75c2bd32cd3162912c939",
+            "bytes": 120777
+          }
+        }
+      ]
+    },
+    {
+      "source_head": "b2bfb5070832fcc7deae202e197c43f22bcfb77f",
+      "runs": [
+        {
+          "kind": "CI",
+          "run_id": 43730193170,
+          "attempt": 1,
+          "conclusion": "success",
+          "directory": "b2bfb50/CI"
+        },
+        {
+          "kind": "native",
+          "run_id": 43730193174,
+          "attempt": 1,
+          "conclusion": "failure",
+          "directory": "b2bfb50/native",
+          "artifact": {
+            "id": 14170291441,
+            "digest": "sha256:f8f3e56a65b12bb1790e29f837d4dda44014742d36e24781ba475d4fd47d2dad",
+            "bytes": 70693
+          }
+        },
+        {
+          "kind": "cold",
+          "run_id": 43730193155,
+          "attempt": 1,
+          "conclusion": "success",
+          "directory": "b2bfb50/cold",
+          "artifact": {
+            "id": 14169229598,
+            "digest": "sha256:510c44e16e074bfa4a74fb94b9b0fe4a681ad377b8db3f0855d85d8a43516f9a",
+            "bytes": 120551
+          }
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": "38bec4d/CI/run-origin.json",
+      "bytes": 298,
+      "sha256": "0145d69f72e1d3a8b3fedc0fe2c9c223503a52e965490cfb51cdcc5a9f9fc30c"
+    },
+    {
+      "path": "38bec4d/CI/run.json",
+      "bytes": 13167,
+      "sha256": "d51bb8feacbde0d645444cb764356fc63f197c5cc503f61ba09021ab2d9754b3"
+    },
+    {
+      "path": "38bec4d/cold/original.zip",
+      "bytes": 120777,
+      "sha256": "fba50e177c16607fc904bfe09a76b1b9b652879dc8f75c2bd32cd3162912c939"
+    },
+    {
+      "path": "38bec4d/cold/run-origin.json",
+      "bytes": 309,
+      "sha256": "e9874d8762f7e26b7327a4b7f577d970a8b751ac09509e4973a1b7094fbbf8bd"
+    },
+    {
+      "path": "38bec4d/cold/run.json",
+      "bytes": 4118,
+      "sha256": "76e8bdabfcf4866927a8b6a4d3799b594675c5ee7649233f86966ae9171dc5e3"
+    },
+    {
+      "path": "38bec4d/native/original.zip",
+      "bytes": 71640,
+      "sha256": "e15da40ad039e6962c0b13c2e787ae372b24035e3d743424a89348461dcd866c"
+    },
+    {
+      "path": "38bec4d/native/run-origin.json",
+      "bytes": 311,
+      "sha256": "385cf524737d9b3e05d4ad56d1f4d603f8067437455fb0db46448a9af37fa6f5"
+    },
+    {
+      "path": "38bec4d/native/run.json",
+      "bytes": 3500,
+      "sha256": "a1b2a0df7bf8a57c6929338651d1a9f4caa1b9564b8bd9ddd824d3d8eee26af1"
+    },
+    {
+      "path": "b2bfb50/CI/run-origin.json",
+      "bytes": 298,
+      "sha256": "fce3abef462898c2a0ee0034ef925bfafa0eaa17b8798091599d9e13405031f1"
+    },
+    {
+      "path": "b2bfb50/CI/run.json",
+      "bytes": 13167,
+      "sha256": "9bde037023e2654d4f4293c8af0178a8c0ce8315a68d328ef75dd597605113d0"
+    },
+    {
+      "path": "b2bfb50/cold/original.zip",
+      "bytes": 120551,
+      "sha256": "510c44e16e074bfa4a74fb94b9b0fe4a681ad377b8db3f0855d85d8a43516f9a"
+    },
+    {
+      "path": "b2bfb50/cold/run-origin.json",
+      "bytes": 309,
+      "sha256": "bbca1e126b37980c8b4cf6dc786ea78a29c69e25170b618436e594c8619de953"
+    },
+    {
+      "path": "b2bfb50/cold/run.json",
+      "bytes": 4118,
+      "sha256": "a198b5faa85cf9f6f0350607a94fe294639f44418ece4c6f90e0119b7a9b85fa"
+    },
+    {
+      "path": "b2bfb50/native/original.zip",
+      "bytes": 70693,
+      "sha256": "f8f3e56a65b12bb1790e29f837d4dda44014742d36e24781ba475d4fd47d2dad"
+    },
+    {
+      "path": "b2bfb50/native/run-origin.json",
+      "bytes": 311,
+      "sha256": "22a80ccdf1156c4b0e23ab5cd6cb8bb740e9f9699cacdd8a8969d2dcb4cc6c00"
+    },
+    {
+      "path": "b2bfb50/native/run.json",
+      "bytes": 3500,
+      "sha256": "0b54b9cb755e7d23ad40729f1a1c71a52dd02ec9fff571bf7ca40139065322bd"
+    }
+  ]
+}

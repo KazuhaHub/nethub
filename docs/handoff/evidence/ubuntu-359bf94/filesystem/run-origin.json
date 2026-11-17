@@ -1,0 +1,11 @@
+{
+  "id": 43766613099,
+  "run_attempt": 1,
+  "head_sha": "359bf94eab8c3339671fb1b0af1a6c4133f26ad1",
+  "path": ".github/workflows/native-contracts.yml",
+  "event": "pull_request",
+  "status": "completed",
+  "conclusion": "success",
+  "created_at": "2026-11-15T21:58:24Z",
+  "updated_at": "2026-11-15T22:04:51Z"
+}

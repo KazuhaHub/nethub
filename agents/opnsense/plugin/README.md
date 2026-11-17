@@ -14,8 +14,9 @@ and [heartbeat/revocation](../../../deploy/validation-native-w5-heartbeat.md).
 Those results do not automatically cover a newly built client or changed source.
 Per-device rotation and online shared-token recovery also have scoped
 [installed acceptance](../../../deploy/validation-shared-token.md), including
-their recorded rebuilt client. Public/operator and complete clean-host recovery
-gates remain open; no signed production release is accepted.
+their recorded rebuilt client. [Isolated clean-host recovery](../../../deploy/validation-protected-host-cold-recovery.md)
+has separate scoped evidence. Public/operator recovery and durable off-host
+custody gates remain open; no signed production release is accepted.
 
 Enter the separate console HTTPS address and one-use token in Enrollment.
 The client uses system trust, refuses redirects and environment proxies, validates
@@ -50,6 +51,17 @@ or restart an abandoned service until a different desired configuration validate
 The local `revoked` marker blocks scheduler recovery and explicit Start.
 Authenticated revocation reporting stops the owned tunnel. pkg owns and removes
 the cron file.
+
+Package installation keeps the `uninstalling` guard through configd restart
+and waits up to 30 seconds for the existing reconcile lock. It clears the guard
+and invokes reconcile while still holding that same lock, so watchdog recovery
+cannot treat the deliberately stopped client as a crash between those actions.
+Failure to acquire the lock fails the package hook with the guard retained.
+A rejected reconcile retains the previous package-install policy; its structured
+failure and watchdog quarantine still require operator review. Scheduler jobs
+continue to skip contention with `lockf -t 0`. This ordering fix has portable
+regression coverage; original upgrade failure attribution and installed acceptance
+remain dependent on fresh exact-source native evidence.
 
 An existing device ID makes enrollment idempotent without requesting another
 server token. A failed tunnel start retains the saved enrollment for Apply/retry.

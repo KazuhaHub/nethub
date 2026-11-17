@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "synthetic_fixture": true,
+  "actual_PostgreSQL_acceptance": false,
+  "full_goal_complete": false,
+  "screenshots": [
+    {
+      "name": "audit-desktop.png",
+      "sha256": "538a486fa059eb639c5ae2f58bca62f01b1645f606f2a25a879abf759abf41aa"
+    },
+    {
+      "name": "audit-mobile.png",
+      "sha256": "f0fbb9568db8f252e46b3a8a2fda7d61ea7df262dc1938d0c9fc629e8ba8fd72"
+    },
+    {
+      "name": "audit-mobile-events.png",
+      "sha256": "4e6bbffa189fbf8dbecf3b22f43cd3d60de5d3d35bd094e04825d45672386aa5"
+    },
+    {
+      "name": "audit-member-mobile.png",
+      "sha256": "dd853bf18bc78e0413393a5a343882ac908a2390e4e434b9933e7dc19ca896e5"
+    }
+  ]
+}

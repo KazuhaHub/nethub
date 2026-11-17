@@ -44,7 +44,7 @@ snapshot to the signing callback. An initialized callback refuses an empty
 snapshot; post-commit fetching cannot repair or replace it. These are public
 trust/startup rules, not evidence that frps or a native device applied a generation.
 
-`NewHTTP` serves `POST /api/v1/devices/{enroll,status,unenroll,rotate}` and the
+`NewHTTP` serves `POST /api/v1/devices/{enroll,status,unenroll,rotate,reconcile-events}` and the
 configured certificate/trust extensions. It checks the configured host,
 optional exact Origin, JSON media/encoding, canonical path and a 64 KiB body
 limit before admission. Query parameters are rejected; cookies do not establish
