@@ -1,11 +1,10 @@
 # Deployment and operations
 
-NetHub is pre-alpha; there is no signed production release. Use a dedicated Linux
-host and retain an independent management path to the host and router. The
-[handoff](HANDOFF_PROMPT.md) records accepted source revisions and measurements.
-W5-W7, public-provider acceptance and the complete backup/restore drill remain
-open. This guide records current commands and operational boundaries, not a
-claim that those remaining acceptance items have passed.
+The signed OPNsense Beta package is available for FreeBSD 15 amd64. Use a
+dedicated Linux test host and retain independent management access to the host
+and router. The [validation ledger](handoff/validation.md) records accepted
+source revisions and measurements. W5–W7, public-provider acceptance and the
+complete backup and restore drill remain open.
 
 ## Host and network
 

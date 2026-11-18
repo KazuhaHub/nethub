@@ -1,11 +1,11 @@
 # docs/ — NetHub documentation index
 
-NetHub is pre-alpha. The repository includes a Go control plane, React console,
-OPNsense development plugin and deployment tooling. Accepted checks cover
-specific sources and environments; they do not establish a production release
-or completion of W5-W7. Start with the [Ubuntu handoff snapshot](../HANDOFF.md)
-and [continuation ledger](handoff/ubuntu-continuation.md) for source-bound
-acceptance records, and the [execution plan](PLAN.md) for remaining requirements.
+NetHub has a signed OPNsense Beta package for FreeBSD 15 amd64. The
+[deployment guide](deployment.md) covers the control plane and
+[signed package installation and rollback](deployment.md#install-or-upgrade-the-opnsense-agent).
+Use the [validation ledger](handoff/validation.md) to check accepted sources and
+environments and the [execution plan](PLAN.md) for remaining requirements.
+Public operator, mobile and production qualification remain open.
 
 | Document                             | Status                                       | Purpose                                                                                                                                                                                                                                                                                                                      |
 | ------------------------------------ | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
