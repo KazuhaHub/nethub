@@ -6,6 +6,90 @@ continuation's later results come first; the handoff sections follow unchanged. 
 were terminal when reviewed. The numeric `source71`/`source72` directory names
 are evidence labels, not release versions.
 
+## NetHub Beta package: 3e88574
+
+[NetHub v0.0.19 Beta 1](https://github.com/KazuhaHub/nethub/releases/tag/v0.0.19-beta.1)
+published a signed repository snapshot for FreeBSD 15 amd64 with
+`os-nethub-agent-0.0.19`. Its source archive is bound to
+`3e88574f79a45063684b6f5d0113bc607bd47484`. The independent candidate
+verification matched all 99 files and four lifecycle hooks and bound the
+package SHA-256
+`05746b3d4d62d88c4491d7c92d925ba28ef0015dc413670defad4272186079ac`.
+An isolated OPNsense VM installed and removed that package through the
+signed snapshot and verified frpc 0.71.1. This first package has no prior
+formal release for a downgrade test.
+
+The [formal package feed](https://kazuhahub.github.io/OPNsense-repo/) lists the
+same signed package under FreeBSD 15 amd64 after
+[OPNsense-repo #60](https://github.com/KazuhaHub/OPNsense-repo/pull/60) and
+[Pages run 44302288719](https://github.com/KazuhaHub/OPNsense-repo/actions/runs/44302288719).
+The live release report passed signature verification and the HTTPS package
+matched the VM-tested digest above. An isolated OPNsense VM fetched and
+verified the package through the signed public catalog, installed it, verified
+frpc 0.71.1 and removed it. The test VM and its volumes were removed. Public
+enrollment and mobile acceptance remain open.
+
+The package-channel drill used a separate signed test catalog offered only to a
+disposable OPNsense VM. Comparing the 99 package entries and four hooks found
+only the deliberate bad-template change and the product version change.
+The VM installed public `0.0.19`, explicitly opted into test `0.0.20`,
+confirmed the public channel still offered `0.0.19`, and downgraded to that
+public package. The VM and overlay were removed. This drill exercised
+package selection and rollback. Enrolled reconcile, watchdog and rollout
+observation remain open.
+
+The follow-up used the original signed public package and its normal native
+enrollment page. The control plane observed the enrolled device online.
+Installing the separate signed bad-template package passed strict candidate
+refusal and live-configuration hash checks but failed process continuity,
+before the watchdog phase. FreeBSD pkg 2.9.2 invokes the old pre-deinstall
+hook on replacement, and that hook in 0.0.19 stops frpc. The source
+correction skips that removal hook during package upgrades. Upgrading from
+an installed 0.0.19 still runs 0.0.19's own hook, so its first transition
+requires a maintenance window and independent access.
+
+On fix source `b85af04`, a second disposable OPNsense VM enrolled through the
+native GUI against an isolated Ubuntu control plane. It upgraded from signed
+test baseline `0.0.21` to signed bad-template `0.0.22` in a separate test
+catalog. Reconcile refused the candidate, retained the exact live configuration
+and frpc PID/start time, and produced a failure audit event. Watchdog returned
+`running` without a recovery journal. Downgrading to the signed test baseline
+preserved the process and configuration. Neither test package was added to the
+public feed. The published `0.0.19` was unaffected.
+
+[OPNsense-repo #61](https://github.com/KazuhaHub/OPNsense-repo/pull/61)
+added the independently verified frp version to the signed package release
+report. [Pages run 44304655033](https://github.com/KazuhaHub/OPNsense-repo/actions/runs/44304655033)
+published it. The NetHub doctor verifier fetched the public report, pinned
+the repository key, verified the signature and matched frp 0.71.1 to
+package 0.0.19. In an isolated Ubuntu deployment of doctor source
+`fafc446`, `doctor --relay-hook --published-appliance` exercised the TLS
+Login-hook rejection path and matched the running frps 0.71.1 with the same
+public signed package record. This run used a private VM deployment.
+[NetHub #279](https://github.com/KazuhaHub/nethub/pull/279) passed its triggered
+checks and merged as `b0b6c65` with the tested tree unchanged.
+
+## NetHub Agent 0.0.21 release candidate
+
+[NetHub #280](https://github.com/KazuhaHub/nethub/pull/280) source
+`84f7d36` builds the 0.0.21 package with the upgrade guard. Independent
+verification compared 99 files and four hooks. The exact candidate verified
+its catalog signature on an isolated OPNsense VM, installed, reported frpc
+0.71.1 and uninstalled. Its signed package SHA-256 is
+`89e20a71cffb7d0c2cf9f5d3d64492af15908d12749c544d321b4704cb92d510`.
+
+The first-attempt [appliance preparation run](https://github.com/KazuhaHub/nethub/actions/runs/44308601955)
+passed on the same source. The collected zip, exact source-archive hash and
+four inspected views were independently verified. The separate
+[FreeBSD contracts run](https://github.com/KazuhaHub/nethub/actions/runs/44308602031)
+passed 438 cases, and all 284 source blobs matched Git. These runs cover
+preparation and native contracts. The full deployment, cold recovery and
+installed rotation results remain separate.
+
+The Beta 2 draft has verified asset checksums. The staged formal feed keeps
+0.0.19 downloadable as a signed rollback archive and leaves the 19 other
+FreeBSD 15 catalog entries unchanged. Public promotion remains pending.
+
 ## Main integration: 0dafb70 through 24b7f29
 
 The continuation chain was merged into `main` on 2026-11-17 as `0dafb70`
