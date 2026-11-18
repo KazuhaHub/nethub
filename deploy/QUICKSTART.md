@@ -166,7 +166,7 @@ separately; complete cold-host restoration and off-host durability remain open.
 
 Version-1/2 bundles are rejected rather than silently regenerated or migrated.
 Preserve the original checkout, authority/secret backups and database state; use
-a separate fresh bundle/volume for this pre-alpha topology. Do not attach existing
+a separate fresh bundle/volume for this deployment topology. Do not attach existing
 data or delete old bundles as an implicit upgrade. An in-place migration/restore
 procedure needs separate review and validation.
 

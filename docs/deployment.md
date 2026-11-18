@@ -1,11 +1,10 @@
 # Deployment and operations
 
-NetHub is pre-alpha; there is no signed production release. Use a dedicated Linux
-host and retain an independent management path to the host and router. The
-[handoff](HANDOFF_PROMPT.md) records accepted source revisions and measurements.
-W5-W7, public-provider acceptance and the complete backup/restore drill remain
-open. This guide records current commands and operational boundaries, not a
-claim that those remaining acceptance items have passed.
+The signed OPNsense Beta package is available for FreeBSD 15 amd64. Use a
+dedicated Linux test host and retain independent management access to the host
+and router. The [validation ledger](handoff/validation.md) records accepted
+source revisions and measurements. W5–W7, public-provider acceptance and the
+complete backup and restore drill remain open.
 
 ## Host and network
 
@@ -291,6 +290,45 @@ independent management before tunnel interruption and manual offline recovery.
 Its host and online native recovery have [isolated acceptance](../deploy/validation-shared-token.md);
 public/operator and complete restoration gates remain open. Neither procedure is an ad hoc
 database credential update.
+
+### Install or upgrade the OPNsense agent
+
+Use the [KazuhaHub signed package feed](https://kazuhahub.github.io/OPNsense-repo/)
+on an OPNsense 26.7 amd64 appliance. Configure the feed and verify its package
+repository trust anchor using the feed's instructions. Check the offered
+package before installation:
+
+```sh
+pkg update -r kazuhahub
+pkg rquery -r kazuhahub '%n %v %q' os-nethub-agent
+```
+
+After the query returns the intended version for FreeBSD 15 amd64, install and
+verify what is installed:
+
+```sh
+pkg install -r kazuhahub os-nethub-agent
+pkg query '%n %v %q' os-nethub-agent
+```
+
+Enroll from **Services → NetHub Agent** with the console HTTPS address and
+a one-time token issued by the Web console. Keep a separate way to reach the router and verify that the console
+reports the enrolled device online.
+
+For an upgrade, first save an encrypted OPNsense configuration backup and
+retain the previous signed package snapshot and its release checksums. From
+0.0.19, schedule a maintenance window and keep independent router access.
+The installed 0.0.19 hook stops the tunnel before the incoming files are in
+place. After the upgrade, confirm the device is online and check its NetHub
+Agent status locally.
+
+If a rollback is required, use the prior signed snapshot in a separate local
+pkg repository and verify its catalog with the trusted repository key. Query
+the exact old version in that repository before explicitly installing it.
+Then verify that the original enrollment and tunnel work. A current public
+catalog can offer only the newer package even when the previous signed
+archive remains downloadable. Keep the prior snapshot before changing the
+router.
 
 ## Backup and restore boundary
 

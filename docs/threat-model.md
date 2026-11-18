@@ -3,10 +3,10 @@
 > Implementation review: 2026-10-29 UTC; recovery evidence updated 2026-11-06 UTC.
 > Revocation evidence and the waived network sample clarified 2026-11-15 UTC;
 > latest isolated native checkpoint added 2026-11-16 UTC.
-> NetHub is pre-alpha, without a signed
-> production release. This review reconciles the original 2026-10-16 design
-> draft with current sources and accepted records. It is not an independent
-> penetration test or a claim that W5-W7 are complete.
+> Signed Beta package and readiness evidence updated 2026-11-18 UTC.
+> The [validation ledger](handoff/validation.md) records the published Beta and
+> remaining W5–W7 checks. Production qualification and independent penetration
+> testing remain open.
 
 The [execution plan](PLAN.md) and [handoff](HANDOFF_PROMPT.md) identify the
 remaining gates. The evidence table records the source and environment covered
@@ -292,15 +292,16 @@ arbitrary frozen-dependency cutoff.
 | Component                  | Current control                                                                                             | Remaining boundary                                                                                                                          |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | Packaged frpc/relay        | frp 0.71.1 source/dependency locks, selected patched compiler and rebuilt-binary checks/scans.              | Official prebuilt archives are interoperability fixtures, not a fallback packaged client. A pin does not prove an upstream dependency safe. |
-| OPNsense package           | Native source/build identity and unsigned development-package acceptance.                                   | Formal recipe, signing, release and faulty-version/canary gates remain separate.                                                            |
+| OPNsense package           | Pinned source and independent build records, signed catalog and exact package checks. | The signed Beta installation and rollback samples cover isolated appliances. Production rollout and public/operator acceptance remain open.                                                            |
 | Go/npm and shared authcore | go.sum/lockfiles, direct authcore commit pin, required vulnerability and integration checks.                | The development authcore pseudo-version is not a new formal tag or attestation.                                                             |
 | Container images           | Pinned base digests, reviewed local builds and exact CI image archive/configuration/rootfs/platform checks. | Formal published-release provenance and upgrade policy remain open; CI image export is not a signed release.                                |
-| Credentials in repository  | Full fetched-history scan and fifteen exception controls.                                                   | Automated pattern checks do not replace D12's manual disclosure review or prove absence of every operational detail.                        |
+| Credentials in repository  | Full fetched-history scan and nineteen exception controls.                                                   | Automated pattern checks do not replace D12's manual disclosure review or prove absence of every operational detail.                        |
 
 Kazuha explicitly permits NetHub use and packaging/signing on the designated test
 host (revised DESIGN decision #20). Signing material present there shares that
-host's compromise boundary. This does not authorize formal release or extend the
-exception to other signing hosts.
+host's compromise boundary. The catalog signing key stays on the designated
+signing host, outside the deployed control-plane containers. Release decisions
+and any other signing-host exceptions remain separate.
 
 ### 4.12 Deployer mistakes and recovery
 
@@ -386,9 +387,11 @@ do not establish fleet, public-network or complete restoration acceptance.
 
 Doctor has separate file/DNS, console TLS, read-only database-role, runtime
 container, relay Login-rejection, recent-archive and
-[audit-chain](../deploy/audit-chain.md) modes. Their scoped checks do not prove
-independent external port reachability, agreement with a formally published
-appliance package or complete restoration. See [operation boundaries](deployment.md#verify-readiness).
+[audit-chain](../deploy/audit-chain.md) modes. The separate external TCP check
+has owned-public positive and negative samples. The relay mode can compare the
+live frps version with the official signed appliance release report, and that
+comparison passed in an isolated deployment. Full public operator and restoration
+qualification remain open. See [operation boundaries](deployment.md#verify-readiness).
 
 ## 6. Accepted risks and known open risks
 

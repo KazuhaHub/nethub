@@ -11,7 +11,7 @@ Ubuntu 交接快照见 [HANDOFF.md](../HANDOFF.md)，其中记录交接时的验
 
 面向开源路由器和防火墙的自托管远程访问与设备管理工具。首先支持 OPNsense，架构上为 OpenWrt 和 VyOS 留了位置。
 
-**状态：pre-alpha，W7 实现和验收。** 控制面和 OPNsense 开发插件已实现，并有按版本和环境记录的原生／公网证书与信任验收。W5–W7 尚未全部完成，没有正式生产版本。使用前请看[项目状态](#项目状态)。
+**状态：Beta 签名包已发布，W7 验收进行中。** [OPNsense 正式包源](https://kazuhahub.github.io/OPNsense-repo/)提供 FreeBSD 15 amd64 的 Beta 包。控制面和插件已有范围明确的验收记录。公网运维、移动端和生产验收仍待完成。详见[项目状态](#项目状态)。
 
 **自己部署之前，你需要：**
 
@@ -122,10 +122,7 @@ weekend0/         Weekend 0 传输层测试工具（RUNBOOK、frps/frpc 配置�
 
 仓库已有控制面、控制台、部署工具、OPNsense 开发插件和验收工具。OpenWrt 和 VyOS 适配器仍在规划中。
 
-NetHub 的全部源码都在这个仓库里，包括 `agents/opnsense/plugin/` 下的 OPNsense 插件源码。CI 在这里构建未签名的开发包；正式签名发布包的打包流程计划单独维护：
-[`KKazuhaK/OPNsense-repo`](https://github.com/KKazuhaK/OPNsense-repo) 将会放一份打包配方：拉取打了 tag 的 NetHub release、校验 checksum，
-再交给现成的 FreeBSD 构建、签名、发布流水线——和它现在打包 sing-box、frp 的方式一样。从那个仓库的角度看，NetHub 只是又一个上游项目。
-详见 [`CONTRIBUTING.md`](../CONTRIBUTING.md#license-and-repository-layout)。
+NetHub 的全部源码都在这个仓库里，包括 `agents/opnsense/plugin/` 下的 OPNsense 插件源码。CI 在这里构建未签名的开发包。[KazuhaHub/OPNsense-repo](https://github.com/KazuhaHub/OPNsense-repo)固定带标签的 NetHub 源码、独立构建记录和实测包摘要，由 FreeBSD 签名主机签署包目录。详见[仓库与许可证边界](../CONTRIBUTING.md#license-and-repository-layout)。
 
 ## 部署前提
 
@@ -147,7 +144,7 @@ NetHub 的全部源码都在这个仓库里，包括 `agents/opnsense/plugin/` �
 
 ## 快速开始
 
-按[部署说明](deployment.md)和[当前命令示例](../deploy/QUICKSTART.md)，在独立测试主机上操作。开发插件尚未正式签名发布，从零部署耗时也尚无验收结论。
+按[部署说明](deployment.md)和[当前命令示例](../deploy/QUICKSTART.md)，在独立测试主机上操作。路由器按[签名包安装和回退说明](deployment.md#install-or-upgrade-the-opnsense-agent)操作。完整的独立部署及其耗时仍待验收。
 
 1. 准备 DNS、监听端口，以及受保护的部署和备份父目录。
 2. 运行 `nethub init`，核对密钥备份并确认。
@@ -203,7 +200,7 @@ SNI 透传保留设备自己的登录。正常运行时，新连接还需要匹�
 
 两家 Dex 已有 [OIDC 部署验收](../deploy/validation-two-dex.md)。SAML 后端、页面及独立 [Keycloak 部署](../deploy/validation-keycloak-saml.md)已有范围明确的验收；公开 IdP 和 W6 整体验收尚未完成。
 
-[定时数据库备份服务](../deploy/database-backups.md)已通过[范围明确的容器和恢复检查](../deploy/validation-database-backups.md)。[单设备凭证轮换](../deploy/device-rotation.md)已通过隔离环境的原生安装验收，包括两种真实中断后的恢复。[部署级共享 token 更换](../deploy/validation-shared-token.md)也已通过隔离环境的主机中断续跑和在线原生／参考客户端恢复；公网／手机、离线设备群和完整恢复另行验收。[隔离环境的全新主机恢复集成](../deploy/validation-clean-host-restore.md)已通过当前密钥、完整数据库及六个服务的恢复，两条保留的客户端路由均自动恢复。后续[受保护主机恢复演练](../deploy/validation-protected-host-cold-recovery.md)也已恢复签发器、ACME 账号和发布状态，并验证原设备请求的签发和应用。公网运维恢复、持久的异机备份保管、文档全面核对、朋友从零部署和正式签名／故障版本发布仍是 W7 待办。没有正式发布包，也不宣称已适合生产。
+[定时数据库备份服务](../deploy/database-backups.md)已通过[范围明确的容器和恢复检查](../deploy/validation-database-backups.md)。[单设备凭证轮换](../deploy/device-rotation.md)已通过隔离环境的原生安装验收，包括两种真实中断后的恢复。[部署级共享 token 更换](../deploy/validation-shared-token.md)也已通过隔离环境的主机中断续跑和在线原生／参考客户端恢复；公网／手机、离线设备群和完整恢复另行验收。[隔离环境的全新主机恢复集成](../deploy/validation-clean-host-restore.md)已通过当前密钥、完整数据库及六个服务的恢复，两条保留的客户端路由均自动恢复。后续[受保护主机恢复演练](../deploy/validation-protected-host-cold-recovery.md)也已恢复签发器、ACME 账号和发布状态，并验证原设备请求的签发和应用。公网运维恢复、持久的异机备份保管、文档全面核对、独立部署和正式灰度仍是 W7 待办。签名 Beta 包的安装和回退证据见[验收台账](handoff/validation.md)。
 
 ## 路线图
 

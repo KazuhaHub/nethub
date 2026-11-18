@@ -4,12 +4,12 @@ Thanks for your interest in NetHub. This document covers how contributions are
 licensed, how the repository is organized and how it relates to the separate
 packaging repository, and the conventions we expect from pull requests.
 
-NetHub is **pre-alpha**, in W7 implementation and acceptance. The control plane,
-console, OPNsense development plugin, device enrollment, relay authorization and
-local/OIDC/SAML sign-in are implemented. W5-W7 public/operator checks, complete
-restoration and release acceptance remain open; there is no production release.
-Use the [handoff](docs/HANDOFF_PROMPT.md) and stage-specific validation records to
-distinguish tested behavior from remaining work.
+NetHub publishes a signed **OPNsense Beta package** for FreeBSD 15 amd64.
+The control plane, console, device enrollment, relay authorization and
+local/OIDC/SAML sign-in are implemented. Public operator and mobile checks,
+durable recovery and production release approval remain open. The
+[validation ledger](docs/handoff/validation.md) binds evidence to its source
+and environment.
 
 ## Table of contents
 
@@ -98,21 +98,17 @@ packages it, and the difference is worth being explicit about:
   `agents/opnsense/plugin/`. **Every NetHub contribution goes here**, and your
   DCO sign-off certifies submission under Apache-2.0.
 
-- **`KKazuhaK/OPNsense-repo`**: a separate, pre-existing repository that hosts
-  an unrelated collection of OPNsense plugins together with a working FreeBSD
-  packaging, signing, and pkg-repository pipeline. It will carry a _packaging
-  recipe_ for NetHub — an entry in its `packaging/plugins.json` and a
-  `build.sh` that fetches a tagged NetHub release, verifies its checksum, and
-  stages it into a signed package. It does **not** hold NetHub source, it does
-  not hold a copy of `proto/`, and it runs no NetHub tests: it only builds
-  tagged releases. Plugin UI and other source changes belong in this repository;
-  see the [plugin development guide](agents/opnsense/plugin/README.md).
+- **`KazuhaHub/OPNsense-repo`**: the separate OPNsense package repository.
+  Its registry pins the tagged NetHub source archive, independently rebuilt
+  artifacts and the tested package digest. The FreeBSD signing host signs
+  the [published catalog](https://kazuhahub.github.io/OPNsense-repo/).
+  NetHub protocol, implementation and tests remain in this repository.
+  Use the [plugin development guide](agents/opnsense/plugin/README.md) for
+  source changes and development builds.
 
-  That repository is MIT-licensed and has other copyright holders in its
-  history, which is exactly why NetHub source does not live in it: keeping all
-  of NetHub in one Apache-2.0 repository keeps ownership and licensing
-  unambiguous. It will package NetHub the same way it already packages
-  sing-box and frp — as third-party upstream software.
+  The packaging repository is MIT-licensed. NetHub source keeps its
+  Apache-2.0 license, and the package carries the applicable third-party
+  licenses and notices.
 
 ## Changing the protocol (`proto/`)
 
