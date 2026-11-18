@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +25,9 @@ import (
 
 const Path = "/api/v1/frp/hooks"
 const Budget = 500 * time.Millisecond
+
+// WriteBudget is the connection write deadline measured from the request start.
+const WriteBudget = 2 * Budget
 
 // ServerIdleTimeout must exceed the idle timeout of the frps plugin client so
 // the client always closes a pooled connection first. The pinned frps HTTP
@@ -81,7 +86,7 @@ type response struct {
 	Unchange     bool   `json:"unchange,omitempty"`
 }
 
-func (s *Server) respond(w http.ResponseWriter, status int, operation, decision string, cause ...string) {
+func (s *Server) respond(w http.ResponseWriter, started time.Time, status int, operation, decision string, cause ...string) {
 	result := response{Reject: decision != "allowed", Unchange: decision == "allowed"}
 	if result.Reject {
 		result.RejectReason = "not_authorized"
@@ -99,56 +104,81 @@ func (s *Server) respond(w http.ResponseWriter, status int, operation, decision 
 	} else {
 		s.logger.Info("Relay hook decision", fields...)
 	}
+	handled := time.Since(started)
+	body, _ := json.Marshal(result)
+	body = append(body, '\n')
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(result)
+	// Flush inside the handler so a failed write (for example an expired
+	// write deadline, which frps sees as EOF) is observable here. Only fixed
+	// categories are logged.
+	_, err := w.Write(body)
+	if err == nil {
+		err = http.NewResponseController(w).Flush()
+	}
+	if err != nil {
+		reason := "other"
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			reason = "deadline"
+		}
+		s.logger.Warn("Relay hook response write failed", "operation", operation, "reason", reason)
+	}
+	if handled > Budget {
+		duration := "over_budget"
+		if handled > WriteBudget {
+			duration = "over_write_deadline"
+		}
+		s.logger.Warn("Relay hook slow", "operation", operation, "duration", duration)
+	}
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	deadline := time.Now().Add(Budget)
+	started := time.Now()
+	deadline := started.Add(Budget)
 	ctx, cancel := context.WithDeadline(r.Context(), deadline)
 	defer cancel()
 	controller := http.NewResponseController(w)
 	_ = controller.SetReadDeadline(deadline)
-	_ = controller.SetWriteDeadline(deadline.Add(Budget))
+	_ = controller.SetWriteDeadline(started.Add(WriteBudget))
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	peer, parseError := netip.ParseAddr(host)
 	if err != nil || parseError != nil || peer.Zone() != "" || !s.peers[peer.Unmap()] {
-		s.respond(w, 403, "unknown", "untrusted_peer")
+		s.respond(w, started, 403, "unknown", "untrusted_peer")
 		return
 	}
 	if r.URL.Path != Path || r.URL.EscapedPath() != Path {
-		s.respond(w, 404, "unknown", "invalid_request")
+		s.respond(w, started, 404, "unknown", "invalid_request")
 		return
 	}
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		s.respond(w, 405, "unknown", "invalid_request")
+		s.respond(w, started, 405, "unknown", "invalid_request")
 		return
 	}
 	select {
 	case s.workers <- struct{}{}:
 		defer func() { <-s.workers }()
 	default:
-		s.respond(w, 200, "unknown", "busy")
+		s.respond(w, started, 200, "unknown", "busy")
 		return
 	}
 	media, parameters, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || media != "application/json" || len(r.Header.Values("Content-Type")) != 1 ||
 		parameters["charset"] != "" && !strings.EqualFold(parameters["charset"], "utf-8") || len(r.Header.Values("Content-Encoding")) != 0 {
-		s.respond(w, 200, "unknown", "invalid_request")
+		s.respond(w, started, 200, "unknown", "invalid_request")
 		return
 	}
 	object, err := boundedjson.Object(http.MaxBytesReader(w, r.Body, boundedjson.MaxBytes))
 	if err != nil {
-		s.respond(w, 200, "unknown", "invalid_request")
+		s.respond(w, started, 200, "unknown", "invalid_request")
 		return
 	}
 	operation, ok := text(object, "op")
 	if !ok || operation != "Login" && operation != "NewProxy" && operation != "NewUserConn" && operation != "Ping" {
-		s.respond(w, 200, "unknown", "invalid_request")
+		s.respond(w, started, 200, "unknown", "invalid_request")
 		return
 	}
 	version, ok := text(object, "version")
@@ -156,19 +186,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !ok || version != "0.1.0" || err != nil || len(query) != 2 ||
 		len(query["op"]) != 1 || query.Get("op") != operation ||
 		len(query["version"]) != 1 || query.Get("version") != version {
-		s.respond(w, 200, operation, "invalid_request")
+		s.respond(w, started, 200, operation, "invalid_request")
 		return
 	}
 	content, ok := nested(object, "content")
 	if !ok {
-		s.respond(w, 200, operation, "invalid_request")
+		s.respond(w, started, 200, operation, "invalid_request")
 		return
 	}
 	identity := content
 	if operation != "Login" {
 		identity, ok = nested(content, "user")
 		if !ok {
-			s.respond(w, 200, operation, "invalid_request")
+			s.respond(w, started, 200, operation, "invalid_request")
 			return
 		}
 	}
@@ -176,20 +206,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	deviceID, idOK := text(metas, "device_id")
 	encodedClaim, claimOK := text(metas, "domain_claim")
 	if !ok || !idOK || !claimOK {
-		s.respond(w, 200, operation, "invalid_claim")
+		s.respond(w, started, 200, operation, "invalid_claim")
 		return
 	}
 	payload, err := s.signer.Verify(encodedClaim)
 	if err != nil || payload.DeviceID != deviceID {
-		s.respond(w, 200, operation, "invalid_claim")
+		s.respond(w, started, 200, operation, "invalid_claim")
 		return
 	}
 	if operation == "NewProxy" && !proxyAllowed(content, payload) {
-		s.respond(w, 200, operation, "proxy_policy")
+		s.respond(w, started, 200, operation, "proxy_policy")
 		return
 	}
 	if ctx.Err() != nil {
-		s.respond(w, 200, operation, "unavailable")
+		s.respond(w, started, 200, operation, "unavailable")
 		return
 	}
 	if operation == "Ping" {
@@ -205,7 +235,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		source, sourceError := netip.ParseAddrPort(remote)
 		address := source.Addr().Unmap()
 		if !nameOK || name != ProxyName(payload.DeviceID) || !kindOK || kind != "https" || !remoteOK || sourceError != nil || source.Port() == 0 || source.Addr().Zone() != "" || address.IsUnspecified() || address.IsMulticast() {
-			s.respond(w, 200, operation, "connection_policy")
+			s.respond(w, started, 200, operation, "connection_policy")
 			return
 		}
 		err = s.repository.AuthorizeConnection(ctx, payload, address)
@@ -222,10 +252,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				cause = "source_access"
 			}
 		}
-		s.respond(w, 200, operation, decision, cause)
+		s.respond(w, started, 200, operation, decision, cause)
 		return
 	}
-	s.respond(w, 200, operation, "allowed")
+	s.respond(w, started, 200, operation, "allowed")
 }
 
 func text(object map[string]json.RawMessage, key string) (string, bool) {
