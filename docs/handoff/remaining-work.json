@@ -162,9 +162,9 @@
     },
     {
       "id": "W7-9/bad-canary",
-      "status": "pending",
-      "evidence_scope": "An isolated OPNsense VM opted into a separate signed 0.0.20 bad-template catalog and downgraded to public 0.0.19. Enrolled 0.0.19 rejected the bad candidate and kept its configuration but lost process continuity. On fix source b85af04, signed isolated 0.0.21 to bad 0.0.22 and back preserved config and frpc, and watchdog reported running.",
-      "next_action": "Integrate the verified upgrade fix and repeat against the next formal package in an isolated canary channel; retain the failed 0.0.19 result."
+      "status": "scoped-success",
+      "evidence_scope": "An isolated OPNsense VM opted into a separate signed 0.0.20 bad-template catalog and downgraded to public 0.0.19. Enrolled 0.0.19 rejected the bad candidate and kept its configuration but lost process continuity. On fix source b85af04, signed isolated 0.0.21 to bad 0.0.22 and back preserved config and frpc, and watchdog reported running. A fresh enrolled VM repeated the drill from public signed 0.0.21 to isolated signed 0.0.22 and back to public 0.0.21 with its configuration and frpc process preserved.",
+      "next_action": "Retain the failed 0.0.19 result and use an isolated signed canary channel before future rollouts."
     },
     {
       "id": "W7/final-CI-and-dependencies",

@@ -114,6 +114,15 @@ test VM and its storage were removed. This test covered package
 distribution and installation. Enrollment through the public NetHub
 service is a separate acceptance item.
 
+A second disposable OPNsense VM enrolled against an isolated Ubuntu
+deployment of `84f7d36` after installing the formal public package.
+It then installed a signed 0.0.22 bad-template package from the isolated
+canary catalog. The strict verifier rejected the unknown key, reconcile
+recorded the failure, and watchdog kept the original frpc process running.
+Downgrading to the hash-verified public 0.0.21 preserved the same frpc
+process identity and live configuration. Both VMs, their storage and
+fixture credentials were removed.
+
 ## Dependency follow-up
 
 [NetHub #237](https://github.com/KazuhaHub/nethub/pull/237) updated lucide-react
