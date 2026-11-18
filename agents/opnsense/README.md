@@ -14,37 +14,26 @@ agents/opnsense/
   native_contracts.py  FreeBSD native filesystem/wire contract checks
 ```
 
-> **Status: pre-alpha with scoped installed acceptance.** The plugin includes
-> verified enrollment, native settings, tunnel/recovery scheduling, GUI certificate
-> automation, relay trust and recoverable credential rotation. See the
-> [plugin guide](plugin/README.md) and [current acceptance records](../../docs/HANDOFF_PROMPT.md).
-> Each record binds its source and environment; changed builds require their own
-> checks. Public/operator W5-W7 and formal release remain incomplete.
+> **Status: Beta package with scoped appliance acceptance.** The plugin includes
+> enrollment, native settings, tunnel recovery, GUI certificate automation,
+> relay trust and recoverable credential rotation. See the
+> [plugin guide](plugin/README.md) and [validation ledger](../../docs/handoff/validation.md).
+> Public enrollment, mobile and independent operator acceptance remain open.
 
-## Why the source lives here and not in the packaging repository
+## Install the signed Beta package
 
-The intended formal NetHub packaging flow uses a separate
-repository — `KKazuhaK/OPNsense-repo` — which has a working FreeBSD build,
-signing, and pkg-repository pipeline that would be expensive and pointless to
-reproduce. It is the owner's own fork, developed independently, so there is no
-co-maintainer to coordinate with.
+The [KazuhaHub package feed](https://kazuhahub.github.io/OPNsense-repo/) provides
+`os-nethub-agent` for OPNsense 26.7 on FreeBSD 15 amd64. The
+[deployment guide](../../docs/deployment.md#install-or-upgrade-the-opnsense-agent)
+covers installation, the first upgrade from 0.0.19 and rollback preparation.
 
-The planned integration carries a **packaging recipe**, not duplicate source:
-
-```
-KKazuhaK/OPNsense-repo/
-  packaging/plugins.json          one entry registering os-nethub-agent
-  src/os-nethub-agent/build.sh    fetches a tagged NetHub release tarball,
-                                  verifies its sha256, stages it into the pkg
-```
-
-This is the intended release contract, not a completed signed distribution.
-Current development packages use this repository's `plugin/build.sh`; W7 still
-requires the external recipe, signed publication and canary acceptance.
-
-This mirrors what that repository already does for `os-sing-box`, `os-frp`
-and `os-easytier`: it packages upstream software it does not own. From its
-point of view, NetHub is simply another upstream.
+NetHub keeps the plugin source and protocol tests here.
+[KazuhaHub/OPNsense-repo](https://github.com/KazuhaHub/OPNsense-repo)
+registers the package in `packaging/plugins.json` and pins the tagged upstream
+archive, the independent build record and the tested package digest. The
+FreeBSD signing host signs the repository catalog. The release snapshot also
+includes the catalog and public verification key. Development packages built
+with `plugin/build.sh` remain unsigned.
 
 Keeping the source here buys three things:
 

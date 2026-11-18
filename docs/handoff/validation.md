@@ -6,6 +6,139 @@ continuation's later results come first; the handoff sections follow unchanged. 
 were terminal when reviewed. The numeric `source71`/`source72` directory names
 are evidence labels, not release versions.
 
+## NetHub Beta package: 3e88574
+
+[NetHub v0.0.19 Beta 1](https://github.com/KazuhaHub/nethub/releases/tag/v0.0.19-beta.1)
+published a signed repository snapshot for FreeBSD 15 amd64 with
+`os-nethub-agent-0.0.19`. Its source archive is bound to
+`3e88574f79a45063684b6f5d0113bc607bd47484`. The independent candidate
+verification matched all 99 files and four lifecycle hooks and bound the
+package SHA-256
+`05746b3d4d62d88c4491d7c92d925ba28ef0015dc413670defad4272186079ac`.
+An isolated OPNsense VM installed and removed that package through the
+signed snapshot and verified frpc 0.71.1. This first package has no prior
+formal release for a downgrade test.
+
+The [formal package feed](https://kazuhahub.github.io/OPNsense-repo/) lists the
+same signed package under FreeBSD 15 amd64 after
+[OPNsense-repo #60](https://github.com/KazuhaHub/OPNsense-repo/pull/60) and
+[Pages run 44302288719](https://github.com/KazuhaHub/OPNsense-repo/actions/runs/44302288719).
+The live release report passed signature verification and the HTTPS package
+matched the VM-tested digest above. An isolated OPNsense VM fetched and
+verified the package through the signed public catalog, installed it, verified
+frpc 0.71.1 and removed it. The test VM and its volumes were removed. Public
+enrollment and mobile acceptance remain open.
+
+The package-channel drill used a separate signed test catalog offered only to a
+disposable OPNsense VM. Comparing the 99 package entries and four hooks found
+only the deliberate bad-template change and the product version change.
+The VM installed public `0.0.19`, explicitly opted into test `0.0.20`,
+confirmed the public channel still offered `0.0.19`, and downgraded to that
+public package. The VM and overlay were removed. This drill exercised
+package selection and rollback. Enrolled reconcile, watchdog and rollout
+observation remain open.
+
+The follow-up used the original signed public package and its normal native
+enrollment page. The control plane observed the enrolled device online.
+Installing the separate signed bad-template package passed strict candidate
+refusal and live-configuration hash checks but failed process continuity,
+before the watchdog phase. FreeBSD pkg 2.9.2 invokes the old pre-deinstall
+hook on replacement, and that hook in 0.0.19 stops frpc. The source
+correction skips that removal hook during package upgrades. Upgrading from
+an installed 0.0.19 still runs 0.0.19's own hook, so its first transition
+requires a maintenance window and independent access.
+
+On fix source `b85af04`, a second disposable OPNsense VM enrolled through the
+native GUI against an isolated Ubuntu control plane. It upgraded from signed
+test baseline `0.0.21` to signed bad-template `0.0.22` in a separate test
+catalog. Reconcile refused the candidate, retained the exact live configuration
+and frpc PID/start time, and produced a failure audit event. Watchdog returned
+`running` without a recovery journal. Downgrading to the signed test baseline
+preserved the process and configuration. Neither test package was added to the
+public feed. The published `0.0.19` was unaffected.
+
+[OPNsense-repo #61](https://github.com/KazuhaHub/OPNsense-repo/pull/61)
+added the independently verified frp version to the signed package release
+report. [Pages run 44304655033](https://github.com/KazuhaHub/OPNsense-repo/actions/runs/44304655033)
+published it. The NetHub doctor verifier fetched the public report, pinned
+the repository key, verified the signature and matched frp 0.71.1 to
+package 0.0.19. In an isolated Ubuntu deployment of doctor source
+`fafc446`, `doctor --relay-hook --published-appliance` exercised the TLS
+Login-hook rejection path and matched the running frps 0.71.1 with the same
+public signed package record. This run used a private VM deployment.
+[NetHub #279](https://github.com/KazuhaHub/nethub/pull/279) passed its triggered
+checks and merged as `b0b6c65` with the tested tree unchanged.
+
+## NetHub Agent 0.0.21 Beta 2
+
+[NetHub #280](https://github.com/KazuhaHub/nethub/pull/280) source
+`84f7d36` builds the 0.0.21 package with the upgrade guard. Independent
+verification compared 99 files and four hooks. The exact candidate verified
+its catalog signature on an isolated OPNsense VM, installed, reported frpc
+0.71.1 and uninstalled. Its signed package SHA-256 is
+`89e20a71cffb7d0c2cf9f5d3d64492af15908d12749c544d321b4704cb92d510`.
+
+The first-attempt [appliance preparation run](https://github.com/KazuhaHub/nethub/actions/runs/44308601955)
+passed on the same source. The collected zip, exact source-archive hash and
+four inspected views were independently verified. The separate
+[FreeBSD contracts run](https://github.com/KazuhaHub/nethub/actions/runs/44308602031)
+passed 438 cases, and all 284 source blobs matched Git. The first-attempt
+[deployment CI](https://github.com/KazuhaHub/nethub/actions/runs/44308601919)
+passed all six jobs. [Protected cold recovery](https://github.com/KazuhaHub/nethub/actions/runs/44308601961)
+and [installed native rotation](https://github.com/KazuhaHub/nethub/actions/runs/44308602168)
+passed using its same-source image. Independent verification checked the
+archive hashes and provenance. Native package migration passed all ten
+phases, and revocation made the device proxy go offline in 1,027 ms with
+no reconnect during the subsequent 30,068 ms observation window.
+
+#280 merged as `d16f91f` with the tested tree. The
+[signed Beta 2 prerelease](https://github.com/KazuhaHub/nethub/releases/tag/v0.0.21-beta.2)
+tags `84f7d36`. A fresh download verified all four asset digests against
+the published checksum file. The staged formal feed keeps
+0.0.19 downloadable as a signed rollback archive and leaves the 19 other
+FreeBSD 15 catalog entries unchanged. A disposable, unenrolled OPNsense VM
+installed public `0.0.19`, upgraded to the exact `0.0.21` candidate through
+the staged signed catalog, then explicitly rolled back to public `0.0.19`.
+Both versions reported frpc 0.71.1. A separate offline VM then
+installed 0.0.21 from the replacement catalog and explicitly downgraded
+from the retained signed Beta 1 snapshot while the replacement catalog
+continued to offer 0.0.21.
+
+[OPNsense-repo #62](https://github.com/KazuhaHub/OPNsense-repo/pull/62)
+and the [signed Pages deployment](https://github.com/KazuhaHub/OPNsense-repo/actions/runs/44320847995)
+published the 0.0.21 catalog. The public HTTPS report matched the staged
+bytes and verified against the pinned signing key. A disposable OPNsense
+VM fetched the package from the public catalog, checked its SHA-256,
+installed 0.0.21, confirmed frpc 0.71.1 and removed the package. The
+test VM and its storage were removed. This test covered package
+distribution and installation. Enrollment through the public NetHub
+service is a separate acceptance item.
+
+A second disposable OPNsense VM enrolled against an isolated Ubuntu
+deployment of `84f7d36` after installing the formal public package.
+It then installed a signed 0.0.22 bad-template package from the isolated
+canary catalog. The strict verifier rejected the unknown key, reconcile
+recorded the failure, and watchdog kept the original frpc process running.
+Downgrading to the hash-verified public 0.0.21 preserved the same frpc
+process identity and live configuration. Both VMs, their storage and
+fixture credentials were removed.
+
+## Dependency follow-up
+
+[NetHub #237](https://github.com/KazuhaHub/nethub/pull/237) updated lucide-react
+to 1.73.0 and merged as `6f512ba` after its triggered checks passed, including
+installed native rotation and protected host recovery.
+[NetHub #238](https://github.com/KazuhaHub/nethub/pull/238) updated goose to
+3.30.1 and merged as `f32b347` after its triggered checks passed. Both merges
+are ancestors of the current release candidate.
+
+On 2026-11-18, [authcore #37](https://github.com/KazuhaHub/authcore/pull/37)
+was still a draft. Build and API compatibility passed, and
+[govulncheck](https://github.com/KazuhaHub/authcore/actions/runs/42537018755/job/128903467803)
+failed on GO-2026-6909. The [Go vulnerability database record](https://vuln.go.dev/ID/GO-2026-6909.json)
+listed no fixed version. The reviewed interim SAML dependency pin remains
+in use. The frp 0.71.1 pin remains under the owner's hold on the 0.72.0 update.
+
 ## Main integration: 0dafb70 through 24b7f29
 
 The continuation chain was merged into `main` on 2026-11-17 as `0dafb70`

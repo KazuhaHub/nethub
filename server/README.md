@@ -6,11 +6,12 @@ configuration-push API. The OPNsense adapter owns its local settings, tunnel and
 verified GUI certificate application; that bounded path can reload the GUI.
 The relay passes GUI TLS through without decrypting it.
 
-NetHub is pre-alpha. Scoped server, native and public-certificate checks have
-passed, including isolated protected-host recovery. Public/operator W5-W7,
-durable off-host custody, disclosure and formal release remain separate gates.
- The [handoff](../docs/HANDOFF_PROMPT.md) binds acceptance
-to sources and environments; the [plan](../docs/PLAN.md) tracks remaining work.
+The OPNsense agent has a signed Beta package. Scoped control-plane checks
+include public-certificate samples and isolated protected-host recovery.
+Public operator W5–W7, durable off-host custody, disclosure and production
+release remain separate gates. The [validation ledger](../docs/handoff/validation.md)
+binds acceptance to sources and environments, and the [plan](../docs/PLAN.md)
+tracks remaining work.
 Changed sources and rebuilt clients need their own applicable checks.
 
 ## Technology stack
