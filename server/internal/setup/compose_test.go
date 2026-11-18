@@ -9,6 +9,30 @@ import (
 	"testing"
 )
 
+func TestGeneratedBackupBuildUsesSourceDirectory(t *testing.T) {
+	for _, mode := range []string{"bundled", "external"} {
+		t.Run(mode, func(t *testing.T) {
+			config := fixtureConfig(t)
+			config.ProxyMode = mode
+			raw, err := composeOverride(config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var output struct {
+				Services map[string]struct {
+					Build struct{ Context string }
+				}
+			}
+			if err := json.Unmarshal(raw, &output); err != nil {
+				t.Fatal(err)
+			}
+			if got := output.Services["backup"].Build.Context; got != config.SourceDirectory {
+				t.Errorf("backup build context = %q, want %q", got, config.SourceDirectory)
+			}
+		})
+	}
+}
+
 func TestGeneratedWebProviderKeyBinding(t *testing.T) {
 	for _, mode := range []string{"bundled", "external"} {
 		config := fixtureConfig(t)
