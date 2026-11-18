@@ -21,7 +21,7 @@ finally:
 
 def snapshot():
     value = {k: 'a' * 64 for k in HASHES}
-    value.update(version=1, package_version='0.0.21', profile=[1, 3], markers={k: False for k in MARKERS},
+    value.update(version=1, package_version='0.0.23', profile=[1, 3], markers={k: False for k in MARKERS},
                  running=True, pid=123, process_sha256='b' * 64, control_sha256='c' * 64)
     return value
 
