@@ -93,6 +93,22 @@ installed public `0.0.19`, upgraded to the exact `0.0.21` candidate through
 the staged signed catalog, then explicitly rolled back to public `0.0.19`.
 Both versions reported frpc 0.71.1. Public promotion remains pending.
 
+## Dependency follow-up
+
+[NetHub #237](https://github.com/KazuhaHub/nethub/pull/237) updated lucide-react
+to 1.73.0 and merged as `6f512ba` after its triggered checks passed, including
+installed native rotation and protected host recovery.
+[NetHub #238](https://github.com/KazuhaHub/nethub/pull/238) updated goose to
+3.30.1 and merged as `f32b347` after its triggered checks passed. Both merges
+are ancestors of the current release candidate.
+
+On 2026-11-18, [authcore #37](https://github.com/KazuhaHub/authcore/pull/37)
+was still a draft. Build and API compatibility passed, and
+[govulncheck](https://github.com/KazuhaHub/authcore/actions/runs/42537018755/job/128903467803)
+failed on GO-2026-6909. The [Go vulnerability database record](https://vuln.go.dev/ID/GO-2026-6909.json)
+listed no fixed version. The reviewed interim SAML dependency pin remains
+in use. The frp 0.71.1 pin remains under the owner's hold on the 0.72.0 update.
+
 ## Main integration: 0dafb70 through 24b7f29
 
 The continuation chain was merged into `main` on 2026-11-17 as `0dafb70`

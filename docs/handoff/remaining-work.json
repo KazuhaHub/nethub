@@ -86,7 +86,7 @@
       "id": "W6-4/authcore",
       "status": "scoped-success-with-dependency-followup",
       "evidence_scope": "Local/OIDC/SAML use authcore. NetHub explicitly repeats the reviewed interim SAML parser replacement.",
-      "next_action": "Review authcore PR37 and current upstream advisories before changing pins; adopt reusable fixes in authcore rather than duplicate authentication logic in NetHub."
+      "next_action": "Keep the reviewed interim pin. authcore PR37 still fails govulncheck for GO-2026-6909, whose published range lists no fixed version. Recheck the advisory and provider flows before adopting upstream SAML."
     },
     {
       "id": "W6-5/audit",
@@ -169,7 +169,7 @@
     {
       "id": "W7/final-CI-and-dependencies",
       "status": "partial",
-      "evidence_scope": "The continuation chain is merged into `main` (`0dafb70`), followed by the PR241 dependency refresh (all five gates passed on `35eacc4`), the migration-check classification, the bounded FreeBSD package fetch and the relay hook response diagnostics. Each passed its triggered gates. One `main` push CI failure (unclassified migration check), two mirror-timeout cancellations and one pull request CI failure (relay hook Ping EOF) are retained without reruns. Recovery database/target workflows were not triggered. PR236 frp 0.72.0 is held by owner decision; dependabot PR237/PR238 and authcore PR37 await review.",
+      "evidence_scope": "The continuation chain is merged into `main` (`0dafb70`), followed by the PR241 dependency refresh (all five gates passed on `35eacc4`), the migration-check classification, the bounded FreeBSD package fetch and the relay hook response diagnostics. Each passed its triggered gates. One `main` push CI failure (unclassified migration check), two mirror-timeout cancellations and one pull request CI failure (relay hook Ping EOF) are retained without reruns. Recovery database/target workflows were not triggered. PR237 (lucide-react 1.73.0) and PR238 (goose 3.30.1) passed their triggered checks and were merged. PR236 frp 0.72.0 remains held by owner decision. authcore PR37 remains open with a failing vulnerability check.",
       "next_action": "Review dependency/security scope and source licenses, integrate approved changes, then run all final exact-source gates. Do not close bot PRs or claim advisory-free status without evidence."
     },
     {
