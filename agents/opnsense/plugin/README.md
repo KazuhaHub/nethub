@@ -63,6 +63,17 @@ continue to skip contention with `lockf -t 0`. This ordering fix has portable
 regression coverage; original upgrade failure attribution and installed acceptance
 remain dependent on fresh exact-source native evidence.
 
+On package replacement, pkg runs the installed version's pre-deinstall hook.
+Packages containing the upgrade guard leave the current frpc process serving
+while the incoming package reconciles its candidate. Real package removal
+still resolves pending recovery and stops the tunnel.
+
+**First upgrade from published 0.0.19:** schedule a maintenance window and keep
+independent access to the router. Its installed hook stops frpc before the new
+package files are in place. After upgrading, check that the enrolled device is
+online and the router's NetHub Agent status confirms the tunnel. Apply a known
+good package through independent access if the new candidate fails.
+
 An existing device ID makes enrollment idempotent without requesting another
 server token. A failed tunnel start retains the saved enrollment for Apply/retry.
 If the response or local save is lost after the console consumed a token, inspect

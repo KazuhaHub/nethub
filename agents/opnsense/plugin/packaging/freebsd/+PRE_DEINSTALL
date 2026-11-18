@@ -1,5 +1,12 @@
 #!/bin/sh
 set -eu
+
+# pkg runs the installed package's pre-deinstall hook before replacing files.
+# Leave the live tunnel available for the incoming package's strict reconcile.
+if [ "${PKG_UPGRADE:-}" = true ]; then
+    exit 0
+fi
+
 umask 077
 if [ -x /usr/local/etc/rc.d/nethub_agent_frpc ]; then
     install -d -m 0700 /var/db/nethub-agent /var/log/nethub-agent

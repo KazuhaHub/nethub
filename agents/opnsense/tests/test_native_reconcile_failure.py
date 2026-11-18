@@ -71,7 +71,7 @@ class Guest:
 
     def ssh_read_only_inspection(self, _script):
         value = dict.fromkeys(audit.validate_probe.__globals__['HASHES'], 'a' * 64)
-        value.update(version=1, package_version='0.0.19', profile=[1, 3],
+        value.update(version=1, package_version='0.0.21', profile=[1, 3],
             markers=dict.fromkeys(audit.validate_probe.__globals__['MARKERS'], False), running=True,
             pid=124, process_sha256='b' * 64, control_sha256=('d' if self.changed else 'c') * 64)
         return json.dumps(value).encode()
