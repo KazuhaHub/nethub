@@ -15,7 +15,7 @@ jobs:
   freebsd-contracts:
     name: FreeBSD source contracts
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     permissions:
       contents: read
     env:
@@ -59,9 +59,30 @@ jobs:
           prepare: |
             set -eu
             export PATH=/usr/local/bin:/usr/local/sbin:$PATH
+            # Fetch first under a wall-clock bound, so a slow package mirror
+            # fails with its own name instead of the job timeout. pkg's built-in
+            # transfer retries run inside that bound; nothing reruns it. The
+            # 120 s + 600 s bounds leave the job budget for build and contracts,
+            # and install -U uses exactly the catalogue and cache fetched here.
+            fetch_started=$(date +%s)
+            fetch_phase=update
+            fetch_status=0
+            timeout -k 15 120 env ASSUME_ALWAYS_YES=yes pkg update || fetch_status=$?
+            if [ "$fetch_status" -eq 0 ]; then
+              fetch_phase=fetch
+              timeout -k 15 600 env ASSUME_ALWAYS_YES=yes pkg fetch -y -d expat python312 python313 py312-pip rust php85 php85-dom php85-simplexml php85-gettext || fetch_status=$?
+            fi
+            if [ "$fetch_status" -ne 0 ]; then
+              # timeout(1) exits 124 when its bound expires.
+              if [ "$fetch_status" -eq 124 ]; then fetch_class=pkg_fetch_slow; else fetch_class=pkg_fetch_failed; fi
+              echo "::error title=$fetch_class::FreeBSD package $fetch_phase did not complete"
+              echo "{\"ci_class\": \"$fetch_class\", \"phase\": \"$fetch_phase\"}"
+              exit 1
+            fi
+            echo "{\"pkg_fetch_seconds\": $(( $(date +%s) - fetch_started ))}"
             # Select the shared XML library explicitly: a new Python package can
             # otherwise retain an older preinstalled Expat with the same soname.
-            env ASSUME_ALWAYS_YES=yes pkg install -y expat python312 python313 py312-pip rust php85 php85-dom php85-simplexml php85-gettext
+            env ASSUME_ALWAYS_YES=yes pkg install -U -y expat python312 python313 py312-pip rust php85 php85-dom php85-simplexml php85-gettext
             pkg query '%n-%v' expat python312 python313
             ldd /usr/local/lib/python3.1[23]/lib-dynload/pyexpat*.so
             for native_python in /usr/local/bin/python3.12 /usr/local/bin/python3.13; do
@@ -69,7 +90,9 @@ jobs:
             done
             test ! -e /tmp/nethub-native-python
             python3.13 -m venv --without-pip /tmp/nethub-native-python
+            pip_started=$(date +%s)
             CARGO_BUILD_JOBS=2 python3.12 -m pip --python /tmp/nethub-native-python install --disable-pip-version-check --no-cache-dir --retries 2 --timeout 30 pytest==8.3.5 Jinja2==3.1.6 jsonschema==4.25.1
+            echo "{\"pip_install_seconds\": $(( $(date +%s) - pip_started ))}"
             php -r 'exit(extension_loaded("openssl") && class_exists("SimpleXMLElement") && function_exists("gettext") ? 0 : 1);'
           run: |
             set -eu

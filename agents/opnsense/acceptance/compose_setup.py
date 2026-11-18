@@ -56,6 +56,8 @@ ERRORS.update({name: () for name in (
     'relay_fleet_changed_client_Pong_generic', 'relay_fleet_changed_client_Pong_plugin_transport',
     'relay_recent_Ping_unavailable', 'relay_recent_Ping_device_denied', 'relay_recent_hook_busy',
     'relay_recent_snapshot_refresh_failed', 'relay_failure_context_unavailable',
+    'relay_recent_hook_slow_over_budget', 'relay_recent_hook_slow_over_write_deadline',
+    'relay_recent_hook_write_failed_deadline', 'relay_recent_hook_write_failed_other',
     'relay_frps_Ping_plugin_status_403', 'relay_frps_Ping_plugin_status_404',
     'relay_frps_Ping_plugin_status_405', 'relay_frps_Ping_plugin_status_other',
     'relay_frps_Ping_plugin_EOF', 'relay_frps_Ping_plugin_truncated',

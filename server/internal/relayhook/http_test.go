@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -267,3 +268,70 @@ func TestPeerConfigurationIsRequiredAndSnapshotted(t *testing.T) {
 	r.RemoteAddr = "[2001:db8::2]:1"
 	outcome(t, snapshot, r, true, 403)
 }
+
+func TestSlowAndFailedResponsesAreLoggedWithFixedCategories(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		delay    time.Duration
+		duration string
+		failed   bool
+	}{
+		{"fast", 0, "", false},
+		{"over budget", Budget + 150*time.Millisecond, "over_budget", false},
+		{"past write deadline", 2*Budget + 300*time.Millisecond, "over_write_deadline", true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			var mu sync.Mutex
+			writer := writerFunc(func(p []byte) (int, error) { mu.Lock(); defer mu.Unlock(); return logs.Write(p) })
+			handler, encoded := fixture(t, repositoryFunc(func(context.Context, protocol.ClaimPayload) error {
+				time.Sleep(test.delay) // ignores its context, like a starved process
+				return nil
+			}), writer)
+			server := httptest.NewServer(handler)
+			defer server.Close()
+			data, err := json.Marshal(envelope("Login", encoded))
+			if err != nil {
+				t.Fatal(err)
+			}
+			client := &http.Client{Transport: &http.Transport{}}
+			reply, err := client.Post(server.URL+Path+"?op=Login&version=0.1.0", "application/json", bytes.NewReader(data))
+			if test.failed {
+				if err == nil {
+					reply.Body.Close()
+					t.Fatal("response written after the write deadline reached the client")
+				}
+			} else {
+				if err != nil {
+					t.Fatal("timely response did not reach the client")
+				}
+				var decision response
+				if json.NewDecoder(reply.Body).Decode(&decision) != nil || reply.ContentLength <= 0 {
+					t.Fatal("hook response lost its length or body")
+				}
+				reply.Body.Close()
+			}
+			server.Close()
+			mu.Lock()
+			text := logs.String()
+			mu.Unlock()
+			slow := strings.Contains(text, `"msg":"Relay hook slow"`)
+			if slow != (test.duration != "") || test.duration != "" && !strings.Contains(text, `"duration":"`+test.duration+`"`) {
+				t.Fatalf("slow-response category mismatch")
+			}
+			failed := strings.Contains(text, `"msg":"Relay hook response write failed"`)
+			if failed != test.failed || test.failed && !strings.Contains(text, `"reason":"deadline"`) {
+				t.Fatalf("write-failure category mismatch")
+			}
+			for _, secret := range []string{encoded, "private-frp-authentication-fixture"} {
+				if strings.Contains(text, secret) {
+					t.Fatal("callback values leaked into logs")
+				}
+			}
+		})
+	}
+}
+
+type writerFunc func([]byte) (int, error)
+
+func (f writerFunc) Write(p []byte) (int, error) { return f(p) }

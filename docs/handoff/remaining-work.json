@@ -169,7 +169,7 @@
     {
       "id": "W7/final-CI-and-dependencies",
       "status": "partial",
-      "evidence_scope": "The five exact-source gates triggered on `5cf0f8e` and on `9c6713b` passed, installed native included. `95dbf20` (server idle timeout) passed CI and native contracts only; no installed or cold run has exercised it. Installed native on documentation-only `be3d67c` failed unclassified at reconcile replay and was not rerun. Recovery database/target workflows were not triggered. PR241 dependency refresh and PR236 frp update remain unmerged.",
+      "evidence_scope": "The continuation chain is merged into `main` (`0dafb70`), followed by the PR241 dependency refresh (all five gates passed on `35eacc4`), the migration-check classification, the bounded FreeBSD package fetch and the relay hook response diagnostics. Each passed its triggered gates. One `main` push CI failure (unclassified migration check), two mirror-timeout cancellations and one pull request CI failure (relay hook Ping EOF) are retained without reruns. Recovery database/target workflows were not triggered. PR236 frp 0.72.0 is held by owner decision; dependabot PR237/PR238 and authcore PR37 await review.",
       "next_action": "Review dependency/security scope and source licenses, integrate approved changes, then run all final exact-source gates. Do not close bot PRs or claim advisory-free status without evidence."
     },
     {

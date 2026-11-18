@@ -37,6 +37,44 @@ def timeout_config(raw, timeout):
     return replacement
 
 
+LOGIN_FAILURE_MARKER = b'login to the server failed'
+
+
+def client_command_problem(args, binary):
+    """Return a closed category for an unexpected client command line, or None."""
+    if len(args) != 3:
+        return 'client_argument_count'
+    if Path(os.fsdecode(args[0])).resolve() != binary.resolve():
+        return 'client_binary_mismatch'
+    if args[1] != b'-c':
+        return 'client_flag_mismatch'
+    return None
+
+
+def describe_client_failure(problem, running_at_check, exit_code, log_bytes):
+    """Describe a failed client check with closed fields only; log text never leaves the host."""
+    if type(running_at_check) is not bool:
+        raise ValueError('invalid client state')
+    if exit_code is None:
+        return f'migration client {problem} while running'
+    if type(exit_code) is not int:
+        raise ValueError('invalid client exit status')
+    logged = 'unknown' if log_bytes is None else str(LOGIN_FAILURE_MARKER in log_bytes)
+    return (f'migration client exited: exit_code={exit_code} running_at_check={running_at_check} '
+            f'login_failure_logged={logged} command={problem}')
+
+
+def classify_client_failure(problem, client, log_path):
+    """Wait briefly for the client to settle, then describe the failure."""
+    running_at_check = client.poll() is None
+    try:
+        exit_code = client.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        exit_code = None
+    log_bytes = log_path.read_bytes() if log_path is not None and log_path.is_file() else None
+    return describe_client_failure(problem, running_at_check, exit_code, log_bytes)
+
+
 def control_bindings(raw, pids):
     if (not isinstance(raw, str) or len(raw) > 1024**2 or not isinstance(pids, (list, tuple)) or not pids
             or any(type(pid) is not int or pid <= 0 for pid in pids) or len(set(pids)) != len(pids)):
@@ -135,8 +173,16 @@ def exercise_migration(stage, compose, assignments, clients, start_client, stop_
     binary_hash = hashlib.sha256(binary.read_bytes()).hexdigest()
 
     def client_timing(index):
-        args = Path(f'/proc/{clients[index].pid}/cmdline').read_bytes().rstrip(b'\0').split(b'\0')
-        assert len(args) == 3 and Path(os.fsdecode(args[0])).resolve() == binary.resolve() and args[1] == b'-c'
+        try:
+            args = Path(f'/proc/{clients[index].pid}/cmdline').read_bytes().rstrip(b'\0').split(b'\0')
+        except FileNotFoundError:
+            args = []
+        problem = client_command_problem(args, binary)
+        if problem is not None:
+            # Classify without retrying: an exited client leaves an empty
+            # command line. Only the exit status and a login-failure flag
+            # are reported; the client log stays in the private stage.
+            raise AssertionError(classify_client_failure(problem, clients[index], client_logs[index]))
         path = Path(os.fsdecode(args[2]))
         assert path.parent == stage / 'relay-test' and path.resolve() == path and not path.is_symlink()
         value = json.loads(path.read_bytes())

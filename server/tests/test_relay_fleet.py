@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 import json
 
-from relay_fleet import require_original_controls, require_retained_controls, recent_failure_hints, frps_plugin_failure_hints, report_failure_context, PONG_REASONS
+from relay_fleet import require_original_controls, require_retained_controls, recent_failure_hints, frps_plugin_failure_hints, report_failure_context, PONG_REASONS, CONTEXT_HINTS
 
 
 class FleetFailureTests(unittest.TestCase):
@@ -19,10 +19,16 @@ class FleetFailureTests(unittest.TestCase):
             {'msg': 'Relay hook decision', 'operation': 'unknown', 'decision': 'busy'},
             {'msg': 'Revocation refresh failed; retaining previous snapshot', 'private': 'must-not-escape'},
             {'msg': 'Relay hook decision', 'operation': 'Login', 'decision': 'unavailable'},
+            {'msg': 'Relay hook slow', 'operation': 'Ping', 'duration': 'over_write_deadline'},
+            {'msg': 'Relay hook slow', 'operation': 'Ping', 'duration': 'private-duration'},
+            {'msg': 'Relay hook response write failed', 'operation': 'Ping', 'reason': 'deadline'},
+            {'msg': 'Relay hook response write failed', 'operation': 'Ping', 'reason': 'private-reason'},
             {'msg': 'private', 'operation': 'Ping', 'decision': 'private'}, ['private']])
         self.assertEqual(recent_failure_hints(raw), {
             'relay_recent_Ping_unavailable', 'relay_recent_Ping_device_denied',
-            'relay_recent_hook_busy', 'relay_recent_snapshot_refresh_failed'})
+            'relay_recent_hook_busy', 'relay_recent_snapshot_refresh_failed',
+            'relay_recent_hook_slow_over_write_deadline', 'relay_recent_hook_write_failed_deadline'})
+        self.assertTrue(recent_failure_hints(raw) <= CONTEXT_HINTS)
         self.assertEqual(recent_failure_hints(b'private non-JSON\n'), set())
         with self.assertRaises(ValueError):
             recent_failure_hints(b'x' * (1024**2 + 1))
@@ -52,7 +58,7 @@ class FleetFailureTests(unittest.TestCase):
             with redirect_stdout(output):
                 report_failure_context(stage, compose)
         self.assertEqual(run.call_count, 2)
-        self.assertEqual(run.call_args_list[0].args[0], compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '100', 'nethub-authz'])
+        self.assertEqual(run.call_args_list[0].args[0], compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '400', 'nethub-authz'])
         self.assertEqual(run.call_args_list[1].args[0], compose + ['logs', '--no-color', '--no-log-prefix', '--tail', '200', 'frps'])
         self.assertEqual(output.getvalue(),
             'NETHUB_NATIVE_HINT=relay_frps_Ping_plugin_status_404\nNETHUB_NATIVE_HINT=relay_recent_Ping_unavailable\n')

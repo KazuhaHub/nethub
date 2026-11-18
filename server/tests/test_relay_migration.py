@@ -71,5 +71,62 @@ class MigrationBoundaryTests(unittest.TestCase):
                 MIGRATION.control_bindings(raw, pids)
 
 
+class ClientFailureClassificationTests(unittest.TestCase):
+    def test_command_line_problems_are_closed_categories(self):
+        binary = Path('/opt/fixture/frpc')
+        good = [str(binary).encode(), b'-c', b'/stage/relay-test/client.json']
+        self.assertIsNone(MIGRATION.client_command_problem(good, binary))
+        self.assertEqual(MIGRATION.client_command_problem([b''], binary), 'client_argument_count')
+        self.assertEqual(MIGRATION.client_command_problem([], binary), 'client_argument_count')
+        self.assertEqual(MIGRATION.client_command_problem([b'/usr/bin/other', b'-c', b'x'], binary),
+                         'client_binary_mismatch')
+        self.assertEqual(MIGRATION.client_command_problem([str(binary).encode(), b'-x', b'x'], binary),
+                         'client_flag_mismatch')
+
+    def test_exited_client_reports_status_and_login_flag_without_log_text(self):
+        secret = b'token=owned-fixture-secret'
+        log = secret + b' login to the server failed: refused. With loginFailExit enabled'
+        message = MIGRATION.describe_client_failure('client_argument_count', False, 1, log)
+        self.assertEqual(message, 'migration client exited: exit_code=1 running_at_check=False '
+                                  'login_failure_logged=True command=client_argument_count')
+        self.assertNotIn('owned-fixture-secret', message)
+        self.assertIn('login_failure_logged=False',
+                      MIGRATION.describe_client_failure('client_argument_count', True, -15, b'other'))
+        self.assertIn('login_failure_logged=unknown',
+                      MIGRATION.describe_client_failure('client_argument_count', False, 0, None))
+
+    def test_running_client_mismatch_and_invalid_status(self):
+        self.assertEqual(MIGRATION.describe_client_failure('client_flag_mismatch', True, None, b'x'),
+                         'migration client client_flag_mismatch while running')
+        for code in (True, '1', 1.0):
+            with self.subTest(code=code), self.assertRaises(ValueError):
+                MIGRATION.describe_client_failure('client_argument_count', False, code, b'')
+        with self.assertRaises(ValueError):
+            MIGRATION.describe_client_failure('client_argument_count', 1, 0, b'')
+
+    def test_classification_wiring_with_real_processes(self):
+        import subprocess, sys, tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / 'client.log'
+            log.write_bytes(b'login to the server failed: x')
+            exited = subprocess.Popen([sys.executable, '-c', 'raise SystemExit(1)'])
+            exited.wait()
+            self.assertEqual(MIGRATION.classify_client_failure('client_argument_count', exited, log),
+                             'migration client exited: exit_code=1 running_at_check=False '
+                             'login_failure_logged=True command=client_argument_count')
+            self.assertIn('login_failure_logged=unknown',
+                          MIGRATION.classify_client_failure('client_argument_count', exited, None))
+            self.assertIn('login_failure_logged=unknown',
+                          MIGRATION.classify_client_failure('client_argument_count', exited,
+                                                            Path(directory) / 'missing.log'))
+            running = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])
+            try:
+                self.assertEqual(MIGRATION.classify_client_failure('client_binary_mismatch', running, log),
+                                 'migration client client_binary_mismatch while running')
+            finally:
+                running.kill()
+                running.wait()
+
+
 if __name__ == '__main__':
     unittest.main()
