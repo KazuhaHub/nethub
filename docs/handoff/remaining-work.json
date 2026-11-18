@@ -98,7 +98,7 @@
       "id": "W6-6/public-provider",
       "status": "pending-external-resource",
       "evidence_scope": "Dex and Keycloak integration is real but isolated. No registered public provider/operator sample is accepted.",
-      "next_action": "Register an appropriate public test application with operator-controlled credentials and exercise invitation, login, denial/replay and cleanup; keep credentials outside Git."
+      "next_action": "After Beta launches, register a public test application with operator-controlled credentials and exercise invitation, login, denial, replay and cleanup on the live Beta deployment. Keep credentials outside Git."
     },
     {
       "id": "W7-1/chain",

@@ -159,12 +159,15 @@ old workstation secret or router disk is needed. Do not commit those secrets.
 External reverse proxies manage their console TLS; NetHub's relay trust and
 device GUI-certificate lifecycle remain separate.
 
-The Check-Host mode exists only in PR #242 until integrated. Its patch is in
-[patches](patches/README.md). The required real positive/closed-port sample is
-still open. It must use an owned public test endpoint, explicit provider opt-in,
-an independent deadline/cleanup for any temporary listener, and unchanged
-unrelated services. Record provider errors as failures; do not manufacture a
-positive result or relax the three-observer requirement.
+The integrated doctor has owned-public positive and closed-port samples
+recorded in [validation](validation.md). For a new sample, use an owned
+public endpoint and explicit provider opt-in. Set an independent cleanup deadline for any temporary
+listener and keep unrelated services untouched. Keep the three-observer
+requirement and record provider errors as failures.
+
+Use disposable Ubuntu and OPNsense VMs for isolated deployment and package
+acceptance. Record the exact source and package used. Test the public identity
+provider against the live Beta deployment after launch.
 
 For the mobile/signed-package acceptance, use normal console **Open**, actual
 router login and a masked recording. For the independent-deployer requirement,
