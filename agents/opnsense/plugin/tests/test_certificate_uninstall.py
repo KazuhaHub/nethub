@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.mark.parametrize('recovery_exit', [0, 1])
 @pytest.mark.parametrize('failing_stage', ['trust', 'gui'])
-def test_failed_pending_recovery_aborts_removal_before_any_service_stop(tmp_path, recovery_exit, failing_stage):
+@pytest.mark.parametrize('upgrade', [False, True])
+def test_pre_deinstall_preserves_upgrades_and_recovers_before_removal(tmp_path, recovery_exit, failing_stage, upgrade):
     tmp_path.chmod(0o700)
     state, logs, binary = [tmp_path / name for name in ('state', 'logs', 'bin')]
     binary.mkdir()
@@ -46,7 +47,16 @@ def test_failed_pending_recovery_aborts_removal_before_any_service_stop(tmp_path
     script = tmp_path / 'pre-deinstall.sh'
     script.write_text(text)
     env = dict(os.environ, PATH=str(binary) + os.pathsep + os.environ['PATH'])
+    env.pop('PKG_UPGRADE', None)
+    if upgrade:
+        env['PKG_UPGRADE'] = 'true'
     result = subprocess.run(['sh', str(script)], env=env, capture_output=True, timeout=10)
+    if upgrade:
+        assert result.returncode == 0
+        assert not state.exists()
+        assert not gui_event.exists()
+        assert not events.exists()
+        return
     assert result.returncode == recovery_exit
     assert (state / 'uninstalling').exists()
     assert gui_event.exists() is not (recovery_exit == 1 and failing_stage == 'trust')
