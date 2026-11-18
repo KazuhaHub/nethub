@@ -383,7 +383,7 @@ instant of the failed route request.
 
 The installed fixture now also stages the immutable `c9e74abb1fb1` package source
 before enrollment and builds its unsigned 0.0.18 package with the same pinned Go
-toolchain as the current 0.0.21 package. During planned outages of the owned relay,
+toolchain as the current 0.0.23 package. During planned outages of the owned relay,
 it reinstalls the old package and then the current package through their normal
 package hooks. Relay timeout is widened before rollback and shortened only after
 the current native heartbeat profile is observed. Read-only probes require package

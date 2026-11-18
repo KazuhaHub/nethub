@@ -25,6 +25,13 @@ def build(version):
         work = Path(temporary)
         stage, meta = work / 'stage', work / 'metadata'
         shutil.copytree(source, stage, ignore=shutil.ignore_patterns('.DS_Store', '._*', '__pycache__'))
+        notices = stage / 'usr/local/share/licenses/os-nethub-agent'
+        notices.mkdir(parents=True)
+        notice_names = (metadata / 'notice-files').read_text().splitlines()
+        if notice_names != ['LICENSE', 'NOTICE']:
+            raise ValueError('Unexpected package notice inventory')
+        for name in notice_names:
+            shutil.copyfile(root.parents[2] / name, notices / name)
         frpc = stage / 'usr/local/opnsense/nethub-agent/bin/frpc'
         build_frpc(frpc)
         expected = read_lock()['version']
