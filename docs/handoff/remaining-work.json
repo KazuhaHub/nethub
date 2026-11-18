@@ -145,13 +145,13 @@
     {
       "id": "W7-8/D13",
       "status": "pending",
-      "evidence_scope": "Beta v0.0.19-beta.1 publishes the signed FreeBSD 15 amd64 package snapshot, public key and source archive from 3e88574. An independent build matched 99 files and four hooks. The formal FreeBSD 15 feed serves the same signed package digest.",
-      "next_action": "Finish the exact-source upgrade-fix gates, publish a new version after independent package validation, and document the maintenance window for the first transition from 0.0.19."
+      "evidence_scope": "Signed Beta 2 publishes FreeBSD 15 amd64 package 0.0.21 and exact source 84f7d36. An independent build matched 99 files and four hooks. A disposable OPNsense VM verified the formal public catalog signature and installed the matching package digest.",
+      "next_action": "Use the documented maintenance window and independent recovery access for the first transition from 0.0.19. Keep general availability subject to the remaining public acceptance gates."
     },
     {
       "id": "W7-9/router-package",
       "status": "pending",
-      "evidence_scope": "An isolated OPNsense VM verified the signed public HTTPS catalog, installed and uninstalled 0.0.19, and checked frpc 0.71.1. Public enrollment remains pending.",
+      "evidence_scope": "Disposable OPNsense VMs verified the signed public HTTPS catalog, installed and removed 0.0.19 and 0.0.21, and checked frpc 0.71.1. Public enrollment remains pending.",
       "next_action": "Complete public enrollment and mobile remote GUI coverage with the formally published package and independent recovery access."
     },
     {

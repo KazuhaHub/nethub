@@ -104,6 +104,16 @@ installed 0.0.21 from the replacement catalog and explicitly downgraded
 from the retained signed Beta 1 snapshot while the replacement catalog
 continued to offer 0.0.21.
 
+[OPNsense-repo #62](https://github.com/KazuhaHub/OPNsense-repo/pull/62)
+and the [signed Pages deployment](https://github.com/KazuhaHub/OPNsense-repo/actions/runs/44320847995)
+published the 0.0.21 catalog. The public HTTPS report matched the staged
+bytes and verified against the pinned signing key. A disposable OPNsense
+VM fetched the package from the public catalog, checked its SHA-256,
+installed 0.0.21, confirmed frpc 0.71.1 and removed the package. The
+test VM and its storage were removed. This test covered package
+distribution and installation. Enrollment through the public NetHub
+service is a separate acceptance item.
+
 ## Dependency follow-up
 
 [NetHub #237](https://github.com/KazuhaHub/nethub/pull/237) updated lucide-react
