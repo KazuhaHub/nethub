@@ -36,6 +36,7 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	backupTimeout := flags.Duration("backup-timeout", 10*time.Minute, "Total backup verification budget, between one second and thirty minutes")
 	containers := flags.Bool("runtime-containers", false, "Inspect existing protected Linux Docker service separation without modifying services")
 	relayHook := flags.Bool("relay-hook", false, "Check the existing protected relay TLS and Login rejection path without credentials or proxies")
+	publishedAppliance := flags.Bool("published-appliance", false, "With --relay-hook, compare running frps to the signed FreeBSD 15 appliance package record")
 	project := flags.String("project", "nethub", "Existing protected Compose project for host checks")
 	composeFile := flags.String("compose-file", "", "Optional protected Compose override for host checks")
 	host := flags.String("host", "postgres", "Database hostname for read-only checks")
@@ -56,6 +57,10 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 	}
 	selected := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { selected[f.Name] = true })
+	if selected["published-appliance"] && !*relayHook {
+		fmt.Fprintln(stderr, "Published appliance version checks require --relay-hook")
+		return 2
+	}
 	if *externalTCP {
 		for name := range selected {
 			if name != "external-tcp-check-host" && name != "expected-address" {
@@ -107,7 +112,7 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		for name := range selected {
-			if name != "runtime-containers" && name != "relay-hook" && name != "directory" && name != "project" && name != "compose-file" {
+			if name != "runtime-containers" && name != "relay-hook" && name != "published-appliance" && name != "directory" && name != "project" && name != "compose-file" {
 				fmt.Fprintln(stderr, "Run container inspection separately from database, DNS, certificate and health checks")
 				return 2
 			}
@@ -151,6 +156,15 @@ func runDoctor(args []string, stdout, stderr io.Writer) int {
 				return 1
 			}
 			fmt.Fprintf(stdout, "Relay TLS and Login hook rejection path passed; running frp reports %s and matches this binary's protocol pin\n", version)
+			if *publishedAppliance {
+				packageVersion, err := checkPublishedAppliance(ctx, version)
+				if err != nil {
+					fmt.Fprintf(stderr, "Published appliance version check failed: %v. Confirm the signed NetHub package record is current and align frps and the appliance package before retrying\n", err)
+					return 1
+				}
+				fmt.Fprintf(stdout, "Signed repository os-nethub-agent %s for FreeBSD 15 amd64 reports frp %s, matching the running relay\n", packageVersion, version)
+				return 0
+			}
 			fmt.Fprintln(stdout, "Probe used an invalid claim with no token, device secret or proxy; this does not prove successful device admission, external reachability, recent backups or published appliance version agreement")
 			return 0
 		}

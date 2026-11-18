@@ -43,3 +43,10 @@ condition = "AND"
 regexTarget = "line"
 paths = ['''^deploy/validation-native-browser\.json$''']
 regexes = ['''^\s*"02-console-token\.png":\s*"ae362ce989f5d25bf51e2276cffedbe8f92fea1bc1f51a165874762b593c07c4",?\s*$''']
+
+[[rules.allowlists]]
+description = "Exact public KazuhaHub package repository verification key checksum"
+condition = "AND"
+regexTarget = "line"
+paths = ['''^server/cmd/nethub/doctor_appliance\.go$''']
+regexes = ['''^\s*const applianceFeedKeySHA256 = "92e83cb0267c3ef27cb355bc2f045c3449fd5c741d1030c7a90c879b00fa5e9b"\s*$''']
