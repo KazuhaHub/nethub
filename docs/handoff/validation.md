@@ -91,7 +91,10 @@ The Beta 2 draft has verified asset checksums. The staged formal feed keeps
 FreeBSD 15 catalog entries unchanged. A disposable, unenrolled OPNsense VM
 installed public `0.0.19`, upgraded to the exact `0.0.21` candidate through
 the staged signed catalog, then explicitly rolled back to public `0.0.19`.
-Both versions reported frpc 0.71.1. Public promotion remains pending.
+Both versions reported frpc 0.71.1. A separate offline VM then
+installed 0.0.21 from the replacement catalog and explicitly downgraded
+from the retained signed Beta 1 snapshot while the replacement catalog
+continued to offer 0.0.21. Public promotion remains pending.
 
 ## Dependency follow-up
 

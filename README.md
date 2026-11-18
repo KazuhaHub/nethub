@@ -12,10 +12,11 @@ VyOS.
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Stars](https://img.shields.io/github/stars/KazuhaHub/nethub?style=social)
 
-**Status: pre-alpha, W7 implementation and acceptance.** The control plane and OPNsense development
-plugin are implemented, with scoped public/native certificate and trust records.
-W5–W7 remain incomplete; there is no production release. See
-[Project status](#project-status) for evidence and remaining gates.
+**Status: Beta package, W7 acceptance in progress.** The signed
+[OPNsense Beta package](https://kazuhahub.github.io/OPNsense-repo/) is available
+for FreeBSD 15 amd64. The control plane and the plugin have scoped acceptance
+records. Public operator, mobile and production qualification remain open.
+See [Project status](#project-status) for details.
 
 **Before you self-host, you will need:** a domain name you control DNS for, a
 **wildcard DNS record** (`*.router.example.com` → your relay server's public
@@ -178,13 +179,10 @@ remain planned.
 
 All of NetHub lives in this repository, including the OPNsense plugin source
 under `agents/opnsense/plugin/`. CI builds unsigned development packages here.
-Formal signed release packaging is planned separately:
-[`KKazuhaK/OPNsense-repo`](https://github.com/KKazuhaK/OPNsense-repo) will
-carry a packaging recipe that fetches a tagged NetHub release, verifies its
-checksum, and runs it through an existing FreeBSD build/signing/publish
-pipeline — the same way it already packages sing-box and frp. From
-that repository's point of view NetHub is just another upstream. Full detail:
-[`CONTRIBUTING.md`](CONTRIBUTING.md#license-and-repository-layout).
+[KazuhaHub/OPNsense-repo](https://github.com/KazuhaHub/OPNsense-repo)
+pins tagged NetHub source, the independently checked build record and the
+tested package digest. Its FreeBSD signing host signs the package catalog.
+See [repository and license boundaries](CONTRIBUTING.md#license-and-repository-layout).
 
 ## Requirements
 
@@ -213,9 +211,9 @@ above.
 
 Use the [deployment guide](docs/deployment.md) and
 [verified command examples](deploy/QUICKSTART.md) on a dedicated test host.
-The development plugin is unsigned; package-repository release and a complete
-friend-from-zero deployment remain separate acceptance. No setup-time estimate
-is established.
+For the router, follow the [signed package installation and rollback guide](docs/deployment.md#install-or-upgrade-the-opnsense-agent).
+A complete independent deployment and its elapsed time still need operator
+acceptance.
 
 1. Prepare DNS, listeners and protected deployment/backup parents.
 2. Run `nethub init`, verify its secret backup and acknowledge it.
@@ -349,8 +347,9 @@ both retained client routes. The later
 [protected-host drill](deploy/validation-protected-host-cold-recovery.md) also
 restored issuer/account/publisher state and verified the original native request's
 issuance and application. Public operator recovery, durable off-host custody,
-full document review, friend-from-zero deployment and signed/faulty-version
-release gates remain W7 work. There is no released package or production-readiness claim.
+full document review, independent deployment and formal canary rollout remain
+W7 work. The signed Beta package has scoped installation and rollback evidence
+in the [validation ledger](docs/handoff/validation.md).
 
 ## Roadmap
 
@@ -388,6 +387,6 @@ NetHub 是一个自托管的远程访问与设备管理工具：让藏在 CGNAT 
 开源路由器/防火墙（首发支持 OPNsense）无需端口转发即可远程打开 Web UI。v1
 不提供通用设备配置接口；插件的隧道及 GUI 证书管理有独立边界，批量升级和通用设备监控不在 v1 范围内。
 已实现的月度隧道流量统计是近似值，并支持用量提醒。控制台
-已实现多用户（admin / member，邀请制）、OIDC 和 SAML 登录接口及页面。项目处于 pre-alpha 的 W7 实现和验收阶段，已有按环境和版本记录的原生／公网证书及定时数据库备份验收；W5–W7、公开 IdP 和正式发布仍有未完成项，不能用于生产。中文设计文档见
+已实现多用户（admin / member，邀请制）、OIDC 和 SAML 登录接口及页面。已发布 OPNsense Beta 签名包，适用于 FreeBSD 15 amd64。原生证书、受限公网样本和定时备份各有验收记录。W5–W7、公开 IdP 和生产验收仍有未完成项。中文设计文档见
 [`docs/DESIGN.md`](docs/DESIGN.md)，完整的中文 README 见
 [`docs/README.zh-CN.md`](docs/README.zh-CN.md)。
