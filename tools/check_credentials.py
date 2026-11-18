@@ -3,6 +3,7 @@ import argparse
 import ast
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -14,6 +15,9 @@ PUBLIC_CSR_SPKI = json.loads((ROOT / 'proto/examples/valid/certificate-submit-re
 PUBLIC_RELEASE_KEY = next(node.value.value for node in ast.walk(ast.parse((ROOT / 'weekend0/vm_preflight.py').read_text()))
                           if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == 'KEY_SHA256'
                                                                  for target in node.targets))
+APPLIANCE_PATH = 'server/cmd/nethub/doctor_appliance.go'
+APPLIANCE_CHECKSUM = re.search(r'^const applianceFeedKeySHA256 = "([a-f0-9]{64})"$',
+                               (ROOT / APPLIANCE_PATH).read_text(), re.M)[1]
 PUBLIC_SCREENSHOT = 'ae362ce989f5d25bf51e2276cffedbe8f92fea1bc1f51a165874762b593c07c4'
 
 
@@ -121,13 +125,22 @@ def main():
         control('screenshot-same-line-credential', {
             screenshot_path: screenshot.rstrip() + ' "api_key": "' + credential + '"\n',
         }, True)
+        appliance = 'const applianceFeedKeySHA256 = "' + APPLIANCE_CHECKSUM + '"\n'
+        control('appliance-public-checksum', {APPLIANCE_PATH: appliance}, False)
+        control('appliance-changed-checksum', {
+            APPLIANCE_PATH: appliance.replace(APPLIANCE_CHECKSUM, APPLIANCE_CHECKSUM[::-1]),
+        }, True)
+        control('appliance-checksum-wrong-path', {'other.go': appliance}, True)
+        control('appliance-checksum-adjacent-credential', {
+            APPLIANCE_PATH: appliance.rstrip() + '; api_key = "' + credential + '"\n',
+        }, True)
         findings = scan('git', ROOT, 'history', history=True)
         if findings:
             locations = [{key: finding.get(key) for key in ['RuleID', 'File', 'StartLine', 'Commit']}
                          for finding in findings]
             print(json.dumps({'credential_findings': locations}))
             raise SystemExit(1)
-    print('Credential history scan passed with default rules, full fetched history and fifteen exception controls; reports and matches were not published')
+    print('Credential history scan passed with default rules, full fetched history and nineteen exception controls; reports and matches were not published')
 
 
 if __name__ == '__main__':

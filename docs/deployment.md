@@ -210,10 +210,13 @@ enrollment, access grant, audit mutation or proxy. Actual isolated acceptance
 also checked unchanged database row counts, an unavailable authz hook and
 owned-service recovery. See [probe scope](../server/internal/relayprobe/README.md).
 
-This tests the configured Login rejection path, not successful device admission
-or every hook operation. Public-network port checks and comparison with the
-actual formally published appliance package remain separate requirements; a
-match with the binary's pin does not establish that publication.
+Add `--published-appliance` to compare the running relay's reported frp version
+with the FreeBSD 15 amd64 `os-nethub-agent` entry in the official package feed.
+This uses public HTTPS, pins the repository signing key and verifies the release
+report's signature. A missing package version record, an invalid signature or a
+version mismatch fails the check. The command checks the signed release
+metadata and the actual relay Login rejection path. Public device admission and
+router installation require their own checks.
 
 Verify recent archive contents separately inside the existing backup worker:
 

@@ -94,6 +94,8 @@ func TestDoctorRuntimeContainerModeBoundary(t *testing.T) {
 		{"--project", "other"}, {"--compose-file", "unused"},
 		{"--runtime-containers", "--database-roles"},
 		{"--runtime-containers", "--relay-hook"},
+		{"--published-appliance"},
+		{"--runtime-containers", "--published-appliance"},
 		{"--relay-hook", "--database-roles"},
 		{"--relay-hook", "--public-tls"},
 		{"--relay-hook", "--health-url", "http://127.0.0.1/healthz"},
