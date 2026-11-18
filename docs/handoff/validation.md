@@ -88,7 +88,10 @@ installed rotation results remain separate.
 
 The Beta 2 draft has verified asset checksums. The staged formal feed keeps
 0.0.19 downloadable as a signed rollback archive and leaves the 19 other
-FreeBSD 15 catalog entries unchanged. Public promotion remains pending.
+FreeBSD 15 catalog entries unchanged. A disposable, unenrolled OPNsense VM
+installed public `0.0.19`, upgraded to the exact `0.0.21` candidate through
+the staged signed catalog, then explicitly rolled back to public `0.0.19`.
+Both versions reported frpc 0.71.1. Public promotion remains pending.
 
 ## Main integration: 0dafb70 through 24b7f29
 

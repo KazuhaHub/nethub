@@ -292,6 +292,45 @@ Its host and online native recovery have [isolated acceptance](../deploy/validat
 public/operator and complete restoration gates remain open. Neither procedure is an ad hoc
 database credential update.
 
+### Install or upgrade the OPNsense agent
+
+Use the [KazuhaHub signed package feed](https://kazuhahub.github.io/OPNsense-repo/)
+on an OPNsense 26.7 amd64 appliance. Configure the feed and verify its package
+repository trust anchor using the feed's instructions. Check the offered
+package before installation:
+
+```sh
+pkg update -r kazuhahub
+pkg rquery -r kazuhahub '%n %v %q' os-nethub-agent
+```
+
+After the query returns the intended version for FreeBSD 15 amd64, install and
+verify what is installed:
+
+```sh
+pkg install -r kazuhahub os-nethub-agent
+pkg query '%n %v %q' os-nethub-agent
+```
+
+Enroll from **Services → NetHub Agent** with the console HTTPS address and
+a one-time token issued by the Web console. Keep a separate way to reach the router and verify that the console
+reports the enrolled device online.
+
+For an upgrade, first save an encrypted OPNsense configuration backup and
+retain the previous signed package snapshot and its release checksums. From
+0.0.19, schedule a maintenance window and keep independent router access.
+The installed 0.0.19 hook stops the tunnel before the incoming files are in
+place. After the upgrade, confirm the device is online and check its NetHub
+Agent status locally.
+
+If a rollback is required, use the prior signed snapshot in a separate local
+pkg repository and verify its catalog with the trusted repository key. Query
+the exact old version in that repository before explicitly installing it.
+Then verify that the original enrollment and tunnel work. A current public
+catalog can offer only the newer package even when the previous signed
+archive remains downloadable. Keep the prior snapshot before changing the
+router.
+
 ## Backup and restore boundary
 
 The initializer's checksum-verified backup is a protected local copy of the
