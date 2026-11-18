@@ -41,7 +41,11 @@ jobs:
           if [ -f /etc/apt/apt-mirrors.txt ]; then
             printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
           fi
+          # All native and browser dependencies come from the Ubuntu archive.
+          test -s /etc/apt/sources.list.d/ubuntu.sources
           printf '%s\n' \
+            'Dir::Etc::sourcelist "/etc/apt/sources.list.d/ubuntu.sources";' \
+            'Dir::Etc::sourceparts "-";' \
             'Acquire::Retries "2";' \
             'Acquire::http::Timeout "15";' \
             'Acquire::https::Timeout "15";' \
