@@ -69,7 +69,7 @@ public signed package record. This run used a private VM deployment.
 [NetHub #279](https://github.com/KazuhaHub/nethub/pull/279) passed its triggered
 checks and merged as `b0b6c65` with the tested tree unchanged.
 
-## NetHub Agent 0.0.21 release candidate
+## NetHub Agent 0.0.21 Beta 2
 
 [NetHub #280](https://github.com/KazuhaHub/nethub/pull/280) source
 `84f7d36` builds the 0.0.21 package with the upgrade guard. Independent
@@ -82,11 +82,19 @@ The first-attempt [appliance preparation run](https://github.com/KazuhaHub/nethu
 passed on the same source. The collected zip, exact source-archive hash and
 four inspected views were independently verified. The separate
 [FreeBSD contracts run](https://github.com/KazuhaHub/nethub/actions/runs/44308602031)
-passed 438 cases, and all 284 source blobs matched Git. These runs cover
-preparation and native contracts. The full deployment, cold recovery and
-installed rotation results remain separate.
+passed 438 cases, and all 284 source blobs matched Git. The first-attempt
+[deployment CI](https://github.com/KazuhaHub/nethub/actions/runs/44308601919)
+passed all six jobs. [Protected cold recovery](https://github.com/KazuhaHub/nethub/actions/runs/44308601961)
+and [installed native rotation](https://github.com/KazuhaHub/nethub/actions/runs/44308602168)
+passed using its same-source image. Independent verification checked the
+archive hashes and provenance. Native package migration passed all ten
+phases, and revocation made the device proxy go offline in 1,027 ms with
+no reconnect during the subsequent 30,068 ms observation window.
 
-The Beta 2 draft has verified asset checksums. The staged formal feed keeps
+#280 merged as `d16f91f` with the tested tree. The
+[signed Beta 2 prerelease](https://github.com/KazuhaHub/nethub/releases/tag/v0.0.21-beta.2)
+tags `84f7d36`. A fresh download verified all four asset digests against
+the published checksum file. The staged formal feed keeps
 0.0.19 downloadable as a signed rollback archive and leaves the 19 other
 FreeBSD 15 catalog entries unchanged. A disposable, unenrolled OPNsense VM
 installed public `0.0.19`, upgraded to the exact `0.0.21` candidate through
@@ -94,7 +102,7 @@ the staged signed catalog, then explicitly rolled back to public `0.0.19`.
 Both versions reported frpc 0.71.1. A separate offline VM then
 installed 0.0.21 from the replacement catalog and explicitly downgraded
 from the retained signed Beta 1 snapshot while the replacement catalog
-continued to offer 0.0.21. Public promotion remains pending.
+continued to offer 0.0.21.
 
 ## Dependency follow-up
 
