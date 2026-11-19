@@ -123,6 +123,30 @@ Downgrading to the hash-verified public 0.0.21 preserved the same frpc
 process identity and live configuration. Both VMs, their storage and
 fixture credentials were removed.
 
+## NetHub Agent 0.0.23 Beta 3
+
+The [signed Beta 3 prerelease](https://github.com/KazuhaHub/nethub/releases/tag/v0.0.23-beta.3)
+tags `f5151a8`. The independently checked FreeBSD package matched 101 files
+and four hooks, including the NetHub LICENSE and NOTICE. All five hosted
+checks passed on their first attempt. In the [installed native rotation](https://github.com/KazuhaHub/nethub/actions/runs/44343985060),
+the proxy went offline 1,933 ms after revocation and did not reconnect
+during the subsequent 30,065 ms observation window.
+
+The [signed formal feed deployment](https://github.com/KazuhaHub/OPNsense-repo/actions/runs/44358205707)
+published 0.0.23 and retained 0.0.19 and 0.0.21 as rollback packages.
+A disposable OPNsense VM fetched 0.0.23 over HTTPS, verified the signed
+catalog and package hash, installed it, checked both notices against the
+source, then uninstalled it and verified their removal. A separate
+unenrolled VM verified upgrade from public 0.0.21 to the signed candidate
+and rollback to public 0.0.21.
+
+The [first CI push run](https://github.com/KazuhaHub/nethub/actions/runs/44358079115)
+on merge commit `96087ed` failed in the relay fleet pressure stage. The
+changed control connection and frps Ping plugin EOF were recorded. No
+hook deadline hint was retained, and the cause remains unproven. The
+[FreeBSD contracts push run](https://github.com/KazuhaHub/nethub/actions/runs/44358079190)
+on the same merge commit passed.
+
 ## Dependency follow-up
 
 [NetHub #237](https://github.com/KazuhaHub/nethub/pull/237) updated lucide-react
