@@ -23,6 +23,24 @@ unverified. Revoke denied a new GUI connection within 375 ms of the API
 request, with no GUI reconnect observed for 30 seconds. Existing-stream
 cutoff and mobile-carrier behavior were outside this trial.
 
+Native resolver configuration kept the private route after reboot. The
+console observed a fresh online sample after 33,580 ms from VM startup.
+After a separate six-second WAN link interruption, it observed a fresh
+sample 4,749 ms after link restoration. The frpc PID and start time, OPNsense
+configuration hash and generated runtime hash stayed the same. Open reached
+the original GUI after recovery. WAN address change was outside this trial.
+
+A read-only grant check matched the exact requesting Tailscale source and
+verified a 1,800-second lifetime. Inventory reads and relayed GUI requests
+preserved expiry. An explicit second Open advanced the same grant.
+
+Normal rotation changed the device secret and domain claim while preserving
+device ID and hostname. The rotated device came online after another cold
+boot and Open reached its GUI. An offline device was then revoked. Its
+original Login was denied after boot. Normal local removal and manual
+re-enrollment returned the replacement device to the console and GUI route.
+This covered a single offline device on the private deployment.
+
 The Beta PostgreSQL archive passed the deployment-bound hash and freshness
 checks. Restoring it to an isolated PostgreSQL container reproduced device,
 user and audit row counts. That container and its temporary volume were
