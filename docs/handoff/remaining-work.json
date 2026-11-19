@@ -19,7 +19,7 @@
     {
       "id": "W5-3/revoke-five-seconds",
       "status": "partial",
-      "evidence_scope": "Installed native passed console Revoke on `5cf0f8e` (proxy offline 920 ms) and `9c6713b` (1,022 ms), with no reconnect for 30 s and the independent device unchanged. Isolated hosted scope only.",
+      "evidence_scope": "Installed native passed console Revoke on `5cf0f8e` (proxy offline 920 ms) and `9c6713b` (1,022 ms), with no reconnect for 30 s and the independent device unchanged. Isolated hosted scope only. A signed Beta 3 appliance on the private Tailscale path lost new GUI connections within 375 ms, with no reconnect observed for 30 s.",
       "next_action": "Repeat the normal confirmation-to-cutoff path on the public deployment and in mobile scope."
     },
     {
@@ -43,7 +43,7 @@
     {
       "id": "W5-5/source-grants",
       "status": "partial",
-      "evidence_scope": "Explicit normal Open grants and public desktop source checks passed; the new mobile flow remains open.",
+      "evidence_scope": "Explicit normal Open grants and public desktop source checks passed; the new mobile flow remains open. Private Beta 3 Open returned a grant with 1,799 s remaining and the relayed TLS leaf matched the appliance.",
       "next_action": "Verify the actual mobile source, fixed 30-minute grant and explicit renewal, without SQL-created grants or traffic-driven extension."
     },
     {
@@ -127,7 +127,7 @@
     {
       "id": "W7-5/restore",
       "status": "partial",
-      "evidence_scope": "Current a29 isolated recovery passed: baseline108498ms and original issuance/native served route152101ms from source stop; cleanup passed. On `5cf0f8e`, cold recovery passed (baseline 106331 ms, initial issuance 169016 ms) and installed restoration onto a distinct empty machine reached verified native and witness routes 56453 ms after source stop.",
+      "evidence_scope": "Current a29 isolated recovery passed: baseline108498ms and original issuance/native served route152101ms from source stop; cleanup passed. On `5cf0f8e`, cold recovery passed (baseline 106331 ms, initial issuance 169016 ms) and installed restoration onto a distinct empty machine reached verified native and witness routes 56453 ms after source stop. The Beta 3 database snapshot restored into a network-isolated PostgreSQL container with matching device, user and audit row counts.",
       "next_action": "Perform a fresh public-host/operator drill, establish encrypted durable off-host custody and recovery instructions, and observe real renewal timing; initial private-ACME issuance is not renewal proof."
     },
     {
@@ -151,7 +151,7 @@
     {
       "id": "W7-9/router-package",
       "status": "pending",
-      "evidence_scope": "Disposable OPNsense VMs verified the signed public HTTPS catalog, installed and removed 0.0.19 and 0.0.21, and checked frpc 0.71.1. Public enrollment remains pending.",
+      "evidence_scope": "Disposable OPNsense VMs verified the signed public HTTPS catalog, installed and removed 0.0.19 and 0.0.21, and checked frpc 0.71.1. Public enrollment remains pending. The signed 0.0.23 package installed on the OPNsense test VM and enrolled into Beta 3 over Tailscale.",
       "next_action": "Complete public enrollment and mobile remote GUI coverage with the formally published package and independent recovery access."
     },
     {

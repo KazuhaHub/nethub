@@ -6,6 +6,30 @@ continuation's later results come first; the handoff sections follow unchanged. 
 were terminal when reviewed. The numeric `source71`/`source72` directory names
 are evidence labels, not release versions.
 
+## Beta 3 private deployment acceptance
+
+The signed appliance package 0.0.23 from source `f5151a8` installed on
+a dedicated OPNsense VM and enrolled through its native management API.
+The console and relay were reached over Tailscale. The test reapplied the
+private hostname mapping after OPNsense regenerated its hosts file at
+boot. An operator rule confined relay inventory access to the authorization
+container and its local bridge gateway.
+
+With the device online, Open issued a grant with 1,799 seconds remaining.
+The relayed TLS leaf matched the device's local certificate fingerprint,
+and the GUI returned an HTTP response. The device certificate state was
+pending, so ordinary browser trust for the assigned hostname remains
+unverified. Revoke denied a new GUI connection within 375 ms of the API
+request, with no GUI reconnect observed for 30 seconds. Existing-stream
+cutoff and mobile-carrier behavior were outside this trial.
+
+The Beta PostgreSQL archive passed the deployment-bound hash and freshness
+checks. Restoring it to an isolated PostgreSQL container reproduced device,
+user and audit row counts. That container and its temporary volume were
+removed. Off-host custody, whole-service restoration and renewal remain
+open. These observations are from private operator records outside the
+repository verifier.
+
 ## NetHub Beta package: 3e88574
 
 [NetHub v0.0.19 Beta 1](https://github.com/KazuhaHub/nethub/releases/tag/v0.0.19-beta.1)
