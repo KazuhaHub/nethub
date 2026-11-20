@@ -127,7 +127,7 @@
     {
       "id": "W7-5/restore",
       "status": "partial",
-      "evidence_scope": "Current a29 isolated recovery passed: baseline108498ms and original issuance/native served route152101ms from source stop; cleanup passed. On `5cf0f8e`, cold recovery passed (baseline 106331 ms, initial issuance 169016 ms) and installed restoration onto a distinct empty machine reached verified native and witness routes 56453 ms after source stop. The Beta 3 database snapshot restored into a network-isolated PostgreSQL container with matching device, user and audit row counts.",
+      "evidence_scope": "Current a29 isolated recovery passed: baseline108498ms and original issuance/native served route152101ms from source stop; cleanup passed. On `5cf0f8e`, cold recovery passed (baseline 106331 ms, initial issuance 169016 ms) and installed restoration onto a distinct empty machine reached verified native and witness routes 56453 ms after source stop. Beta 3 encrypted archives were retrieved from a backup VM on another host. An isolated recovery restored the database, service credentials, protected files and ACME account, started the archived services, replayed a new backup, and reached the original appliance GUI through ordinary source-bound Open.",
       "next_action": "Perform a fresh public-host/operator drill, establish encrypted durable off-host custody and recovery instructions, and observe real renewal timing; initial private-ACME issuance is not renewal proof."
     },
     {
