@@ -89,6 +89,34 @@ The recovery fixture exercised the existing private ACME path. The Beta
 DNS-01 trial verified initial issuance and application on one test device.
 Renewal and mobile browser acceptance remain open.
 
+## Beta 3 encrypted backup and isolated recovery
+
+The Beta deployment's PostgreSQL archive, role definitions, protected files,
+setup manifest, registered ACME account snapshot, service images, configuration
+and relay TLS state were encrypted and transferred to a private backup VM on
+a separate host. Retrieved ciphertext matched byte for byte. Recovery used
+the retrieved archives without a connection to the live deployment.
+
+The isolated database matched the observed source device, user and audit
+counts. After restoring role definitions, the four application database
+roles authenticated with recovered credentials. Web access to device-secret
+hashes and writes by the backup role were both refused. The archived issuer
+restored and verified the registered account with networking disabled.
+
+The isolated stack used the original image IDs for PostgreSQL, Web, Authz,
+frps and backup. Migration and health checks passed. The backup worker
+produced a new archive that passed the recent-backup check and restored into
+a second database with matching counts. The original test appliance identity
+registered its proxy without reenrollment. A normal console Open let the
+granted source reach the native OPNsense GUI, verify its certificate, sign
+in and load the dashboard twice. Requests before Open and from another
+source were refused.
+
+The temporary project and forwarding connection were cleaned up and the
+backup VM was shut down. These private receipts cover isolated recovery.
+Independent operator and durable custody checks, public ingress and
+real certificate renewal remain open.
+
 ## NetHub Beta package: 3e88574
 
 [NetHub v0.0.19 Beta 1](https://github.com/KazuhaHub/nethub/releases/tag/v0.0.19-beta.1)
