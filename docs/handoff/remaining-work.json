@@ -43,13 +43,13 @@
     {
       "id": "W5-5/source-grants",
       "status": "partial",
-      "evidence_scope": "Explicit normal Open grants and public desktop source checks passed; the new mobile flow remains open. Private Beta 3 Open returned a grant with 1,799 s remaining and the relayed TLS leaf matched the appliance.",
+      "evidence_scope": "Explicit normal Open grants and public desktop source checks passed; the new mobile flow remains open. Private Beta 3 Open returned a grant with 1,799 s remaining and the relayed TLS leaf matched the appliance. A read-only Beta 3 check matched the grant to the Tailscale source and confirmed a 1,800 s lifetime. GUI traffic and inventory reads retained the expiry, and another explicit Open advanced it.",
       "next_action": "Verify the actual mobile source, fixed 30-minute grant and explicit renewal, without SQL-created grants or traffic-driven extension."
     },
     {
       "id": "W5-6/reboot-restore-WAN",
       "status": "partial",
-      "evidence_scope": "Hosted WAN recovery and older local reboot/config restore are scoped successes. `5cf0f8e` passed WAN change/restore and 15 s bounded settling; the fixture restarted its own observer sshd after it was found dead (SIGTERM).",
+      "evidence_scope": "Hosted WAN recovery and older local reboot/config restore are scoped successes. `5cf0f8e` passed WAN change/restore and 15 s bounded settling; the fixture restarted its own observer sshd after it was found dead (SIGTERM). On private Beta 3, cold boot took 33,580 ms to a fresh online sample. A six-second WAN link interruption took 4,749 ms from link restoration to a fresh sample, with the original frpc process and configuration hashes preserved and GUI access verified.",
       "next_action": "Retain measurements with original identity/process/config/GUI; complete current formal-package/public operator coverage and record restore timing separately from scheduled delay."
     },
     {
@@ -121,7 +121,7 @@
     {
       "id": "W7-4/rotation",
       "status": "partial",
-      "evidence_scope": "Installed normal/interrupted Rotate, trust CAS/publication replay and shared-token recovery passed again on `5cf0f8e` in isolated scope.",
+      "evidence_scope": "Installed normal/interrupted Rotate, trust CAS/publication replay and shared-token recovery passed again on `5cf0f8e` in isolated scope. Private Beta 3 normal rotation preserved the device ID and hostname and changed the device secret and claim. The rotated appliance returned online and served its GUI after reboot. An offline revoked device was denied and then manually removed and re-enrolled.",
       "next_action": "Complete public/operator/offline-device procedures on the final source. Keep original candidate replay/idempotency and manual offline reenrollment requirements."
     },
     {
