@@ -7,7 +7,7 @@
     {
       "id": "W5-1/mobile",
       "status": "pending",
-      "evidence_scope": "The operator opened the Beta login page over cellular with Tailscale connected. The signed 0.0.23 test device queued a GUI certificate request; mobile sign-in, Open, router login and refresh are unverified.",
+      "evidence_scope": "The operator opened the Beta login page over cellular with Tailscale connected and later confirmed sign-in. A 30-minute source-bound Open grant was recorded. The signed 0.0.23 device applied a publicly trusted DNS-01 certificate, and the developer host verified authenticated GUI access and refresh. Mobile GUI login, refresh and browser trust remain unverified.",
       "next_action": "Use a real mobile network for normal console Open, router login, refresh and a masked recording; record source and package scope."
     },
     {
