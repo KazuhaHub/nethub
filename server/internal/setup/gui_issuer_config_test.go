@@ -62,3 +62,19 @@ func TestGUIIssuerPolicyRequiresExplicitExistingAccountAndCleanupBinding(t *test
 		}
 	}
 }
+
+func TestManualDNSGUIIssuerPolicy(t *testing.T) {
+	data := []byte(`{"version":2,"account_directory":"/srv/issuer/account","directory_url":"https://acme.example.test/directory","contact_email":"","additional_origins":[],"api_roots_file":"","certificate_roots_file":"","dns01_mode":"manual"}`)
+	if policy, err := decodeGUIIssuerPolicy(data); err != nil || policy.DNSMode != "manual" {
+		t.Fatalf("valid DNS policy refused: %v", err)
+	}
+	for _, changed := range [][]byte{
+		bytes.Replace(data, []byte(`"version":2`), []byte(`"version":1`), 1),
+		bytes.Replace(data, []byte(`"manual"`), []byte(`"automatic"`), 1),
+		append(bytes.Clone(data[:len(data)-1]), []byte(`,"http01_policy_file":"/srv/http01.json"}`)...),
+	} {
+		if _, err := decodeGUIIssuerPolicy(changed); err == nil {
+			t.Fatal("ambiguous DNS policy was accepted")
+		}
+	}
+}

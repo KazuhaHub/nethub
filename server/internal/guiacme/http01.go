@@ -10,6 +10,11 @@ import (
 	"golang.org/x/crypto/acme"
 )
 
+const (
+	httpChallenge = "http-01"
+	dnsChallenge  = "dns-01"
+)
+
 var challengeToken = regexp.MustCompile(`^[A-Za-z0-9_-]{22,128}$`)
 
 // HTTP01 is private durable job metadata, not an ordinary JSON/status payload.
@@ -26,12 +31,16 @@ type HTTP01 struct {
 // PrepareHTTP01 checks a saved order's immutable identity before deriving an
 // account-bound key authorization. It does not publish or accept a challenge.
 func (s *AccountStore) PrepareHTTP01(ctx context.Context, saved Order, csr []byte, boundKey string) (HTTP01, error) {
+	return s.prepareChallenge(ctx, saved, csr, boundKey, httpChallenge)
+}
+
+func (s *AccountStore) prepareChallenge(ctx context.Context, saved Order, csr []byte, boundKey, kind string) (HTTP01, error) {
 	session, err := s.knownOrder(ctx, saved, csr, boundKey)
 	if err != nil {
 		return HTTP01{}, err
 	}
 	defer session.close()
-	return session.http01(saved)
+	return session.challenge(saved, kind)
 }
 
 // AcceptHTTP01 is only for a job whose exact public response has already been
@@ -39,12 +48,16 @@ func (s *AccountStore) PrepareHTTP01(ctx context.Context, saved Order, csr []byt
 // the order, authorization and challenge before POST, never accepts an arbitrary
 // supplied URL and does not repeat acceptance of processing/validated challenges.
 func (s *AccountStore) AcceptHTTP01(ctx context.Context, saved HTTP01, csr []byte, boundKey string) (HTTP01, error) {
+	return s.acceptChallenge(ctx, saved, csr, boundKey, httpChallenge)
+}
+
+func (s *AccountStore) acceptChallenge(ctx context.Context, saved HTTP01, csr []byte, boundKey, kind string) (HTTP01, error) {
 	session, err := s.knownOrder(ctx, saved.Order, csr, boundKey)
 	if err != nil {
 		return HTTP01{}, err
 	}
 	defer session.close()
-	current, err := session.http01(saved.Order)
+	current, err := session.challenge(saved.Order, kind)
 	if err != nil || current.Complete {
 		return current, err
 	}
@@ -55,14 +68,14 @@ func (s *AccountStore) AcceptHTTP01(ctx context.Context, saved HTTP01, csr []byt
 	if current.Status != acme.StatusPending {
 		return current, nil
 	}
-	result, err := session.sdk.Accept(session.ctx, &acme.Challenge{Type: "http-01", URI: current.URI, Token: current.Token})
+	result, err := session.sdk.Accept(session.ctx, &acme.Challenge{Type: kind, URI: current.URI, Token: current.Token})
 	if err != nil {
 		return HTTP01{}, remoteError(session.ctx)
 	}
 	if session.ctx.Err() != nil {
 		return HTTP01{}, ErrCancelled
 	}
-	if !validHTTPChallenge(session.client.transport, result) || result.URI != current.URI || result.Token != current.Token {
+	if !validChallenge(session.client.transport, result, kind) || result.URI != current.URI || result.Token != current.Token {
 		return HTTP01{}, ErrOrder
 	}
 	current.Status = result.Status
@@ -80,7 +93,7 @@ func (s *AccountStore) knownOrder(ctx context.Context, saved Order, csr []byte, 
 	return s.openOrder(ctx, saved.URI, csr, saved.Host, boundKey)
 }
 
-func (session *orderSession) http01(saved Order) (HTTP01, error) {
+func (session *orderSession) challenge(saved Order, kind string) (HTTP01, error) {
 	order, _, err := session.savedOrder(saved)
 	if err != nil {
 		return HTTP01{}, err
@@ -114,10 +127,10 @@ func (session *orderSession) http01(saved Order) (HTTP01, error) {
 	}
 	var selected *acme.Challenge
 	for _, challenge := range auth.Challenges {
-		if challenge == nil || challenge.Type != "http-01" {
+		if challenge == nil || challenge.Type != kind {
 			continue
 		}
-		if selected != nil || !validHTTPChallenge(session.client.transport, challenge) {
+		if selected != nil || !validChallenge(session.client.transport, challenge, kind) {
 			return HTTP01{}, ErrOrder
 		}
 		selected = challenge
@@ -125,7 +138,12 @@ func (session *orderSession) http01(saved Order) (HTTP01, error) {
 	if selected == nil {
 		return HTTP01{}, ErrOrder
 	}
-	authorization, err := session.sdk.HTTP01ChallengeResponse(selected.Token)
+	var authorization string
+	if kind == dnsChallenge {
+		authorization, err = session.sdk.DNS01ChallengeRecord(selected.Token)
+	} else {
+		authorization, err = session.sdk.HTTP01ChallengeResponse(selected.Token)
+	}
 	if err != nil {
 		return HTTP01{}, ErrOrder
 	}
@@ -133,8 +151,8 @@ func (session *orderSession) http01(saved Order) (HTTP01, error) {
 		Status: selected.Status, ExpiresAt: expires}, nil
 }
 
-func validHTTPChallenge(t *transport, challenge *acme.Challenge) bool {
-	if challenge == nil || challenge.Type != "http-01" || !t.allowed(challenge.URI) || !challengeToken.MatchString(challenge.Token) || challenge.Error != nil {
+func validChallenge(t *transport, challenge *acme.Challenge, kind string) bool {
+	if challenge == nil || challenge.Type != kind || !t.allowed(challenge.URI) || !challengeToken.MatchString(challenge.Token) || challenge.Error != nil {
 		return false
 	}
 	return challenge.Status == acme.StatusPending || challenge.Status == acme.StatusProcessing || challenge.Status == acme.StatusValid

@@ -22,6 +22,7 @@ func runGUIIssuer(args []string, stdout, stderr io.Writer) int {
 	project := flags.String("project-name", "nethub", "Existing local Compose project")
 	policy := flags.String("config-file", "/etc/nethub/gui-issuer.json", "Protected issuer account/trust/cleanup policy")
 	override := flags.String("compose-file", "", "Additional protected Compose override, if configured")
+	showDNS := flags.Bool("show-dns-txt", false, "Print the current manual DNS TXT instruction to this command’s output")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -35,7 +36,7 @@ func runGUIIssuer(args []string, stdout, stderr io.Writer) int {
 	defer stop()
 	ctx, cancel := context.WithTimeout(interrupted, 3*time.Minute)
 	defer cancel()
-	result, err := setup.RunGUIIssuer(ctx, setup.GUIIssuerOptions{Directory: *directory, Project: *project, ConfigFile: *policy, ComposeFile: *override})
+	result, err := setup.RunGUIIssuer(ctx, setup.GUIIssuerOptions{Directory: *directory, Project: *project, ConfigFile: *policy, ComposeFile: *override, ShowDNSTXT: *showDNS})
 	if errors.Is(err, setup.ErrGUIIssuerBusy) {
 		fmt.Fprintln(stdout, "GUI issuer already running or namespace busy; skipped")
 		return 0

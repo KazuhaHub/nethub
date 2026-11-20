@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,10 +26,6 @@ func guiRootFile(info os.FileInfo) bool {
 	return ok && v.Uid == 0 && v.Nlink == 1
 }
 
-type GUIIssuerResult struct {
-	State string `json:"state"`
-	Steps int    `json:"steps"`
-}
 type guiHost struct {
 	directory, project string
 	compose            []string
@@ -237,14 +234,30 @@ func RunGUIIssuer(ctx context.Context, options GUIIssuerOptions) (GUIIssuerResul
 		return result, ErrGUIIssuer
 	}
 	defer unix.Flock(int(lock.Fd()), unix.LOCK_UN)
-	publisher, err := http01.OpenExistingFile(policy.HTTPPolicyFile)
-	if errors.Is(err, http01.ErrBusy) {
-		return result, ErrGUIIssuerBusy
+	checkPublisher := func() error { return nil }
+	var httpPublisher guiissuer.ChallengePublisher
+	var dnsPublisher guiissuer.DNSPublisher
+	if policy.DNSMode == "manual" {
+		dns := manualGUIPublisher{lookup: net.DefaultResolver.LookupTXT}
+		if options.ShowDNSTXT {
+			dns.record = func(record GUIIssuerTXT) { result.DNSTXT = &record }
+		}
+		dnsPublisher = dns
+	} else {
+		if options.ShowDNSTXT {
+			return result, ErrGUIIssuer
+		}
+		publisher, err := http01.OpenExistingFile(policy.HTTPPolicyFile)
+		if errors.Is(err, http01.ErrBusy) {
+			return result, ErrGUIIssuerBusy
+		}
+		if err != nil || !publisher.MatchesPolicy(manifest.Config.DeviceDomain, []string{manifest.Config.ConsoleHost}) {
+			return result, ErrGUIIssuer
+		}
+		httpPublisher = checkedGUIPublisher{publisher: publisher, timer: policy.CleanupTimer}
+		checkPublisher = func() error { return guiCleanupReady(ctx, publisher, policy.CleanupTimer) }
 	}
-	if err != nil || !publisher.MatchesPolicy(manifest.Config.DeviceDomain, []string{manifest.Config.ConsoleHost}) {
-		return result, ErrGUIIssuer
-	}
-	if guiCleanupReady(ctx, publisher, policy.CleanupTimer) != nil {
+	if checkPublisher() != nil {
 		return result, ErrGUIIssuer
 	}
 	roots, err := guiTrustRoots(policy.CertificateRootsFile)
@@ -298,9 +311,9 @@ func RunGUIIssuer(ctx context.Context, options GUIIssuerOptions) (GUIIssuerResul
 	if work == nil {
 		return GUIIssuerResult{State: "idle"}, nil
 	}
-	coordinator := &guiissuer.Coordinator{Store: store, Account: account, Publisher: checkedGUIPublisher{publisher: publisher, timer: policy.CleanupTimer}, Roots: roots}
+	coordinator := &guiissuer.Coordinator{Store: store, Account: account, Publisher: httpPublisher, DNSPublisher: dnsPublisher, Roots: roots}
 	for result.Steps < 16 {
-		if guiCleanupReady(ctx, publisher, policy.CleanupTimer) != nil {
+		if checkPublisher() != nil {
 			return result, ErrGUIIssuer
 		}
 		if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) < 110*time.Second {

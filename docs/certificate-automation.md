@@ -230,8 +230,10 @@ the relay serves the validation resource while the device retains its private
 key and terminates its own GUI TLS through frps. HTTP-01 validates a resource on
 the requested domain's port 80; it does not require that resource to live on the
 router. This follows [RFC 8555 section 8.3](https://www.rfc-editor.org/rfc/rfc8555.html#section-8.3)
-and corrects the earlier DNS-01-only assumption. DNS-01 remains an optional
-provider-specific fallback; keep provider credentials at the issuance boundary.
+and corrects the earlier DNS-01-only assumption. For private ingress, the
+[manual DNS-01 mode](../server/internal/guiissuer/HOST.md#manual-dns-validation-for-private-ingress)
+lets an operator publish the TXT challenge through their DNS provider while
+the device continues to serve its GUI on the private network.
 
 Publish only bounded, exact host/token/key-authorization records from the isolated
 issuer into a public-only directory outside the private deployment tree. Mount

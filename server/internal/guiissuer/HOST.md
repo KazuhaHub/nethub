@@ -25,10 +25,10 @@ renewal-clock behavior remain separate requirements.
 - A protected, explicitly initialized and registered ACME account. Registration
   and current CA terms consent remain separate operator actions. The ordinary
   worker performs an offline account readiness check and never replaces keys.
-- An existing HTTP-01 namespace and root-owned mode-0600 cleanup policy. Its
+- For HTTP-01, an existing namespace and root-owned mode-0600 cleanup policy. Its
   device suffix must match the setup manifest and it must exclude the manifest's
   console hostname. Extra exclusions may narrow publication.
-- An active independent cleanup timer, successful service result and complete
+- For HTTP-01, an active independent cleanup timer, successful service result and complete
   namespace-bound cleanup observation younger than two minutes. Failed scans
   supersede previous success. The worker rechecks this gate before each phase
   and publication; it cannot substitute its own successful issuance for cleanup.
@@ -88,7 +88,7 @@ constrains every saved remote URL to configured HTTPS origins.
 
 Use `--compose-file /absolute/protected/override.yml` if the running deployment
 uses an additional override, matching relay maintenance. It is not a way to
-select another deployment's secrets or volume. JSON output contains only a fixed
+select another deployment's secrets or volume. By default, JSON output contains only a fixed
 state and step count. Errors do not print SQL, account state, CSRs or CA replies.
 Idle and deferred work exit zero; terminal work/readiness failures exit nonzero.
 An occupied namespace or host lock skips without acquiring a job lease.
@@ -157,3 +157,30 @@ marker before reporting `authenticated_delivery_verified`. Its client uses a
 private HTTP bridge, not an appliance or a public HTTPS session. The fixture
 checks repeated exact-generation downloads and refusal after device removal;
 it does not acknowledge installation or authorize renewal.
+
+## Manual DNS validation for private ingress
+
+A device hostname can resolve to a private ingress address while a public CA
+validates its DNS TXT record. Keep the existing protected account and trust
+fields in the issuer policy. Set `version` to `2`, add
+`"dns01_mode": "manual"`, and remove `http01_policy_file` and `cleanup_timer`.
+The HTTP and DNS policies should use separate ACME account directories if
+they use different CA directories or trust settings.
+
+Run the existing `certificates issue-gui` command interactively with
+`--show-dns-txt`. When it returns `dns_txt` with action `add`, publish that exact
+name and value at the authoritative DNS provider. Wait until it is visible
+from the issuer host's resolver and run the command again. The CA also checks
+the record independently. The existing job claim and polling limits apply,
+so a call before the next poll is due may return `idle`.
+
+Run with the flag through finalization to receive the `remove` instruction.
+Remove only that exact value. If the job expires, is cancelled, or terminates
+before producing a removal instruction, remove the original TXT value
+manually. Track the values you add outside the issuer logs. This mode requires
+operator participation for each new DNS authorization, including renewals
+when the CA cannot reuse an authorization.
+
+No DNS provider credential is needed on the issuer. The device still installs
+and acknowledges the certificate through the existing managed GUI flow,
+and its private key stays on the device.
