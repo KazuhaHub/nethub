@@ -48,6 +48,36 @@ removed. Off-host custody, whole-service restoration and renewal remain
 open. These observations are from private operator records outside the
 repository verifier.
 
+### Cellular console reachability and GUI certificate preparation
+
+The operator confirmed the Beta login page opened on a phone using cellular
+data with Tailscale connected. Console sign-in, Open, router login and refresh
+still require a mobile trial.
+
+The Beta deployment repaired an integrity mismatch caused by an earlier
+loopback relay hook port change. The live manifest now points to a successor
+backup checked against all 22 protected files. The protected host check passed
+and the deployment kept running. Web and device API health checks passed at
+their loopback origins. These live observations are retained in private
+operator records outside the repository verifier.
+
+The signed 0.0.23 test device matched the active Beta assignment and submitted
+its initial GUI certificate request. The issuer built from `a3b23f5` verified
+its account backup and the restricted database prerequisites were checked
+separately. No CA account was registered and no order was created in this
+trial. The operator's CA terms confirmation and DNS TXT publication remain
+required before testing browser trust on the phone.
+
+[PR #287](https://github.com/KazuhaHub/nethub/pull/287) added the configurable
+loopback port. [PR #286](https://github.com/KazuhaHub/nethub/pull/286) added
+manual DNS-01. The first CI and FreeBSD runs passed for the respective merge
+commits `01d2251` and `a3b23f5`. The
+[protected-host cold recovery run](https://github.com/KazuhaHub/nethub/actions/runs/44658760875)
+passed on PR head `eff3dd1`, whose tree matches `a3b23f5`. Its frozen
+validator bound the recovery receipt to the exact-source CI producer.
+The recovery fixture exercised the existing private ACME path. Public CA
+DNS-01 issuance and device application remain unverified on Beta.
+
 ## NetHub Beta package: 3e88574
 
 [NetHub v0.0.19 Beta 1](https://github.com/KazuhaHub/nethub/releases/tag/v0.0.19-beta.1)
