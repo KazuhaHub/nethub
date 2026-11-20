@@ -18,6 +18,10 @@ host-network frps. External mode publishes only the loopback origins described
 below, plus the same authz loopback port. The Linux host-network frps
 listener uses TCP 7000/8443 directly; its authenticated admin API binds only the
 private edge gateway, and its callbacks reach authz only through that loopback port.
+For a new deployment on a host where port 9000 is already in use, pass
+`nethub init --relay-hook-port PORT`. The chosen host port is recorded in
+the deployment manifest and used for both the frps callback and the authz
+loopback publication. The authz container still listens on port 9000.
 PostgreSQL stays on an internal network. Web and authz wait for
 successful migration and mounts only its own secret directory. The initial admin
 runs separately with owner credentials; web never receives those credentials,

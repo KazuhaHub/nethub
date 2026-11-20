@@ -2,6 +2,7 @@ package setup
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -107,10 +108,18 @@ func TestAnomalyLimitConfigurationAndLegacyOmission(t *testing.T) {
 }
 
 func TestGeneratedHookLoopbackPublication(t *testing.T) {
-	for _, mode := range []string{"bundled", "external"} {
-		t.Run(mode, func(t *testing.T) {
+	for _, test := range []struct {
+		mode string
+		port uint16
+		want int
+	}{
+		{mode: "bundled", want: 9000},
+		{mode: "external", want: 9000},
+		{mode: "external", port: 19000, want: 19000},
+	} {
+		t.Run(fmt.Sprintf("%s/%d", test.mode, test.want), func(t *testing.T) {
 			config := fixtureConfig(t)
-			config.ProxyMode = mode
+			config.ProxyMode, config.RelayHookPort = test.mode, test.port
 			directory, err := Generate(filepath.Join(t.TempDir(), "deployment"), config)
 			if err != nil {
 				t.Fatal(err)
@@ -136,9 +145,9 @@ func TestGeneratedHookLoopbackPublication(t *testing.T) {
 			service := override.Services["nethub-authz"]
 			count := 0
 			for _, port := range service.Ports {
-				if port.Published == 9000 || port.Target == 9000 {
+				if port.Published == test.want || port.Target == 9000 {
 					count++
-					if port.HostIP != "127.0.0.1" || port.Published != 9000 || port.Target != 9000 || port.Protocol != "tcp" {
+					if port.HostIP != "127.0.0.1" || port.Published != test.want || port.Target != 9000 || port.Protocol != "tcp" {
 						t.Fatal("hook publication must use the exact host loopback port")
 					}
 				}
@@ -162,7 +171,7 @@ func TestGeneratedHookLoopbackPublication(t *testing.T) {
 				}
 			}
 			relay, err := os.ReadFile(filepath.Join(directory, "secrets/frps/frps.toml"))
-			if err != nil || !strings.Contains(string(relay), "addr = \"127.0.0.1:9000\"") || strings.Contains(string(relay), authz+":9000") {
+			if err != nil || !strings.Contains(string(relay), fmt.Sprintf("addr = \"127.0.0.1:%d\"", test.want)) || strings.Contains(string(relay), authz+":9000") {
 				t.Fatal("host-network frps must use the loopback publication")
 			}
 		})

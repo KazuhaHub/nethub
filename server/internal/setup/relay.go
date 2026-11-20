@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -83,7 +84,7 @@ func renderRelayConfig(directory string, config Config) ([]byte, error) {
 	}
 	var output bytes.Buffer
 	if err := tmpl.Execute(&output, map[string]string{"Domain": config.DeviceDomain, "Gateway": gateway,
-		"User": credentials[0], "Password": credentials[1], "Hook": "127.0.0.1:9000"}); err != nil {
+		"User": credentials[0], "Password": credentials[1], "Hook": "127.0.0.1:" + strconv.Itoa(config.relayHookPort())}); err != nil {
 		return nil, errors.New("relay template rendering failed")
 	}
 	return bytes.ReplaceAll(output.Bytes(), []byte("\r\n"), []byte("\n")), nil
