@@ -51,8 +51,10 @@ repository verifier.
 ### Cellular console reachability and GUI certificate preparation
 
 The operator confirmed the Beta login page opened on a phone using cellular
-data with Tailscale connected. Console sign-in, Open, router login and refresh
-still require a mobile trial.
+data with Tailscale connected. The operator later confirmed Beta sign-in, and a read-only database check
+verified that the temporary test account received a 30-minute Open grant
+bound to its Tailscale source. Mobile router login, refresh and browser trust
+still require operator confirmation.
 
 The Beta deployment repaired an integrity mismatch caused by an earlier
 loopback relay hook port change. The live manifest now points to a successor
@@ -61,12 +63,19 @@ and the deployment kept running. Web and device API health checks passed at
 their loopback origins. These live observations are retained in private
 operator records outside the repository verifier.
 
-The signed 0.0.23 test device matched the active Beta assignment and submitted
-its initial GUI certificate request. The issuer built from `a3b23f5` verified
-its account backup and the restricted database prerequisites were checked
-separately. No CA account was registered and no order was created in this
-trial. The operator's CA terms confirmation and DNS TXT publication remain
-required before testing browser trust on the phone.
+The signed 0.0.23 test device enrolled with a fresh assignment and submitted
+its initial GUI certificate request. After the operator accepted the CA terms,
+the issuer built from `a3b23f5` registered its account and issued generation
+one through Let's Encrypt DNS-01. The existing DNS provider added the exact
+challenge TXT value and removed it after issuance. The authoritative servers
+confirmed its removal. After the assigned hostname was added to OPNsense
+Alternate Hostnames, the agent installed the certificate and confirmed
+application to NetHub.
+
+A developer host used the normal Open grant over Tailscale and verified the
+device hostname and TLS chain against system trust. The served leaf fingerprint
+matched the issued generation. The temporary test account logged in to the
+OPNsense GUI over that route and loaded the authenticated dashboard twice.
 
 [PR #287](https://github.com/KazuhaHub/nethub/pull/287) added the configurable
 loopback port. [PR #286](https://github.com/KazuhaHub/nethub/pull/286) added
@@ -75,8 +84,9 @@ commits `01d2251` and `a3b23f5`. The
 [protected-host cold recovery run](https://github.com/KazuhaHub/nethub/actions/runs/44658760875)
 passed on PR head `eff3dd1`, whose tree matches `a3b23f5`. Its frozen
 validator bound the recovery receipt to the exact-source CI producer.
-The recovery fixture exercised the existing private ACME path. Public CA
-DNS-01 issuance and device application remain unverified on Beta.
+The recovery fixture exercised the existing private ACME path. The Beta
+DNS-01 trial verified initial issuance and application on one test device.
+Renewal and mobile browser acceptance remain open.
 
 ## NetHub Beta package: 3e88574
 
