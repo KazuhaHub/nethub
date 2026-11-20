@@ -100,3 +100,18 @@ func TestExternalProxyValidationAndTemplateBoundary(t *testing.T) {
 		}
 	}
 }
+
+func TestRelayHookPortRejectsServiceCollisions(t *testing.T) {
+	config := fixtureConfig(t)
+	config.ProxyMode = "external"
+	for _, port := range []uint16{80, 443, 7000, 7500, 8443, 18080, 18081} {
+		config.RelayHookPort = port
+		if err := validateIdentity(config); err == nil {
+			t.Errorf("accepted conflicting relay hook port %d", port)
+		}
+	}
+	config.RelayHookPort = 19000
+	if err := validateIdentity(config); err != nil {
+		t.Fatalf("valid custom relay hook port: %v", err)
+	}
+}

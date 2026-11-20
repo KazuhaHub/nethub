@@ -28,6 +28,7 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 	subnet := flags.String("network-subnet", "172.30.87.0/24", "Unused private IPv4 /24 for Caddy and the web network")
 	proxyMode := flags.String("proxy-mode", "bundled", "bundled Caddy or external host reverse proxy")
 	webPort := flags.Uint("web-port", 0, "External proxy loopback web port (default 18080)")
+	hookPort := flags.Uint("relay-hook-port", 0, "Host loopback relay hook port (default 9000)")
 	devicePort := flags.Uint("device-port", 0, "External proxy loopback device API port (default 18081)")
 	anomalyActionLimit := flags.Int("anomaly-action-limit", 3, "Confirmed anomaly batch limit before alarm-only mode (1-1024)")
 	expected := flags.String("expected-address", "", "Expected public relay address for DNS preflight")
@@ -45,8 +46,8 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "init does not accept positional arguments")
 		return 2
 	}
-	if *webPort > 65535 || *devicePort > 65535 {
-		fmt.Fprintln(stderr, "External proxy origin ports must be valid TCP ports")
+	if *webPort > 65535 || *devicePort > 65535 || *hookPort > 65535 {
+		fmt.Fprintln(stderr, "Origin and relay hook ports must be valid TCP ports")
 		return 2
 	}
 	if *anomalyActionLimit < 1 || *anomalyActionLimit > 1024 {
@@ -95,8 +96,12 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	config := setup.Config{ConsoleHost: *console, DeviceDomain: *device, SourceDirectory: absSource, NetworkSubnet: *subnet,
-		ProxyMode: *proxyMode, WebPort: uint16(*webPort), DevicePort: uint16(*devicePort), AnomalyActionLimit: *anomalyActionLimit, OIDCPrivateHosts: oidcHosts}
+		ProxyMode: *proxyMode, WebPort: uint16(*webPort), DevicePort: uint16(*devicePort), RelayHookPort: uint16(*hookPort), AnomalyActionLimit: *anomalyActionLimit, OIDCPrivateHosts: oidcHosts}
 	if *resume {
+		if *hookPort != 0 && uint16(*hookPort) != previous.Config.RelayHookPort {
+			fmt.Fprintln(stderr, "Resume cannot replace the saved relay hook port")
+			return 2
+		}
 		if len(oidcHosts) > 0 {
 			fmt.Fprintln(stderr, "Resume cannot replace the saved OIDC outbound policy")
 			return 2
