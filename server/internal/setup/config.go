@@ -23,6 +23,7 @@ type Config struct {
 	ProxyMode          string   `json:"proxy_mode,omitempty"`
 	WebPort            uint16   `json:"web_port,omitempty"`
 	DevicePort         uint16   `json:"device_port,omitempty"`
+	RelayHookPort      uint16   `json:"relay_hook_port,omitempty"`
 	AnomalyActionLimit int      `json:"anomaly_action_limit,omitempty"`
 	OIDCPrivateHosts   []string `json:"oidc_private_hosts,omitempty"`
 }
@@ -42,6 +43,13 @@ func (c Config) originPorts() (uint16, uint16) {
 	return w, d
 }
 
+func (c Config) relayHookPort() int {
+	if c.RelayHookPort != 0 {
+		return int(c.RelayHookPort)
+	}
+	return 9000
+}
+
 var dnsLabel = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
 
 func validateIdentity(config Config) error {
@@ -59,6 +67,10 @@ func validateIdentity(config Config) error {
 	if config.ProxyMode != "" && config.ProxyMode != "bundled" && !config.externalProxy() {
 		return errors.New("proxy mode must be bundled or external")
 	}
+	hook := config.relayHookPort()
+	if hook < 1024 || hook == 7000 || hook == 7500 || hook == 8443 {
+		return errors.New("relay hook port conflicts with a reserved service")
+	}
 	if !config.externalProxy() && (config.WebPort != 0 || config.DevicePort != 0) {
 		return errors.New("origin ports require external proxy mode")
 	}
@@ -68,7 +80,7 @@ func validateIdentity(config Config) error {
 			return errors.New("external proxy origin ports must differ")
 		}
 		for _, port := range []uint16{w, d} {
-			if port < 1024 || port == 7000 || port == 7500 || port == 8443 || port == 9000 {
+			if port < 1024 || port == 7000 || port == 7500 || port == 8443 || int(port) == hook {
 				return errors.New("external proxy origin port conflicts with a reserved service")
 			}
 		}

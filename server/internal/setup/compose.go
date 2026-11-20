@@ -33,7 +33,7 @@ func composeOverride(config Config) ([]byte, error) {
 	// frps uses host networking. A loopback publication refuses new callbacks
 	// promptly when authz stops instead of dialing its removed bridge endpoint.
 	authzService := result["services"].(map[string]any)["nethub-authz"].(map[string]any)
-	authzService["ports"] = []map[string]any{{"host_ip": "127.0.0.1", "published": 9000, "target": 9000, "protocol": "tcp"}}
+	authzService["ports"] = []map[string]any{{"host_ip": "127.0.0.1", "published": config.relayHookPort(), "target": 9000, "protocol": "tcp"}}
 	if config.AnomalyActionLimit != 0 {
 		authzService["command"] = append(authzService["command"].([]string), "--anomaly-action-limit", strconv.Itoa(config.AnomalyActionLimit))
 	}

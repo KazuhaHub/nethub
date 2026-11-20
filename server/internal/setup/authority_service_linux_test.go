@@ -201,3 +201,15 @@ func TestMissingAuthorityServiceIsRecoveryOnly(t *testing.T) {
 		t.Fatal("absent service accepted as ready")
 	}
 }
+
+func TestAuthorityServiceBindsConfiguredHookPort(t *testing.T) {
+	service, container := authorityServiceFixture(t, "nethub-authz", true)
+	service.binding.Config.RelayHookPort = 19000
+	if service.accepts("nethub-authz", container, true, true) {
+		t.Fatal("default host port accepted for a custom hook")
+	}
+	container.HostConfig.PortBindings["9000/tcp"][0].HostPort = "19000"
+	if !service.accepts("nethub-authz", container, true, true) {
+		t.Fatal("configured loopback hook refused")
+	}
+}

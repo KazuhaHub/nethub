@@ -223,7 +223,7 @@ func (s *BoundRelayAuthorityService) accepts(name string, c authorityContainer, 
 			return false
 		}
 		hookPorts := c.HostConfig.PortBindings["9000/tcp"]
-		if len(hookPorts) != 1 || hookPorts[0].HostIP != "127.0.0.1" || hookPorts[0].HostPort != "9000" {
+		if len(hookPorts) != 1 || hookPorts[0].HostIP != "127.0.0.1" || hookPorts[0].HostPort != strconv.Itoa(s.binding.Config.relayHookPort()) {
 			return false
 		}
 		if s.binding.Config.externalProxy() {
