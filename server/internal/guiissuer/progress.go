@@ -61,6 +61,12 @@ func sameOrderIdentity(a, b guiacme.Order) bool {
 	return a.URI == b.URI && a.Host == b.Host && a.RequestFingerprint == b.RequestFingerprint && a.Profile == b.Profile && a.AuthorizationURL == b.AuthorizationURL && a.FinalizeURL == b.FinalizeURL
 }
 
+// HTTP responses contain the challenge token and thumbprint separated by a
+// dot. DNS responses are the base64url SHA-256 digest of that pair.
+func dnsProof(proof guiacme.HTTP01) bool {
+	return !strings.Contains(proof.KeyAuthorization, ".")
+}
+
 func (p Progress) validate(work Snapshot, allows func(string) bool) error {
 	if allows == nil || work.Host == "" || work.CSRFingerprint == "" {
 		return ErrProgress
@@ -113,12 +119,17 @@ func (p Progress) validate(work Snapshot, allows func(string) bool) error {
 		!publicationPattern.MatchString(p.Generation) || proof.ExpiresAt.After(work.Lease.Deadline) {
 		return ErrProgress
 	}
-	parts := strings.Split(proof.KeyAuthorization, ".")
-	if len(parts) != 2 || parts[0] != proof.Token || !keyAuthorizationPattern.MatchString(parts[1]) {
-		return ErrProgress
+	response := proof.KeyAuthorization
+	if !dnsProof(proof) {
+		parts := strings.Split(response, ".")
+		if len(parts) != 2 || parts[0] != proof.Token {
+			return ErrProgress
+		}
+		response = parts[1]
 	}
-	thumb, err := base64.RawURLEncoding.Strict().DecodeString(parts[1])
-	if err != nil || len(thumb) != 32 || base64.RawURLEncoding.EncodeToString(thumb) != parts[1] {
+	decoded, err := base64.RawURLEncoding.Strict().DecodeString(response)
+	if !keyAuthorizationPattern.MatchString(response) || err != nil || len(decoded) != 32 ||
+		base64.RawURLEncoding.EncodeToString(decoded) != response {
 		return ErrProgress
 	}
 	if proof.Status != "pending" && proof.Status != "processing" && proof.Status != "valid" {

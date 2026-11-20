@@ -262,3 +262,75 @@ func TestCoordinatorStopsRevokedWorkAndRetiresExpiredProof(t *testing.T) {
 		t.Fatal("expired proof accepted or left live", err)
 	}
 }
+
+type dnsFixtureAccount struct{ *fixtureAccount }
+
+func (a dnsFixtureAccount) PrepareDNS01(context.Context, guiacme.Order, []byte, string) (guiacme.DNS01, error) {
+	proof := a.proof
+	proof.KeyAuthorization = strings.Repeat("A", 43)
+	return guiacme.DNS01(proof), nil
+}
+
+func (a dnsFixtureAccount) AcceptDNS01(ctx context.Context, proof guiacme.DNS01, csr []byte, key string) (guiacme.DNS01, error) {
+	result, err := a.AcceptHTTP01(ctx, guiacme.HTTP01(proof), csr, key)
+	return guiacme.DNS01(result), err
+}
+
+type dnsFixturePublisher struct {
+	visible                 bool
+	name, value, generation string
+	removed                 bool
+}
+
+func (p *dnsFixturePublisher) PublishTXT(_ context.Context, name, value, generation string, _ time.Time) (bool, error) {
+	p.name, p.value, p.generation = name, value, generation
+	return p.visible, nil
+}
+
+func (p *dnsFixturePublisher) RemoveTXT(_ context.Context, name, value, generation string) error {
+	if name != p.name || value != p.value || generation != p.generation {
+		return ErrCoordinator
+	}
+	p.removed = true
+	return nil
+}
+
+func TestCoordinatorWaitsForExactDNSProof(t *testing.T) {
+	c, jobs, account, httpPublisher := coordinatorFixture(t)
+	dns := &dnsFixturePublisher{}
+	c.Account = dnsFixtureAccount{account}
+	c.Publisher, c.DNSPublisher = nil, dns
+	step := func(want string) {
+		t.Helper()
+		result, err := c.Step(context.Background(), jobs.w)
+		if err != nil || result.State != want {
+			t.Fatalf("phase %s: state %q, error %v", jobs.p.Phase, result.State, err)
+		}
+	}
+	step("progressed")
+	step("progressed")
+	step("waiting")
+	if dns.name != "_acme-challenge."+jobs.w.Host+"." || dns.value != strings.Repeat("A", 43) || dns.generation != jobs.p.Generation || account.accepted != 0 {
+		t.Fatal("unexpected record or early acceptance")
+	}
+
+	c.Publisher, c.DNSPublisher = httpPublisher, nil
+	if _, err := c.Step(context.Background(), jobs.w); err != ErrCoordinator || httpPublisher.published != 0 {
+		t.Fatal("accepted a DNS checkpoint in HTTP mode")
+	}
+	c.Publisher, c.DNSPublisher = nil, dns
+	dns.visible = true
+	step("progressed")
+	dns.visible = false
+	step("waiting")
+	if account.accepted != 0 {
+		t.Fatal("accepted after TXT disappeared")
+	}
+	dns.visible = true
+	step("progressed")
+	step("progressed")
+	step("issued")
+	if !dns.removed || account.accepted != 1 || jobs.finished != 1 {
+		t.Fatal("DNS issuance did not retire its exact proof")
+	}
+}

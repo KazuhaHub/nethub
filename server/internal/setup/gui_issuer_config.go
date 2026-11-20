@@ -20,7 +20,22 @@ var ErrGUIIssuer = errors.New("GUI certificate host operation unavailable")
 var ErrGUIIssuerBusy = errors.New("GUI certificate host operation already running")
 var cleanupTimerName = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,110}\.timer$`)
 
-type GUIIssuerOptions struct{ Directory, Project, ConfigFile, ComposeFile string }
+type GUIIssuerOptions struct {
+	Directory, Project, ConfigFile, ComposeFile string
+	ShowDNSTXT                                  bool
+}
+
+type GUIIssuerResult struct {
+	State  string        `json:"state"`
+	Steps  int           `json:"steps"`
+	DNSTXT *GUIIssuerTXT `json:"dns_txt,omitempty"`
+}
+
+type GUIIssuerTXT struct {
+	Name   string `json:"name"`
+	Value  string `json:"value"`
+	Action string `json:"action"`
+}
 type GUIIssuerPolicy struct {
 	Version              int      `json:"version"`
 	AccountDirectory     string   `json:"account_directory"`
@@ -31,28 +46,44 @@ type GUIIssuerPolicy struct {
 	CertificateRootsFile string   `json:"certificate_roots_file"`
 	HTTPPolicyFile       string   `json:"http01_policy_file"`
 	CleanupTimer         string   `json:"cleanup_timer"`
+	DNSMode              string   `json:"dns01_mode,omitempty"`
 }
 
 func decodeGUIIssuerPolicy(data []byte) (GUIIssuerPolicy, error) {
 	var p GUIIssuerPolicy
 	fields, err := boundedjson.Object(bytes.NewReader(data))
-	if err != nil || len(fields) != 9 {
+	if err != nil || json.Unmarshal(data, &p) != nil || p.AdditionalOrigins == nil {
 		return p, ErrGUIIssuer
 	}
-	for _, field := range []string{"version", "account_directory", "directory_url", "contact_email", "additional_origins", "api_roots_file", "certificate_roots_file", "http01_policy_file", "cleanup_timer"} {
+	required := []string{"version", "account_directory", "directory_url", "contact_email", "additional_origins", "api_roots_file", "certificate_roots_file"}
+	switch p.Version {
+	case 1:
+		if !cleanupTimerName.MatchString(p.CleanupTimer) || p.HTTPPolicyFile == "" {
+			return p, ErrGUIIssuer
+		}
+		required = append(required, "http01_policy_file", "cleanup_timer")
+	case 2:
+		if p.DNSMode != "manual" {
+			return p, ErrGUIIssuer
+		}
+		required = append(required, "dns01_mode")
+	default:
+		return p, ErrGUIIssuer
+	}
+	if len(fields) != len(required) {
+		return p, ErrGUIIssuer
+	}
+	for _, field := range required {
 		if _, ok := fields[field]; !ok {
 			return p, ErrGUIIssuer
 		}
-	}
-	if json.Unmarshal(data, &p) != nil || p.Version != 1 || p.AdditionalOrigins == nil || !cleanupTimerName.MatchString(p.CleanupTimer) {
-		return GUIIssuerPolicy{}, ErrGUIIssuer
 	}
 	for _, path := range []string{p.AccountDirectory, p.HTTPPolicyFile, p.APIRootsFile, p.CertificateRootsFile} {
 		if path != "" && (len(path) > 4096 || !filepath.IsAbs(path) || filepath.Clean(path) != path || strings.ContainsAny(path, "\x00\r\n")) {
 			return GUIIssuerPolicy{}, ErrGUIIssuer
 		}
 	}
-	if p.AccountDirectory == "" || p.HTTPPolicyFile == "" {
+	if p.AccountDirectory == "" {
 		return GUIIssuerPolicy{}, ErrGUIIssuer
 	}
 	if _, err := guiacme.NewAccountStore(p.AccountDirectory, guiacme.Config{DirectoryURL: p.DirectoryURL, ContactEmail: p.ContactEmail, AdditionalOrigins: p.AdditionalOrigins}); err != nil {

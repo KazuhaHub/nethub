@@ -36,16 +36,30 @@ type ChallengePublisher interface {
 	Remove(context.Context, string, string) error
 }
 
+type DNSAccount interface {
+	PrepareDNS01(context.Context, guiacme.Order, []byte, string) (guiacme.DNS01, error)
+	AcceptDNS01(context.Context, guiacme.DNS01, []byte, string) (guiacme.DNS01, error)
+}
+
+// DNSPublisher provisions or observes the exact TXT record. It may report
+// waiting without failing a job while publication propagates. Remove must
+// remove only this generation's exact value and be safe to repeat.
+type DNSPublisher interface {
+	PublishTXT(ctx context.Context, name, value, generation string, expires time.Time) (visible bool, err error)
+	RemoveTXT(ctx context.Context, name, value, generation string) error
+}
+
 // Coordinator advances a claimed job without initializing an account, signing
 // a device request or applying a certificate. Use a SQLStore with independently
 // protected domain policy and a pre-registered AccountStore. Static HTTP proofs
 // additionally require independent expiry cleanup before production enablement.
 type Coordinator struct {
-	Store     JobStore
-	Account   Account
-	Publisher ChallengePublisher
-	Roots     *x509.CertPool
-	Now       func() time.Time
+	Store        JobStore
+	Account      Account
+	Publisher    ChallengePublisher
+	DNSPublisher DNSPublisher
+	Roots        *x509.CertPool
+	Now          func() time.Time
 }
 
 type StepResult struct {
@@ -64,7 +78,11 @@ func (c *Coordinator) now() time.Time {
 // a new fenced claim; they never retry a stale lease or infer a successful save
 // from a remote side effect. State is progressed, waiting, issued or terminal.
 func (c *Coordinator) Step(ctx context.Context, original Snapshot) (StepResult, error) {
-	if c.Store == nil || c.Account == nil || c.Publisher == nil || c.Roots == nil || ctx.Err() != nil {
+	if c.Store == nil || c.Account == nil || (c.Publisher == nil) == (c.DNSPublisher == nil) || c.Roots == nil || ctx.Err() != nil {
+		return StepResult{}, ErrCoordinator
+	}
+	dnsAccount, supportsDNS := c.Account.(DNSAccount)
+	if c.DNSPublisher != nil && !supportsDNS {
 		return StepResult{}, ErrCoordinator
 	}
 	ctx, cancel := context.WithTimeout(ctx, 110*time.Second)
@@ -84,6 +102,17 @@ func (c *Coordinator) Step(ctx context.Context, original Snapshot) (StepResult, 
 	p, err := c.Store.Read(ctx, w)
 	if err != nil || p.Phase != "new" && p.validate(w, c.Account.AllowsURL) != nil {
 		return StepResult{}, ErrCoordinator
+	}
+	if p.Proof != nil && dnsProof(*p.Proof) != (c.DNSPublisher != nil) {
+		return StepResult{}, ErrCoordinator
+	}
+	accept := func() error {
+		if c.DNSPublisher != nil {
+			_, err := dnsAccount.AcceptDNS01(ctx, guiacme.DNS01(*p.Proof), w.CSR, w.PublicKey)
+			return err
+		}
+		_, err := c.Account.AcceptHTTP01(ctx, *p.Proof, w.CSR, w.PublicKey)
+		return err
 	}
 	save := func() error {
 		next, err := c.Store.Save(ctx, w, p)
@@ -113,7 +142,17 @@ func (c *Coordinator) Step(ctx context.Context, original Snapshot) (StepResult, 
 	retire := func() error {
 		if p.Proof != nil && !p.Retired {
 			// Exact-generation removal is safe to repeat after a lost save reply.
-			if fresh() != nil || c.Publisher.Remove(ctx, w.Host, p.Generation) != nil {
+			if fresh() != nil {
+				return ErrCoordinator
+			}
+			var err error
+			if c.DNSPublisher != nil {
+				name, value, _ := guiacme.DNS01(*p.Proof).Record()
+				err = c.DNSPublisher.RemoveTXT(ctx, name, value, p.Generation)
+			} else {
+				err = c.Publisher.Remove(ctx, w.Host, p.Generation)
+			}
+			if err != nil {
 				return ErrCoordinator
 			}
 			p.Retired = true
@@ -174,14 +213,23 @@ func (c *Coordinator) Step(ctx context.Context, original Snapshot) (StepResult, 
 			if fresh() != nil {
 				return StepResult{}, ErrCoordinator
 			}
-			proof, err := c.Account.PrepareHTTP01(ctx, order, w.CSR, w.PublicKey)
+			var proof guiacme.HTTP01
+			if c.DNSPublisher != nil {
+				dns, prepareErr := dnsAccount.PrepareDNS01(ctx, order, w.CSR, w.PublicKey)
+				proof, err = guiacme.HTTP01(dns), prepareErr
+			} else {
+				proof, err = c.Account.PrepareHTTP01(ctx, order, w.CSR, w.PublicKey)
+			}
 			if err != nil {
 				return failRemote(err)
 			}
 			if proof.Complete {
 				return release("waiting")
 			}
-			proof.ExpiresAt = minTime(proof.ExpiresAt, w.Lease.Deadline, c.now().Add(10*time.Minute)).UTC()
+			proof.ExpiresAt = minTime(proof.ExpiresAt, w.Lease.Deadline).UTC()
+			if c.DNSPublisher == nil {
+				proof.ExpiresAt = minTime(proof.ExpiresAt, c.now().Add(10*time.Minute)).UTC()
+			}
 			var generation [16]byte
 			if _, err := rand.Read(generation[:]); err != nil {
 				return StepResult{}, ErrCoordinator
@@ -198,13 +246,28 @@ func (c *Coordinator) Step(ctx context.Context, original Snapshot) (StepResult, 
 			}
 			return release("policy")
 		}
+		if c.DNSPublisher != nil {
+			// Confirm the record again after a crash or a lost acceptance reply.
+			if fresh() != nil {
+				return StepResult{}, ErrCoordinator
+			}
+			proof := guiacme.DNS01(*p.Proof)
+			name, value, _ := proof.Record()
+			visible, err := c.DNSPublisher.PublishTXT(ctx, name, value, p.Generation, proof.ExpiresAt)
+			if err != nil {
+				return release("transient")
+			}
+			if !visible {
+				return release("waiting")
+			}
+		}
 		switch p.Phase {
 		case "proof_saved":
 			if fresh() != nil {
 				return StepResult{}, ErrCoordinator
 			}
 			proof := p.Proof
-			if c.Publisher.Publish(ctx, http01.Publication{Host: w.Host, Generation: p.Generation, Token: proof.Token, KeyAuthorization: proof.KeyAuthorization, ExpiresAt: proof.ExpiresAt}) != nil {
+			if c.DNSPublisher == nil && c.Publisher.Publish(ctx, http01.Publication{Host: w.Host, Generation: p.Generation, Token: proof.Token, KeyAuthorization: proof.KeyAuthorization, ExpiresAt: proof.ExpiresAt}) != nil {
 				return StepResult{}, ErrCoordinator
 			}
 			p.Phase = "proof_live"
@@ -219,7 +282,7 @@ func (c *Coordinator) Step(ctx context.Context, original Snapshot) (StepResult, 
 			if save() != nil || fresh() != nil {
 				return StepResult{}, ErrCoordinator
 			}
-			if _, err := c.Account.AcceptHTTP01(ctx, *p.Proof, w.CSR, w.PublicKey); err != nil {
+			if err := accept(); err != nil {
 				return failRemote(err)
 			}
 			return result("progressed")
@@ -230,7 +293,7 @@ func (c *Coordinator) Step(ctx context.Context, original Snapshot) (StepResult, 
 			if fresh() != nil {
 				return StepResult{}, ErrCoordinator
 			}
-			if _, err := c.Account.AcceptHTTP01(ctx, *p.Proof, w.CSR, w.PublicKey); err != nil {
+			if err := accept(); err != nil {
 				return failRemote(err)
 			}
 			return release("waiting")

@@ -45,23 +45,27 @@ func RunGUIAccount(ctx context.Context, o GUIAccountOptions) (GUIAccountResult, 
 	if err != nil {
 		return GUIAccountResult{}, ErrGUIAccount
 	}
-	// Read policy only, without acquiring or mutating the publisher namespace.
-	data, err = rootGUIFile(policy.HTTPPolicyFile, 20000, true)
-	if err != nil {
-		return GUIAccountResult{}, ErrGUIAccount
-	}
-	fields, err := boundedjson.Object(bytes.NewReader(data))
-	if err != nil || len(fields) != 5 {
-		return GUIAccountResult{}, ErrGUIAccount
-	}
-	for _, name := range []string{"version", "public_directory", "state_directory", "device_domain", "excluded_hosts"} {
-		if _, ok := fields[name]; !ok {
+	protectedRoots := []string{directory}
+	if policy.DNSMode == "" {
+		// Read policy only, without acquiring or mutating the publisher namespace.
+		data, err = rootGUIFile(policy.HTTPPolicyFile, 20000, true)
+		if err != nil {
 			return GUIAccountResult{}, ErrGUIAccount
 		}
-	}
-	var publication http01.FileConfig
-	if json.Unmarshal(data, &publication) != nil || publication.Version != 1 || publication.ExcludedHosts == nil || publication.DeviceDomain != manifest.Config.DeviceDomain {
-		return GUIAccountResult{}, ErrGUIAccount
+		fields, err := boundedjson.Object(bytes.NewReader(data))
+		if err != nil || len(fields) != 5 {
+			return GUIAccountResult{}, ErrGUIAccount
+		}
+		for _, name := range []string{"version", "public_directory", "state_directory", "device_domain", "excluded_hosts"} {
+			if _, ok := fields[name]; !ok {
+				return GUIAccountResult{}, ErrGUIAccount
+			}
+		}
+		var publication http01.FileConfig
+		if json.Unmarshal(data, &publication) != nil || publication.Version != 1 || publication.ExcludedHosts == nil || publication.DeviceDomain != manifest.Config.DeviceDomain {
+			return GUIAccountResult{}, ErrGUIAccount
+		}
+		protectedRoots = append(protectedRoots, publication.PublicDirectory, publication.StateDirectory)
 	}
 	for _, path := range []string{policy.AccountDirectory, o.BackupDirectory} {
 		if path == "" {
@@ -70,7 +74,7 @@ func RunGUIAccount(ctx context.Context, o GUIAccountOptions) (GUIAccountResult, 
 		if !filepath.IsAbs(path) || filepath.Clean(path) != path || len(path) > 4096 {
 			return GUIAccountResult{}, ErrGUIAccount
 		}
-		for _, root := range []string{directory, publication.PublicDirectory, publication.StateDirectory} {
+		for _, root := range protectedRoots {
 			if !filepath.IsAbs(root) || filepath.Clean(root) != root || pathsOverlap(root, path) {
 				return GUIAccountResult{}, ErrGUIAccount
 			}
