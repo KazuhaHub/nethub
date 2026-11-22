@@ -174,7 +174,7 @@ def _exercise(guest, stage, evidence, nonce, device, port, sql, request,
 
     try:
         baseline, gui = probe(), gui_read()
-        if (baseline['package_version'] != '0.0.23' or baseline['profile'] != [1, 3]
+        if (baseline['package_version'] != '2026.47' or baseline['profile'] != [1, 3]
                 or any(baseline['markers'].values()) or not baseline['running'] or not baseline['control_sha256']):
             raise GuestError('Clean current installed process and control required')
         if action('pending') != {'device_id': device, 'events': []}:
