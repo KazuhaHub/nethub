@@ -1,0 +1,58 @@
+name: Build weekly OPNsense candidate
+on:
+  push:
+    branches: [build/stable-weekly-package-2026.47]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        output: [candidate, independent-frpc]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 4e44a7b5ca31c390970c44d7ad2566ade473b6f5
+          persist-credentials: false
+      - uses: vmactions/freebsd-vm@811efaaac0668df8bfb8308c3ec997b5ab50037b
+        with:
+          release: "15.1"
+          arch: x86_64
+          mem: "2048"
+          cpu: "2"
+          sync: rsync
+          copyback: "true"
+          disable-cache: "true"
+          debug-on-error: "false"
+          prepare: |
+            set -eu
+            env ASSUME_ALWAYS_YES=yes pkg install -y python313
+          run: |
+            set -eu
+            umask 077
+            test "$(pkg config ABI)" = FreeBSD:15:amd64
+            sdk=$(mktemp -d)
+            trap 'rm -rf "$sdk"' EXIT
+            fetch -qo "$sdk/go.tar.gz" https://go.dev/dl/go1.26.11.freebsd-amd64.tar.gz
+            test "$(sha256 -q "$sdk/go.tar.gz")" = 4e04c98d485bc363da3e0ef5c3d99eb0e2432bd3481680007296ef4fd99ee6da
+            tar -xzf "$sdk/go.tar.gz" -C "$sdk"
+            export PATH="$sdk/go/bin:/usr/local/sbin:/usr/local/bin:$PATH"
+            mkdir native-output
+            if [ '${{ matrix.output }}' = candidate ]; then
+              sh agents/opnsense/plugin/build.sh
+              cp agents/opnsense/plugin/dist/os-nethub-agent.pkg native-output/os-nethub-agent-2026.47.pkg
+            else
+              mkdir "$sdk/generated"
+              python3.13 agents/opnsense/plugin/frpc_source.py --output "$sdk/generated/frpc"
+              cp agents/opnsense/plugin/FRP_VERSION "$sdk/generated/FRP_VERSION"
+              tar -czf native-output/frpc-generated.tar.gz -C "$sdk/generated" .
+            fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: weekly-2026.47-${{ matrix.output }}
+          path: native-output/
+          if-no-files-found: error
+          retention-days: 7
