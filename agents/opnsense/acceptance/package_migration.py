@@ -14,10 +14,10 @@ from package_probe import HASHES, validate as validate_probe
 
 ROOT = Path(__file__).resolve().parents[3]
 BASELINE = 'c9e74abb1fb1c060ab32ee880d20f32d8d7a653b'
-VERSIONS = ('0.0.18', '0.0.23')
-PROFILES = {'0.0.18': [10, 30], '0.0.23': [1, 3]}
+VERSIONS = ('0.0.18', '2026.47')
+PROFILES = {'0.0.18': [10, 30], '2026.47': [1, 3]}
 GUEST_PACKAGES = {'0.0.18': '/root/nethub-ci/package-baseline/source/agents/opnsense/plugin/dist/os-nethub-agent.pkg',
-                  '0.0.23': '/root/nethub-ci/source/agents/opnsense/plugin/dist/os-nethub-agent.pkg'}
+                  '2026.47': '/root/nethub-ci/source/agents/opnsense/plugin/dist/os-nethub-agent.pkg'}
 PHASES = ('baseline', 'widen', 'offline_rollback', 'rollback', 'legacy_recovered', 'legacy_steady',
           'offline_upgrade', 'upgrade', 'current_recovered', 'current_steady', 'completed')
 FLAGS = ('identity_GUI_trust_and_runtime_preserved', 'source_grants_unchanged',
@@ -27,7 +27,7 @@ FLAGS = ('identity_GUI_trust_and_runtime_preserved', 'source_grants_unchanged',
 LIMITS = ('manual_agent_start_or_reconcile', 'arbitrary_network_loss_accepted',
           'public_network_or_formal_package_accepted', 'full_W5_acceptance')
 PHASE_VERSIONS = {name: ('0.0.18' if name in ('rollback', 'legacy_recovered', 'legacy_steady', 'offline_upgrade')
-                         else '0.0.23') for name in PHASES[:-1]}
+                         else '2026.47') for name in PHASES[:-1]}
 OUTAGE_PHASES = ('offline_rollback', 'offline_upgrade')
 OUTAGE_FLAGS = ('relay_running', 'native_control_present', 'native_route_verified', 'witness_route_verified')
 INVARIANTS = HASHES + ('lifecycle_markers', 'gui_readback', 'witness_process')
@@ -225,7 +225,7 @@ def _exercise(guest, stage, compose, evidence, nonce, packages, native_read, rou
     before = probe()
     assignment = native_read('native-package-before-private.json')
     gui = gui_read()
-    if before['package_version'] != '0.0.23' or before['profile'] != [1, 3] or any(before['markers'].values()):
+    if before['package_version'] != '2026.47' or before['profile'] != [1, 3] or any(before['markers'].values()):
         raise GuestError('Clean current native package baseline required')
 
     def invariants(value):
@@ -394,7 +394,7 @@ def _exercise(guest, stage, compose, evidence, nonce, packages, native_read, rou
         online(30, 'legacy_recovered', legacy)
         steady('legacy_steady', 35)
         offline('offline_upgrade')
-        current = install('0.0.23', 'upgrade')
+        current = install('2026.47', 'upgrade')
         online(3, 'current_recovered', current)
         steady('current_steady', 10)
         if config.read_bytes() != original or not service('frps')['running']:

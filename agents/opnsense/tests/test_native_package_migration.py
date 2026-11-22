@@ -28,7 +28,7 @@ def hashed(value):
 
 def packages():
     return {'baseline_source': MIGRATION.BASELINE, 'baseline_source_archive_sha256': 'a' * 64,
-            'package_sha256': {'0.0.18': 'b' * 64, '0.0.23': 'c' * 64}, 'formal_release': False}
+            'package_sha256': {'0.0.18': 'b' * 64, '2026.47': 'c' * 64}, 'formal_release': False}
 
 
 @pytest.mark.parametrize('phase', PROBE.BOUNDARY_PHASES)
@@ -106,7 +106,7 @@ class Clock:
 class Guest:
     def __init__(self, context, *, lost_install=False, changed_model=False):
         self.context = context
-        self.version = '0.0.23'
+        self.version = '2026.47'
         self.pid = 123
         self.installations = []
         self.lost_install = lost_install
@@ -209,7 +209,7 @@ def test_real_phase_engine_preserves_order_and_restores_current_profile(tmp_path
     arguments, context, guest, config, original, evidence = setup(tmp_path, monkeypatch)
     result = MIGRATION._exercise(*arguments)
     MIGRATION.validate(result)
-    assert result['passed'] is True and guest.installations == ['0.0.18', '0.0.23']
+    assert result['passed'] is True and guest.installations == ['0.0.18', '2026.47']
     assert context['online'] is True and config.read_bytes() == original
     assert [row['phase'] for row in result['steps']] == list(MIGRATION.PHASES[:-1])
     assert json.loads((evidence / 'installed-package-migration.json').read_text()) == result
@@ -225,7 +225,7 @@ def test_outage_observes_guest_tcp_settlement_without_replaying_mutations(tmp_pa
     assert outage['last']['native_control_present'] is False
     assert outage['last']['elapsed_ms'] > outage['first']['elapsed_ms']
     assert outage['budget_ms'] == 13000 and legacy['budget_ms'] == 40000
-    assert guest.installations == ['0.0.18', '0.0.23']
+    assert guest.installations == ['0.0.18', '2026.47']
     assert context['calls'].count('stop') == 3
 
 
@@ -285,7 +285,7 @@ def test_known_fingerprint_failure_is_saved_without_another_GUI_inspection(tmp_p
     assert report['passed'] is False and guest.installations == ['0.0.18']
 
 
-@pytest.mark.parametrize('phase,version', [('rollback', '0.0.18'), ('upgrade', '0.0.23')])
+@pytest.mark.parametrize('phase,version', [('rollback', '0.0.18'), ('upgrade', '2026.47')])
 @pytest.mark.parametrize('category', MIGRATION.INVARIANTS)
 def test_invariant_diagnosis_is_closed_and_keeps_failed_install_terminal(tmp_path, monkeypatch, phase, version, category):
     arguments, context, guest, config, original, evidence = setup(tmp_path, monkeypatch)
@@ -316,7 +316,7 @@ def test_invariant_diagnosis_is_closed_and_keeps_failed_install_terminal(tmp_pat
     MIGRATION.validate(result)
     assert result['invariant_failures'] == [category]
     assert result['phase'] == phase and result['passed'] is False
-    assert guest.installations == (['0.0.18'] if phase == 'rollback' else ['0.0.18', '0.0.23'])
+    assert guest.installations == (['0.0.18'] if phase == 'rollback' else ['0.0.18', '2026.47'])
     assert context['online'] is False and result['cleanup_stopped_failed_relay'] is True
     assert config.read_bytes() == original
     assert 'must-not-be-published' not in raw + str(error.value)
@@ -338,7 +338,7 @@ def test_report_rejects_missing_rollback_short_windows_and_public_claims(tmp_pat
         changed['invariant_failures'] = diagnosis
         cases.append(changed)
     changed = copy.deepcopy(valid)
-    changed['steps'][3]['package_version'] = '0.0.23'
+    changed['steps'][3]['package_version'] = '2026.47'
     changed['steps'][3]['profile'] = [1, 3]
     cases.append(changed)
     changed = copy.deepcopy(valid)
