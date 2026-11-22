@@ -83,3 +83,20 @@ from its presence here. The final release still needs a real NetHub tag/archive
 and SHA256, candidate/native verification, registry integration, signing,
 publication, a small canary, and rollback/bad-canary evidence. Signing keys and
 account credentials must be supplied by their operator, never stored here.
+
+## Stable release numbering
+
+NetHub stable releases use UTC ISO week-year and week. The first release of
+a week uses `YYYY.W`, with an unpadded week and no `.0` suffix. Further
+releases in that week use `YYYY.W.1`, `YYYY.W.2`, and so on. For example,
+`2026.47` is followed by `2026.47.1` if there is another release that week.
+
+Git tags add a leading `v`. The Docker and OPNsense package versions use the
+same number without that prefix. Existing Beta tags and the device protocol
+version retain their own numbering.
+
+Run **Prepare weekly release** from `main` to create the source update for
+the next release. The workflow reads published Git tags, allocates the
+number and returns a patch and its base commit. The candidate still needs
+to pass the release checks before the tag, archives and signed package are
+published.
