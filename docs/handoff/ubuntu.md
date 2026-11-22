@@ -169,7 +169,7 @@ Use disposable Ubuntu and OPNsense VMs for isolated deployment and package
 acceptance. Record the exact source and package used. Test the public identity
 provider against the live Beta deployment after launch.
 
-For the mobile/signed-package acceptance, use normal console **Open**, actual
-router login and a masked recording. For the independent-deployer requirement,
-the recipient must use their own server/device and report documentation gaps.
-The prior W0 phone feedback does not close these W5/W7 requirements.
+For mobile acceptance, one cellular carrier is sufficient. Use normal console
+**Open**, sign into the router and verify dashboard refresh. Record the package
+and network path. The independent deployer uses their own server and device
+and reports documentation gaps.
