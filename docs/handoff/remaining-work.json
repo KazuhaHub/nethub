@@ -6,9 +6,9 @@
   "requirements": [
     {
       "id": "W5-1/mobile",
-      "status": "pending",
-      "evidence_scope": "The operator opened the Beta login page over cellular with Tailscale connected and later confirmed sign-in. A 30-minute source-bound Open grant was recorded. The signed 0.0.23 device applied a publicly trusted DNS-01 certificate, and the developer host verified authenticated GUI access and refresh. The operator confirmed mobile GUI login and refresh on the same Tailscale-connected cellular session. A masked recording and independent mobile certificate validation are still outstanding.",
-      "next_action": "Use a real mobile network for normal console Open, router login, refresh and a masked recording; record source and package scope."
+      "status": "scoped-success",
+      "evidence_scope": "On one cellular carrier with Tailscale connected, the operator confirmed Beta sign-in, native OPNsense GUI login and dashboard refresh. A read-only check confirmed a 30-minute Open grant bound to the test source. The appliance ran signed package 0.0.23. System certificate trust was verified separately from the developer host.",
+      "next_action": "Retain this result as the mobile acceptance record for the tested private Beta deployment."
     },
     {
       "id": "W5-2/local-breaker",

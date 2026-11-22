@@ -54,8 +54,8 @@ The operator confirmed the Beta login page opened on a phone using cellular
 data with Tailscale connected. The operator later confirmed Beta sign-in, and a read-only database check
 verified that the temporary test account received a 30-minute Open grant
 bound to its Tailscale source. The operator confirmed router login and
-dashboard refresh from the phone. The mobile evidence is an operator report.
-A masked recording and independent mobile certificate validation remain open.
+dashboard refresh from the phone. The owner accepted one carrier and the
+operator report for this mobile acceptance. The connection used Tailscale.
 
 The Beta deployment repaired an integrity mismatch caused by an earlier
 loopback relay hook port change. The live manifest now points to a successor
