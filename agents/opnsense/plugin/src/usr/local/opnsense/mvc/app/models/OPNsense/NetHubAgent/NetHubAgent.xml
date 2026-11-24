@@ -1,6 +1,6 @@
 <model>
     <mount>//OPNsense/NetHubAgent</mount>
-    <version>2026.47</version>
+    <version>2026.48</version>
     <description>NetHub Agent settings</description>
     <items>
         <enabled type="BooleanField">
