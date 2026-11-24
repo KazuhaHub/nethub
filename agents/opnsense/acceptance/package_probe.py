@@ -41,7 +41,7 @@ def canonical(node):
 
 def validate(value):
     if (not isinstance(value, dict) or set(value) != FIELDS or type(value['version']) is not int
-            or value['version'] != 1 or value['package_version'] not in ('0.0.18', '2026.47')
+            or value['version'] != 1 or value['package_version'] not in ('0.0.18', '2026.48')
             or not isinstance(value['profile'], list) or len(value['profile']) != 2
             or any(type(number) is not int for number in value['profile'])
             or value['profile'] not in ([10, 30], [1, 3])
