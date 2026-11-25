@@ -6,6 +6,31 @@ continuation's later results come first; the handoff sections follow unchanged. 
 were terminal when reviewed. The numeric `source71`/`source72` directory names
 are evidence labels, not release versions.
 
+## NetHub 2026.48 source and package release
+
+The automatically allocated UTC week version [2026.48][stable-release]
+was published from candidate `d347c52`. Its tree matches merge commit
+`202e791` from PR #301. Five workflows passed on their first attempt
+against the candidate: CI (45304826889), native appliance preparation
+(45304826776), native filesystem contracts (45304826907), protected host
+cold recovery (45304826863), and installed native rotation (45304826740).
+Installed-device Revoke reached proxy offline in 1,849 ms.
+
+The separate FreeBSD build (45304845312) produced the candidate package and
+independently built frpc outputs. The package verifier compared 101 files
+and four lifecycle hooks. OPNsense-repo PR #67 registered the reviewed
+source, build record and package digests. The public [primary repository][primary-feed] and [legacy mirror][legacy-feed] both served the same
+reviewed package, with the signed release report and catalogs verified
+against the existing trust anchor.
+
+These results cover the source and signed package release and the scoped
+hosted trials. Production cutover, public IdP acceptance, and an
+independent operator deployment remain open.
+
+[stable-release]: https://github.com/KazuhaHub/nethub/releases/tag/v2026.48
+[primary-feed]: https://kazuhahub.github.io/OPNsense-repo/
+[legacy-feed]: https://kkazuhak.github.io/OPNsense-repo/
+
 ## Beta 3 private deployment acceptance
 
 The signed appliance package 0.0.23 from source `f5151a8` installed on
